@@ -6,7 +6,6 @@ import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
-import { mockUsers } from "@/data/mock-users";
 import { mockResultsLastYear } from "@/data/mock-results";
 import { BarChart } from "@/components/charts/bar-chart";
 import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
@@ -107,6 +106,7 @@ export default function ComparaisonPage() {
   const myResults = useResults();
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const users = useAppStore((s) => s.users);
 
   const otherResults =
     mode === "advisor"
@@ -120,7 +120,7 @@ export default function ComparaisonPage() {
 
   const otherRatios = useMemo(() => {
     if (mode === "advisor" && otherResults) {
-      const otherUser = mockUsers.find((u) => u.id === selectedAdvisorId);
+      const otherUser = users.find((u) => u.id === selectedAdvisorId);
       const otherCat = otherUser?.category ?? "confirme";
       return computeAllRatios(otherResults, otherCat, ratioConfigs);
     }
@@ -129,7 +129,7 @@ export default function ComparaisonPage() {
       return computeAllRatios(myResults, selectedProfile, ratioConfigs);
     }
     return [];
-  }, [mode, otherResults, myResults, selectedAdvisorId, selectedProfile, ratioConfigs]);
+  }, [mode, otherResults, myResults, selectedAdvisorId, selectedProfile, ratioConfigs, users]);
 
   const comparisonData = myRatios.map((r, idx) => {
     const config = ratioConfigs[r.ratioId as RatioId];
@@ -191,7 +191,7 @@ export default function ComparaisonPage() {
   const stablePerf = temporalData.filter((d) => d.indicator.label === "Performance stable");
   const sousPerf = temporalData.filter((d) => d.indicator.label === "Sous-performance");
 
-  const otherUsers = mockUsers.filter(
+  const otherUsers = users.filter(
     (u) => u.id !== user?.id && u.role === "conseiller"
   );
 

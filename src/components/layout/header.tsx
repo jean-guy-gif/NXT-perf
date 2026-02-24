@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { computeNotifications } from "@/lib/notifications";
-import { mockUsers } from "@/data/mock-users";
+import { AddAgentModal } from "@/components/manager/add-agent-modal";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Tableau de bord",
@@ -28,16 +28,18 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAppStore((s) => s.user);
+  const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
   const removedItems = useAppStore((s) => s.removedItems);
   const switchRole = useAppStore((s) => s.switchRole);
   const [isDark, setIsDark] = useState(true);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const notifications = useMemo(
-    () => computeNotifications(user, results, removedItems, mockUsers),
-    [user, results, removedItems]
+    () => computeNotifications(user, results, removedItems, users),
+    [user, results, removedItems, users]
   );
 
   // Close dropdown on click outside
@@ -110,9 +112,15 @@ export function Header() {
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-nxt text-primary-foreground transition-colors hover:opacity-90">
-          <Plus className="h-4 w-4" />
-        </button>
+        {user?.role === "manager" && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            title="Ajouter un conseiller"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-nxt text-primary-foreground transition-colors hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
 
         {/* Notifications bell + dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -194,6 +202,12 @@ export function Header() {
           {initials}
         </button>
       </div>
+      {showAddModal && user && (
+        <AddAgentModal
+          onClose={() => setShowAddModal(false)}
+          managerTeamId={user.teamId}
+        />
+      )}
     </header>
   );
 }

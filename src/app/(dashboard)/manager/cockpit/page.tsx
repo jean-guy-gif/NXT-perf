@@ -23,7 +23,6 @@ import { mockMonthlyCA } from "@/data/mock-results";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
-import { mockUsers } from "@/data/mock-users";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
 
@@ -64,7 +63,8 @@ export default function CockpitPage() {
   const stats = mockTeamStats;
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
-  const conseillers = mockUsers.filter((u) => u.role === "conseiller");
+  const users = useAppStore((s) => s.users);
+  const conseillers = users.filter((u) => u.role === "conseiller");
 
   /* ── Period state ── */
   const [periodMode, setPeriodMode] = useState<PeriodMode>("mois");

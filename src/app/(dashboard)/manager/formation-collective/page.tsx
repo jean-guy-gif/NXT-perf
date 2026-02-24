@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { mockUsers } from "@/data/mock-users";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { generateFormationDiagnostic } from "@/lib/formation";
@@ -16,7 +15,8 @@ import type { RatioId } from "@/types/ratios";
 export default function FormationCollectivePage() {
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
-  const conseillers = mockUsers.filter((u) => u.role === "conseiller");
+  const users = useAppStore((s) => s.users);
+  const conseillers = users.filter((u) => u.role === "conseiller");
 
   const teamAnalysis = useMemo(() => {
     const diagnosticsByUser: { userId: string; userName: string; diag: ReturnType<typeof generateFormationDiagnostic> }[] = [];

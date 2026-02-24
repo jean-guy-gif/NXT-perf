@@ -20,6 +20,7 @@ export interface RemovedItem {
 interface AppState {
   user: User | null;
   isAuthenticated: boolean;
+  users: User[];
   results: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
   removedItems: RemovedItem[];
@@ -27,6 +28,8 @@ interface AppState {
   logout: () => void;
   setUser: (user: User) => void;
   switchRole: () => void;
+  addUser: (user: User) => void;
+  removeUser: (userId: string) => void;
   addResults: (result: PeriodResults) => void;
   removeInfoVente: (resultId: string, itemId: string, reason: RemovalReason) => void;
   removeAcheteurChaud: (resultId: string, itemId: string, reason: RemovalReason) => void;
@@ -42,6 +45,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   user: mockCurrentUser,
   isAuthenticated: true,
+  users: mockUsers,
   results: mockResults,
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
   removedItems: [],
@@ -60,10 +64,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     const current = get().user;
     if (!current) return;
     const isManager = current.role === "manager";
+    const users = get().users;
     const newUser = isManager
-      ? mockUsers.find((u) => u.role === "conseiller") ?? current
-      : mockUsers.find((u) => u.role === "manager") ?? current;
+      ? users.find((u) => u.role === "conseiller") ?? current
+      : users.find((u) => u.role === "manager") ?? current;
     set({ user: newUser });
+  },
+
+  addUser: (user) => {
+    set((state) => ({ users: [...state.users, user] }));
+  },
+
+  removeUser: (userId) => {
+    set((state) => ({
+      users: state.users.filter((u) => u.id !== userId),
+      results: state.results.filter((r) => r.userId !== userId),
+    }));
   },
 
   addResults: (result) => {

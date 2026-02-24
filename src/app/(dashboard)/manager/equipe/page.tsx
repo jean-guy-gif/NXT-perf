@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { mockUsers } from "@/data/mock-users";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
@@ -12,17 +11,20 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import type { RatioConfig, RatioId, ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
-import { Users as UsersIcon } from "lucide-react";
+import { Users as UsersIcon, Trash2 } from "lucide-react";
 
 type ViewMode = "individual" | "collective";
 
 export default function EquipePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("collective");
   const [selectedUserId, setSelectedUserId] = useState<string>("u1");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const removeUser = useAppStore((s) => s.removeUser);
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const users = useAppStore((s) => s.users);
 
-  const conseillers = mockUsers.filter((u) => u.role === "conseiller");
+  const conseillers = users.filter((u) => u.role === "conseiller");
   const selectedUser = conseillers.find((u) => u.id === selectedUserId);
   const selectedResults = allResults.find((r) => r.userId === selectedUserId);
   const selectedRatios =
@@ -115,13 +117,42 @@ export default function EquipePage() {
                       </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">CA</p>
-                    <p className="font-bold text-foreground">
-                      {results
-                        ? formatCurrency(results.ventes.chiffreAffaires)
-                        : "N/A"}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">CA</p>
+                      <p className="font-bold text-foreground">
+                        {results
+                          ? formatCurrency(results.ventes.chiffreAffaires)
+                          : "N/A"}
+                      </p>
+                    </div>
+                    {confirmDeleteId === user.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            removeUser(user.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90"
+                        >
+                          Confirmer
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(user.id)}
+                        title="Supprimer ce conseiller"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <ProgressBar
