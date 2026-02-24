@@ -26,7 +26,9 @@ export default function EquipePage() {
   const users = useAppStore((s) => s.users);
   const currentUser = useAppStore((s) => s.user);
 
-  const conseillers = users.filter((u) => u.role === "conseiller");
+  const conseillers = users.filter(
+    (u) => u.role === "conseiller" && currentUser && u.teamId === currentUser.teamId
+  );
   const selectedUser = conseillers.find((u) => u.id === selectedUserId);
   const selectedResults = allResults.find((r) => r.userId === selectedUserId);
   const selectedRatios =

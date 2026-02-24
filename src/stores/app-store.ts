@@ -46,8 +46,8 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  user: mockCurrentUser,
-  isAuthenticated: true,
+  user: null,
+  isAuthenticated: false,
   users: mockUsers,
   results: mockResults,
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),

@@ -1,14 +1,28 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
+import { useAppStore } from "@/stores/app-store";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace("/welcome");
+    }
+  }, [isAuthenticated, router]);
+
+  if (!isAuthenticated) return null;
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <aside className="hidden lg:flex lg:w-[72px] lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
