@@ -11,7 +11,7 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import type { RatioConfig, RatioId, ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
-import { Users as UsersIcon, Trash2 } from "lucide-react";
+import { Users as UsersIcon, Trash2, Copy, Check } from "lucide-react";
 
 type ViewMode = "individual" | "collective";
 
@@ -19,10 +19,12 @@ export default function EquipePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("collective");
   const [selectedUserId, setSelectedUserId] = useState<string>("u1");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const removeUser = useAppStore((s) => s.removeUser);
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const users = useAppStore((s) => s.users);
+  const currentUser = useAppStore((s) => s.user);
 
   const conseillers = users.filter((u) => u.role === "conseiller");
   const selectedUser = conseillers.find((u) => u.id === selectedUserId);
@@ -36,9 +38,41 @@ export default function EquipePage() {
         )
       : [];
 
+  const invitationCode = currentUser ? `INV-${currentUser.id}` : "";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(invitationCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Équipe</h1>
+
+      {/* Code d'invitation */}
+      <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            Code d&apos;invitation pour vos conseillers
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Partagez ce code pour qu&apos;ils rejoignent votre équipe à l&apos;inscription
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <code className="rounded-lg bg-background px-4 py-2 text-sm font-bold text-primary">
+            {invitationCode}
+          </code>
+          <button
+            onClick={handleCopy}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Copier le code"
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
 
       {/* View Toggle */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">
