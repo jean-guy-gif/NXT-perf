@@ -9,11 +9,12 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 interface AddAgentModalProps {
   onClose: () => void;
   managerTeamId: string;
+  managerId: string;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function AddAgentModal({ onClose, managerTeamId }: AddAgentModalProps) {
+export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentModalProps) {
   const addUser = useAppStore((s) => s.addUser);
 
   const [firstName, setFirstName] = useState("");
@@ -47,6 +48,7 @@ export function AddAgentModal({ onClose, managerTeamId }: AddAgentModalProps) {
       role: "conseiller",
       category,
       teamId: managerTeamId,
+      managerId,
       createdAt: new Date().toISOString(),
     });
 

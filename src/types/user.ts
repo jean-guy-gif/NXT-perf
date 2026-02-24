@@ -9,6 +9,7 @@ export interface User {
   role: UserRole;
   category: UserCategory;
   teamId: string;
+  managerId?: string;
   avatarUrl?: string;
   createdAt: string;
 }

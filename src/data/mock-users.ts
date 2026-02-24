@@ -9,6 +9,7 @@ export const mockUsers: User[] = [
     role: "conseiller",
     category: "confirme",
     teamId: "team1",
+    managerId: "m1",
     createdAt: "2024-01-15T00:00:00Z",
   },
   {
@@ -19,6 +20,7 @@ export const mockUsers: User[] = [
     role: "conseiller",
     category: "expert",
     teamId: "team1",
+    managerId: "m1",
     createdAt: "2023-06-01T00:00:00Z",
   },
   {
@@ -29,6 +31,7 @@ export const mockUsers: User[] = [
     role: "conseiller",
     category: "debutant",
     teamId: "team1",
+    managerId: "m1",
     createdAt: "2025-03-10T00:00:00Z",
   },
   {
@@ -39,6 +42,7 @@ export const mockUsers: User[] = [
     role: "conseiller",
     category: "confirme",
     teamId: "team1",
+    managerId: "m1",
     createdAt: "2024-05-20T00:00:00Z",
   },
   {

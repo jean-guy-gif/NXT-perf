@@ -8,13 +8,19 @@ import { useAppStore } from "@/stores/app-store";
 export default function LoginPage() {
   const [email, setEmail] = useState("jean.dupont@antigravity.fr");
   const [password, setPassword] = useState("password");
+  const [error, setError] = useState("");
   const login = useAppStore((s) => s.login);
   const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, password);
-    router.push("/dashboard");
+    setError("");
+    const success = login(email, password);
+    if (success) {
+      router.push("/dashboard");
+    } else {
+      setError("Aucun compte trouvé avec cet email.");
+    }
   };
 
   return (
@@ -56,6 +62,12 @@ export default function LoginPage() {
             required
           />
         </div>
+
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

@@ -206,6 +206,7 @@ export function Header() {
         <AddAgentModal
           onClose={() => setShowAddModal(false)}
           managerTeamId={user.teamId}
+          managerId={user.id}
         />
       )}
     </header>

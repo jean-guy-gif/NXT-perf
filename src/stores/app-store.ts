@@ -24,12 +24,15 @@ interface AppState {
   results: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
   removedItems: RemovedItem[];
-  login: (email: string, password: string) => void;
+  login: (email: string, password: string) => boolean;
   logout: () => void;
+  register: (user: User) => void;
   setUser: (user: User) => void;
   switchRole: () => void;
   addUser: (user: User) => void;
   removeUser: (userId: string) => void;
+  assignAgent: (agentId: string, managerId: string) => void;
+  unassignAgent: (agentId: string) => void;
   addResults: (result: PeriodResults) => void;
   removeInfoVente: (resultId: string, itemId: string, reason: RemovalReason) => void;
   removeAcheteurChaud: (resultId: string, itemId: string, reason: RemovalReason) => void;
@@ -50,12 +53,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
   removedItems: [],
 
-  login: (_email, _password) => {
-    set({ user: mockCurrentUser, isAuthenticated: true });
+  login: (email, _password) => {
+    const found = get().users.find((u) => u.email === email);
+    if (found) {
+      set({ user: found, isAuthenticated: true });
+      return true;
+    }
+    return false;
   },
 
   logout: () => {
     set({ user: null, isAuthenticated: false });
+  },
+
+  register: (user) => {
+    set((state) => ({
+      users: [...state.users, user],
+      user,
+      isAuthenticated: true,
+    }));
   },
 
   setUser: (user) => set({ user }),
@@ -79,6 +95,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       users: state.users.filter((u) => u.id !== userId),
       results: state.results.filter((r) => r.userId !== userId),
+    }));
+  },
+
+  assignAgent: (agentId, managerId) => {
+    const manager = get().users.find((u) => u.id === managerId);
+    if (!manager) return;
+    set((state) => ({
+      users: state.users.map((u) =>
+        u.id === agentId ? { ...u, managerId, teamId: manager.teamId } : u
+      ),
+    }));
+  },
+
+  unassignAgent: (agentId) => {
+    set((state) => ({
+      users: state.users.map((u) =>
+        u.id === agentId ? { ...u, managerId: undefined } : u
+      ),
     }));
   },
 
