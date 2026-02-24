@@ -10,6 +10,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
 import { BookOpen, Dumbbell, ExternalLink, User } from "lucide-react";
+import { NXT_COLORS } from "@/lib/constants";
 import type { RatioId } from "@/types/ratios";
 
 export default function FormationCollectivePage() {
@@ -206,7 +207,7 @@ export default function FormationCollectivePage() {
           bars={[
             {
               dataKey: "Perf Moyenne",
-              color: "#22c55e",
+              color: NXT_COLORS.green,
               name: "Perf Moyenne (%)",
             },
           ]}

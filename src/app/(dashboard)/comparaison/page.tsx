@@ -9,7 +9,7 @@ import { useAppStore } from "@/stores/app-store";
 import { mockUsers } from "@/data/mock-users";
 import { mockResultsLastYear } from "@/data/mock-results";
 import { BarChart } from "@/components/charts/bar-chart";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
 import type { UserCategory } from "@/types/user";
 import type { RatioId } from "@/types/ratios";
 
@@ -313,8 +313,8 @@ export default function ComparaisonPage() {
               data={comparisonData}
               xKey="name"
               bars={[
-                { dataKey: "Moi", color: "#22c55e", name: "Moi" },
-                { dataKey: "Autre", color: "#eab308", name: "Autre" },
+                { dataKey: "Moi", color: NXT_COLORS.green, name: "Moi" },
+                { dataKey: "Autre", color: NXT_COLORS.yellow, name: "Autre" },
               ]}
               height={300}
             />
@@ -367,12 +367,12 @@ export default function ComparaisonPage() {
               bars={[
                 {
                   dataKey: "Cette année",
-                  color: "#22c55e",
+                  color: NXT_COLORS.green,
                   name: "Cette année",
                 },
                 {
                   dataKey: "Année N-1",
-                  color: "#22c55e80",
+                  color: NXT_COLORS.green + "80",
                   name: "Année N-1",
                 },
               ]}
@@ -456,12 +456,12 @@ export default function ComparaisonPage() {
               bars={[
                 {
                   dataKey: "Période actuelle",
-                  color: "#22c55e",
+                  color: NXT_COLORS.green,
                   name: "Période actuelle",
                 },
                 {
                   dataKey: "Période précédente",
-                  color: "#6366f1",
+                  color: NXT_COLORS.violet,
                   name: "Période précédente",
                 },
               ]}

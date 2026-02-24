@@ -30,7 +30,7 @@ import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { formatCurrency } from "@/lib/formatters";
-import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
 import {
   mockMonthlyCA,
   mockWeeklyActivity,
@@ -95,25 +95,25 @@ const kpiChartConfigs: Record<ExpandableKpi, KpiChartConfig> = {
   estimations: {
     title: "Progression des Estimations — Mois par mois",
     data: mockMonthlyEstimations,
-    color: "#22c55e",
+    color: NXT_COLORS.green,
     valueLabel: "Estimations",
   },
   mandats: {
     title: "Progression des Mandats signés — Mois par mois",
     data: mockMonthlyMandats,
-    color: "#3b82f6",
+    color: NXT_COLORS.blue,
     valueLabel: "Mandats",
   },
   compromis: {
     title: "Progression des Compromis signés — Mois par mois",
     data: mockMonthlyCompromis,
-    color: "#f59e0b",
+    color: NXT_COLORS.orange,
     valueLabel: "Compromis",
   },
   ca: {
     title: "Progression du Chiffre d'affaires — Mois par mois",
     data: mockMonthlyCAAnnuel,
-    color: "#10b981",
+    color: NXT_COLORS.green,
     valueLabel: "CA (€)",
     isCurrency: true,
   },
@@ -157,12 +157,12 @@ export default function DashboardPage() {
     {
       name: "Exclusifs",
       value: vendeurs.mandats.filter((m) => m.type === "exclusif").length,
-      color: "#22c55e",
+      color: NXT_COLORS.green,
     },
     {
       name: "Simples",
       value: vendeurs.mandats.filter((m) => m.type === "simple").length,
-      color: "#eab308",
+      color: NXT_COLORS.yellow,
     },
   ];
 
@@ -464,7 +464,7 @@ export default function DashboardPage() {
                   data={mockMonthlyCA}
                   xKey="month"
                   lines={[
-                    { dataKey: "ca", color: "#22c55e", name: "CA (€)" },
+                    { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
                   ]}
                   height={200}
                   showGrid
@@ -529,8 +529,8 @@ export default function DashboardPage() {
                   data={mockWeeklyActivity}
                   xKey="day"
                   lines={[
-                    { dataKey: "contacts", color: "#22c55e", name: "Contacts" },
-                    { dataKey: "visites", color: "#eab308", name: "Visites" },
+                    { dataKey: "contacts", color: NXT_COLORS.green, name: "Contacts" },
+                    { dataKey: "visites", color: NXT_COLORS.yellow, name: "Visites" },
                   ]}
                   height={180}
                 />
@@ -758,7 +758,7 @@ export default function DashboardPage() {
                     data={mockMonthlyCA}
                     xKey="month"
                     lines={[
-                      { dataKey: "ca", color: "#22c55e", name: "CA (€)" },
+                      { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
                     ]}
                     height={200}
                     showGrid
@@ -814,12 +814,12 @@ export default function DashboardPage() {
                     lines={[
                       {
                         dataKey: "contacts",
-                        color: "#22c55e",
+                        color: NXT_COLORS.green,
                         name: "Contacts",
                       },
                       {
                         dataKey: "visites",
-                        color: "#eab308",
+                        color: NXT_COLORS.yellow,
                         name: "Visites",
                       },
                     ]}

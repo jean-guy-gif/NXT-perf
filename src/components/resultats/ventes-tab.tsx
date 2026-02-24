@@ -5,6 +5,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { LineChart } from "@/components/charts/line-chart";
 import { formatCurrency } from "@/lib/formatters";
 import { mockMonthlyCA } from "@/data/mock-results";
+import { NXT_COLORS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 
 interface VentesTabProps {
@@ -39,7 +40,7 @@ export function VentesTab({ results }: VentesTabProps) {
           data={mockMonthlyCA}
           xKey="month"
           lines={[
-            { dataKey: "ca", color: "#22c55e", name: "CA (€)" },
+            { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
           ]}
           height={250}
           showGrid

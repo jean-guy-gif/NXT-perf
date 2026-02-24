@@ -40,85 +40,108 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* NXT palette overrides for Tailwind color classes */
+  --color-green-400: oklch(0.78 0.17 160);
+  --color-green-500: oklch(0.74 0.17 160);
+  --color-green-600: oklch(0.66 0.17 160);
+  --color-orange-500: oklch(0.78 0.155 60);
+  --color-orange-600: oklch(0.72 0.155 60);
+  --color-red-400: oklch(0.72 0.18 30);
+  --color-red-500: oklch(0.66 0.18 30);
+  --color-red-600: oklch(0.58 0.18 30);
+  --color-yellow-400: oklch(0.88 0.14 85);
+  --color-yellow-500: oklch(0.84 0.15 85);
+  --color-blue-400: oklch(0.68 0.18 264);
+  --color-blue-500: oklch(0.62 0.20 264);
+  --color-blue-600: oklch(0.54 0.20 264);
+  --color-indigo-400: oklch(0.62 0.22 295);
+  --color-indigo-500: oklch(0.555 0.27 295);
+  --color-indigo-600: oklch(0.48 0.27 295);
+  --color-gray-400: oklch(0.565 0.025 250);
 }
 
-/* Light mode - excellent contrast */
+/* Light mode — NXT charte */
 :root {
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.12 0 0);
+  --background: oklch(0.978 0.006 264);
+  --foreground: oklch(0.17 0.025 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.12 0 0);
+  --card-foreground: oklch(0.17 0.025 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.12 0 0);
-  --primary: oklch(0.52 0.18 143.4);
+  --popover-foreground: oklch(0.17 0.025 250);
+  --primary: oklch(0.585 0.22 264);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.78 0.12 76.17);
-  --secondary-foreground: oklch(0.15 0 0);
-  --muted: oklch(0.955 0.005 250);
-  --muted-foreground: oklch(0.42 0.01 250);
-  --accent: oklch(0.955 0.005 250);
-  --accent-foreground: oklch(0.15 0 0);
-  --destructive: oklch(0.55 0.25 27.325);
+  --secondary: oklch(0.555 0.27 295);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.963 0.008 264);
+  --muted-foreground: oklch(0.565 0.025 250);
+  --accent: oklch(0.963 0.008 264);
+  --accent-foreground: oklch(0.17 0.025 250);
+  --destructive: oklch(0.66 0.18 30);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.89 0.005 250);
-  --input: oklch(0.89 0.005 250);
-  --ring: oklch(0.52 0.18 143.4);
+  --border: oklch(0.91 0.008 264);
+  --input: oklch(0.91 0.008 264);
+  --ring: oklch(0.585 0.22 264);
   --radius: 0.75rem;
-  --chart-1: oklch(0.52 0.18 143.4);
-  --chart-2: oklch(0.78 0.12 76.17);
-  --chart-3: oklch(0.55 0.22 259.13);
-  --chart-4: oklch(0.65 0.18 54.62);
-  --chart-5: oklch(0.55 0.25 27.32);
-  --sidebar: oklch(0.975 0.005 250);
-  --sidebar-foreground: oklch(0.12 0 0);
-  --sidebar-primary: oklch(0.52 0.18 143.4);
+  --chart-1: oklch(0.62 0.20 264);
+  --chart-2: oklch(0.74 0.17 160);
+  --chart-3: oklch(0.555 0.27 295);
+  --chart-4: oklch(0.78 0.155 60);
+  --chart-5: oklch(0.66 0.18 30);
+  --sidebar: oklch(0.968 0.008 264);
+  --sidebar-foreground: oklch(0.17 0.025 250);
+  --sidebar-primary: oklch(0.585 0.22 264);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.94 0.005 250);
-  --sidebar-accent-foreground: oklch(0.15 0 0);
-  --sidebar-border: oklch(0.89 0.005 250);
-  --sidebar-ring: oklch(0.52 0.18 143.4);
+  --sidebar-accent: oklch(0.94 0.01 264);
+  --sidebar-accent-foreground: oklch(0.17 0.025 250);
+  --sidebar-border: oklch(0.91 0.008 264);
+  --sidebar-ring: oklch(0.585 0.22 264);
+  --gradient-start: oklch(0.585 0.22 264);
+  --gradient-end: oklch(0.555 0.27 295);
 }
 
-/* Dark mode - cohérent */
+/* Dark mode — NXT charte */
 .dark {
-  --background: oklch(0.141 0.012 254.09);
+  --background: oklch(0.11 0.03 265);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.19 0.012 254.09);
+  --card: oklch(0.22 0.06 260);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.19 0.012 254.09);
+  --popover: oklch(0.22 0.06 260);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.596 0.178 143.4);
+  --primary: oklch(0.65 0.20 264);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.845 0.143 76.17);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.24 0.012 254.09);
-  --muted-foreground: oklch(0.6 0.012 254.09);
-  --accent: oklch(0.24 0.012 254.09);
+  --secondary: oklch(0.62 0.24 295);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.18 0.05 260);
+  --muted-foreground: oklch(0.81 0.035 240);
+  --accent: oklch(0.18 0.05 260);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.32);
+  --destructive: oklch(0.66 0.18 30);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.28 0.012 254.09);
-  --input: oklch(0.28 0.012 254.09);
-  --ring: oklch(0.596 0.178 143.4);
-  --chart-1: oklch(0.596 0.178 143.4);
-  --chart-2: oklch(0.845 0.143 76.17);
-  --chart-3: oklch(0.623 0.214 259.13);
-  --chart-4: oklch(0.702 0.183 54.62);
-  --chart-5: oklch(0.577 0.245 27.32);
-  --sidebar: oklch(0.16 0.012 254.09);
+  --border: oklch(0.28 0.04 260);
+  --input: oklch(0.28 0.04 260);
+  --ring: oklch(0.65 0.20 264);
+  --chart-1: oklch(0.68 0.18 264);
+  --chart-2: oklch(0.78 0.17 160);
+  --chart-3: oklch(0.62 0.24 295);
+  --chart-4: oklch(0.82 0.155 60);
+  --chart-5: oklch(0.70 0.18 30);
+  --sidebar: oklch(0.14 0.04 265);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.596 0.178 143.4);
+  --sidebar-primary: oklch(0.65 0.20 264);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.24 0.012 254.09);
+  --sidebar-accent: oklch(0.18 0.05 260);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.28 0.012 254.09);
-  --sidebar-ring: oklch(0.596 0.178 143.4);
+  --sidebar-border: oklch(0.28 0.04 260);
+  --sidebar-ring: oklch(0.65 0.20 264);
+  --gradient-start: oklch(0.585 0.22 264);
+  --gradient-end: oklch(0.555 0.27 295);
 }
 
 @layer base {
@@ -155,5 +178,11 @@
   }
   .dark ::-webkit-scrollbar-thumb:hover {
     background: oklch(0.7 0 0 / 0.35);
+  }
+}
+
+@layer utilities {
+  .bg-gradient-nxt {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
   }
 }

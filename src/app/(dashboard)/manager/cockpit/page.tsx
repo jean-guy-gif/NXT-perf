@@ -25,7 +25,7 @@ import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { mockUsers } from "@/data/mock-users";
 import { cn } from "@/lib/utils";
-import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
 
 /* ────── Period types ────── */
 type PeriodMode = "semaine" | "mois" | "annee" | "personnalise";
@@ -312,7 +312,7 @@ export default function CockpitPage() {
             data={teamMonthlyCA}
             xKey="month"
             lines={[
-              { dataKey: "ca", color: "#22c55e", name: "CA Équipe (€)" },
+              { dataKey: "ca", color: NXT_COLORS.green, name: "CA Équipe (€)" },
             ]}
             height={220}
             showGrid
@@ -330,7 +330,7 @@ export default function CockpitPage() {
             bars={[
               {
                 dataKey: "performance",
-                color: "#22c55e",
+                color: NXT_COLORS.green,
                 name: "Performance (%)",
               },
             ]}

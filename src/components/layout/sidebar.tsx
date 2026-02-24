@@ -71,7 +71,7 @@ export function Sidebar() {
   return (
     <nav className="flex h-full flex-col items-center gap-1 py-4 px-2">
       <Link href="/dashboard" className="mb-6 flex items-center justify-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-nxt">
           <span className="text-sm font-bold text-primary-foreground">AG</span>
         </div>
       </Link>

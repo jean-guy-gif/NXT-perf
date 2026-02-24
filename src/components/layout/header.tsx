@@ -46,7 +46,7 @@ export function Header() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border px-6">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+        <h1 className="text-lg font-extrabold text-foreground">{pageTitle}</h1>
         {user && (
           <span
             className={cn(
@@ -84,7 +84,7 @@ export function Header() {
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90">
+        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-nxt text-primary-foreground transition-colors hover:opacity-90">
           <Plus className="h-4 w-4" />
         </button>
 

@@ -1,3 +1,12 @@
+export const NXT_COLORS = {
+  blue: "#3B85FF",
+  green: "#39C97E",
+  violet: "#A055FF",
+  orange: "#FFA448",
+  red: "#EF7550",
+  yellow: "#FFD967",
+} as const;
+
 export const STATUS_COLORS = {
   ok: "text-green-500",
   warning: "text-orange-500",
@@ -23,7 +32,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  debutant: "bg-gray-500/20 text-gray-400",
+  debutant: "bg-blue-500/20 text-blue-400",
   confirme: "bg-yellow-500/20 text-yellow-400",
   expert: "bg-green-500/20 text-green-400",
 };
