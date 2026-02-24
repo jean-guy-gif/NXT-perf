@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ClipboardCheck,
   FileSignature,
@@ -134,14 +135,31 @@ const defaultFavorites: WidgetId[] = [
 ];
 
 export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const { user } = useUser();
   const results = useResults();
   const { computedRatios, ratioConfigs } = useRatios();
   const removedItems = useAppStore((s) => s.removedItems);
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [favorites, setFavorites] = useState<WidgetId[]>(defaultFavorites);
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [expandedKpi, setExpandedKpi] = useState<ExpandableKpi | null>(null);
+
+  // Allow navigation via ?tab=suivi (from notifications, etc.)
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "suivi" || tab === "favoris" || tab === "mois" || tab === "overview") {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   if (!user || !results) {
     return (

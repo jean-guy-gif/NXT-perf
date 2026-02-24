@@ -133,7 +133,7 @@ export const mockResults: PeriodResults[] = [
       delaiMoyenVente: 0,
     },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
+    updatedAt: "2026-02-10T10:00:00Z",
   },
   {
     id: "r4",

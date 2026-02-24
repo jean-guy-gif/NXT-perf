@@ -33,7 +33,7 @@ export const defaultRatioConfigs: Record<RatioId, RatioConfig> = {
     name: "Visites → Offre",
     description: "Nombre de visites nécessaires pour obtenir 1 offre",
     unit: "visites/offre",
-    thresholds: { debutant: 12, confirme: 6, expert: 8 },
+    thresholds: { debutant: 12, confirme: 10, expert: 8 },
     isPercentage: false,
     isLowerBetter: true,
   },

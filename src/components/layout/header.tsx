@@ -1,11 +1,13 @@
 "use client";
 
-import { Search, Bell, Plus, Sun, Moon, ArrowLeftRight } from "lucide-react";
+import { Search, Bell, Plus, Sun, Moon, ArrowLeftRight, AlertTriangle, Info } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { computeNotifications } from "@/lib/notifications";
+import { mockUsers } from "@/data/mock-users";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Tableau de bord",
@@ -24,9 +26,33 @@ const pageTitles: Record<string, string> = {
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
+  const results = useAppStore((s) => s.results);
+  const removedItems = useAppStore((s) => s.removedItems);
   const switchRole = useAppStore((s) => s.switchRole);
   const [isDark, setIsDark] = useState(true);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const notifications = useMemo(
+    () => computeNotifications(user, results, removedItems, mockUsers),
+    [user, results, removedItems]
+  );
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!showNotifs) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifs]);
 
   const pageTitle = pageTitles[pathname] || "Dashboard";
   const initials = user
@@ -88,10 +114,81 @@ export function Header() {
           <Plus className="h-4 w-4" />
         </button>
 
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-destructive" />
-        </button>
+        {/* Notifications bell + dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowNotifs((prev) => !prev)}
+            className={cn(
+              "relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              showNotifs && "bg-muted text-foreground"
+            )}
+          >
+            <Bell className="h-4 w-4" />
+            {notifications.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                {notifications.length}
+              </span>
+            )}
+          </button>
+
+          {showNotifs && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-foreground">Rappels</span>
+                </div>
+                {notifications.length > 0 && (
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                    {notifications.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Notification list */}
+              <div className="max-h-72 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    Aucune alerte
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => {
+                        if (notif.link) {
+                          router.push(notif.link);
+                          setShowNotifs(false);
+                        }
+                      }}
+                      className={cn(
+                        "flex gap-3 border-b border-border/50 px-4 py-3 last:border-b-0",
+                        notif.link && "cursor-pointer transition-colors hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="mt-0.5 flex-shrink-0">
+                        {notif.type === "warning" ? (
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        ) : (
+                          <Info className="h-4 w-4 text-blue-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {notif.message}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {notif.detail}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
           {initials}
