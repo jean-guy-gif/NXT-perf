@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAppStore } from "@/stores/app-store";
 import type { UserRole, UserCategory } from "@/types/user";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const initialRole = (searchParams.get("role") === "manager" ? "manager" : "conseiller") as UserRole;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("conseiller");
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [category, setCategory] = useState<UserCategory>("confirme");
   const [invitationCode, setInvitationCode] = useState("");
   const [error, setError] = useState("");
@@ -24,7 +26,6 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    // Vérifier si l'email est déjà utilisé
     if (users.some((u) => u.email === email.trim())) {
       setError("Cet email est déjà utilisé.");
       return;
@@ -34,7 +35,6 @@ export default function RegisterPage() {
     let teamId = `team-${Date.now()}`;
 
     if (role === "conseiller") {
-      // Valider le code d'invitation
       const codeMatch = invitationCode.trim().match(/^INV-(.+)$/i);
       if (!codeMatch) {
         setError("Code d'invitation invalide. Format attendu : INV-xxx");
@@ -81,11 +81,10 @@ export default function RegisterPage() {
         Créer un compte
       </h1>
       <p className="mb-6 text-center text-sm text-muted-foreground">
-        Rejoignez Antigravity Dashboard
+        Rejoignez NXT-Perf
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Prénom / Nom */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
@@ -113,7 +112,6 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Email */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
             Email
@@ -127,7 +125,6 @@ export default function RegisterPage() {
           />
         </div>
 
-        {/* Mot de passe */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
             Mot de passe
@@ -141,7 +138,6 @@ export default function RegisterPage() {
           />
         </div>
 
-        {/* Rôle */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
             Rôle
@@ -164,7 +160,6 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Catégorie */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
             Catégorie
@@ -184,7 +179,6 @@ export default function RegisterPage() {
           </select>
         </div>
 
-        {/* Code d'invitation (conseillers uniquement) */}
         {role === "conseiller" && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
@@ -204,7 +198,6 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* Erreur */}
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
@@ -226,5 +219,13 @@ export default function RegisterPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }
