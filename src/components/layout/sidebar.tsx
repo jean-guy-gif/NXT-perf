@@ -69,7 +69,7 @@ export function Sidebar() {
   const managerItems = filteredItems.filter((item) => item.managerOnly);
 
   return (
-    <nav className="flex h-full flex-col items-center gap-1 bg-sidebar py-4 px-2">
+    <nav className="flex h-full flex-col items-center gap-1 overflow-y-auto bg-sidebar py-4 px-2">
       <Link href="/dashboard" className="mb-6 flex items-center justify-center">
         <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] bg-gradient-nxt shadow-sm">
           <span className="text-sm font-bold text-white">AG</span>
