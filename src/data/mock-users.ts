@@ -1,0 +1,56 @@
+import type { User } from "@/types/user";
+
+export const mockUsers: User[] = [
+  {
+    id: "u1",
+    email: "jean.dupont@antigravity.fr",
+    firstName: "Jean",
+    lastName: "Dupont",
+    role: "conseiller",
+    category: "confirme",
+    teamId: "team1",
+    createdAt: "2024-01-15T00:00:00Z",
+  },
+  {
+    id: "u2",
+    email: "marie.martin@antigravity.fr",
+    firstName: "Marie",
+    lastName: "Martin",
+    role: "conseiller",
+    category: "expert",
+    teamId: "team1",
+    createdAt: "2023-06-01T00:00:00Z",
+  },
+  {
+    id: "u3",
+    email: "pierre.durand@antigravity.fr",
+    firstName: "Pierre",
+    lastName: "Durand",
+    role: "conseiller",
+    category: "debutant",
+    teamId: "team1",
+    createdAt: "2025-03-10T00:00:00Z",
+  },
+  {
+    id: "u4",
+    email: "lucie.bernard@antigravity.fr",
+    firstName: "Lucie",
+    lastName: "Bernard",
+    role: "conseiller",
+    category: "confirme",
+    teamId: "team1",
+    createdAt: "2024-05-20T00:00:00Z",
+  },
+  {
+    id: "m1",
+    email: "sophie.lefevre@antigravity.fr",
+    firstName: "Sophie",
+    lastName: "Lefèvre",
+    role: "manager",
+    category: "expert",
+    teamId: "team1",
+    createdAt: "2022-01-01T00:00:00Z",
+  },
+];
+
+export const mockCurrentUser = mockUsers[0];
