@@ -41,7 +41,7 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  --font-sans: var(--font-inter);
+  --font-sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
@@ -133,7 +133,7 @@
   --chart-3: oklch(0.62 0.24 295);
   --chart-4: oklch(0.82 0.155 60);
   --chart-5: oklch(0.70 0.18 30);
-  --sidebar: oklch(0.14 0.04 265);
+  --sidebar: oklch(0.12 0.035 265);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.65 0.20 264);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -152,7 +152,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+    font-family: var(--font-family, var(--font-sans)), Arial, Helvetica, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

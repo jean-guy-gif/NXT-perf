@@ -11,7 +11,7 @@ export function MobileSidebar() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-card text-foreground shadow-lg lg:hidden"
+        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-[var(--shadow-1)] lg:hidden border border-border"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -22,7 +22,7 @@ export function MobileSidebar() {
             className="fixed inset-0 z-40 bg-black/50 lg:hidden"
             onClick={() => setIsOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-[72px] border-r border-border bg-background lg:hidden">
+          <div className="fixed inset-y-0 left-0 z-50 w-[72px] border-r border-border bg-sidebar lg:hidden">
             <button
               onClick={() => setIsOpen(false)}
               className="absolute -right-10 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-card text-foreground"

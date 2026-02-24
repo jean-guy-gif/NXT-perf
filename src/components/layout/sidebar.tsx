@@ -43,15 +43,15 @@ const navItems: NavItem[] = [
     managerOnly: true,
   },
   {
-    href: "/manager/parametres",
-    icon: Settings,
-    label: "Paramètres",
-    managerOnly: true,
-  },
-  {
     href: "/manager/formation-collective",
     icon: BookOpen,
     label: "Formation Collective",
+    managerOnly: true,
+  },
+  {
+    href: "/manager/parametres",
+    icon: Settings,
+    label: "Paramètres",
     managerOnly: true,
   },
 ];
@@ -69,10 +69,10 @@ export function Sidebar() {
   const managerItems = filteredItems.filter((item) => item.managerOnly);
 
   return (
-    <nav className="flex h-full flex-col items-center gap-1 py-4 px-2">
+    <nav className="flex h-full flex-col items-center gap-1 bg-sidebar py-4 px-2">
       <Link href="/dashboard" className="mb-6 flex items-center justify-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-nxt">
-          <span className="text-sm font-bold text-primary-foreground">AG</span>
+        <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] bg-gradient-nxt shadow-sm">
+          <span className="text-sm font-bold text-white">AG</span>
         </div>
       </Link>
 
@@ -84,7 +84,7 @@ export function Sidebar() {
 
       {managerItems.length > 0 && (
         <>
-          <div className="my-3 h-px w-8 bg-border" />
+          <div className="my-3 h-px w-8 bg-sidebar-border" />
           <div className="flex flex-col items-center gap-1">
             {managerItems.map((item) => (
               <SidebarItem key={item.href} item={item} pathname={pathname} />
@@ -113,14 +113,17 @@ function SidebarItem({
       href={item.href}
       title={item.label}
       className={cn(
-        "group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+        "group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] transition-all duration-[var(--transition-fast)]",
         isActive
-          ? "bg-primary/15 text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "bg-primary/15 text-primary shadow-sm"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       )}
     >
+      {isActive && (
+        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+      )}
       <item.icon className="h-5 w-5" />
-      <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-50">
+      <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
         {item.label}
       </span>
     </Link>

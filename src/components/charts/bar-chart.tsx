@@ -45,7 +45,7 @@ export function BarChart({ data, xKey, bars, height = 200 }: BarChartProps) {
           contentStyle={{
             backgroundColor: "var(--card, #0F1F46)",
             border: "1px solid var(--border, #1a2d5a)",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-button)",
             color: "var(--foreground, white)",
             fontSize: "12px",
           }}

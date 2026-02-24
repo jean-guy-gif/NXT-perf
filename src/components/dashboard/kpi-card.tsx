@@ -42,14 +42,14 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "relative rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30",
+        "relative rounded-[var(--radius-card)] border border-border bg-card p-5 shadow-[var(--shadow-1)] transition-all duration-[var(--transition-fast)] hover:border-primary/30 hover:shadow-[var(--shadow-2)]",
         className
       )}
     >
       <div className="flex items-start justify-between">
         <div
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg",
+            "flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)]",
             statusIconBg[status]
           )}
         >
@@ -89,7 +89,7 @@ export function KpiCard({
       </div>
       <div className="mt-3">
         <p className="text-sm text-muted-foreground">{title}</p>
-        <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+        <p className="kpi-number mt-1 text-foreground">{value}</p>
       </div>
     </div>
   );

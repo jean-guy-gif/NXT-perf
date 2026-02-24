@@ -1,5 +1,5 @@
 export const NXT_COLORS = {
-  blue: "#3B85FF",
+  blue: "#3375FF",
   green: "#39C97E",
   violet: "#A055FF",
   orange: "#FFA448",

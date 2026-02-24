@@ -72,9 +72,9 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border px-6">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-extrabold text-foreground">{pageTitle}</h1>
+        <h1 className="text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
         {user && (
           <span
             className={cn(
@@ -93,21 +93,21 @@ export function Header() {
           <input
             type="text"
             placeholder="Rechercher..."
-            className="h-9 w-64 rounded-lg bg-muted pl-9 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+            className="h-9 w-64 rounded-[var(--radius-button)] border border-transparent bg-muted pl-9 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground transition-all duration-[var(--transition-fast)] focus:border-primary/30 focus:ring-1 focus:ring-primary/40"
           />
         </div>
 
         <button
           onClick={switchRole}
           title={`Basculer en mode ${user?.role === "manager" ? "conseiller" : "manager"}`}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
         >
           <ArrowLeftRight className="h-4 w-4" />
         </button>
 
         <button
           onClick={toggleTheme}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
         >
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
@@ -116,7 +116,7 @@ export function Header() {
           <button
             onClick={() => setShowAddModal(true)}
             title="Ajouter un conseiller"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-nxt text-primary-foreground transition-colors hover:opacity-90"
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] bg-gradient-nxt text-white shadow-sm transition-all duration-[var(--transition-fast)] hover:brightness-110 hover:-translate-y-px"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -127,7 +127,7 @@ export function Header() {
           <button
             onClick={() => setShowNotifs((prev) => !prev)}
             className={cn(
-              "relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "relative flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground",
               showNotifs && "bg-muted text-foreground"
             )}
           >
@@ -140,7 +140,7 @@ export function Header() {
           </button>
 
           {showNotifs && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-2)]">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ export function Header() {
           )}
         </div>
 
-        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-nxt text-xs font-semibold text-white shadow-sm">
           {initials}
         </button>
       </div>

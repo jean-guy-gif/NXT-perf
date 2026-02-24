@@ -11,7 +11,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="hidden lg:flex lg:w-[72px] lg:flex-col lg:border-r lg:border-border">
+      <aside className="hidden lg:flex lg:w-[72px] lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
         <Sidebar />
       </aside>
 
