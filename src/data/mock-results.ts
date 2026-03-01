@@ -1,6 +1,56 @@
 import type { PeriodResults } from "@/types/results";
 
 export const mockResults: PeriodResults[] = [
+  // Manager (Jean-Guy Dupont - expert, aussi producteur)
+  {
+    id: "r-manager",
+    userId: "m-demo",
+    periodType: "month",
+    periodStart: "2026-02-01",
+    periodEnd: "2026-02-28",
+    prospection: {
+      contactsEntrants: 38,
+      contactsTotaux: 55,
+      rdvEstimation: 5,
+      informationsVente: [
+        { id: "iv-m1", nom: "M. Delacroix", commentaire: "Patrimoine familial, 2 biens" },
+        { id: "iv-m2", nom: "Mme Vasseur", commentaire: "Résidence principale, départ étranger" },
+        { id: "iv-m3", nom: "SCI Horizon", commentaire: "Lot commercial centre-ville" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 5,
+      estimationsRealisees: 5,
+      mandatsSignes: 4,
+      mandats: [
+        { id: "mm1", nomVendeur: "M. Delacroix", type: "exclusif" },
+        { id: "mm2", nomVendeur: "Mme Vasseur", type: "exclusif" },
+        { id: "mm3", nomVendeur: "SCI Horizon", type: "exclusif" },
+        { id: "mm4", nomVendeur: "M. Prat", type: "simple" },
+      ],
+      rdvSuivi: 8,
+      requalificationSimpleExclusif: 1,
+      baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acm1", nom: "Groupe Invest+", commentaire: "Portefeuille 800k, multi-lots" },
+        { id: "acm2", nom: "M. et Mme Château", commentaire: "Résidence principale haut de gamme" },
+        { id: "acm3", nom: "M. Ferreira", commentaire: "Investisseur, rendement locatif" },
+      ],
+      acheteursSortisVisite: 7,
+      nombreVisites: 12,
+      offresRecues: 3,
+      compromisSignes: 2,
+    },
+    ventes: {
+      actesSignes: 2,
+      chiffreAffaires: 32000,
+      delaiMoyenVente: 60,
+    },
+    createdAt: "2026-02-01T08:00:00Z",
+    updatedAt: "2026-02-23T10:00:00Z",
+  },
   // Agent 1 (Alice Martin - confirmé)
   {
     id: "r1",
