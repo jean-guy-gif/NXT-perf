@@ -8,6 +8,8 @@ import { useResults } from "@/hooks/use-results";
 import { SaisieDrillDownModal } from "@/components/dashboard/saisie-drill-down-modal";
 import type { SaisieSection } from "@/lib/formation";
 import type { PeriodResults } from "@/types/results";
+import { Tooltip } from "react-tooltip";
+import "react-tooltip/dist/react-tooltip.css";
 import {
   CalendarDays,
   ChevronLeft,
@@ -19,6 +21,7 @@ import {
   Users,
   DollarSign,
   Info,
+  HelpCircle,
 } from "lucide-react";
 
 type PeriodType = "day" | "week" | "month";
@@ -236,6 +239,29 @@ export default function SaisiePage() {
     ventes: DollarSign,
   };
 
+  const fieldDescriptions: Record<string, string> = {
+    // Prospection
+    contactsEntrants: "Contacts issus des portails immobiliers (SeLoger, LeBonCoin…), de la notoriété de l'agence (vitrine, site web), du réseau de recommandation ou du bouche-à-oreille. Ce sont les contacts qui viennent à vous sans action de prospection directe.",
+    contactsTotaux: "Tous vos contacts confondus : entrants + prospection active (téléphone, porte-à-porte, pige, farming, réseaux sociaux, partenaires). Ce chiffre est toujours ≥ aux contacts entrants.",
+    rdvEstimation: "Nombre de rendez-vous physiques réalisés chez un vendeur pour évaluer le prix de son bien. Un appel ou un échange par email ne compte pas comme un RDV estimation.",
+    infosVente: "Projet vendeur identifié mais pas encore transformé en RDV estimation. Exemple : un voisin qui mentionne vouloir vendre, une info captée en prospection terrain ou via votre réseau.",
+    // Vendeurs
+    estimationsRealisees: "Nombre d'estimations effectivement réalisées sur la période (RDV chez le vendeur avec remise d'un avis de valeur). Chaque estimation compte, même si elle ne débouche pas sur un mandat.",
+    mandatsSignes: "Nombre de mandats signés sur la période, qu'ils soient simples ou exclusifs. Précisez ensuite le type de chaque mandat dans le détail ci-dessous.",
+    rdvSuivi: "Rendez-vous de suivi avec un vendeur ayant déjà un mandat en cours : compte-rendu de visites, retour du marché, ajustement de stratégie ou de prix.",
+    requalification: "Passage d'un mandat simple en mandat exclusif. Comptez chaque transformation obtenue grâce à votre argumentation et votre suivi vendeur.",
+    baissePrix: "Nombre de vendeurs ayant accepté une baisse de prix sur la période, suite à votre recommandation basée sur le retour du marché.",
+    // Acheteurs
+    acheteursChauds: "Acquéreur qualifié avec un projet concret, un budget défini et un financement validé (ou en cours). Il est prêt à visiter et potentiellement à faire une offre rapidement.",
+    acheteursSortisVisite: "Nombre d'acheteurs distincts que vous avez emmenés en visite sur la période. Un même acheteur emmené 3 fois compte pour 1.",
+    nombreVisites: "Nombre total de visites réalisées sur la période. Un acheteur emmené visiter 3 biens compte pour 3 visites.",
+    offresRecues: "Offres d'achat écrites et formalisées reçues sur la période. Une intention verbale ou une discussion de prix ne constitue pas une offre.",
+    compromisSignes: "Nombre de compromis de vente (ou promesses synallagmatiques) signés sur la période. Le compromis engage juridiquement acheteur et vendeur.",
+    // Ventes
+    actesSignes: "Nombre d'actes authentiques signés chez le notaire sur la période. C'est la vente définitive et irrévocable. Un compromis n'est pas un acte.",
+    chiffreAffaires: "Montant total de vos honoraires d'agence (HT ou TTC selon votre convention) sur les actes signés de la période. C'est le prix de votre prestation, pas le prix de vente du bien.",
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -318,8 +344,13 @@ export default function SaisiePage() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Contacts entrants
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.contactsEntrants}
+                />
               </label>
               <input
                 type="number"
@@ -331,8 +362,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Contacts totaux
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.contactsTotaux}
+                />
               </label>
               <input
                 type="number"
@@ -344,8 +380,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 RDV Estimation
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.rdvEstimation}
+                />
               </label>
               <input
                 type="number"
@@ -357,8 +398,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Infos de vente obtenues
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.infosVente}
+                />
               </label>
               <input
                 type="number"
@@ -425,8 +471,13 @@ export default function SaisiePage() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Estimations réalisées
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.estimationsRealisees}
+                />
               </label>
               <input
                 type="number"
@@ -440,8 +491,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Mandats signés
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.mandatsSignes}
+                />
               </label>
               <input
                 type="number"
@@ -453,8 +509,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 RDV de suivi
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.rdvSuivi}
+                />
               </label>
               <input
                 type="number"
@@ -466,8 +527,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Requalification &rarr; exclusif
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.requalification}
+                />
               </label>
               <input
                 type="number"
@@ -479,8 +545,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Baisse de prix
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.baissePrix}
+                />
               </label>
               <input
                 type="number"
@@ -572,8 +643,13 @@ export default function SaisiePage() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Acheteurs chauds
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.acheteursChauds}
+                />
               </label>
               <input
                 type="number"
@@ -587,8 +663,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Sortis en visite
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.acheteursSortisVisite}
+                />
               </label>
               <input
                 type="number"
@@ -602,8 +683,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Nombre de visites
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.nombreVisites}
+                />
               </label>
               <input
                 type="number"
@@ -615,8 +701,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Offres reçues
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.offresRecues}
+                />
               </label>
               <input
                 type="number"
@@ -628,8 +719,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Compromis signés
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.compromisSignes}
+                />
               </label>
               <input
                 type="number"
@@ -696,8 +792,13 @@ export default function SaisiePage() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Actes signés
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.actesSignes}
+                />
               </label>
               <input
                 type="number"
@@ -709,8 +810,13 @@ export default function SaisiePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Chiffre d&apos;affaires (&euro;)
+                <HelpCircle
+                  className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+                  data-tooltip-id="field-tooltip"
+                  data-tooltip-content={fieldDescriptions.chiffreAffaires}
+                />
               </label>
               <input
                 type="number"
@@ -740,6 +846,13 @@ export default function SaisiePage() {
           onClose={() => setSelectedSection(null)}
         />
       )}
+
+      <Tooltip
+        id="field-tooltip"
+        place="top"
+        className="!max-w-xs !rounded-lg !bg-popover !px-3 !py-2 !text-xs !text-popover-foreground !shadow-lg !border !border-border"
+        opacity={1}
+      />
     </div>
   );
 }
