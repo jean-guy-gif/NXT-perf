@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/stores/app-store";
+import { useSupabaseRatioConfigs } from "@/hooks/use-supabase-ratio-configs";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { RatioId } from "@/types/ratios";
 import {
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 export default function ParametresPage() {
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
-  const updateRatioThreshold = useAppStore((s) => s.updateRatioThreshold);
+  const { updateThreshold } = useSupabaseRatioConfigs();
   const resetRatioConfigs = useAppStore((s) => s.resetRatioConfigs);
   const [saved, setSaved] = useState(false);
 
@@ -150,7 +151,7 @@ export default function ParametresPage() {
                             min={0}
                             value={config.thresholds[level]}
                             onChange={(e) =>
-                              updateRatioThreshold(
+                              updateThreshold(
                                 ratioId,
                                 level,
                                 Number(e.target.value)

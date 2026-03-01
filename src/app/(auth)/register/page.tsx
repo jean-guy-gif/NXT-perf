@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 import type { UserRole, UserCategory } from "@/types/user";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
@@ -16,65 +16,94 @@ function RegisterForm() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>(initialRole);
   const [category, setCategory] = useState<UserCategory>("confirme");
-  const [invitationCode, setInvitationCode] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const register = useAppStore((s) => s.register);
-  const users = useAppStore((s) => s.users);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
       setError("Tous les champs sont obligatoires.");
       return;
     }
 
-    if (users.some((u) => u.email === email.trim())) {
-      setError("Cet email est déjà utilisé.");
+    if (password.length < 6) {
+      setError("Le mot de passe doit faire au moins 6 caractères.");
       return;
     }
 
-    let managerId: string | undefined;
-    let teamId = `team-${Date.now()}`;
+    const supabase = createClient();
+    setLoading(true);
 
-    if (role === "conseiller") {
-      if (!invitationCode.trim()) {
-        setError("Le code d'invitation est obligatoire pour un conseiller.");
-        return;
-      }
-      const codeMatch = invitationCode.trim().match(/^INV-(.+)$/i);
-      if (!codeMatch) {
-        setError("Format de code invalide. Attendu : INV-xxx (ex: INV-m1708932345123)");
-        return;
-      }
-      const targetManagerId = codeMatch[1];
-      const manager = users.find(
-        (u) => u.id === targetManagerId && u.role === "manager"
-      );
-      if (!manager) {
-        setError("Ce code d'invitation n'existe pas ou le manager n'a pas été trouvé. Vérifiez le code avec votre manager.");
-        return;
-      }
-      managerId = manager.id;
-      teamId = manager.teamId;
+    const finalInviteCode = inviteCode.trim();
+
+    // Manager must either provide an invite code or an org name
+    if (role === "manager" && !finalInviteCode && !orgName.trim()) {
+      setError("Renseignez un code d'invitation ou un nom d'organisation.");
+      setLoading(false);
+      return;
     }
 
-    register({
-      id: `${role === "manager" ? "m" : "u"}${Date.now()}`,
+    // Conseiller must provide an invite code
+    if (role === "conseiller" && !finalInviteCode) {
+      setError("Le code d'invitation est obligatoire.");
+      setLoading(false);
+      return;
+    }
+
+    // If joining with invite code, verify it exists
+    if (finalInviteCode) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("invite_code", finalInviteCode)
+        .single();
+
+      if (!org) {
+        setError("Code d'invitation invalide. Vérifiez avec votre manager.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Sign up with metadata (trigger will create profile + org if needed)
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
-      password: password,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      role,
-      category,
-      teamId,
-      managerId,
-      createdAt: new Date().toISOString(),
+      password,
+      options: {
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          role,
+          category,
+          invite_code: finalInviteCode || undefined,
+          org_name: (!finalInviteCode && orgName.trim()) ? orgName.trim() : undefined,
+        },
+      },
     });
 
-    router.push("/dashboard");
+    setLoading(false);
+
+    if (authError) {
+      if (authError.message.includes("already registered")) {
+        setError("Cet email est déjà utilisé.");
+      } else {
+        setError(authError.message);
+      }
+      return;
+    }
+
+    if (!signUpData.session) {
+      setError("Compte créé mais session non établie. Essayez de vous connecter.");
+      router.push("/login");
+      return;
+    }
+
+    // Full reload to ensure session cookies are sent
+    window.location.href = "/dashboard";
   };
 
   const inputClassName =
@@ -142,6 +171,7 @@ function RegisterForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={inputClassName}
+            placeholder="Minimum 6 caractères"
             required
           />
         </div>
@@ -187,24 +217,43 @@ function RegisterForm() {
           </select>
         </div>
 
-        {role === "conseiller" && (
+        {role === "manager" && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Code d&apos;invitation <span className="text-destructive">*</span>
+              Nom de l&apos;organisation
             </label>
             <input
               type="text"
-              value={invitationCode}
-              onChange={(e) => setInvitationCode(e.target.value)}
-              placeholder="INV-m1234567890"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Ex: Start Academy, Mon Agence, etc."
               className={inputClassName}
-              required
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Demandez le code d&apos;invitation complet à votre manager (visible dans son espace équipe)
+              Laissez vide si vous rejoignez une organisation existante avec un code
             </p>
           </div>
         )}
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">
+            Code d&apos;invitation{" "}
+            {role === "conseiller" && <span className="text-destructive">*</span>}
+          </label>
+          <input
+            type="text"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            placeholder={role === "manager" ? "Optionnel si vous créez une org" : "Ex: START-2026"}
+            className={inputClassName}
+            required={role === "conseiller"}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {role === "conseiller"
+              ? "Demandez le code à votre manager"
+              : "Renseignez un code si vous rejoignez une organisation existante"}
+          </p>
+        </div>
 
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -214,9 +263,10 @@ function RegisterForm() {
 
         <button
           type="submit"
-          className="h-10 w-full rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          disabled={loading}
+          className="h-10 w-full rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          Créer mon compte
+          {loading ? "Création en cours..." : "Créer mon compte"}
         </button>
       </form>
 

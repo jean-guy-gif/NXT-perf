@@ -5,29 +5,51 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
-  const [email, setEmail] = useState("jean-guy@start-academy.fr");
-  const [password, setPassword] = useState("demo");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(resetSuccess ? "Mot de passe réinitialisé avec succès. Connectez-vous." : "");
-  const login = useAppStore((s) => s.login);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(
+    resetSuccess ? "Mot de passe réinitialisé avec succès. Connectez-vous." : ""
+  );
+  const enterDemo = useAppStore((s) => s.enterDemo);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-    const result = login(email, password);
-    if (result === "success") {
-      router.push("/dashboard");
-    } else if (result === "wrong_password") {
-      setError("Mot de passe incorrect.");
-    } else {
-      setError("Aucun compte trouvé avec cet email.");
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setLoading(false);
+
+    if (authError) {
+      if (authError.message.includes("Invalid login credentials")) {
+        setError("Email ou mot de passe incorrect.");
+      } else {
+        setError(authError.message);
+      }
+      return;
     }
+
+    // Full reload to ensure session cookies are sent
+    window.location.href = "/dashboard";
+  };
+
+  const handleDemo = () => {
+    enterDemo();
+    router.push("/dashboard");
   };
 
   const inputClassName =
@@ -55,6 +77,7 @@ function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={inputClassName}
+            placeholder="jean@start-academy.fr"
             required
           />
         </div>
@@ -85,11 +108,25 @@ function LoginForm() {
 
         <button
           type="submit"
-          className="h-10 w-full rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          disabled={loading}
+          className="h-10 w-full rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          Se connecter
+          {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
+
+      <div className="my-4 flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">ou</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      <button
+        onClick={handleDemo}
+        className="h-10 w-full rounded-lg border border-border bg-background font-medium text-foreground transition-colors hover:bg-muted"
+      >
+        Tester en démo
+      </button>
 
       <div className="mt-4 flex justify-between text-sm">
         <Link

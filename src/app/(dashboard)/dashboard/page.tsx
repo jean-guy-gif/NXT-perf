@@ -40,6 +40,10 @@ import {
   mockMonthlyCompromis,
   mockMonthlyCAAnnuel,
 } from "@/data/mock-results";
+
+const emptyMonthlyData: Array<{ month: string; value: number }> = [];
+const emptyCAData: Array<{ month: string; ca: number }> = [];
+const emptyActivityData: Array<{ day: string; contacts: number; visites: number }> = [];
 import { useAppStore, type RemovedItem } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
@@ -92,33 +96,35 @@ interface KpiChartConfig {
   isCurrency?: boolean;
 }
 
-const kpiChartConfigs: Record<ExpandableKpi, KpiChartConfig> = {
-  estimations: {
-    title: "Progression des Estimations — Mois par mois",
-    data: mockMonthlyEstimations,
-    color: NXT_COLORS.green,
-    valueLabel: "Estimations",
-  },
-  mandats: {
-    title: "Progression des Mandats signés — Mois par mois",
-    data: mockMonthlyMandats,
-    color: NXT_COLORS.blue,
-    valueLabel: "Mandats",
-  },
-  compromis: {
-    title: "Progression des Compromis signés — Mois par mois",
-    data: mockMonthlyCompromis,
-    color: NXT_COLORS.orange,
-    valueLabel: "Compromis",
-  },
-  ca: {
-    title: "Progression du Chiffre d'affaires — Mois par mois",
-    data: mockMonthlyCAAnnuel,
-    color: NXT_COLORS.green,
-    valueLabel: "CA (€)",
-    isCurrency: true,
-  },
-};
+function getKpiChartConfigs(isDemo: boolean): Record<ExpandableKpi, KpiChartConfig> {
+  return {
+    estimations: {
+      title: "Progression des Estimations — Mois par mois",
+      data: isDemo ? mockMonthlyEstimations : emptyMonthlyData,
+      color: NXT_COLORS.green,
+      valueLabel: "Estimations",
+    },
+    mandats: {
+      title: "Progression des Mandats signés — Mois par mois",
+      data: isDemo ? mockMonthlyMandats : emptyMonthlyData,
+      color: NXT_COLORS.blue,
+      valueLabel: "Mandats",
+    },
+    compromis: {
+      title: "Progression des Compromis signés — Mois par mois",
+      data: isDemo ? mockMonthlyCompromis : emptyMonthlyData,
+      color: NXT_COLORS.orange,
+      valueLabel: "Compromis",
+    },
+    ca: {
+      title: "Progression du Chiffre d'affaires — Mois par mois",
+      data: isDemo ? mockMonthlyCAAnnuel : emptyMonthlyData,
+      color: NXT_COLORS.green,
+      valueLabel: "CA (€)",
+      isCurrency: true,
+    },
+  };
+}
 
 const defaultFavorites: WidgetId[] = [
   "kpi_estimations",
@@ -147,11 +153,16 @@ function DashboardContent() {
   const results = useResults();
   const { computedRatios, ratioConfigs } = useRatios();
   const removedItems = useAppStore((s) => s.removedItems);
+  const isDemo = useAppStore((s) => s.isDemo);
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [favorites, setFavorites] = useState<WidgetId[]>(defaultFavorites);
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [expandedKpi, setExpandedKpi] = useState<ExpandableKpi | null>(null);
+
+  const kpiChartConfigs = useMemo(() => getKpiChartConfigs(isDemo), [isDemo]);
+  const monthlyCAData = isDemo ? mockMonthlyCA : emptyCAData;
+  const weeklyActivityData = isDemo ? mockWeeklyActivity : emptyActivityData;
 
   // Allow navigation via ?tab=suivi (from notifications, etc.)
   useEffect(() => {
@@ -479,7 +490,7 @@ function DashboardContent() {
                   Évolution du CA
                 </h3>
                 <LineChart
-                  data={mockMonthlyCA}
+                  data={monthlyCAData}
                   xKey="month"
                   lines={[
                     { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
@@ -544,7 +555,7 @@ function DashboardContent() {
                   Activité hebdomadaire
                 </h3>
                 <LineChart
-                  data={mockWeeklyActivity}
+                  data={weeklyActivityData}
                   xKey="day"
                   lines={[
                     { dataKey: "contacts", color: NXT_COLORS.green, name: "Contacts" },
@@ -773,7 +784,7 @@ function DashboardContent() {
                     Évolution du CA
                   </h3>
                   <LineChart
-                    data={mockMonthlyCA}
+                    data={monthlyCAData}
                     xKey="month"
                     lines={[
                       { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
@@ -827,7 +838,7 @@ function DashboardContent() {
                     Activité hebdomadaire
                   </h3>
                   <LineChart
-                    data={mockWeeklyActivity}
+                    data={weeklyActivityData}
                     xKey="day"
                     lines={[
                       {

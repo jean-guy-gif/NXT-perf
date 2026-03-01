@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PERIOD_LABELS, FIELD_TOOLTIPS } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
 import { useResults } from "@/hooks/use-results";
+import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { SaisieDrillDownModal } from "@/components/dashboard/saisie-drill-down-modal";
 import type { SaisieSection } from "@/lib/formation";
 import type { PeriodResults } from "@/types/results";
@@ -46,7 +47,8 @@ export default function SaisiePage() {
   const [periodType, setPeriodType] = useState<PeriodType>("month");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [saved, setSaved] = useState(false);
-  const addResults = useAppStore((s) => s.addResults);
+  const [saveError, setSaveError] = useState("");
+  const { saveResult } = useSupabaseResults();
   const user = useAppStore((s) => s.user);
   const previousResults = useResults();
   const [selectedSection, setSelectedSection] = useState<SaisieSection | null>(null);
@@ -154,7 +156,7 @@ export default function SaisiePage() {
     };
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
@@ -211,7 +213,15 @@ export default function SaisiePage() {
       updatedAt: now.toISOString(),
     };
 
-    addResults(result);
+    const error = await saveResult(result);
+    if (error) {
+      const errObj = error as Record<string, unknown>;
+      const msg = typeof error === "object" ? (String(errObj.message || errObj.details || errObj.hint || JSON.stringify(error))) : String(error);
+      console.error("Failed to save:", msg);
+      setSaveError("Erreur lors de la sauvegarde : " + msg);
+      return;
+    }
+    setSaveError("");
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -248,6 +258,11 @@ export default function SaisiePage() {
           <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-4 py-2 text-sm font-medium text-green-500">
             <CheckCircle className="h-4 w-4" />
             Données enregistrées avec succès
+          </div>
+        )}
+        {saveError && (
+          <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
+            {saveError}
           </div>
         )}
       </div>

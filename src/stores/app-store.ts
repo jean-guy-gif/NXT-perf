@@ -2,8 +2,9 @@ import { create } from "zustand";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
-import { mockCurrentUser, mockUsers } from "@/data/mock-users";
-import { mockResults, createZeroResults } from "@/data/mock-results";
+import type { DbProfile } from "@/types/database";
+import { mockUsers } from "@/data/mock-users";
+import { mockResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 
 export type RemovalReason = "deale" | "abandonne";
@@ -18,16 +19,33 @@ export interface RemovedItem {
 }
 
 interface AppState {
+  // ── Auth ──
   user: User | null;
   isAuthenticated: boolean;
+  isDemo: boolean;
+  profile: DbProfile | null;
+
+  // ── Data (cache for Supabase, or mock for demo) ──
   users: User[];
   results: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
   removedItems: RemovedItem[];
+
+  // ── Demo mode ──
+  enterDemo: () => void;
+  exitDemo: () => void;
+
+  // ── Auth actions (used in demo mode only) ──
   login: (email: string, password: string) => "success" | "not_found" | "wrong_password";
   logout: () => void;
   register: (user: User) => void;
   updateUserPassword: (email: string, newPassword: string) => boolean;
+
+  // ── Supabase auth ──
+  setProfile: (profile: DbProfile | null) => void;
+  setAuthenticated: (authed: boolean) => void;
+
+  // ── Data actions (used in both modes) ──
   setUser: (user: User) => void;
   switchRole: () => void;
   addUser: (user: User) => void;
@@ -35,6 +53,7 @@ interface AppState {
   assignAgent: (agentId: string, managerId: string) => void;
   unassignAgent: (agentId: string) => void;
   addResults: (result: PeriodResults) => void;
+  setResults: (results: PeriodResults[]) => void;
   removeInfoVente: (resultId: string, itemId: string, reason: RemovalReason) => void;
   removeAcheteurChaud: (resultId: string, itemId: string, reason: RemovalReason) => void;
   setRatioConfigs: (configs: Record<RatioId, RatioConfig>) => void;
@@ -49,11 +68,41 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   isAuthenticated: false,
-  users: mockUsers,
-  results: mockResults,
+  isDemo: false,
+  profile: null,
+  users: [],
+  results: [],
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
   removedItems: [],
 
+  // ── Demo mode ──
+  enterDemo: () => {
+    const demoUser = mockUsers[0];
+    document.cookie = "nxt-demo-mode=true;path=/;max-age=86400";
+    set({
+      isDemo: true,
+      isAuthenticated: true,
+      user: demoUser,
+      users: mockUsers,
+      results: mockResults,
+      ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
+    });
+  },
+
+  exitDemo: () => {
+    document.cookie = "nxt-demo-mode=;path=/;max-age=0";
+    set({
+      isDemo: false,
+      isAuthenticated: false,
+      user: null,
+      users: [],
+      results: [],
+      ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
+      removedItems: [],
+    });
+  },
+
+  // ── Auth (demo mode only — Supabase mode uses supabase.auth directly) ──
   login: (email, password) => {
     const found = get().users.find((u) => u.email === email);
     if (!found) return "not_found";
@@ -63,7 +112,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   logout: () => {
-    set({ user: null, isAuthenticated: false });
+    const isDemo = get().isDemo;
+    if (isDemo) {
+      get().exitDemo();
+    } else {
+      set({ user: null, isAuthenticated: false, profile: null });
+    }
   },
 
   register: (user) => {
@@ -71,8 +125,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       users: [...state.users, user],
       user,
       isAuthenticated: true,
-      // Auto-create zero results for new registered agents
-      results: [...state.results, createZeroResults(user.id)],
     }));
   },
 
@@ -87,6 +139,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     return true;
   },
 
+  // ── Supabase auth ──
+  setProfile: (profile) => {
+    if (profile) {
+      const user: User = {
+        id: profile.id,
+        email: profile.email,
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+        role: profile.role,
+        category: profile.category,
+        teamId: profile.team_id ?? "",
+        avatarUrl: profile.avatar_url ?? undefined,
+        createdAt: profile.created_at,
+      };
+      set({ profile, user, isAuthenticated: true });
+    } else {
+      set({ profile: null, user: null, isAuthenticated: false });
+    }
+  },
+
+  setAuthenticated: (authed) => set({ isAuthenticated: authed }),
+
+  // ── Data actions ──
   setUser: (user) => set({ user }),
 
   switchRole: () => {
@@ -103,8 +178,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   addUser: (user) => {
     set((state) => ({
       users: [...state.users, user],
-      // Auto-create zero results for new agents
-      results: [...state.results, createZeroResults(user.id)],
     }));
   },
 
@@ -138,6 +211,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       results: [...state.results.filter((r) => r.id !== result.id), result],
     }));
   },
+
+  setResults: (results) => set({ results }),
 
   removeInfoVente: (resultId, itemId, reason) => {
     set((state) => {
