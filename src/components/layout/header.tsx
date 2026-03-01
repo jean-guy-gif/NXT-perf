@@ -58,7 +58,7 @@ export function Header() {
 
   const pageTitle = pageTitles[pathname] || "Dashboard";
   const initials = user
-    ? `${user.firstName[0]}${user.lastName[0]}`
+    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
     : "??";
 
   const toggleTheme = () => {
@@ -72,7 +72,7 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm">
+    <header className="relative z-40 flex h-16 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm">
       <div className="flex items-center gap-4">
         <h1 className="text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
         {user && (
