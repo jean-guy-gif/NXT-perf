@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="180" viewBox="65 40 230 180">
+  <defs>
+    <style>
+      .navy { fill: #1B2D4A; }
+      .violet { fill: #5B50C9; }
+      .white { fill: #FFFFFF; }
+      .greenStroke { stroke: #10B981; }
+      .ringStroke { stroke: #5B50C9; }
+    </style>
+    <mask id="ringMask">
+      <rect x="0" y="0" width="400" height="300" fill="white"/>
+      <circle cx="175" cy="130" r="38" fill="black"/>
+    </mask>
+  </defs>
+  <path class="navy"
+        d="M80,55
+           Q80,40 95,40
+           L250,40
+           Q270,40 280,55
+           Q290,70 290,90
+           L290,170
+           Q290,190 280,205
+           Q270,220 250,220
+           L95,220
+           Q80,220 80,205
+           Q70,190 70,170
+           L70,90
+           Q70,70 80,55 Z"/>
+  <path class="white"
+        d="M125,82
+           Q125,74 132,70
+           L240,125
+           Q247,129 240,133
+           L132,190
+           Q125,186 125,178 Z"
+        opacity="0.92"/>
+  <circle cx="175" cy="130" r="62" class="white" opacity="0.95"/>
+  <circle cx="175" cy="130" r="50" fill="none" class="ringStroke" stroke-width="18" opacity="0.95"/>
+  <path d="M 205 92
+           A 50 50 0 0 1 225 130"
+        fill="none"
+        class="greenStroke"
+        stroke-width="18"
+        stroke-linecap="round"
+        mask="url(#ringMask)"/>
+  <circle cx="175" cy="130" r="26" class="white"/>
+</svg>

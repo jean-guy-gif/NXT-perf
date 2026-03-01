@@ -10,9 +10,7 @@ export default function WelcomePage() {
   return (
     <div className="rounded-xl border border-border bg-card p-8">
       <div className="mb-6 flex justify-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary">
-          <span className="text-xl font-bold text-primary-foreground">AG</span>
-        </div>
+        <img src="/logo-icon.svg" alt="NXT Perf" className="h-14 w-14" />
       </div>
       <h1 className="mb-2 text-center text-2xl font-bold text-foreground">
         Bienvenue sur NXT-Perf

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -71,9 +72,13 @@ export function Sidebar() {
   return (
     <nav className="flex h-full flex-col items-center gap-1 overflow-y-auto bg-sidebar py-4 px-2">
       <Link href="/dashboard" className="mb-6 flex items-center justify-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] bg-gradient-nxt shadow-sm">
-          <span className="text-sm font-bold text-white">AG</span>
-        </div>
+        <Image
+          src="/logo-icon.svg"
+          alt="NXT Perf"
+          width={40}
+          height={40}
+          className="rounded-[var(--radius-button)] shadow-sm"
+        />
       </Link>
 
       <div className="flex flex-col items-center gap-1">

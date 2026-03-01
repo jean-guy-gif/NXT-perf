@@ -68,9 +68,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="rounded-xl border border-border bg-card p-8">
       <div className="mb-6 flex justify-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">AG</span>
-        </div>
+        <img src="/logo-icon.svg" alt="NXT Perf" className="h-12 w-12" />
       </div>
       <h1 className="mb-2 text-center text-2xl font-bold text-foreground">
         Mot de passe oublié
