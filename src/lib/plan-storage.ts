@@ -31,11 +31,34 @@ export function clearPlan(): void {
   }
 }
 
-// ─── AGEFICE Draft ───────────────────────────────────────────────────
+// ─── Financement Draft ───────────────────────────────────────────────
+
+export type TriAnswer = "oui" | "non" | "ne_sais_pas" | "";
+export type TailleAgence = "1_10" | "11_49" | "50_PLUS" | "JE_NE_SAIS_PAS" | "";
+export type NatureActiviteMicro =
+  | "COMMERCIALE_VENTE"
+  | "PRESTATIONS_SERVICES_LIBERAL"
+  | "ARTISANALE"
+  | "";
 
 export interface AgeficeDraft {
-  statut: "independant" | "salarie" | "";
-  cotisantAgefice: "oui" | "non" | "ne_sais_pas" | "";
+  // ── Step 1 — Préqualification ──
+  statut: "independant" | "salarie" | "ne_sais_pas" | "";
+  bulletinsSalaireMensuels: TriAnswer;
+  versementSalaireParAgence: TriAnswer;
+  siretPersonnel: TriAnswer;
+  immatriculationRSAC: TriAnswer;
+  microEntreprise: TriAnswer;
+  cotisationsAJour: TriAnswer;
+  attestationUrssafCFPDisponible: TriAnswer;
+  tailleAgence: TailleAgence;
+  anneeDebutActivite: string; // "YYYY" or ""
+
+  // Conditionnel micro-entrepreneur
+  natureActiviteMicro: NatureActiviteMicro;
+  caN1: string; // number as string
+
+  // ── Step 2 — Formulaire identité + formation ──
   organisme: string;
   nom: string;
   prenom: string;
@@ -43,18 +66,44 @@ export interface AgeficeDraft {
   telephone: string;
   formationChoisie: string;
   datesSouhaitees: string;
+
+  // ── Step 2 — Champs financement ──
+  montantFormationHT: string;
+  dureeHeures: string;
+  dejaFormationCetteAnnee: TriAnswer;
+  montantDejaConsommeCetteAnnee: string;
+
+  // Optionnels (boost confiance)
+  codeAPE: string;
+  idcc: string;
 }
 
 export const emptyAgeficeDraft: AgeficeDraft = {
   statut: "",
+  bulletinsSalaireMensuels: "",
+  versementSalaireParAgence: "",
+  siretPersonnel: "",
+  immatriculationRSAC: "",
+  microEntreprise: "",
+  cotisationsAJour: "",
+  attestationUrssafCFPDisponible: "",
+  tailleAgence: "",
+  anneeDebutActivite: "",
+  natureActiviteMicro: "",
+  caN1: "",
   organisme: "Start Academy",
-  cotisantAgefice: "",
   nom: "",
   prenom: "",
   email: "",
   telephone: "",
   formationChoisie: "",
   datesSouhaitees: "",
+  montantFormationHT: "",
+  dureeHeures: "",
+  dejaFormationCetteAnnee: "",
+  montantDejaConsommeCetteAnnee: "",
+  codeAPE: "",
+  idcc: "",
 };
 
 export function saveAgeficeDraft(data: AgeficeDraft): void {
