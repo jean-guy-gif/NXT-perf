@@ -26,11 +26,11 @@ export function LineChart({
   data,
   xKey,
   lines,
-  height = 200,
   showGrid = false,
 }: LineChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <div style={{ width: "100%", height: "clamp(220px, 30vh, 360px)" }}>
+    <ResponsiveContainer width="100%" height="100%">
       <RechartsLineChart data={data}>
         {showGrid && (
           <CartesianGrid
@@ -73,5 +73,6 @@ export function LineChart({
         ))}
       </RechartsLineChart>
     </ResponsiveContainer>
+    </div>
   );
 }

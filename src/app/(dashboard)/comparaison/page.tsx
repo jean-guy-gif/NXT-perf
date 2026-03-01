@@ -6,14 +6,13 @@ import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
-import { mockResultsLastYear } from "@/data/mock-results";
 import { BarChart } from "@/components/charts/bar-chart";
 import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
 import type { UserCategory } from "@/types/user";
 import type { RatioId } from "@/types/ratios";
 
 type CompareMode = "advisor" | "profile";
-type TabType = "interne" | "anneeN1" | "temporel";
+type TabType = "interne" | "temporel";
 type TimePeriod = "mois" | "trimestre" | "semestre" | "annee";
 
 const periodLabels: Record<TimePeriod, string> = {
@@ -99,7 +98,6 @@ export default function ComparaisonPage() {
   const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>("u-demo-2");
   const [selectedProfile, setSelectedProfile] =
     useState<UserCategory>("expert");
-  const [showAllRatios, setShowAllRatios] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("mois");
 
   const { user, category } = useUser();
@@ -137,28 +135,6 @@ export default function ComparaisonPage() {
       name: config?.name.split("→")[0].trim().slice(0, 12) ?? r.ratioId,
       Moi: r.percentageOfTarget,
       Autre: otherRatios[idx]?.percentageOfTarget ?? 0,
-    };
-  });
-
-  const lastYearResults = mockResultsLastYear[0];
-  const lastYearRatios = lastYearResults
-    ? computeAllRatios(lastYearResults, category, ratioConfigs)
-    : [];
-
-  const defaultYearKeys: RatioId[] = [
-    "estimations_mandats",
-    "offres_compromis",
-    "mandats_exclusifs_vente",
-  ];
-  const yearComparisonData = (
-    showAllRatios ? myRatios : myRatios.filter((r) => defaultYearKeys.includes(r.ratioId as RatioId))
-  ).map((r) => {
-    const config = ratioConfigs[r.ratioId as RatioId];
-    const ly = lastYearRatios.find((lr) => lr.ratioId === r.ratioId);
-    return {
-      name: config?.name.split("→")[0].trim().slice(0, 12) ?? r.ratioId,
-      "Cette année": r.percentageOfTarget,
-      "Année N-1": ly?.percentageOfTarget ?? 0,
     };
   });
 
@@ -218,17 +194,6 @@ export default function ComparaisonPage() {
           )}
         >
           Comparaison Interne
-        </button>
-        <button
-          onClick={() => setTab("anneeN1")}
-          className={cn(
-            "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            tab === "anneeN1"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Année N-1
         </button>
         <button
           onClick={() => setTab("temporel")}
@@ -333,51 +298,6 @@ export default function ComparaisonPage() {
                 </span>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========== ANNEE N-1 ========== */}
-      {tab === "anneeN1" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Comparaison de vos performances avec l&apos;année précédente
-            </p>
-            <button
-              onClick={() => setShowAllRatios(!showAllRatios)}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-sm transition-colors",
-                showAllRatios
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {showAllRatios ? "Métriques clés" : "Tous les ratios"}
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="mb-4 font-semibold text-foreground">
-              Année N vs N-1 (% objectif)
-            </h3>
-            <BarChart
-              data={yearComparisonData}
-              xKey="name"
-              bars={[
-                {
-                  dataKey: "Cette année",
-                  color: NXT_COLORS.green,
-                  name: "Cette année",
-                },
-                {
-                  dataKey: "Année N-1",
-                  color: NXT_COLORS.green + "80",
-                  name: "Année N-1",
-                },
-              ]}
-              height={300}
-            />
           </div>
         </div>
       )}

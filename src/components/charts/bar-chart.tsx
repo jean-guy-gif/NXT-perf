@@ -21,9 +21,10 @@ interface BarChartProps {
   height?: number;
 }
 
-export function BarChart({ data, xKey, bars, height = 200 }: BarChartProps) {
+export function BarChart({ data, xKey, bars }: BarChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <div style={{ width: "100%", height: "clamp(220px, 30vh, 360px)" }}>
+    <ResponsiveContainer width="100%" height="100%">
       <RechartsBarChart data={data} barGap={4}>
         <CartesianGrid
           strokeDasharray="3 3"
@@ -61,5 +62,6 @@ export function BarChart({ data, xKey, bars, height = 200 }: BarChartProps) {
         ))}
       </RechartsBarChart>
     </ResponsiveContainer>
+    </div>
   );
 }

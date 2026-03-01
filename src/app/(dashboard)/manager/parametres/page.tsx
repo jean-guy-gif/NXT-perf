@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/stores/app-store";
-import { defaultRatioConfigs } from "@/data/mock-ratios";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { RatioId } from "@/types/ratios";
 import {
   Settings,
   Save,
   RotateCcw,
-  Calendar,
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
@@ -19,9 +17,7 @@ export default function ParametresPage() {
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const updateRatioThreshold = useAppStore((s) => s.updateRatioThreshold);
   const resetRatioConfigs = useAppStore((s) => s.resetRatioConfigs);
-  const setRatioConfigs = useAppStore((s) => s.setRatioConfigs);
   const [saved, setSaved] = useState(false);
-  const [applied, setApplied] = useState(false);
 
   const ratioIds = Object.keys(ratioConfigs) as RatioId[];
 
@@ -33,13 +29,6 @@ export default function ParametresPage() {
 
   const handleReset = () => {
     resetRatioConfigs();
-  };
-
-  const handleApplyPreviousYear = () => {
-    // Mock: apply last year's ratios (same as defaults in this mock scenario)
-    setRatioConfigs(JSON.parse(JSON.stringify(defaultRatioConfigs)));
-    setApplied(true);
-    setTimeout(() => setApplied(false), 3000);
   };
 
   return (
@@ -85,13 +74,6 @@ export default function ParametresPage() {
           Paramètres sauvegardés. Les statuts des conseillers ont été recalculés.
         </div>
       )}
-      {applied && (
-        <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 px-4 py-3 text-sm font-medium text-blue-500">
-          <CheckCircle className="h-4 w-4" />
-          Ratios de l&apos;année précédente appliqués avec succès.
-        </div>
-      )}
-
       {/* Info banner */}
       <div className="flex items-start gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-orange-500" />
@@ -202,31 +184,6 @@ export default function ParametresPage() {
         </div>
       </div>
 
-      {/* Apply Previous Year */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Appliquer les ratios de l&apos;année précédente
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Remplace tous les seuils par ceux utilisés l&apos;année dernière
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleApplyPreviousYear}
-            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            Appliquer ratios année précédente
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

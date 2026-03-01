@@ -72,9 +72,9 @@ export function Header() {
   };
 
   return (
-    <header className="relative z-40 flex h-16 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm">
+    <header className="relative z-40 flex h-16 items-center justify-between border-b border-border bg-card/50 px-3 sm:px-6 backdrop-blur-sm">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
+        <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
         {user && (
           <span
             className={cn(

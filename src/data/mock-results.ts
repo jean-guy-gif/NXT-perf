@@ -554,52 +554,6 @@ export const mockYearlyResults: PeriodResults = {
   updatedAt: "2026-02-24T10:00:00Z",
 };
 
-// Mock data for year N-1 comparison
-export const mockResultsLastYear: PeriodResults[] = [
-  {
-    id: "r1-ly",
-    userId: "u-demo-1",
-    periodType: "month",
-    periodStart: "2025-02-01",
-    periodEnd: "2025-02-28",
-    prospection: {
-      contactsEntrants: 20,
-      contactsTotaux: 35,
-      rdvEstimation: 2,
-      informationsVente: [
-        { id: "iv-ly1", nom: "Ancien client", commentaire: "Données année précédente", statut: "deale" },
-      ],
-    },
-    vendeurs: {
-      rdvEstimation: 2,
-      estimationsRealisees: 2,
-      mandatsSignes: 1,
-      mandats: [
-        { id: "m-ly1", nomVendeur: "Client N-1", type: "simple" },
-      ],
-      rdvSuivi: 3,
-      requalificationSimpleExclusif: 0,
-      baissePrix: 1,
-    },
-    acheteurs: {
-      acheteursChauds: [
-        { id: "ac-ly1", nom: "Acheteur N-1", commentaire: "Données précédentes", statut: "deale" },
-      ],
-      acheteursSortisVisite: 3,
-      nombreVisites: 6,
-      offresRecues: 1,
-      compromisSignes: 0,
-    },
-    ventes: {
-      actesSignes: 0,
-      chiffreAffaires: 0,
-      delaiMoyenVente: 0,
-    },
-    createdAt: "2025-02-01T08:00:00Z",
-    updatedAt: "2025-02-28T10:00:00Z",
-  },
-];
-
 // Monthly CA evolution data for charts
 export const mockMonthlyCA = [
   { month: "Sep", ca: 6200 },

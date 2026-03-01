@@ -187,3 +187,9 @@
     background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
   }
 }
+
+/* Prevent horizontal scroll on all pages */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}

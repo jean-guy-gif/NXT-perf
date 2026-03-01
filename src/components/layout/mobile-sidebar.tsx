@@ -11,7 +11,7 @@ export function MobileSidebar() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-[var(--shadow-1)] lg:hidden border border-border"
+        className="fixed left-3 top-[1.125rem] z-50 flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-[var(--shadow-1)] lg:hidden border border-border"
       >
         <Menu className="h-5 w-5" />
       </button>
