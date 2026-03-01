@@ -47,6 +47,7 @@ const emptyActivityData: Array<{ day: string; contacts: number; visites: number 
 import { useAppStore, type RemovedItem } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
+import type { PeriodResults } from "@/types/results";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
 
@@ -326,44 +327,50 @@ function DashboardContent() {
             height={300}
           />
           {/* Summary stats */}
-          <div className="mt-4 grid grid-cols-3 gap-4">
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Moyenne 12 mois</p>
-              <p className="mt-1 text-lg font-bold text-foreground">
-                {kpiChartConfigs[expandedKpi].isCurrency
-                  ? formatCurrency(
-                      Math.round(
-                        kpiChartConfigs[expandedKpi].data.reduce((s, d) => s + d.value, 0) /
-                          kpiChartConfigs[expandedKpi].data.length
+          {kpiChartConfigs[expandedKpi].data.length > 0 ? (
+            <div className="mt-4 grid grid-cols-3 gap-4">
+              <div className="rounded-lg bg-muted/50 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Moyenne 12 mois</p>
+                <p className="mt-1 text-lg font-bold text-foreground">
+                  {kpiChartConfigs[expandedKpi].isCurrency
+                    ? formatCurrency(
+                        Math.round(
+                          kpiChartConfigs[expandedKpi].data.reduce((s, d) => s + d.value, 0) /
+                            kpiChartConfigs[expandedKpi].data.length
+                        )
                       )
-                    )
-                  : (
-                      kpiChartConfigs[expandedKpi].data.reduce((s, d) => s + d.value, 0) /
-                      kpiChartConfigs[expandedKpi].data.length
-                    ).toFixed(1)}
-              </p>
+                    : (
+                        kpiChartConfigs[expandedKpi].data.reduce((s, d) => s + d.value, 0) /
+                        kpiChartConfigs[expandedKpi].data.length
+                      ).toFixed(1)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Maximum</p>
+                <p className="mt-1 text-lg font-bold text-green-500">
+                  {kpiChartConfigs[expandedKpi].isCurrency
+                    ? formatCurrency(
+                        Math.max(...kpiChartConfigs[expandedKpi].data.map((d) => d.value))
+                      )
+                    : Math.max(...kpiChartConfigs[expandedKpi].data.map((d) => d.value))}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Mois en cours</p>
+                <p className="mt-1 text-lg font-bold text-primary">
+                  {kpiChartConfigs[expandedKpi].isCurrency
+                    ? formatCurrency(
+                        kpiChartConfigs[expandedKpi].data[kpiChartConfigs[expandedKpi].data.length - 1].value
+                      )
+                    : kpiChartConfigs[expandedKpi].data[kpiChartConfigs[expandedKpi].data.length - 1].value}
+                </p>
+              </div>
             </div>
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Maximum</p>
-              <p className="mt-1 text-lg font-bold text-green-500">
-                {kpiChartConfigs[expandedKpi].isCurrency
-                  ? formatCurrency(
-                      Math.max(...kpiChartConfigs[expandedKpi].data.map((d) => d.value))
-                    )
-                  : Math.max(...kpiChartConfigs[expandedKpi].data.map((d) => d.value))}
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-xs text-muted-foreground">Mois en cours</p>
-              <p className="mt-1 text-lg font-bold text-primary">
-                {kpiChartConfigs[expandedKpi].isCurrency
-                  ? formatCurrency(
-                      kpiChartConfigs[expandedKpi].data[kpiChartConfigs[expandedKpi].data.length - 1].value
-                    )
-                  : kpiChartConfigs[expandedKpi].data[kpiChartConfigs[expandedKpi].data.length - 1].value}
-              </p>
-            </div>
-          </div>
+          ) : (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Aucune donnée historique disponible.
+            </p>
+          )}
         </div>
       )}
 
@@ -1125,7 +1132,7 @@ function DashboardContent() {
 
       {/* ========== TAB: SUIVI CONTACTS ========== */}
       {activeTab === "suivi" && (
-        <SuiviContactsPanel removedItems={removedItems} />
+        <SuiviContactsPanel removedItems={removedItems} results={results} />
       )}
     </div>
   );
@@ -1135,40 +1142,47 @@ function DashboardContent() {
 /*  Suivi Contacts Panel                                               */
 /* ------------------------------------------------------------------ */
 
-function SuiviContactsPanel({ removedItems }: { removedItems: RemovedItem[] }) {
-  const [filter, setFilter] = useState<"all" | "deale" | "abandonne">("all");
+function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedItem[]; results: PeriodResults | null }) {
+  const removeInfoVente = useAppStore((s) => s.removeInfoVente);
+  const removeAcheteurChaud = useAppStore((s) => s.removeAcheteurChaud);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  const infoVente = removedItems.filter((i) => i.type === "info_vente");
-  const acheteursChauds = removedItems.filter((i) => i.type === "acheteur_chaud");
+  const activeInfoVente = results?.prospection.informationsVente ?? [];
+  const activeAcheteurs = results?.acheteurs.acheteursChauds ?? [];
+  const totalActifs = activeInfoVente.length + activeAcheteurs.length;
 
   const totalDeale = removedItems.filter((i) => i.reason === "deale").length;
   const totalAbandonne = removedItems.filter((i) => i.reason === "abandonne").length;
 
-  const filterItems = (items: RemovedItem[]) =>
-    filter === "all" ? items : items.filter((i) => i.reason === filter);
+  const handleRemoveInfo = (itemId: string, reason: "deale" | "abandonne") => {
+    if (results) {
+      removeInfoVente(results.id, itemId, reason);
+      setConfirmingId(null);
+    }
+  };
 
-  const filteredInfoVente = filterItems(infoVente);
-  const filteredAcheteurs = filterItems(acheteursChauds);
-
-  if (removedItems.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
-        <Archive className="mx-auto h-8 w-8 text-muted-foreground" />
-        <p className="mt-3 text-sm text-muted-foreground">
-          Aucun contact traité pour le moment.
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Supprimez des informations de vente ou des acheteurs chauds depuis{" "}
-          <strong>Mes Résultats</strong> pour les retrouver ici.
-        </p>
-      </div>
-    );
-  }
+  const handleRemoveAcheteur = (itemId: string, reason: "deale" | "abandonne") => {
+    if (results) {
+      removeAcheteurChaud(results.id, itemId, reason);
+      setConfirmingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
+              <Phone className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">En cours</p>
+              <p className="text-2xl font-bold text-blue-500">{totalActifs}</p>
+            </div>
+          </div>
+        </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
@@ -1176,9 +1190,7 @@ function SuiviContactsPanel({ removedItems }: { removedItems: RemovedItem[] }) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total traités</p>
-              <p className="text-2xl font-bold text-foreground">
-                {removedItems.length}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{removedItems.length}</p>
             </div>
           </div>
         </div>
@@ -1200,99 +1212,170 @@ function SuiviContactsPanel({ removedItems }: { removedItems: RemovedItem[] }) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Abandonnés</p>
-              <p className="text-2xl font-bold text-red-500">
-                {totalAbandonne}
-              </p>
+              <p className="text-2xl font-bold text-red-500">{totalAbandonne}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter buttons */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
-        {(
-          [
-            { id: "all", label: "Tous" },
-            { id: "deale", label: "Dealés" },
-            { id: "abandonne", label: "Abandonnés" },
-          ] as const
-        ).map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-              filter === f.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Informations de vente */}
+      {/* ── Contacts actifs : Informations de vente ── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4 text-blue-500" />
           <h3 className="text-lg font-semibold text-foreground">
-            Informations de vente
+            Informations de vente en cours
           </h3>
           <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500">
-            {filteredInfoVente.length}
+            {activeInfoVente.length}
           </span>
         </div>
 
-        {filteredInfoVente.length === 0 ? (
+        {activeInfoVente.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-            Aucune information de vente{" "}
-            {filter !== "all"
-              ? filter === "deale"
-                ? "dealée"
-                : "abandonnée"
-              : ""}{" "}
-            pour le moment.
+            Aucune information de vente en cours.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {filteredInfoVente.map((item) => (
-              <RemovedItemCard key={item.id + item.removedAt} item={item} />
+            {activeInfoVente.map((item) => (
+              <ActiveContactCard
+                key={item.id}
+                id={item.id}
+                nom={item.nom}
+                commentaire={item.commentaire}
+                confirmingId={confirmingId}
+                setConfirmingId={setConfirmingId}
+                onRemove={(reason) => handleRemoveInfo(item.id, reason)}
+              />
             ))}
           </div>
         )}
       </div>
 
-      {/* Acheteurs chauds */}
+      {/* ── Contacts actifs : Acheteurs chauds ── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Flame className="h-4 w-4 text-orange-500" />
           <h3 className="text-lg font-semibold text-foreground">
-            Acheteurs chauds
+            Acheteurs chauds en cours
           </h3>
           <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">
-            {filteredAcheteurs.length}
+            {activeAcheteurs.length}
           </span>
         </div>
 
-        {filteredAcheteurs.length === 0 ? (
+        {activeAcheteurs.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-            Aucun acheteur chaud{" "}
-            {filter !== "all"
-              ? filter === "deale"
-                ? "dealé"
-                : "abandonné"
-              : ""}{" "}
-            pour le moment.
+            Aucun acheteur chaud en cours.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {filteredAcheteurs.map((item) => (
-              <RemovedItemCard key={item.id + item.removedAt} item={item} />
+            {activeAcheteurs.map((item) => (
+              <ActiveContactCard
+                key={item.id}
+                id={item.id}
+                nom={item.nom}
+                commentaire={item.commentaire}
+                confirmingId={confirmingId}
+                setConfirmingId={setConfirmingId}
+                onRemove={(reason) => handleRemoveAcheteur(item.id, reason)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* ── Historique des contacts traités ── */}
+      {removedItems.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Archive className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold text-muted-foreground">
+              Historique
+            </h3>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              {removedItems.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {removedItems.map((item) => (
+              <RemovedItemCard key={item.id + item.removedAt} item={item} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActiveContactCard({
+  id,
+  nom,
+  commentaire,
+  confirmingId,
+  setConfirmingId,
+  onRemove,
+}: {
+  id: string;
+  nom: string;
+  commentaire: string;
+  confirmingId: string | null;
+  setConfirmingId: (id: string | null) => void;
+  onRemove: (reason: "deale" | "abandonne") => void;
+}) {
+  const isConfirming = confirmingId === id;
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-muted/50 p-4 transition-colors",
+        isConfirming && "border-primary/40 bg-primary/5"
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-foreground">{nom}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{commentaire}</p>
+        </div>
+        {!isConfirming ? (
+          <button
+            onClick={() => setConfirmingId(id)}
+            className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Traiter
+          </button>
+        ) : (
+          <button
+            onClick={() => setConfirmingId(null)}
+            className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {isConfirming && (
+        <div className="mt-3 border-t border-border pt-3">
+          <p className="mb-2 text-sm font-medium text-foreground">
+            Quelle est la raison ?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onRemove("deale")}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500/15 px-3 py-2.5 text-sm font-medium text-green-600 transition-colors hover:bg-green-500/25 dark:text-green-400"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Dealé
+            </button>
+            <button
+              onClick={() => onRemove("abandonne")}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-500/15 px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/25 dark:text-red-400"
+            >
+              <XCircle className="h-4 w-4" />
+              Abandonné
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
