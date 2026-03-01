@@ -51,54 +51,125 @@ export const mockResults: PeriodResults[] = [
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-23T10:00:00Z",
   },
-  // Agent 1 (Alice Martin - confirmé)
+  // =====================================================================
+  // AGENT 6 — Franck Girard (expert) — TRÈS EN RÉUSSITE
+  // contacts/rdv=8 (seuil 10), estim/mandat=1.14 (seuil 1.5), exclu=87% (seuil 70%)
+  // visites/offre=3 (seuil 8), offres/compromis=1.2 (seuil 1.5), CA=72k
+  // =====================================================================
   {
-    id: "r1",
-    userId: "u-demo-1",
+    id: "r6",
+    userId: "u-demo-6",
     periodType: "month",
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 28,
-      contactsTotaux: 45,
-      rdvEstimation: 3,
+      contactsEntrants: 52,
+      contactsTotaux: 72,
+      rdvEstimation: 9,
       informationsVente: [
-        { id: "iv1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale" },
-        { id: "iv2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville" },
-        { id: "iv3", nom: "Famille Petit", commentaire: "Mutation professionnelle Lyon" },
+        { id: "iv11", nom: "M. Richard", commentaire: "Vente portefeuille immobilier, 3 lots" },
+        { id: "iv12", nom: "Mme Bonnet", commentaire: "Résidence principale + secondaire" },
+        { id: "iv13", nom: "SCI Immobilien", commentaire: "Patrimoine commercial à céder" },
+        { id: "iv14f", nom: "M. Castellano", commentaire: "Villa prestige littoral" },
       ],
     },
     vendeurs: {
-      rdvEstimation: 3,
-      estimationsRealisees: 3,
-      mandatsSignes: 2,
+      rdvEstimation: 9,
+      estimationsRealisees: 8,
+      mandatsSignes: 7,
       mandats: [
-        { id: "m1", nomVendeur: "Mme Dubois", type: "exclusif" },
-        { id: "m2", nomVendeur: "M. Garcia", type: "simple" },
+        { id: "m11", nomVendeur: "M. Richard", type: "exclusif" },
+        { id: "m12", nomVendeur: "Mme Bonnet", type: "exclusif" },
+        { id: "m13", nomVendeur: "SCI Immobilien", type: "exclusif" },
+        { id: "m14", nomVendeur: "M. Castellano", type: "exclusif" },
+        { id: "m15", nomVendeur: "Mme Henry", type: "exclusif" },
+        { id: "m16f", nomVendeur: "M. Arnould", type: "exclusif" },
+        { id: "m17f", nomVendeur: "M. Vidal", type: "simple" },
       ],
-      rdvSuivi: 5,
-      requalificationSimpleExclusif: 1,
+      rdvSuivi: 14,
+      requalificationSimpleExclusif: 3,
+      baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "ac10", nom: "Investisseur Groupe A", commentaire: "Portefeuille 1.2M" },
+        { id: "ac11", nom: "M. Tessier", commentaire: "Acquisition multi-biens premium" },
+        { id: "ac12", nom: "Couple Renaud", commentaire: "Villégiature côte azur 600k" },
+        { id: "ac12b", nom: "SCI Atlas", commentaire: "Recherche immeuble rapport" },
+      ],
+      acheteursSortisVisite: 11,
+      nombreVisites: 18,
+      offresRecues: 6,
+      compromisSignes: 5,
+    },
+    ventes: {
+      actesSignes: 4,
+      chiffreAffaires: 72000,
+      delaiMoyenVente: 42,
+    },
+    createdAt: "2026-02-01T08:00:00Z",
+    updatedAt: "2026-02-27T10:00:00Z",
+  },
+  // =====================================================================
+  // AGENT 3 — Catherine Durand (expert) — EN RÉUSSITE
+  // contacts/rdv=9.3 (seuil 10), estim/mandat=1.4 (seuil 1.5), exclu=80% (seuil 70%)
+  // visites/offre=4 (seuil 8), offres/compromis=1.33 (seuil 1.5), CA=42k
+  // =====================================================================
+  {
+    id: "r3",
+    userId: "u-demo-3",
+    periodType: "month",
+    periodStart: "2026-02-01",
+    periodEnd: "2026-02-28",
+    prospection: {
+      contactsEntrants: 42,
+      contactsTotaux: 65,
+      rdvEstimation: 7,
+      informationsVente: [
+        { id: "iv6", nom: "M. Lambert", commentaire: "Héritage, maison ancienne à rénover" },
+        { id: "iv6b", nom: "Mme Perrin", commentaire: "Résidence secondaire Côte d'Azur" },
+        { id: "iv6c", nom: "SCI Patrimoine+", commentaire: "Lot de 2 T2 investissement" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 7,
+      estimationsRealisees: 7,
+      mandatsSignes: 5,
+      mandats: [
+        { id: "m19", nomVendeur: "M. Lambert", type: "exclusif" },
+        { id: "m20", nomVendeur: "Mme Perrin", type: "exclusif" },
+        { id: "m21", nomVendeur: "SCI Patrimoine+", type: "exclusif" },
+        { id: "m22", nomVendeur: "M. André", type: "exclusif" },
+        { id: "m23", nomVendeur: "Mme Clément", type: "simple" },
+      ],
+      rdvSuivi: 10,
+      requalificationSimpleExclusif: 2,
       baissePrix: 1,
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin" },
-        { id: "ac2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k" },
+        { id: "ac6", nom: "Mlle Thomas", commentaire: "Cadre dirigeant, budget 600k" },
+        { id: "ac6b", nom: "M. et Mme Fabre", commentaire: "Famille recomposée, maison 5p" },
+        { id: "ac6c", nom: "Investisseur Groupe B", commentaire: "Portefeuille locatif" },
       ],
-      acheteursSortisVisite: 4,
-      nombreVisites: 8,
-      offresRecues: 2,
-      compromisSignes: 1,
+      acheteursSortisVisite: 8,
+      nombreVisites: 16,
+      offresRecues: 4,
+      compromisSignes: 3,
     },
     ventes: {
-      actesSignes: 1,
-      chiffreAffaires: 8500,
-      delaiMoyenVente: 78,
+      actesSignes: 3,
+      chiffreAffaires: 42000,
+      delaiMoyenVente: 52,
     },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
+    updatedAt: "2026-02-26T10:00:00Z",
   },
-  // Agent 2 (Bob Bernard - confirmé)
+  // =====================================================================
+  // AGENT 2 — Bob Bernard (confirmé) — EN RÉUSSITE
+  // contacts/rdv=10.4 (seuil 15), estim/mandat=1.25 (seuil 2), exclu=75% (seuil 50%)
+  // visites/offre=3.5 (seuil 10), offres/compromis=1.75 (seuil 2), CA=28k
+  // =====================================================================
   {
     id: "r2",
     userId: "u-demo-2",
@@ -106,7 +177,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 35,
+      contactsEntrants: 36,
       contactsTotaux: 52,
       rdvEstimation: 5,
       informationsVente: [
@@ -141,64 +212,119 @@ export const mockResults: PeriodResults[] = [
     },
     ventes: {
       actesSignes: 2,
-      chiffreAffaires: 22000,
-      delaiMoyenVente: 65,
+      chiffreAffaires: 28000,
+      delaiMoyenVente: 58,
     },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
+    updatedAt: "2026-02-25T10:00:00Z",
   },
-  // Agent 3 (Catherine Durand - expert)
+  // =====================================================================
+  // AGENT 1 — Alice Martin (confirmé) — MOYEN
+  // contacts/rdv=16.7 (seuil 15 → warning), estim/mandat=1.5 (seuil 2 → ok)
+  // exclu=50% (seuil 50% → ok pile), visites/offre=12 (seuil 10 → warning)
+  // offres/compromis=2 (seuil 2 → ok), CA=8.5k
+  // =====================================================================
   {
-    id: "r3",
-    userId: "u-demo-3",
+    id: "r1",
+    userId: "u-demo-1",
     periodType: "month",
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 40,
-      contactsTotaux: 60,
-      rdvEstimation: 6,
+      contactsEntrants: 30,
+      contactsTotaux: 50,
+      rdvEstimation: 3,
       informationsVente: [
-        { id: "iv6", nom: "M. Lambert", commentaire: "Héritage, maison ancienne à rénover" },
-        { id: "iv6b", nom: "Mme Perrin", commentaire: "Résidence secondaire Côte d'Azur" },
-        { id: "iv6c", nom: "SCI Patrimoine+", commentaire: "Lot de 2 T2 investissement" },
+        { id: "iv1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale" },
+        { id: "iv2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville" },
       ],
     },
     vendeurs: {
-      rdvEstimation: 6,
-      estimationsRealisees: 6,
-      mandatsSignes: 5,
+      rdvEstimation: 3,
+      estimationsRealisees: 3,
+      mandatsSignes: 2,
       mandats: [
-        { id: "m19", nomVendeur: "M. Lambert", type: "exclusif" },
-        { id: "m20", nomVendeur: "Mme Perrin", type: "exclusif" },
-        { id: "m21", nomVendeur: "SCI Patrimoine+", type: "exclusif" },
-        { id: "m22", nomVendeur: "M. André", type: "exclusif" },
-        { id: "m23", nomVendeur: "Mme Clément", type: "simple" },
+        { id: "m1", nomVendeur: "Mme Dubois", type: "exclusif" },
+        { id: "m2", nomVendeur: "M. Garcia", type: "simple" },
       ],
-      rdvSuivi: 10,
-      requalificationSimpleExclusif: 2,
+      rdvSuivi: 5,
+      requalificationSimpleExclusif: 0,
       baissePrix: 1,
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac6", nom: "Mlle Thomas", commentaire: "Cadre dirigeant, budget 600k" },
-        { id: "ac6b", nom: "M. et Mme Fabre", commentaire: "Famille recomposée, maison 5p" },
-        { id: "ac6c", nom: "Investisseur Groupe B", commentaire: "Portefeuille locatif" },
+        { id: "ac1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin" },
+        { id: "ac2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k" },
       ],
-      acheteursSortisVisite: 8,
-      nombreVisites: 16,
-      offresRecues: 4,
-      compromisSignes: 3,
+      acheteursSortisVisite: 4,
+      nombreVisites: 12,
+      offresRecues: 2,
+      compromisSignes: 1,
     },
     ventes: {
-      actesSignes: 2,
-      chiffreAffaires: 35000,
-      delaiMoyenVente: 55,
+      actesSignes: 1,
+      chiffreAffaires: 8500,
+      delaiMoyenVente: 78,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-23T10:00:00Z",
   },
-  // Agent 4 (David Dubois - junior)
+  // =====================================================================
+  // AGENT 5 — Émilie Petit (confirmé) — MOYEN-BAS
+  // contacts/rdv=18 (seuil 15 → danger), estim/mandat=2.5 (seuil 2 → warning)
+  // exclu=50% (seuil 50% → pile), visites/offre=10 (seuil 10 → ok pile)
+  // offres/compromis=2 (seuil 2 → ok), mais 0 acte donc mandats/vente = 0
+  // =====================================================================
+  {
+    id: "r5",
+    userId: "u-demo-5",
+    periodType: "month",
+    periodStart: "2026-02-01",
+    periodEnd: "2026-02-28",
+    prospection: {
+      contactsEntrants: 25,
+      contactsTotaux: 54,
+      rdvEstimation: 3,
+      informationsVente: [
+        { id: "iv9", nom: "Mme Rousseau", commentaire: "Succession, villa avec terrain" },
+        { id: "iv10", nom: "Couple Martin", commentaire: "Mutation, maison 4 chambres" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 3,
+      estimationsRealisees: 5,
+      mandatsSignes: 2,
+      mandats: [
+        { id: "m8", nomVendeur: "Mme Rousseau", type: "exclusif" },
+        { id: "m10", nomVendeur: "M. Leclerc", type: "simple" },
+      ],
+      rdvSuivi: 5,
+      requalificationSimpleExclusif: 0,
+      baissePrix: 2,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "ac8", nom: "M. Schmitt", commentaire: "Cadre, budget 400k" },
+      ],
+      acheteursSortisVisite: 3,
+      nombreVisites: 10,
+      offresRecues: 2,
+      compromisSignes: 1,
+    },
+    ventes: {
+      actesSignes: 0,
+      chiffreAffaires: 0,
+      delaiMoyenVente: 0,
+    },
+    createdAt: "2026-02-01T08:00:00Z",
+    updatedAt: "2026-02-20T10:00:00Z",
+  },
+  // =====================================================================
+  // AGENT 4 — David Dubois (junior) — EN ÉCHEC
+  // contacts/rdv=30 (seuil 20 → danger), estim/mandat=2 (seuil 4 → ok mais peu de volume)
+  // exclu=0% (seuil 30% → danger), visites/offre=15 (seuil 12 → warning)
+  // offres/compromis=0 (0 compromis → danger), CA=0, beaucoup d'effort peu de résultat
+  // =====================================================================
   {
     id: "r4",
     userId: "u-demo-4",
@@ -206,12 +332,11 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 22,
-      contactsTotaux: 38,
+      contactsEntrants: 20,
+      contactsTotaux: 60,
       rdvEstimation: 2,
       informationsVente: [
         { id: "iv7", nom: "M. Blanc", commentaire: "Retraite anticipée, villa bord de mer" },
-        { id: "iv8", nom: "Mme Chevalier", commentaire: "Déménagement, appart T4" },
       ],
     },
     vendeurs: {
@@ -221,7 +346,7 @@ export const mockResults: PeriodResults[] = [
       mandats: [
         { id: "m7", nomVendeur: "M. Blanc", type: "simple" },
       ],
-      rdvSuivi: 4,
+      rdvSuivi: 2,
       requalificationSimpleExclusif: 0,
       baissePrix: 1,
     },
@@ -229,119 +354,25 @@ export const mockResults: PeriodResults[] = [
       acheteursChauds: [
         { id: "ac7", nom: "M. et Mme Duval", commentaire: "Famille, maison 3 chambres" },
       ],
-      acheteursSortisVisite: 3,
-      nombreVisites: 6,
+      acheteursSortisVisite: 2,
+      nombreVisites: 15,
       offresRecues: 1,
-      compromisSignes: 1,
+      compromisSignes: 0,
     },
     ventes: {
-      actesSignes: 1,
-      chiffreAffaires: 7200,
-      delaiMoyenVente: 92,
+      actesSignes: 0,
+      chiffreAffaires: 0,
+      delaiMoyenVente: 0,
     },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
+    updatedAt: "2026-02-18T10:00:00Z",
   },
-  // Agent 5 (Émilie Petit - confirmé)
-  {
-    id: "r5",
-    userId: "u-demo-5",
-    periodType: "month",
-    periodStart: "2026-02-01",
-    periodEnd: "2026-02-28",
-    prospection: {
-      contactsEntrants: 32,
-      contactsTotaux: 48,
-      rdvEstimation: 4,
-      informationsVente: [
-        { id: "iv9", nom: "Mme Rousseau", commentaire: "Succession, villa avec terrain" },
-        { id: "iv10", nom: "Couple Martin", commentaire: "Mutation, maison 4 chambres" },
-      ],
-    },
-    vendeurs: {
-      rdvEstimation: 4,
-      estimationsRealisees: 4,
-      mandatsSignes: 3,
-      mandats: [
-        { id: "m8", nomVendeur: "Mme Rousseau", type: "exclusif" },
-        { id: "m9", nomVendeur: "Couple Martin", type: "exclusif" },
-        { id: "m10", nomVendeur: "M. Leclerc", type: "simple" },
-      ],
-      rdvSuivi: 6,
-      requalificationSimpleExclusif: 1,
-      baissePrix: 0,
-    },
-    acheteurs: {
-      acheteursChauds: [
-        { id: "ac8", nom: "M. Schmitt", commentaire: "Cadre, budget 400k" },
-        { id: "ac9", nom: "Couple Lefebvre", commentaire: "Famille, T4 avec jardin" },
-      ],
-      acheteursSortisVisite: 5,
-      nombreVisites: 10,
-      offresRecues: 2,
-      compromisSignes: 1,
-    },
-    ventes: {
-      actesSignes: 1,
-      chiffreAffaires: 12500,
-      delaiMoyenVente: 70,
-    },
-    createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
-  },
-  // Agent 6 (Franck Girard - expert)
-  {
-    id: "r6",
-    userId: "u-demo-6",
-    periodType: "month",
-    periodStart: "2026-02-01",
-    periodEnd: "2026-02-28",
-    prospection: {
-      contactsEntrants: 45,
-      contactsTotaux: 68,
-      rdvEstimation: 7,
-      informationsVente: [
-        { id: "iv11", nom: "M. Richard", commentaire: "Vente portefeuille immobilier" },
-        { id: "iv12", nom: "Mme Bonnet", commentaire: "Portfolio de 3 biens" },
-        { id: "iv13", nom: "SCI Immobilien", commentaire: "Vente de patrimoine" },
-      ],
-    },
-    vendeurs: {
-      rdvEstimation: 7,
-      estimationsRealisees: 7,
-      mandatsSignes: 6,
-      mandats: [
-        { id: "m11", nomVendeur: "M. Richard", type: "exclusif" },
-        { id: "m12", nomVendeur: "Mme Bonnet", type: "exclusif" },
-        { id: "m13", nomVendeur: "SCI Immobilien", type: "exclusif" },
-        { id: "m14", nomVendeur: "M. Arnould", type: "exclusif" },
-        { id: "m15", nomVendeur: "Mme Henry", type: "exclusif" },
-        { id: "m16", nomVendeur: "M. Vidal", type: "simple" },
-      ],
-      rdvSuivi: 11,
-      requalificationSimpleExclusif: 3,
-      baissePrix: 1,
-    },
-    acheteurs: {
-      acheteursChauds: [
-        { id: "ac10", nom: "Investisseur Groupe A", commentaire: "Portefeuille premium" },
-        { id: "ac11", nom: "M. Tessier", commentaire: "Acquisition multi-biens" },
-        { id: "ac12", nom: "Couple Renaud", commentaire: "Villégiature côte azur" },
-      ],
-      acheteursSortisVisite: 9,
-      nombreVisites: 18,
-      offresRecues: 5,
-      compromisSignes: 3,
-    },
-    ventes: {
-      actesSignes: 3,
-      chiffreAffaires: 58000,
-      delaiMoyenVente: 55,
-    },
-    createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
-  },
-  // Agent 7 (Géraldine Laurent - confirmé)
+  // =====================================================================
+  // AGENT 7 — Géraldine Laurent (confirmé) — EN ÉCHEC
+  // contacts/rdv=25 (seuil 15 → danger), estim/mandat=3 (seuil 2 → danger)
+  // exclu=0% (seuil 50% → danger), visites/offre=7 (seuil 10 → ok)
+  // mais 0 compromis → danger, CA=0, profil découragé
+  // =====================================================================
   {
     id: "r7",
     userId: "u-demo-7",
@@ -349,45 +380,47 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 26,
-      contactsTotaux: 42,
-      rdvEstimation: 3,
+      contactsEntrants: 18,
+      contactsTotaux: 50,
+      rdvEstimation: 2,
       informationsVente: [
         { id: "iv14", nom: "Mme Collet", commentaire: "Veuvage, petit appartement" },
-        { id: "iv15", nom: "M. Maury", commentaire: "Relocalisation, studio" },
       ],
     },
     vendeurs: {
-      rdvEstimation: 3,
+      rdvEstimation: 2,
       estimationsRealisees: 3,
-      mandatsSignes: 2,
+      mandatsSignes: 1,
       mandats: [
-        { id: "m17", nomVendeur: "Mme Collet", type: "exclusif" },
-        { id: "m18", nomVendeur: "M. Maury", type: "simple" },
+        { id: "m17", nomVendeur: "M. Maury", type: "simple" },
       ],
-      rdvSuivi: 4,
+      rdvSuivi: 3,
       requalificationSimpleExclusif: 0,
-      baissePrix: 0,
+      baissePrix: 1,
     },
     acheteurs: {
       acheteursChauds: [
         { id: "ac13", nom: "M. Olivier", commentaire: "Achat premier bien" },
-        { id: "ac14", nom: "Couple Dupre", commentaire: "Petit budget accession" },
       ],
-      acheteursSortisVisite: 4,
+      acheteursSortisVisite: 2,
       nombreVisites: 7,
       offresRecues: 1,
-      compromisSignes: 1,
+      compromisSignes: 0,
     },
     ventes: {
-      actesSignes: 1,
-      chiffreAffaires: 4800,
-      delaiMoyenVente: 85,
+      actesSignes: 0,
+      chiffreAffaires: 0,
+      delaiMoyenVente: 0,
     },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-23T10:00:00Z",
+    updatedAt: "2026-02-15T10:00:00Z",
   },
-  // Agent 8 (Hervé Fournier - junior)
+  // =====================================================================
+  // AGENT 8 — Hervé Fournier (junior) — SUPER ÉCHEC
+  // contacts/rdv=0 (0 rdv sur 40 contacts → danger total)
+  // 0 estimation, 0 mandat, 0 visite, 0 offre, 0 compromis, 0 CA
+  // Énorme volume de pige téléphonique mais zéro conversion
+  // =====================================================================
   {
     id: "r8",
     userId: "u-demo-8",
@@ -395,28 +428,24 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 15,
-      contactsTotaux: 24,
-      rdvEstimation: 1,
-      informationsVente: [
-        { id: "iv16", nom: "M. Gérard", commentaire: "Studio à vendre, petit prix" },
-      ],
+      contactsEntrants: 8,
+      contactsTotaux: 42,
+      rdvEstimation: 0,
+      informationsVente: [],
     },
     vendeurs: {
-      rdvEstimation: 1,
-      estimationsRealisees: 1,
+      rdvEstimation: 0,
+      estimationsRealisees: 0,
       mandatsSignes: 0,
       mandats: [],
-      rdvSuivi: 1,
+      rdvSuivi: 0,
       requalificationSimpleExclusif: 0,
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac15", nom: "Mlle Pasquier", commentaire: "Petit budget location-accession" },
-      ],
-      acheteursSortisVisite: 1,
-      nombreVisites: 2,
+      acheteursChauds: [],
+      acheteursSortisVisite: 0,
+      nombreVisites: 3,
       offresRecues: 0,
       compromisSignes: 0,
     },
@@ -426,7 +455,7 @@ export const mockResults: PeriodResults[] = [
       delaiMoyenVente: 0,
     },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-10T10:00:00Z",
+    updatedAt: "2026-02-08T10:00:00Z",
   },
 ];
 
