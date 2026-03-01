@@ -6,28 +6,22 @@ import { useUser } from "@/hooks/use-user";
 import { generateFormationDiagnostic } from "@/lib/formation";
 import { cn } from "@/lib/utils";
 import { ProgressBar } from "@/components/charts/progress-bar";
+import { Plan30Jours } from "@/components/formation/plan-30-jours";
+import { AgeficeWizard } from "@/components/formation/agefice-wizard";
 import {
   AlertTriangle,
   CheckCircle,
   XCircle,
   BookOpen,
   Dumbbell,
-  GraduationCap,
-  Phone,
-  Home,
-  Users,
-  Handshake,
   Target,
-  FileSignature,
-  ShieldCheck,
-  Clock,
   ExternalLink,
-  Lock,
-  ChevronDown,
-  ChevronUp,
+  CalendarCheck,
+  Wallet,
+  FileText,
 } from "lucide-react";
 
-type FormationTab = "diagnostic" | "former" | "entrainer";
+type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement";
 
 const priorityConfig = {
   1: { label: "P1", color: "bg-red-500/20 text-red-500", border: "border-red-500/30" },
@@ -41,123 +35,21 @@ const statusConfig = {
   danger: { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10", label: "Action requise" },
 };
 
-// Catalogue des grands sujets de formation
-const formationCatalog = [
-  {
-    id: "prospection",
-    title: "Prospection",
-    icon: Phone,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-    borderColor: "border-blue-500/30",
-    description: "Maîtriser les techniques de prise de contact et de génération de leads qualifiés.",
-    modules: [
-      "Scripts d'appel et prise de rendez-vous",
-      "Qualification des contacts entrants",
-      "Prospection terrain et pige immobilière",
-      "Stratégie de farming et réseaux",
-      "Gestion du CRM et suivi des leads",
-    ],
-    duration: "8h de formation",
-    level: "Tous niveaux",
-  },
-  {
-    id: "vendeur",
-    title: "Vendeur",
-    icon: Home,
-    color: "text-green-500",
-    bgColor: "bg-green-500/10",
-    borderColor: "border-green-500/30",
-    description: "Accompagner le vendeur de l'estimation jusqu'à la signature du mandat.",
-    modules: [
-      "Méthodologie d'estimation (ACV, comparatif)",
-      "Présentation de l'estimation au vendeur",
-      "Argumentation prix et positionnement marché",
-      "Rendez-vous de suivi vendeur",
-      "Gestion des baisses de prix",
-    ],
-    duration: "10h de formation",
-    level: "Confirmé",
-  },
-  {
-    id: "acheteur",
-    title: "Acheteur",
-    icon: Users,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
-    borderColor: "border-purple-500/30",
-    description: "Qualifier, accompagner et convertir les acheteurs potentiels.",
-    modules: [
-      "Qualification du besoin acheteur",
-      "Préparation et conduite de visite",
-      "Gestion du portefeuille acheteurs chauds",
-      "Relance et suivi post-visite",
-      "Accompagnement au financement",
-    ],
-    duration: "8h de formation",
-    level: "Tous niveaux",
-  },
-  {
-    id: "closing",
-    title: "Closing & Négociation",
-    icon: Handshake,
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
-    borderColor: "border-amber-500/30",
-    description: "Techniques de négociation et de closing pour transformer les offres en compromis.",
-    modules: [
-      "Techniques de négociation immobilière",
-      "Gestion des offres multiples",
-      "Traitement des objections",
-      "Rédaction et présentation de l'offre",
-      "Closing : du compromis à l'acte",
-    ],
-    duration: "6h de formation",
-    level: "Confirmé / Expert",
-  },
-  {
-    id: "exclusivite",
-    title: "Exclusivité",
-    icon: ShieldCheck,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-    borderColor: "border-emerald-500/30",
-    description: "Valoriser le mandat exclusif et convaincre le vendeur de ses avantages.",
-    modules: [
-      "Argumentaire exclusivité vs mandat simple",
-      "Valorisation des services premium",
-      "Plan de commercialisation exclusif",
-      "Requalification simple → exclusif",
-      "Fidélisation et recommandation",
-    ],
-    duration: "4h de formation",
-    level: "Tous niveaux",
-  },
-  {
-    id: "suivi",
-    title: "Suivi & Organisation",
-    icon: Clock,
-    color: "text-cyan-500",
-    bgColor: "bg-cyan-500/10",
-    borderColor: "border-cyan-500/30",
-    description: "Optimiser son organisation, son suivi de portefeuille et sa productivité.",
-    modules: [
-      "Organisation de la semaine type",
-      "Suivi régulier du portefeuille mandats",
-      "Reporting et analyse de ses ratios",
-      "Gestion du temps et priorisation",
-      "Outils digitaux et automatisation",
-    ],
-    duration: "4h de formation",
-    level: "Tous niveaux",
-  },
+// Catalogue des formations pour le dropdown AGEFICE
+const formationCatalogOptions = [
+  "Prospection immobilière",
+  "Estimation et prise de mandat",
+  "Exclusivité et valorisation du service",
+  "Accompagnement acheteur",
+  "Négociation et closing",
+  "Suivi de portefeuille et organisation",
 ];
 
 export default function FormationPage() {
   const { user } = useUser();
   const { computedRatios, ratioConfigs } = useRatios();
   const [activeTab, setActiveTab] = useState<FormationTab>("diagnostic");
-  const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
+  const [showAgeficeWizard, setShowAgeficeWizard] = useState(false);
 
   const diagnostic = user
     ? generateFormationDiagnostic(computedRatios, ratioConfigs, user.id)
@@ -169,6 +61,15 @@ export default function FormationPage() {
 
   // Points d'amélioration basés sur le diagnostic
   const weakPoints = diagnostic.recommendations.filter((r) => r.priority <= 2);
+
+  // Options pour le dropdown AGEFICE (priorités + catalogue)
+  const priorityLabels = diagnostic.recommendations
+    .filter((r) => r.priority <= 2)
+    .map((r) => r.label);
+  const ageficeFormationOptions = [
+    ...priorityLabels,
+    ...formationCatalogOptions.filter((o) => !priorityLabels.includes(o)),
+  ];
 
   return (
     <div className="space-y-6">
@@ -189,16 +90,16 @@ export default function FormationPage() {
           Diagnostic
         </button>
         <button
-          onClick={() => setActiveTab("former")}
+          onClick={() => setActiveTab("plan30")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "former"
+            activeTab === "plan30"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <GraduationCap className="h-4 w-4" />
-          Se former
+          <CalendarCheck className="h-4 w-4" />
+          Plan 30 jours
         </button>
         <button
           onClick={() => setActiveTab("entrainer")}
@@ -211,6 +112,18 @@ export default function FormationPage() {
         >
           <Dumbbell className="h-4 w-4" />
           S&apos;entraîner
+        </button>
+        <button
+          onClick={() => setActiveTab("financement")}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            activeTab === "financement"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Wallet className="h-4 w-4" />
+          Financement
         </button>
       </div>
 
@@ -327,106 +240,9 @@ export default function FormationPage() {
         </>
       )}
 
-      {/* ========== SE FORMER ========== */}
-      {activeTab === "former" && (
-        <div className="space-y-6">
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-            <div className="flex items-center gap-3">
-              <GraduationCap className="h-5 w-5 text-primary" />
-              <div>
-                <h2 className="font-semibold text-foreground">
-                  Catalogue de formation
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {formationCatalog.length} thématiques disponibles — Cliquez sur un sujet pour voir le détail des modules.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {formationCatalog.map((topic) => {
-              const Icon = topic.icon;
-              const isExpanded = expandedTopic === topic.id;
-
-              return (
-                <div
-                  key={topic.id}
-                  className={cn(
-                    "rounded-xl border bg-card transition-colors",
-                    isExpanded ? topic.borderColor : "border-border"
-                  )}
-                >
-                  {/* Header clickable */}
-                  <button
-                    onClick={() =>
-                      setExpandedTopic(isExpanded ? null : topic.id)
-                    }
-                    className="flex w-full items-start gap-4 p-5 text-left"
-                  >
-                    <div
-                      className={cn(
-                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
-                        topic.bgColor
-                      )}
-                    >
-                      <Icon className={cn("h-5 w-5", topic.color)} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-foreground">
-                          {topic.title}
-                        </h3>
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        )}
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {topic.description}
-                      </p>
-                      <div className="mt-2 flex gap-3">
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          {topic.duration}
-                        </span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          {topic.level}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Expanded modules */}
-                  {isExpanded && (
-                    <div className="border-t border-border px-5 pb-5 pt-4">
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Modules inclus
-                      </p>
-                      <ul className="space-y-2">
-                        {topic.modules.map((mod, idx) => (
-                          <li
-                            key={idx}
-                            className="flex items-start gap-2 text-sm text-foreground"
-                          >
-                            <span className={cn("mt-0.5 text-xs", topic.color)}>●</span>
-                            {mod}
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted/50 p-3">
-                        <Lock className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">
-                          Contenu disponible prochainement — en cours de développement.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {/* ========== PLAN 30 JOURS ========== */}
+      {activeTab === "plan30" && (
+        <Plan30Jours diagnostic={diagnostic} ratioConfigs={ratioConfigs} />
       )}
 
       {/* ========== S'ENTRAÎNER ========== */}
@@ -605,6 +421,81 @@ export default function FormationPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========== FINANCEMENT ========== */}
+      {activeTab === "financement" && (
+        <div className="space-y-6">
+          {/* Banner AGEFICE */}
+          <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6">
+            <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20">
+                <Wallet className="h-7 w-7 text-emerald-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-foreground">
+                  Financement AGEFICE
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  En tant que dirigeant d&apos;entreprise non salarié, vous pouvez
+                  bénéficier d&apos;un financement AGEFICE pour vos formations.
+                  Constituez votre dossier en quelques minutes.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Infos clés */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-5 text-center">
+              <p className="text-2xl font-bold text-emerald-500">100%</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Prise en charge possible
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-5 text-center">
+              <p className="text-2xl font-bold text-emerald-500">3 min</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pour constituer le dossier
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-5 text-center">
+              <p className="text-2xl font-bold text-emerald-500">0 €</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Reste à charge estimé
+              </p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
+              <FileText className="h-7 w-7 text-emerald-500" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-foreground">
+              Constituez votre dossier de financement
+            </h3>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              Répondez à quelques questions, remplissez le formulaire prérempli
+              et téléchargez votre dossier complet prêt à envoyer.
+            </p>
+            <button
+              onClick={() => setShowAgeficeWizard(true)}
+              className="mt-6 flex items-center gap-2 rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+            >
+              <FileText className="h-4 w-4" />
+              Constituer mon dossier
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AGEFICE Wizard Modal */}
+      {showAgeficeWizard && (
+        <AgeficeWizard
+          onClose={() => setShowAgeficeWizard(false)}
+          formationOptions={ageficeFormationOptions}
+        />
       )}
     </div>
   );
