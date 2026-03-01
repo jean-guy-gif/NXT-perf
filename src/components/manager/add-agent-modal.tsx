@@ -99,7 +99,9 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
     const inviteCode = `INV-${managerId}`;
     const { subject, body } = buildWelcomeEmail(trimmedFirst, managerName, inviteCode);
     const mailtoUrl = `mailto:${trimmedEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoUrl, "_blank");
+    const link = document.createElement("a");
+    link.href = mailtoUrl;
+    link.click();
 
     setAddedName(`${trimmedFirst} ${trimmedLast}`);
     setSent(true);
