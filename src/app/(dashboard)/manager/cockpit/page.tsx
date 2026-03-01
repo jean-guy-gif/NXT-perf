@@ -118,7 +118,9 @@ function TrackingRow({
 }) {
   return (
     <tr className="border-b border-border/50">
-      <td className="py-2.5 pr-4 font-medium text-foreground">{name}</td>
+      <td className="py-2.5 pr-4 font-medium text-foreground max-w-[140px]">
+        <span className="block truncate" title={name}>{name}</span>
+      </td>
       {(["en_cours", "deale", "abandonne"] as const).map((statut) => (
         <td key={statut} className="py-2.5 px-4 text-center">
           <ClickableBadge
@@ -649,14 +651,16 @@ export default function CockpitPage() {
       </div>
 
       {/* ── Suivi des contacts (informations vente) ── */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-          <Phone className="h-4 w-4 text-primary" />
-          Suivi des contacts
-        </h3>
-        <div className="overflow-x-auto">
+      <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+        <div className="shrink-0 px-5 pt-5 pb-3">
+          <h3 className="flex items-center gap-2 font-semibold text-foreground">
+            <Phone className="h-4 w-4 text-primary" />
+            Suivi des contacts
+          </h3>
+        </div>
+        <div className="min-h-0 overflow-x-auto overflow-y-auto px-5 pb-6" style={{ maxHeight: "clamp(260px, 45vh, 520px)", scrollPaddingBottom: "24px" }}>
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border text-left">
                 <th className="pb-3 pr-4 font-medium text-muted-foreground">Conseiller</th>
                 <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
@@ -689,14 +693,16 @@ export default function CockpitPage() {
       </div>
 
       {/* ── Suivi des acheteurs chauds ── */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-          <Flame className="h-4 w-4 text-orange-500" />
-          Suivi des acheteurs chauds
-        </h3>
-        <div className="overflow-x-auto">
+      <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+        <div className="shrink-0 px-5 pt-5 pb-3">
+          <h3 className="flex items-center gap-2 font-semibold text-foreground">
+            <Flame className="h-4 w-4 text-orange-500" />
+            Suivi des acheteurs chauds
+          </h3>
+        </div>
+        <div className="min-h-0 overflow-x-auto overflow-y-auto px-5 pb-6" style={{ maxHeight: "clamp(260px, 45vh, 520px)", scrollPaddingBottom: "24px" }}>
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border text-left">
                 <th className="pb-3 pr-4 font-medium text-muted-foreground">Conseiller</th>
                 <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
