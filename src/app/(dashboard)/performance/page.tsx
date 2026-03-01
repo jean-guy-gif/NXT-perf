@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
+import { useResults } from "@/hooks/use-results";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { ProgressBar } from "@/components/charts/progress-bar";
+import { RatioDrillDownModal } from "@/components/dashboard/ratio-drill-down-modal";
 import type { RatioId } from "@/types/ratios";
 import {
   Gauge,
@@ -46,6 +49,8 @@ const statusConfig = {
 export default function PerformancePage() {
   const { user, category } = useUser();
   const { computedRatios, ratioConfigs } = useRatios();
+  const results = useResults();
+  const [selectedRatioId, setSelectedRatioId] = useState<RatioId | null>(null);
 
   const overallPerformance =
     computedRatios.length > 0
@@ -178,7 +183,7 @@ export default function PerformancePage() {
       {/* Ratios Detail Grid */}
       <div>
         <h2 className="mb-4 text-lg font-semibold text-foreground">
-          Détail des 8 ratios métier
+          Détail des 7 ratios métier
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {computedRatios.map((ratio) => {
@@ -190,8 +195,9 @@ export default function PerformancePage() {
             return (
               <div
                 key={ratio.ratioId}
+                onClick={() => setSelectedRatioId(ratio.ratioId as RatioId)}
                 className={cn(
-                  "rounded-xl border bg-card p-5 transition-colors hover:shadow-sm",
+                  "cursor-pointer rounded-xl border bg-card p-5 transition-colors hover:shadow-md",
                   sc.border
                 )}
               >
@@ -253,6 +259,19 @@ export default function PerformancePage() {
           })}
         </div>
       </div>
+
+      {/* Drill-down modal */}
+      {selectedRatioId && results && (
+        <RatioDrillDownModal
+          ratioId={selectedRatioId}
+          computedRatio={
+            computedRatios.find((r) => r.ratioId === selectedRatioId)!
+          }
+          ratioConfig={ratioConfigs[selectedRatioId]}
+          results={results}
+          onClose={() => setSelectedRatioId(null)}
+        />
+      )}
     </div>
   );
 }
