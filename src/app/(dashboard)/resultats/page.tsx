@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Tooltip } from "react-tooltip";
+import "react-tooltip/dist/react-tooltip.css";
 import { ProspectionTab } from "@/components/resultats/prospection-tab";
 import { VendeursTab } from "@/components/resultats/vendeurs-tab";
 import { AcheteursTab } from "@/components/resultats/acheteurs-tab";
@@ -182,6 +184,13 @@ export default function ResultatsPage() {
           {activeTab === "ventes" && <VentesTab results={results} />}
         </>
       )}
+
+      <Tooltip
+        id="field-tooltip"
+        place="top"
+        className="!max-w-xs !rounded-lg !bg-popover !px-3 !py-2 !text-xs !text-popover-foreground !shadow-lg !border !border-border"
+        opacity={1}
+      />
     </div>
   );
 }

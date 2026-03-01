@@ -10,6 +10,7 @@ import {
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { DynamicInfoFields } from "./dynamic-info-fields";
 import { useAppStore } from "@/stores/app-store";
+import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 import type { RemovalReason } from "@/stores/app-store";
 
@@ -33,30 +34,35 @@ export function AcheteursTab({ results }: AcheteursTabProps) {
           value={acheteurs.acheteursChauds.length}
           icon={Flame}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.acheteursChauds}
         />
         <KpiCard
           title="Sortis en visite"
           value={acheteurs.acheteursSortisVisite}
           icon={UserCheck}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.acheteursSortisVisite}
         />
         <KpiCard
           title="Nombre de visites"
           value={acheteurs.nombreVisites}
           icon={Eye}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.nombreVisites}
         />
         <KpiCard
           title="Offres reçues"
           value={acheteurs.offresRecues}
           icon={FileText}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.offresRecues}
         />
         <KpiCard
           title="Compromis signés"
           value={acheteurs.compromisSignes}
           icon={Handshake}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.compromisSignes}
         />
       </div>
 

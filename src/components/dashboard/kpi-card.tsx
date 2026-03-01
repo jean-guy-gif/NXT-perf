@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Maximize2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Maximize2, HelpCircle } from "lucide-react";
 
 interface KpiCardProps {
   title: string;
@@ -15,6 +15,7 @@ interface KpiCardProps {
   status?: "ok" | "warning" | "danger";
   className?: string;
   onExpand?: () => void;
+  tooltip?: string;
 }
 
 const statusIconBg = {
@@ -38,6 +39,7 @@ export function KpiCard({
   status = "ok",
   className,
   onExpand,
+  tooltip,
 }: KpiCardProps) {
   return (
     <div
@@ -88,7 +90,16 @@ export function KpiCard({
         </div>
       </div>
       <div className="mt-3">
-        <p className="text-sm text-muted-foreground">{title}</p>
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          {title}
+          {tooltip && (
+            <HelpCircle
+              className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground/60"
+              data-tooltip-id="field-tooltip"
+              data-tooltip-content={tooltip}
+            />
+          )}
+        </p>
         <p className="kpi-number mt-1 text-foreground">{value}</p>
       </div>
     </div>

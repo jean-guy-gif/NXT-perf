@@ -9,6 +9,7 @@ import {
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { DynamicInfoFields } from "./dynamic-info-fields";
 import { useAppStore } from "@/stores/app-store";
+import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 import type { RemovalReason } from "@/stores/app-store";
 
@@ -32,24 +33,28 @@ export function ProspectionTab({ results }: ProspectionTabProps) {
           value={prospection.contactsEntrants}
           icon={PhoneIncoming}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.contactsEntrants}
         />
         <KpiCard
           title="Contacts totaux"
           value={prospection.contactsTotaux}
           icon={Phone}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.contactsTotaux}
         />
         <KpiCard
           title="RDV Estimation"
           value={prospection.rdvEstimation}
           icon={CalendarCheck}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.rdvEstimation}
         />
         <KpiCard
           title="Infos de vente"
           value={prospection.informationsVente.length}
           icon={Info}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.infosVente}
         />
       </div>
 

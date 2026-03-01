@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MandatBlock } from "./mandat-block";
+import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 
 interface VendeursTabProps {
@@ -27,18 +28,21 @@ export function VendeursTab({ results }: VendeursTabProps) {
           value={vendeurs.rdvEstimation}
           icon={CalendarCheck}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.rdvEstimation}
         />
         <KpiCard
           title="Estimations réalisées"
           value={vendeurs.estimationsRealisees}
           icon={ClipboardCheck}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.estimationsRealisees}
         />
         <KpiCard
           title="Mandats signés"
           value={vendeurs.mandatsSignes}
           icon={FileSignature}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.mandatsSignes}
         />
       </div>
 
@@ -61,18 +65,21 @@ export function VendeursTab({ results }: VendeursTabProps) {
           value={vendeurs.rdvSuivi}
           icon={Eye}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.rdvSuivi}
         />
         <KpiCard
           title="Requalification → exclusif"
           value={vendeurs.requalificationSimpleExclusif}
           icon={RefreshCw}
           status={vendeurs.requalificationSimpleExclusif > 0 ? "ok" : "warning"}
+          tooltip={FIELD_TOOLTIPS.requalification}
         />
         <KpiCard
           title="Baisse de prix"
           value={vendeurs.baissePrix}
           icon={TrendingDown}
           status={vendeurs.baissePrix === 0 ? "ok" : "warning"}
+          tooltip={FIELD_TOOLTIPS.baissePrix}
         />
       </div>
     </div>

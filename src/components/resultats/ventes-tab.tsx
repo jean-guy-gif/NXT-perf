@@ -5,7 +5,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { LineChart } from "@/components/charts/line-chart";
 import { formatCurrency } from "@/lib/formatters";
 import { mockMonthlyCA } from "@/data/mock-results";
-import { NXT_COLORS } from "@/lib/constants";
+import { NXT_COLORS, FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 
 interface VentesTabProps {
@@ -23,12 +23,14 @@ export function VentesTab({ results }: VentesTabProps) {
           value={ventes.actesSignes}
           icon={FileCheck}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.actesSignes}
         />
         <KpiCard
           title="Chiffre d'affaires"
           value={formatCurrency(ventes.chiffreAffaires)}
           icon={DollarSign}
           status="ok"
+          tooltip={FIELD_TOOLTIPS.chiffreAffaires}
         />
       </div>
 
