@@ -7,7 +7,7 @@ export const mockUsers: User[] = [
     email: "jean-guy@start-academy.fr",
     password: "demo",
     firstName: "Jean-Guy",
-    lastName: "Dupont",
+    lastName: "Ourmières",
     role: "manager",
     category: "expert",
     teamId: "team-demo",

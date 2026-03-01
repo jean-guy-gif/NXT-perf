@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, CheckCircle2 } from "lucide-react";
+import { X, Send, CheckCircle2, Copy, Check } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import type { UserCategory } from "@/types/user";
 import { CATEGORY_LABELS } from "@/lib/constants";
@@ -14,40 +14,8 @@ interface AddAgentModalProps {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function buildWelcomeEmail(firstName: string, managerName: string, inviteCode: string) {
-  const subject = `${managerName} vous invite sur NXT-Perf — votre cockpit de performance immobilière`;
-  const body = `Bonjour ${firstName},
-
-${managerName} vous invite à rejoindre NXT-Perf, le tableau de bord de pilotage de votre performance immobilière.
-
-Pourquoi NXT-Perf va changer votre quotidien :
-
-- Visualisez vos 7 ratios clés en un coup d'oeil
-- Identifiez instantanément vos axes de progression
-- Suivez votre évolution mois par mois
-- Accédez à des recommandations de formation personnalisées
-- Fixez vos objectifs et mesurez votre progression
-
-Pour créer votre compte :
-1. Rendez-vous sur l'application NXT-Perf
-2. Cliquez sur "Créer un compte"
-3. Choisissez le rôle "Conseiller"
-4. Entrez votre code d'invitation : ${inviteCode}
-5. Complétez vos informations
-
-Votre code d'invitation : ${inviteCode}
-
-À très bientôt sur NXT-Perf !
-
-${managerName}
-Manager — NXT-Perf`;
-
-  return { subject, body };
-}
-
 export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentModalProps) {
   const addUser = useAppStore((s) => s.addUser);
-  const currentUser = useAppStore((s) => s.user);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -56,6 +24,8 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sent, setSent] = useState(false);
   const [addedName, setAddedName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -92,23 +62,20 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
       createdAt: new Date().toISOString(),
     });
 
-    // Build and open welcome email via mailto
-    const managerName = currentUser
-      ? `${currentUser.firstName} ${currentUser.lastName}`
-      : "Votre manager";
-    const inviteCode = `INV-${managerId}`;
-    const { subject, body } = buildWelcomeEmail(trimmedFirst, managerName, inviteCode);
-    const mailtoUrl = `mailto:${trimmedEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    const link = document.createElement("a");
-    link.href = mailtoUrl;
-    link.click();
-
+    const code = `INV-${managerId}`;
+    setInviteCode(code);
     setAddedName(`${trimmedFirst} ${trimmedLast}`);
     setSent(true);
   };
 
   const inputClassName =
     "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring";
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (sent) {
     return (
@@ -127,8 +94,33 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
               {addedName} ajouté(e) à l'équipe
             </h2>
             <p className="text-sm text-muted-foreground">
-              Un email d'invitation a été préparé dans votre client mail avec le code d'invitation et les instructions de connexion.
+              Transmettez le code d'invitation ci-dessous à votre conseiller pour qu'il puisse créer son compte.
             </p>
+            <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-3">
+              <code className="flex-1 text-center text-lg font-bold tracking-wider text-foreground">
+                {inviteCode}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <div className="w-full rounded-lg bg-muted/50 px-4 py-3 text-left">
+              <p className="mb-1.5 text-xs font-medium text-foreground">Instructions pour le conseiller :</p>
+              <ol className="space-y-0.5 text-xs text-muted-foreground">
+                <li>1. Se rendre sur l'application NXT-Perf</li>
+                <li>2. Cliquer sur « Créer un compte »</li>
+                <li>3. Choisir le rôle « Conseiller »</li>
+                <li>4. Entrer le code d'invitation</li>
+                <li>5. Compléter ses informations</li>
+              </ol>
+            </div>
             <button
               onClick={onClose}
               className="mt-2 rounded-lg bg-gradient-nxt px-6 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
@@ -234,7 +226,7 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
           </div>
 
           <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            Un email d'invitation sera envoyé à l'agent avec son code d'accès et une présentation de NXT-Perf.
+            Un code d'invitation sera généré pour que le conseiller puisse créer son compte sur NXT-Perf.
           </p>
 
           {/* Actions */}
