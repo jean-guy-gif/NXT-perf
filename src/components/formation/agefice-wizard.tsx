@@ -9,13 +9,13 @@ import {
   emptyAgeficeDraft,
 } from "@/lib/plan-storage";
 import type { AgeficeDraft } from "@/lib/plan-storage";
-import { downloadDossierText, copyDossierToClipboard } from "@/lib/agefice-pdf";
+import { downloadDossierText } from "@/lib/agefice-pdf";
 import {
   X,
   ChevronRight,
   ChevronLeft,
   Download,
-  Send,
+  ExternalLink,
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
@@ -80,28 +80,16 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
     if (success) {
       showToast("success", "Dossier téléchargé avec succès !");
     } else {
-      // Fallback: copy to clipboard
-      copyDossierToClipboard(draft).then((ok) => {
-        if (ok) {
-          showToast("success", "Le téléchargement a échoué. Texte copié dans le presse-papiers.");
-        } else {
-          showToast("error", "Impossible de télécharger ou copier le dossier.");
-        }
-      });
+      showToast("error", "Impossible de télécharger le dossier.");
     }
   }, [draft, showToast]);
 
-  const handleSendToStartAcademy = useCallback(async () => {
-    const ok = await copyDossierToClipboard(draft);
-    if (ok) {
-      showToast(
-        "success",
-        "Données copiées ! Envoyez-les à formation@startacademy.fr"
-      );
-    } else {
-      showToast("error", "Impossible de copier les données.");
-    }
-  }, [draft, showToast]);
+  const handleSendToStartAcademy = useCallback(() => {
+    window.open(
+      "https://start-academy.smartof.app/formulaire-inscription-sessions/VTJGc2RHVmtYMS94MDZNWTdiRmlyU0J5djJTK2hKelIxRWlhVHoyVVdDa09JNFQzMjBWLzkrMXoyeGdYSnhwTHZlN1dJR3VYdW1MaVJMTEU1elZNdXBSY2c3V2RHU0k1dWljOCtGcW5BL2U1NS9PdzlCUzlCcS9vYWFOOGo0dEtnM1AxWDhxN1BWVWpuVStpRGRRR2krR1AzOUxHQ05GWGlXS2pCbnk4bm41Y1Y4cDd1bmUwV2NyamdKQWU3UHU4ZTFqRWlMQ3BiNU5aZ0hneUxWampyUXVpUTBkdU1RT3QvVEVPOGJYZG5rUTVhaUxRS29nL0N1UUlaMTN0b3A0NU9SQnh1N3BuTGlpWGU0NW5kbTA3WlkwUkViZ0QzTCtGUHdvYkJMTEQxUDg5/soumettre",
+      "_blank"
+    );
+  }, []);
 
   const canGoStep2 = draft.statut !== "" && draft.cotisantAgefice !== "";
   const canGoStep3 =
@@ -449,8 +437,8 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
                   onClick={handleSendToStartAcademy}
                   className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                 >
-                  <Send className="h-4 w-4" />
-                  Envoyer à Start Academy
+                  <ExternalLink className="h-4 w-4" />
+                  S&apos;inscrire sur Start Academy
                 </button>
               </div>
 
