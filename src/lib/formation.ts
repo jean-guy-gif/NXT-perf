@@ -88,6 +88,39 @@ export function getActionsForRatio(
   return actionsMap[ratioId] ?? [];
 }
 
+export type SaisieSection = "prospection" | "vendeurs" | "acheteurs" | "ventes";
+
+export function getSaisieTips(
+  section: SaisieSection
+): { label: string; description: string }[] {
+  const tipsMap: Record<SaisieSection, { label: string; description: string }[]> = {
+    prospection: [
+      { label: "Comptez tous vos contacts", description: "Les contacts totaux incluent les entrants (portails, vitrine) ET vos actions de prospection active (téléphone, porte-à-porte, réseau)." },
+      { label: "Différenciez entrants et totaux", description: "Les contacts entrants sont ceux qui viennent à vous spontanément. Les contacts totaux incluent aussi votre prospection active." },
+      { label: "Définition du RDV estimation", description: "Un RDV estimation est un rendez-vous physique chez le vendeur pour évaluer le prix de son bien. Un simple appel ne compte pas." },
+      { label: "Qu'est-ce qu'une info de vente ?", description: "Une information de vente est un projet vendeur identifié mais pas encore transformé en RDV estimation. Notez le nom du contact et le contexte." },
+    ],
+    vendeurs: [
+      { label: "Renseignez le type de mandat", description: "Précisez pour chaque mandat s'il est simple ou exclusif. Cela impacte directement vos ratios de performance." },
+      { label: "Définition de la requalification", description: "Une requalification est le passage d'un mandat simple en mandat exclusif. Comptez chaque transformation obtenue sur la période." },
+      { label: "Quand compter une baisse de prix ?", description: "Comptez une baisse de prix chaque fois qu'un vendeur accepte de réviser son prix à la baisse suite à votre recommandation." },
+      { label: "RDV de suivi vendeur", description: "Comptez chaque rendez-vous de suivi réalisé avec un vendeur ayant déjà un mandat en cours (compte-rendu, ajustement stratégie)." },
+    ],
+    acheteurs: [
+      { label: "Définition acheteur chaud", description: "Un acheteur chaud est un acquéreur qualifié avec un projet concret, un financement validé et prêt à visiter. Renseignez son nom et un commentaire." },
+      { label: "Sortis en visite vs nombre de visites", description: "« Sortis en visite » = nombre d'acheteurs distincts emmenés en visite. « Nombre de visites » = total de visites réalisées (un acheteur peut en faire plusieurs)." },
+      { label: "Offre formelle uniquement", description: "Ne comptez que les offres écrites et formalisées. Une intention verbale ou une discussion de prix ne constitue pas une offre." },
+    ],
+    ventes: [
+      { label: "Acte signé = vente définitive", description: "Ne comptez un acte que lorsque la signature définitive chez le notaire a eu lieu. Un compromis n'est pas un acte." },
+      { label: "CA = honoraires nets", description: "Le chiffre d'affaires correspond à vos honoraires d'agence sur les actes signés, pas au prix de vente du bien." },
+      { label: "Une vente par acte", description: "Chaque acte notarié signé compte pour une vente, même si plusieurs compromis ont été nécessaires en amont." },
+    ],
+  };
+
+  return tipsMap[section];
+}
+
 export function generateFormationDiagnostic(
   computedRatios: ComputedRatio[],
   ratioConfigs: Record<RatioId, RatioConfig>,

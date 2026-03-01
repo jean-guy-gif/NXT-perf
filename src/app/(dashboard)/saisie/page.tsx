@@ -4,6 +4,9 @@ import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { PERIOD_LABELS } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
+import { useResults } from "@/hooks/use-results";
+import { SaisieDrillDownModal } from "@/components/dashboard/saisie-drill-down-modal";
+import type { SaisieSection } from "@/lib/formation";
 import type { PeriodResults } from "@/types/results";
 import {
   CalendarDays,
@@ -15,6 +18,7 @@ import {
   Home,
   Users,
   DollarSign,
+  Info,
 } from "lucide-react";
 
 type PeriodType = "day" | "week" | "month";
@@ -41,6 +45,8 @@ export default function SaisiePage() {
   const [saved, setSaved] = useState(false);
   const addResults = useAppStore((s) => s.addResults);
   const user = useAppStore((s) => s.user);
+  const previousResults = useResults();
+  const [selectedSection, setSelectedSection] = useState<SaisieSection | null>(null);
 
   const weekRange = useMemo(() => getWeekRange(selectedDate), [selectedDate]);
 
@@ -298,13 +304,17 @@ export default function SaisiePage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Section Prospection */}
         <section className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-5 flex items-center gap-3">
+          <div
+            className="mb-5 flex cursor-pointer items-center gap-3"
+            onClick={() => setSelectedSection("prospection")}
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/15">
               <Phone className="h-4 w-4 text-blue-500" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">
               Prospection
             </h2>
+            <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-blue-500" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -403,11 +413,15 @@ export default function SaisiePage() {
 
         {/* Section Vendeurs */}
         <section className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-5 flex items-center gap-3">
+          <div
+            className="mb-5 flex cursor-pointer items-center gap-3"
+            onClick={() => setSelectedSection("vendeurs")}
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500/15">
               <Home className="h-4 w-4 text-green-500" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">Vendeurs</h2>
+            <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-green-500" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
@@ -544,13 +558,17 @@ export default function SaisiePage() {
 
         {/* Section Acheteurs */}
         <section className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-5 flex items-center gap-3">
+          <div
+            className="mb-5 flex cursor-pointer items-center gap-3"
+            onClick={() => setSelectedSection("acheteurs")}
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/15">
               <Users className="h-4 w-4 text-orange-500" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">
               Acheteurs
             </h2>
+            <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-orange-500" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div>
@@ -666,11 +684,15 @@ export default function SaisiePage() {
 
         {/* Section Ventes */}
         <section className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-5 flex items-center gap-3">
+          <div
+            className="mb-5 flex cursor-pointer items-center gap-3"
+            onClick={() => setSelectedSection("ventes")}
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/15">
               <DollarSign className="h-4 w-4 text-purple-500" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">Ventes</h2>
+            <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-purple-500" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -710,6 +732,14 @@ export default function SaisiePage() {
           Enregistrer les données
         </button>
       </form>
+
+      {selectedSection && (
+        <SaisieDrillDownModal
+          section={selectedSection}
+          previousResults={previousResults}
+          onClose={() => setSelectedSection(null)}
+        />
+      )}
     </div>
   );
 }
