@@ -1,47 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="180" viewBox="65 40 230 180">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="50 15 245 210" role="img" aria-label="NXT PERF">
   <defs>
     <style>
-      .navy { fill: #1B2D4A; }
-      .violet { fill: #5B50C9; }
-      .white { fill: #FFFFFF; }
-      .greenStroke { stroke: #10B981; }
-      .ringStroke { stroke: #5B50C9; }
+      :root{
+        --nxt-navy:#162D62;
+        --nxt-purple:#4A32A2;
+        --white:#FFFFFF;
+      }
     </style>
-    <mask id="ringMask">
-      <rect x="0" y="0" width="400" height="300" fill="white"/>
-      <circle cx="175" cy="130" r="38" fill="black"/>
-    </mask>
+    <radialGradient id="perfGlow" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#5B45C4"/>
+      <stop offset="55%" stop-color="#4A32A2"/>
+      <stop offset="100%" stop-color="#3A2783"/>
+    </radialGradient>
+    <clipPath id="perfClip">
+      <circle cx="150" cy="120" r="38"/>
+    </clipPath>
   </defs>
-  <path class="navy"
-        d="M80,55
-           Q80,40 95,40
-           L250,40
-           Q270,40 280,55
-           Q290,70 290,90
-           L290,170
-           Q290,190 280,205
-           Q270,220 250,220
-           L95,220
-           Q80,220 80,205
-           Q70,190 70,170
-           L70,90
-           Q70,70 80,55 Z"/>
-  <path class="white"
-        d="M125,82
-           Q125,74 132,70
-           L240,125
-           Q247,129 240,133
-           L132,190
-           Q125,186 125,178 Z"
-        opacity="0.92"/>
-  <circle cx="175" cy="130" r="62" class="white" opacity="0.95"/>
-  <circle cx="175" cy="130" r="50" fill="none" class="ringStroke" stroke-width="18" opacity="0.95"/>
-  <path d="M 205 92
-           A 50 50 0 0 1 225 130"
-        fill="none"
-        class="greenStroke"
-        stroke-width="18"
-        stroke-linecap="round"
-        mask="url(#ringMask)"/>
-  <circle cx="175" cy="130" r="26" class="white"/>
+
+  <!-- Triangle Play arrondi -->
+  <path fill="var(--nxt-navy)" d="
+    M 68 58
+    Q 68 30 95 40
+    L 258 113
+    Q 280 120 258 127
+    L 95 200
+    Q 68 210 68 182
+    Z
+  "/>
+
+  <!-- Anneau blanc -->
+  <circle cx="150" cy="120" r="52" fill="var(--white)"/>
+  <!-- Disque violet dégradé -->
+  <circle cx="150" cy="120" r="38" fill="url(#perfGlow)"/>
+
+  <!-- Graph performance animé (dans le disque) -->
+  <g clip-path="url(#perfClip)">
+    <g transform="translate(124,96)">
+      <rect x="0" y="22" width="8" height="22" rx="3" fill="var(--white)" opacity="0.92">
+        <animate attributeName="y" values="26;20;26" dur="1.2s" repeatCount="indefinite"/>
+        <animate attributeName="height" values="18;24;18" dur="1.2s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="14" y="14" width="8" height="30" rx="3" fill="var(--white)" opacity="0.92">
+        <animate attributeName="y" values="18;10;18" dur="1.2s" begin="0.15s" repeatCount="indefinite"/>
+        <animate attributeName="height" values="26;34;26" dur="1.2s" begin="0.15s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="28" y="6" width="8" height="38" rx="3" fill="var(--white)" opacity="0.92">
+        <animate attributeName="y" values="10;4;10" dur="1.2s" begin="0.3s" repeatCount="indefinite"/>
+        <animate attributeName="height" values="34;40;34" dur="1.2s" begin="0.3s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="42" y="18" width="8" height="26" rx="3" fill="var(--white)" opacity="0.92">
+        <animate attributeName="y" values="22;14;22" dur="1.2s" begin="0.45s" repeatCount="indefinite"/>
+        <animate attributeName="height" values="22;30;22" dur="1.2s" begin="0.45s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+    <!-- Point focus -->
+    <circle cx="138" cy="108" r="4.2" fill="var(--white)" opacity="0.95"/>
+  </g>
 </svg>
