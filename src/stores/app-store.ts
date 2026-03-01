@@ -24,9 +24,10 @@ interface AppState {
   results: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
   removedItems: RemovedItem[];
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => "success" | "not_found" | "wrong_password";
   logout: () => void;
   register: (user: User) => void;
+  updateUserPassword: (email: string, newPassword: string) => boolean;
   setUser: (user: User) => void;
   switchRole: () => void;
   addUser: (user: User) => void;
@@ -53,13 +54,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
   removedItems: [],
 
-  login: (email, _password) => {
+  login: (email, password) => {
     const found = get().users.find((u) => u.email === email);
-    if (found) {
-      set({ user: found, isAuthenticated: true });
-      return true;
-    }
-    return false;
+    if (!found) return "not_found";
+    if (found.password && found.password !== password) return "wrong_password";
+    set({ user: found, isAuthenticated: true });
+    return "success";
   },
 
   logout: () => {
@@ -74,6 +74,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Auto-create zero results for new registered agents
       results: [...state.results, createZeroResults(user.id)],
     }));
+  },
+
+  updateUserPassword: (email, newPassword) => {
+    const found = get().users.find((u) => u.email === email);
+    if (!found) return false;
+    set((state) => ({
+      users: state.users.map((u) =>
+        u.email === email ? { ...u, password: newPassword } : u
+      ),
+    }));
+    return true;
   },
 
   setUser: (user) => set({ user }),

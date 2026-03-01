@@ -64,6 +64,7 @@ function RegisterForm() {
     register({
       id: `${role === "manager" ? "m" : "u"}${Date.now()}`,
       email: email.trim(),
+      password: password,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       role,

@@ -1,27 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { useAppStore } from "@/stores/app-store";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("jean.dupont@antigravity.fr");
-  const [password, setPassword] = useState("password");
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const resetSuccess = searchParams.get("reset") === "success";
+  const [email, setEmail] = useState("jean-guy@start-academy.fr");
+  const [password, setPassword] = useState("demo");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(resetSuccess ? "Mot de passe réinitialisé avec succès. Connectez-vous." : "");
   const login = useAppStore((s) => s.login);
   const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const success = login(email, password);
-    if (success) {
+    setSuccess("");
+    const result = login(email, password);
+    if (result === "success") {
       router.push("/dashboard");
+    } else if (result === "wrong_password") {
+      setError("Mot de passe incorrect.");
     } else {
       setError("Aucun compte trouvé avec cet email.");
     }
   };
+
+  const inputClassName =
+    "h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring";
 
   return (
     <div className="rounded-xl border border-border bg-card p-8">
@@ -46,7 +56,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className={inputClassName}
             required
           />
         </div>
@@ -58,10 +68,16 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className={inputClassName}
             required
           />
         </div>
+
+        {success && (
+          <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-600 dark:text-green-400">
+            {success}
+          </p>
+        )}
 
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -92,5 +108,13 @@ export default function LoginPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -5,6 +5,7 @@ export const mockUsers: User[] = [
   {
     id: "m-demo",
     email: "jean-guy@start-academy.fr",
+    password: "demo",
     firstName: "Jean-Guy",
     lastName: "Dupont",
     role: "manager",
@@ -16,6 +17,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-1",
     email: "agent1@demo.fr",
+    password: "demo",
     firstName: "Alice",
     lastName: "Martin",
     role: "conseiller",
@@ -27,6 +29,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-2",
     email: "agent2@demo.fr",
+    password: "demo",
     firstName: "Bob",
     lastName: "Bernard",
     role: "conseiller",
@@ -38,6 +41,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-3",
     email: "agent3@demo.fr",
+    password: "demo",
     firstName: "Catherine",
     lastName: "Durand",
     role: "conseiller",
@@ -49,6 +53,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-4",
     email: "agent4@demo.fr",
+    password: "demo",
     firstName: "David",
     lastName: "Dubois",
     role: "conseiller",
@@ -60,6 +65,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-5",
     email: "agent5@demo.fr",
+    password: "demo",
     firstName: "Émilie",
     lastName: "Petit",
     role: "conseiller",
@@ -71,6 +77,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-6",
     email: "agent6@demo.fr",
+    password: "demo",
     firstName: "Franck",
     lastName: "Girard",
     role: "conseiller",
@@ -82,6 +89,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-7",
     email: "agent7@demo.fr",
+    password: "demo",
     firstName: "Géraldine",
     lastName: "Laurent",
     role: "conseiller",
@@ -93,6 +101,7 @@ export const mockUsers: User[] = [
   {
     id: "u-demo-8",
     email: "agent8@demo.fr",
+    password: "demo",
     firstName: "Hervé",
     lastName: "Fournier",
     role: "conseiller",
