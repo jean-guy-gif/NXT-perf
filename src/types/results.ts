@@ -1,7 +1,10 @@
+export type ContactStatut = "en_cours" | "deale" | "abandonne";
+
 export interface VenteInfo {
   id: string;
   nom: string;
   commentaire: string;
+  statut: ContactStatut;
 }
 
 export interface ProspectionData {
@@ -31,6 +34,7 @@ export interface AcheteurChaud {
   id: string;
   nom: string;
   commentaire: string;
+  statut: ContactStatut;
 }
 
 export interface AcheteursData {

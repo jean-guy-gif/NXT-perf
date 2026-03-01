@@ -12,7 +12,10 @@ import {
   TrendingUp,
   ClipboardCheck,
   Calendar,
+  Phone,
+  Flame,
 } from "lucide-react";
+import type { ContactStatut } from "@/types/results";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -25,6 +28,144 @@ import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
+
+/* ────── Clickable badge with popover ────── */
+type StatutGroupData = {
+  en_cours: { count: number; noms: string[] };
+  deale: { count: number; noms: string[] };
+  abandonne: { count: number; noms: string[] };
+  total: number;
+};
+
+const STATUT_STYLES = {
+  en_cours: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/30" },
+  deale: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500/30" },
+  abandonne: { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500/30" },
+} as const;
+
+function ClickableBadge({
+  count,
+  noms,
+  statut,
+  popoverKey,
+  openPopover,
+  setOpenPopover,
+}: {
+  count: number;
+  noms: string[];
+  statut: "en_cours" | "deale" | "abandonne";
+  popoverKey: string;
+  openPopover: string | null;
+  setOpenPopover: (key: string | null) => void;
+}) {
+  const style = STATUT_STYLES[statut];
+  const isOpen = openPopover === popoverKey;
+
+  if (count === 0) {
+    return (
+      <span className={cn("inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-2 text-xs font-semibold", style.bg, style.text)}>
+        0
+      </span>
+    );
+  }
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => setOpenPopover(isOpen ? null : popoverKey)}
+        className={cn(
+          "inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-2 text-xs font-semibold cursor-pointer transition-all",
+          style.bg, style.text,
+          "hover:ring-2 hover:ring-offset-1 hover:ring-current/30",
+          isOpen && "ring-2 ring-offset-1 ring-current/30"
+        )}
+      >
+        {count}
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpenPopover(null)} />
+          <div className={cn(
+            "absolute z-50 mt-1 left-1/2 -translate-x-1/2 min-w-[160px] rounded-lg border bg-card p-2 shadow-lg",
+            style.border
+          )}>
+            {noms.map((nom, i) => (
+              <p key={i} className="whitespace-nowrap px-2 py-1 text-xs text-foreground">
+                {nom}
+              </p>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TrackingRow({
+  id,
+  name,
+  data,
+  section,
+  openPopover,
+  setOpenPopover,
+}: {
+  id: string;
+  name: string;
+  data: StatutGroupData;
+  section: string;
+  openPopover: string | null;
+  setOpenPopover: (key: string | null) => void;
+}) {
+  return (
+    <tr className="border-b border-border/50">
+      <td className="py-2.5 pr-4 font-medium text-foreground">{name}</td>
+      {(["en_cours", "deale", "abandonne"] as const).map((statut) => (
+        <td key={statut} className="py-2.5 px-4 text-center">
+          <ClickableBadge
+            count={data[statut].count}
+            noms={data[statut].noms}
+            statut={statut}
+            popoverKey={`${section}-${id}-${statut}`}
+            openPopover={openPopover}
+            setOpenPopover={setOpenPopover}
+          />
+        </td>
+      ))}
+      <td className="py-2.5 pl-4 text-center font-semibold text-foreground">{data.total}</td>
+    </tr>
+  );
+}
+
+function TrackingTotalRow({
+  data,
+  section,
+  openPopover,
+  setOpenPopover,
+}: {
+  data: StatutGroupData;
+  section: string;
+  openPopover: string | null;
+  setOpenPopover: (key: string | null) => void;
+}) {
+  return (
+    <tr className="bg-muted/30 font-semibold">
+      <td className="py-2.5 pr-4 text-foreground">Équipe</td>
+      {(["en_cours", "deale", "abandonne"] as const).map((statut) => (
+        <td key={statut} className="py-2.5 px-4 text-center">
+          <ClickableBadge
+            count={data[statut].count}
+            noms={data[statut].noms}
+            statut={statut}
+            popoverKey={`${section}-${statut}`}
+            openPopover={openPopover}
+            setOpenPopover={setOpenPopover}
+          />
+        </td>
+      ))}
+      <td className="py-2.5 pl-4 text-center text-foreground">{data.total}</td>
+    </tr>
+  );
+}
 
 /* ────── Period types ────── */
 type PeriodMode = "semaine" | "mois" | "annee" | "personnalise";
@@ -135,6 +276,63 @@ export default function CockpitPage() {
       totalCompromisCA: Math.round(totalCompromisCA * periodMultiplier),
     };
   }, [allResults, conseillers, ratioConfigs, periodMultiplier]);
+
+  /* ── Contact & buyer tracking per advisor ── */
+  const trackingData = useMemo(() => {
+    const groupByStatut = (items: { nom: string; statut: ContactStatut }[]): StatutGroupData => ({
+      en_cours: {
+        count: items.filter((i) => i.statut === "en_cours").length,
+        noms: items.filter((i) => i.statut === "en_cours").map((i) => i.nom),
+      },
+      deale: {
+        count: items.filter((i) => i.statut === "deale").length,
+        noms: items.filter((i) => i.statut === "deale").map((i) => i.nom),
+      },
+      abandonne: {
+        count: items.filter((i) => i.statut === "abandonne").length,
+        noms: items.filter((i) => i.statut === "abandonne").map((i) => i.nom),
+      },
+      total: items.length,
+    });
+
+    const empty: StatutGroupData = {
+      en_cours: { count: 0, noms: [] },
+      deale: { count: 0, noms: [] },
+      abandonne: { count: 0, noms: [] },
+      total: 0,
+    };
+
+    const perAdvisor = conseillers.map((user) => {
+      const results = allResults.find((r) => r.userId === user.id);
+      return {
+        userId: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        contacts: results ? groupByStatut(results.prospection.informationsVente) : empty,
+        acheteurs: results ? groupByStatut(results.acheteurs.acheteursChauds) : empty,
+      };
+    });
+
+    const mergeTotals = (key: "contacts" | "acheteurs"): StatutGroupData => ({
+      en_cours: {
+        count: perAdvisor.reduce((s, a) => s + a[key].en_cours.count, 0),
+        noms: perAdvisor.flatMap((a) => a[key].en_cours.noms),
+      },
+      deale: {
+        count: perAdvisor.reduce((s, a) => s + a[key].deale.count, 0),
+        noms: perAdvisor.flatMap((a) => a[key].deale.noms),
+      },
+      abandonne: {
+        count: perAdvisor.reduce((s, a) => s + a[key].abandonne.count, 0),
+        noms: perAdvisor.flatMap((a) => a[key].abandonne.noms),
+      },
+      total: perAdvisor.reduce((s, a) => s + a[key].total, 0),
+    });
+
+    return { perAdvisor, totals: { contacts: mergeTotals("contacts"), acheteurs: mergeTotals("acheteurs") } };
+  }, [conseillers, allResults]);
+
+  // Popover state: "contacts-userId-statut" or "acheteurs-userId-statut"
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
 
   // Monthly evolution data (team-wide)
   const teamMonthlyCA = mockMonthlyCA.map((d) => ({
@@ -447,6 +645,86 @@ export default function CockpitPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── Suivi des contacts (informations vente) ── */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
+          <Phone className="h-4 w-4 text-primary" />
+          Suivi des contacts
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left">
+                <th className="pb-3 pr-4 font-medium text-muted-foreground">Conseiller</th>
+                <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
+                <th className="pb-3 px-4 text-center font-medium text-green-500">Dealés</th>
+                <th className="pb-3 px-4 text-center font-medium text-red-500">Abandonnés</th>
+                <th className="pb-3 pl-4 text-center font-medium text-muted-foreground">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trackingData.perAdvisor.map((advisor) => (
+                <TrackingRow
+                  key={advisor.userId}
+                  id={advisor.userId}
+                  name={advisor.name}
+                  data={advisor.contacts}
+                  section="contacts"
+                  openPopover={openPopover}
+                  setOpenPopover={setOpenPopover}
+                />
+              ))}
+              <TrackingTotalRow
+                data={trackingData.totals.contacts}
+                section="contacts-equipe"
+                openPopover={openPopover}
+                setOpenPopover={setOpenPopover}
+              />
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Suivi des acheteurs chauds ── */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
+          <Flame className="h-4 w-4 text-orange-500" />
+          Suivi des acheteurs chauds
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left">
+                <th className="pb-3 pr-4 font-medium text-muted-foreground">Conseiller</th>
+                <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
+                <th className="pb-3 px-4 text-center font-medium text-green-500">Dealés</th>
+                <th className="pb-3 px-4 text-center font-medium text-red-500">Abandonnés</th>
+                <th className="pb-3 pl-4 text-center font-medium text-muted-foreground">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trackingData.perAdvisor.map((advisor) => (
+                <TrackingRow
+                  key={advisor.userId}
+                  id={advisor.userId}
+                  name={advisor.name}
+                  data={advisor.acheteurs}
+                  section="acheteurs"
+                  openPopover={openPopover}
+                  setOpenPopover={setOpenPopover}
+                />
+              ))}
+              <TrackingTotalRow
+                data={trackingData.totals.acheteurs}
+                section="acheteurs-equipe"
+                openPopover={openPopover}
+                setOpenPopover={setOpenPopover}
+              />
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

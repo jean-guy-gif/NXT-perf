@@ -165,6 +165,7 @@ export default function SaisiePage() {
           id: `iv-${i}`,
           nom: iv.nom,
           commentaire: iv.commentaire,
+          statut: "en_cours" as const,
         })),
       },
       vendeurs: {
@@ -185,6 +186,7 @@ export default function SaisiePage() {
           id: `ac-${i}`,
           nom: ac.nom,
           commentaire: ac.commentaire,
+          statut: "en_cours" as const,
         })),
         acheteursSortisVisite,
         nombreVisites,

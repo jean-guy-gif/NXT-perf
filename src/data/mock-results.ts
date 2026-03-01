@@ -13,9 +13,9 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 55,
       rdvEstimation: 5,
       informationsVente: [
-        { id: "iv-m1", nom: "M. Delacroix", commentaire: "Patrimoine familial, 2 biens" },
-        { id: "iv-m2", nom: "Mme Vasseur", commentaire: "Résidence principale, départ étranger" },
-        { id: "iv-m3", nom: "SCI Horizon", commentaire: "Lot commercial centre-ville" },
+        { id: "iv-m1", nom: "M. Delacroix", commentaire: "Patrimoine familial, 2 biens", statut: "deale" },
+        { id: "iv-m2", nom: "Mme Vasseur", commentaire: "Résidence principale, départ étranger", statut: "deale" },
+        { id: "iv-m3", nom: "SCI Horizon", commentaire: "Lot commercial centre-ville", statut: "en_cours" },
       ],
     },
     vendeurs: {
@@ -34,9 +34,9 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "acm1", nom: "Groupe Invest+", commentaire: "Portefeuille 800k, multi-lots" },
-        { id: "acm2", nom: "M. et Mme Château", commentaire: "Résidence principale haut de gamme" },
-        { id: "acm3", nom: "M. Ferreira", commentaire: "Investisseur, rendement locatif" },
+        { id: "acm1", nom: "Groupe Invest+", commentaire: "Portefeuille 800k, multi-lots", statut: "deale" },
+        { id: "acm2", nom: "M. et Mme Château", commentaire: "Résidence principale haut de gamme", statut: "deale" },
+        { id: "acm3", nom: "M. Ferreira", commentaire: "Investisseur, rendement locatif", statut: "en_cours" },
       ],
       acheteursSortisVisite: 7,
       nombreVisites: 12,
@@ -67,10 +67,10 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 72,
       rdvEstimation: 9,
       informationsVente: [
-        { id: "iv11", nom: "M. Richard", commentaire: "Vente portefeuille immobilier, 3 lots" },
-        { id: "iv12", nom: "Mme Bonnet", commentaire: "Résidence principale + secondaire" },
-        { id: "iv13", nom: "SCI Immobilien", commentaire: "Patrimoine commercial à céder" },
-        { id: "iv14f", nom: "M. Castellano", commentaire: "Villa prestige littoral" },
+        { id: "iv11", nom: "M. Richard", commentaire: "Vente portefeuille immobilier, 3 lots", statut: "deale" },
+        { id: "iv12", nom: "Mme Bonnet", commentaire: "Résidence principale + secondaire", statut: "deale" },
+        { id: "iv13", nom: "SCI Immobilien", commentaire: "Patrimoine commercial à céder", statut: "deale" },
+        { id: "iv14f", nom: "M. Castellano", commentaire: "Villa prestige littoral", statut: "en_cours" },
       ],
     },
     vendeurs: {
@@ -92,10 +92,10 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac10", nom: "Investisseur Groupe A", commentaire: "Portefeuille 1.2M" },
-        { id: "ac11", nom: "M. Tessier", commentaire: "Acquisition multi-biens premium" },
-        { id: "ac12", nom: "Couple Renaud", commentaire: "Villégiature côte azur 600k" },
-        { id: "ac12b", nom: "SCI Atlas", commentaire: "Recherche immeuble rapport" },
+        { id: "ac10", nom: "Investisseur Groupe A", commentaire: "Portefeuille 1.2M", statut: "deale" },
+        { id: "ac11", nom: "M. Tessier", commentaire: "Acquisition multi-biens premium", statut: "deale" },
+        { id: "ac12", nom: "Couple Renaud", commentaire: "Villégiature côte azur 600k", statut: "deale" },
+        { id: "ac12b", nom: "SCI Atlas", commentaire: "Recherche immeuble rapport", statut: "en_cours" },
       ],
       acheteursSortisVisite: 11,
       nombreVisites: 18,
@@ -126,9 +126,9 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 65,
       rdvEstimation: 7,
       informationsVente: [
-        { id: "iv6", nom: "M. Lambert", commentaire: "Héritage, maison ancienne à rénover" },
-        { id: "iv6b", nom: "Mme Perrin", commentaire: "Résidence secondaire Côte d'Azur" },
-        { id: "iv6c", nom: "SCI Patrimoine+", commentaire: "Lot de 2 T2 investissement" },
+        { id: "iv6", nom: "M. Lambert", commentaire: "Héritage, maison ancienne à rénover", statut: "deale" },
+        { id: "iv6b", nom: "Mme Perrin", commentaire: "Résidence secondaire Côte d'Azur", statut: "deale" },
+        { id: "iv6c", nom: "SCI Patrimoine+", commentaire: "Lot de 2 T2 investissement", statut: "en_cours" },
       ],
     },
     vendeurs: {
@@ -148,9 +148,9 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac6", nom: "Mlle Thomas", commentaire: "Cadre dirigeant, budget 600k" },
-        { id: "ac6b", nom: "M. et Mme Fabre", commentaire: "Famille recomposée, maison 5p" },
-        { id: "ac6c", nom: "Investisseur Groupe B", commentaire: "Portefeuille locatif" },
+        { id: "ac6", nom: "Mlle Thomas", commentaire: "Cadre dirigeant, budget 600k", statut: "deale" },
+        { id: "ac6b", nom: "M. et Mme Fabre", commentaire: "Famille recomposée, maison 5p", statut: "deale" },
+        { id: "ac6c", nom: "Investisseur Groupe B", commentaire: "Portefeuille locatif", statut: "en_cours" },
       ],
       acheteursSortisVisite: 8,
       nombreVisites: 16,
@@ -181,8 +181,8 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 52,
       rdvEstimation: 5,
       informationsVente: [
-        { id: "iv4", nom: "M. Moreau", commentaire: "Divorce, vente rapide souhaitée" },
-        { id: "iv5", nom: "Mme Leroy", commentaire: "Investisseur, revente T2 locatif" },
+        { id: "iv4", nom: "M. Moreau", commentaire: "Divorce, vente rapide souhaitée", statut: "deale" },
+        { id: "iv5", nom: "Mme Leroy", commentaire: "Investisseur, revente T2 locatif", statut: "en_cours" },
       ],
     },
     vendeurs: {
@@ -201,9 +201,9 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac3", nom: "M. Bertrand", commentaire: "Cadre sup, budget 500k+" },
-        { id: "ac4", nom: "Couple Fontaine", commentaire: "Famille 2 enfants, maison 4ch" },
-        { id: "ac5", nom: "M. Girard", commentaire: "Investisseur, rentabilité >5%" },
+        { id: "ac3", nom: "M. Bertrand", commentaire: "Cadre sup, budget 500k+", statut: "deale" },
+        { id: "ac4", nom: "Couple Fontaine", commentaire: "Famille 2 enfants, maison 4ch", statut: "en_cours" },
+        { id: "ac5", nom: "M. Girard", commentaire: "Investisseur, rentabilité >5%", statut: "en_cours" },
       ],
       acheteursSortisVisite: 7,
       nombreVisites: 14,
@@ -235,8 +235,8 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 50,
       rdvEstimation: 3,
       informationsVente: [
-        { id: "iv1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale" },
-        { id: "iv2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville" },
+        { id: "iv1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale", statut: "deale" },
+        { id: "iv2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville", statut: "en_cours" },
       ],
     },
     vendeurs: {
@@ -253,8 +253,8 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin" },
-        { id: "ac2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k" },
+        { id: "ac1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin", statut: "en_cours" },
+        { id: "ac2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k", statut: "abandonne" },
       ],
       acheteursSortisVisite: 4,
       nombreVisites: 12,
@@ -286,8 +286,8 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 54,
       rdvEstimation: 3,
       informationsVente: [
-        { id: "iv9", nom: "Mme Rousseau", commentaire: "Succession, villa avec terrain" },
-        { id: "iv10", nom: "Couple Martin", commentaire: "Mutation, maison 4 chambres" },
+        { id: "iv9", nom: "Mme Rousseau", commentaire: "Succession, villa avec terrain", statut: "en_cours" },
+        { id: "iv10", nom: "Couple Martin", commentaire: "Mutation, maison 4 chambres", statut: "abandonne" },
       ],
     },
     vendeurs: {
@@ -304,7 +304,7 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac8", nom: "M. Schmitt", commentaire: "Cadre, budget 400k" },
+        { id: "ac8", nom: "M. Schmitt", commentaire: "Cadre, budget 400k", statut: "en_cours" },
       ],
       acheteursSortisVisite: 3,
       nombreVisites: 10,
@@ -336,7 +336,7 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 60,
       rdvEstimation: 2,
       informationsVente: [
-        { id: "iv7", nom: "M. Blanc", commentaire: "Retraite anticipée, villa bord de mer" },
+        { id: "iv7", nom: "M. Blanc", commentaire: "Retraite anticipée, villa bord de mer", statut: "abandonne" },
       ],
     },
     vendeurs: {
@@ -352,7 +352,7 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac7", nom: "M. et Mme Duval", commentaire: "Famille, maison 3 chambres" },
+        { id: "ac7", nom: "M. et Mme Duval", commentaire: "Famille, maison 3 chambres", statut: "abandonne" },
       ],
       acheteursSortisVisite: 2,
       nombreVisites: 15,
@@ -384,7 +384,7 @@ export const mockResults: PeriodResults[] = [
       contactsTotaux: 50,
       rdvEstimation: 2,
       informationsVente: [
-        { id: "iv14", nom: "Mme Collet", commentaire: "Veuvage, petit appartement" },
+        { id: "iv14", nom: "Mme Collet", commentaire: "Veuvage, petit appartement", statut: "abandonne" },
       ],
     },
     vendeurs: {
@@ -400,7 +400,7 @@ export const mockResults: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac13", nom: "M. Olivier", commentaire: "Achat premier bien" },
+        { id: "ac13", nom: "M. Olivier", commentaire: "Achat premier bien", statut: "abandonne" },
       ],
       acheteursSortisVisite: 2,
       nombreVisites: 7,
@@ -471,7 +471,7 @@ export const mockWeeklyResults: PeriodResults = {
     contactsTotaux: 12,
     rdvEstimation: 1,
     informationsVente: [
-      { id: "iv-w1", nom: "M. Renaud", commentaire: "Vente pavillon suite divorce" },
+      { id: "iv-w1", nom: "M. Renaud", commentaire: "Vente pavillon suite divorce", statut: "en_cours" },
     ],
   },
   vendeurs: {
@@ -485,7 +485,7 @@ export const mockWeeklyResults: PeriodResults = {
   },
   acheteurs: {
     acheteursChauds: [
-      { id: "ac-w1", nom: "Mlle Carpentier", commentaire: "Budget 220k, T3 centre" },
+      { id: "ac-w1", nom: "Mlle Carpentier", commentaire: "Budget 220k, T3 centre", statut: "en_cours" },
     ],
     acheteursSortisVisite: 1,
     nombreVisites: 3,
@@ -513,11 +513,11 @@ export const mockYearlyResults: PeriodResults = {
     contactsTotaux: 520,
     rdvEstimation: 34,
     informationsVente: [
-      { id: "iv-y1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale" },
-      { id: "iv-y2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville" },
-      { id: "iv-y3", nom: "Famille Petit", commentaire: "Mutation professionnelle Lyon" },
-      { id: "iv-y4", nom: "M. Renaud", commentaire: "Vente pavillon suite divorce" },
-      { id: "iv-y5", nom: "Mme Lefèvre", commentaire: "Investisseur, revente locatif" },
+      { id: "iv-y1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale", statut: "deale" },
+      { id: "iv-y2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville", statut: "deale" },
+      { id: "iv-y3", nom: "Famille Petit", commentaire: "Mutation professionnelle Lyon", statut: "deale" },
+      { id: "iv-y4", nom: "M. Renaud", commentaire: "Vente pavillon suite divorce", statut: "en_cours" },
+      { id: "iv-y5", nom: "Mme Lefèvre", commentaire: "Investisseur, revente locatif", statut: "abandonne" },
     ],
   },
   vendeurs: {
@@ -536,9 +536,9 @@ export const mockYearlyResults: PeriodResults = {
   },
   acheteurs: {
     acheteursChauds: [
-      { id: "ac-y1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin" },
-      { id: "ac-y2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k" },
-      { id: "ac-y3", nom: "Mlle Carpentier", commentaire: "Budget 220k, T3 centre" },
+      { id: "ac-y1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin", statut: "deale" },
+      { id: "ac-y2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k", statut: "abandonne" },
+      { id: "ac-y3", nom: "Mlle Carpentier", commentaire: "Budget 220k, T3 centre", statut: "en_cours" },
     ],
     acheteursSortisVisite: 42,
     nombreVisites: 88,
@@ -567,7 +567,7 @@ export const mockResultsLastYear: PeriodResults[] = [
       contactsTotaux: 35,
       rdvEstimation: 2,
       informationsVente: [
-        { id: "iv-ly1", nom: "Ancien client", commentaire: "Données année précédente" },
+        { id: "iv-ly1", nom: "Ancien client", commentaire: "Données année précédente", statut: "deale" },
       ],
     },
     vendeurs: {
@@ -583,7 +583,7 @@ export const mockResultsLastYear: PeriodResults[] = [
     },
     acheteurs: {
       acheteursChauds: [
-        { id: "ac-ly1", nom: "Acheteur N-1", commentaire: "Données précédentes" },
+        { id: "ac-ly1", nom: "Acheteur N-1", commentaire: "Données précédentes", statut: "deale" },
       ],
       acheteursSortisVisite: 3,
       nombreVisites: 6,
