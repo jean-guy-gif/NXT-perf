@@ -26,6 +26,11 @@ function RegisterForm() {
     e.preventDefault();
     setError("");
 
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
+      setError("Tous les champs sont obligatoires.");
+      return;
+    }
+
     if (users.some((u) => u.email === email.trim())) {
       setError("Cet email est déjà utilisé.");
       return;
@@ -35,9 +40,13 @@ function RegisterForm() {
     let teamId = `team-${Date.now()}`;
 
     if (role === "conseiller") {
+      if (!invitationCode.trim()) {
+        setError("Le code d'invitation est obligatoire pour un conseiller.");
+        return;
+      }
       const codeMatch = invitationCode.trim().match(/^INV-(.+)$/i);
       if (!codeMatch) {
-        setError("Code d'invitation invalide. Format attendu : INV-xxx");
+        setError("Format de code invalide. Attendu : INV-xxx (ex: INV-m1708932345123)");
         return;
       }
       const targetManagerId = codeMatch[1];
@@ -45,7 +54,7 @@ function RegisterForm() {
         (u) => u.id === targetManagerId && u.role === "manager"
       );
       if (!manager) {
-        setError("Code d'invitation invalide. Manager introuvable.");
+        setError("Ce code d'invitation n'existe pas ou le manager n'a pas été trouvé. Vérifiez le code avec votre manager.");
         return;
       }
       managerId = manager.id;
@@ -53,7 +62,7 @@ function RegisterForm() {
     }
 
     register({
-      id: `u${Date.now()}`,
+      id: `${role === "manager" ? "m" : "u"}${Date.now()}`,
       email: email.trim(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -182,18 +191,18 @@ function RegisterForm() {
         {role === "conseiller" && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Code d&apos;invitation
+              Code d&apos;invitation <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
               value={invitationCode}
               onChange={(e) => setInvitationCode(e.target.value)}
-              placeholder="INV-m1"
+              placeholder="INV-m1234567890"
               className={inputClassName}
               required
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Demandez le code à votre manager
+              Demandez le code d&apos;invitation complet à votre manager (visible dans son espace équipe)
             </p>
           </div>
         )}

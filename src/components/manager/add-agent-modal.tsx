@@ -25,11 +25,10 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!firstName.trim()) errs.firstName = "Le prénom est requis";
-    if (!lastName.trim()) errs.lastName = "Le nom est requis";
-    if (!email.trim()) {
-      errs.email = "L'email est requis";
-    } else if (!EMAIL_REGEX.test(email)) {
+    // Only category is required
+    if (!category) errs.category = "Le niveau est requis";
+    // Email is optional but if provided must be valid
+    if (email.trim() && !EMAIL_REGEX.test(email)) {
       errs.email = "Format d'email invalide";
     }
     setErrors(errs);
@@ -40,11 +39,17 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
     e.preventDefault();
     if (!validate()) return;
 
+    // Auto-generate email if not provided
+    const generatedEmail = email.trim() || `agent-${Date.now()}@nxt-perf.local`;
+    // Auto-generate name if not provided
+    const finalFirstName = firstName.trim() || `Agent`;
+    const finalLastName = lastName.trim() || `${Date.now()}`;
+
     addUser({
       id: `u${Date.now()}`,
-      email: email.trim(),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
+      email: generatedEmail,
+      firstName: finalFirstName,
+      lastName: finalLastName,
       role: "conseiller",
       category,
       teamId: managerTeamId,
@@ -76,61 +81,10 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Prénom */}
+          {/* Catégorie - Required */}
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">
-              Prénom
-            </label>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Jean"
-            />
-            {errors.firstName && (
-              <p className="mt-1 text-xs text-destructive">{errors.firstName}</p>
-            )}
-          </div>
-
-          {/* Nom */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              Nom
-            </label>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Dupont"
-            />
-            {errors.lastName && (
-              <p className="mt-1 text-xs text-destructive">{errors.lastName}</p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-              placeholder="jean.dupont@antigravity.fr"
-            />
-            {errors.email && (
-              <p className="mt-1 text-xs text-destructive">{errors.email}</p>
-            )}
-          </div>
-
-          {/* Catégorie */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              Catégorie
+              Niveau de l'agent <span className="text-destructive">*</span>
             </label>
             <select
               value={category}
@@ -145,7 +99,59 @@ export function AddAgentModal({ onClose, managerTeamId, managerId }: AddAgentMod
                 )
               )}
             </select>
+            {errors.category && (
+              <p className="mt-1 text-xs text-destructive">{errors.category}</p>
+            )}
           </div>
+
+          {/* Prénom - Optional */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Prénom <span className="text-xs text-muted-foreground">(optionnel)</span>
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Jean"
+            />
+          </div>
+
+          {/* Nom - Optional */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Nom <span className="text-xs text-muted-foreground">(optionnel)</span>
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Dupont"
+            />
+          </div>
+
+          {/* Email - Optional */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Email <span className="text-xs text-muted-foreground">(optionnel)</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              placeholder="jean.dupont@antigravity.fr"
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs text-destructive">{errors.email}</p>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            ℹ️ Seul le niveau est obligatoire. Les autres champs peuvent être complétés ultérieurement.
+          </p>
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">

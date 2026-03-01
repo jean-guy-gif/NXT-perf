@@ -3,7 +3,7 @@ import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import { mockCurrentUser, mockUsers } from "@/data/mock-users";
-import { mockResults } from "@/data/mock-results";
+import { mockResults, createZeroResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 
 export type RemovalReason = "deale" | "abandonne";
@@ -71,6 +71,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       users: [...state.users, user],
       user,
       isAuthenticated: true,
+      // Auto-create zero results for new registered agents
+      results: [...state.results, createZeroResults(user.id)],
     }));
   },
 
@@ -88,7 +90,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addUser: (user) => {
-    set((state) => ({ users: [...state.users, user] }));
+    set((state) => ({
+      users: [...state.users, user],
+      // Auto-create zero results for new agents
+      results: [...state.results, createZeroResults(user.id)],
+    }));
   },
 
   removeUser: (userId) => {

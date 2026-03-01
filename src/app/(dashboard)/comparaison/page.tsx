@@ -96,7 +96,7 @@ function getPerformanceIndicator(current: number, previous: number) {
 export default function ComparaisonPage() {
   const [tab, setTab] = useState<TabType>("interne");
   const [mode, setMode] = useState<CompareMode>("advisor");
-  const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>("u2");
+  const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>("u-demo-2");
   const [selectedProfile, setSelectedProfile] =
     useState<UserCategory>("expert");
   const [showAllRatios, setShowAllRatios] = useState(false);

@@ -17,7 +17,7 @@ type ViewMode = "individual" | "collective";
 
 export default function EquipePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("collective");
-  const [selectedUserId, setSelectedUserId] = useState<string>("u1");
+  const [selectedUserId, setSelectedUserId] = useState<string>("u-demo-1");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const removeUser = useAppStore((s) => s.removeUser);
