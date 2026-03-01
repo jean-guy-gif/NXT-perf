@@ -9,22 +9,33 @@ declare
   _org_id uuid;
   _role text;
   _invite_code text;
+  _org_name text;
+  _generated_code text;
 begin
   _invite_code := new.raw_user_meta_data ->> 'invite_code';
+  _org_name := new.raw_user_meta_data ->> 'org_name';
   _role := coalesce(new.raw_user_meta_data ->> 'role', 'conseiller');
 
+  -- Case 1: Joining existing org via invite code
   if _invite_code is not null and _invite_code != '' then
     select id into _org_id
     from public.organizations
     where invite_code = _invite_code;
-  end if;
 
-  if _org_id is null then
-    raise exception 'Invalid invite code: %', _invite_code;
-  end if;
+    if _org_id is null then
+      raise exception 'Invalid invite code: %', _invite_code;
+    end if;
 
-  if not exists (select 1 from public.profiles where org_id = _org_id) then
-    _role := 'manager';
+  -- Case 2: Manager creating a new org
+  elsif _org_name is not null and _org_name != '' and _role = 'manager' then
+    _generated_code := upper(replace(left(_org_name, 12), ' ', '-')) || '-' || left(md5(random()::text), 4);
+
+    insert into public.organizations (name, invite_code)
+    values (_org_name, _generated_code)
+    returning id into _org_id;
+
+  else
+    raise exception 'Either invite_code or org_name is required';
   end if;
 
   insert into public.profiles (id, org_id, email, first_name, last_name, role, category)

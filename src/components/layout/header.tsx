@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Bell, Plus, Sun, Moon, ArrowLeftRight, AlertTriangle, Info } from "lucide-react";
+import { Search, Bell, Plus, Sun, Moon, ArrowLeftRight, AlertTriangle, Info, LogOut } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
@@ -201,6 +201,21 @@ export function Header() {
 
         <button className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-nxt text-xs font-semibold text-white shadow-sm">
           {initials}
+        </button>
+        <button
+          onClick={async () => {
+            const isDemo = useAppStore.getState().isDemo;
+            if (!isDemo) {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+            }
+            useAppStore.getState().logout();
+            window.location.href = "/login";
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Se déconnecter"
+        >
+          <LogOut className="h-4 w-4" />
         </button>
       </div>
       {showAddModal && user && (

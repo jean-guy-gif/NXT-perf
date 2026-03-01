@@ -51,10 +51,13 @@ export function useSupabaseResults() {
         return;
       }
 
+      // Get current auth user id (must match RLS policy)
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return { message: "Non authentifié" };
+
       const { error } = await supabase.from("period_results").upsert(
         {
-          id: result.id,
-          user_id: result.userId,
+          user_id: authUser.id,
           period_type: result.periodType,
           period_start: result.periodStart,
           period_end: result.periodEnd,

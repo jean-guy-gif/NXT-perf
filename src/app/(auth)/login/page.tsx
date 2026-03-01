@@ -43,7 +43,8 @@ function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    // Full reload to ensure session cookies are sent
+    window.location.href = "/dashboard";
   };
 
   const handleDemo = () => {

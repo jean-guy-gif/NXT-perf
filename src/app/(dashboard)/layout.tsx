@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { useAppStore } from "@/stores/app-store";
 import { SupabaseProvider } from "@/components/providers/supabase-provider";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -15,15 +16,49 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace("/welcome");
-    }
-  }, [isAuthenticated, router]);
-
   const isDemo = useAppStore((s) => s.isDemo);
+  const setProfile = useAppStore((s) => s.setProfile);
+  const router = useRouter();
+  const [loading, setLoading] = useState(!isAuthenticated);
+
+  // On mount, check Supabase session before redirecting
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
+    const checkSession = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) {
+          setProfile(profile);
+          setLoading(false);
+          return;
+        }
+      }
+
+      router.replace("/welcome");
+    };
+
+    checkSession();
+  }, [isAuthenticated, router, setProfile]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) return null;
 

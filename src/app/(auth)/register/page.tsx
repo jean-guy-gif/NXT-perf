@@ -25,7 +25,6 @@ function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
       setError("Tous les champs sont obligatoires.");
       return;
@@ -39,53 +38,39 @@ function RegisterForm() {
     const supabase = createClient();
     setLoading(true);
 
-    let finalInviteCode = inviteCode.trim();
+    const finalInviteCode = inviteCode.trim();
 
-    // If manager is creating a new org, create it first
-    if (role === "manager" && !finalInviteCode) {
-      if (!orgName.trim()) {
-        setError("Le nom de l'organisation est obligatoire pour un manager.");
-        setLoading(false);
-        return;
-      }
-
-      // Generate a unique invite code
-      const code = orgName.trim().toUpperCase().replace(/\s+/g, "-").slice(0, 12) + "-" + Date.now().toString(36).slice(-4);
-
-      const { error: orgError } = await supabase
-        .from("organizations")
-        .insert({ name: orgName.trim(), invite_code: code });
-
-      if (orgError) {
-        setError("Erreur lors de la création de l'organisation : " + orgError.message);
-        setLoading(false);
-        return;
-      }
-
-      finalInviteCode = code;
+    // Manager must either provide an invite code or an org name
+    if (role === "manager" && !finalInviteCode && !orgName.trim()) {
+      setError("Renseignez un code d'invitation ou un nom d'organisation.");
+      setLoading(false);
+      return;
     }
 
-    if (!finalInviteCode) {
+    // Conseiller must provide an invite code
+    if (role === "conseiller" && !finalInviteCode) {
       setError("Le code d'invitation est obligatoire.");
       setLoading(false);
       return;
     }
 
-    // Verify invite code exists
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("id")
-      .eq("invite_code", finalInviteCode)
-      .single();
+    // If joining with invite code, verify it exists
+    if (finalInviteCode) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("invite_code", finalInviteCode)
+        .single();
 
-    if (!org) {
-      setError("Code d'invitation invalide. Vérifiez avec votre manager.");
-      setLoading(false);
-      return;
+      if (!org) {
+        setError("Code d'invitation invalide. Vérifiez avec votre manager.");
+        setLoading(false);
+        return;
+      }
     }
 
-    // Sign up with metadata (trigger will create profile)
-    const { error: authError } = await supabase.auth.signUp({
+    // Sign up with metadata (trigger will create profile + org if needed)
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -94,7 +79,8 @@ function RegisterForm() {
           last_name: lastName.trim(),
           role,
           category,
-          invite_code: finalInviteCode,
+          invite_code: finalInviteCode || undefined,
+          org_name: (!finalInviteCode && orgName.trim()) ? orgName.trim() : undefined,
         },
       },
     });
@@ -110,7 +96,14 @@ function RegisterForm() {
       return;
     }
 
-    router.push("/dashboard");
+    if (!signUpData.session) {
+      setError("Compte créé mais session non établie. Essayez de vous connecter.");
+      router.push("/login");
+      return;
+    }
+
+    // Full reload to ensure session cookies are sent
+    window.location.href = "/dashboard";
   };
 
   const inputClassName =

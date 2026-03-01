@@ -47,6 +47,7 @@ export default function SaisiePage() {
   const [periodType, setPeriodType] = useState<PeriodType>("month");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const { saveResult } = useSupabaseResults();
   const user = useAppStore((s) => s.user);
   const previousResults = useResults();
@@ -214,9 +215,12 @@ export default function SaisiePage() {
 
     const error = await saveResult(result);
     if (error) {
-      console.error("Failed to save:", error);
+      const msg = typeof error === "object" ? (error.message || error.details || error.hint || JSON.stringify(error)) : String(error);
+      console.error("Failed to save:", msg);
+      setSaveError("Erreur lors de la sauvegarde : " + msg);
       return;
     }
+    setSaveError("");
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -253,6 +257,11 @@ export default function SaisiePage() {
           <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-4 py-2 text-sm font-medium text-green-500">
             <CheckCircle className="h-4 w-4" />
             Données enregistrées avec succès
+          </div>
+        )}
+        {saveError && (
+          <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive">
+            {saveError}
           </div>
         )}
       </div>
