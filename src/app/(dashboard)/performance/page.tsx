@@ -9,11 +9,14 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { RatioDrillDownModal } from "@/components/dashboard/ratio-drill-down-modal";
 import type { RatioId } from "@/types/ratios";
+import { Tooltip } from "react-tooltip";
+import "react-tooltip/dist/react-tooltip.css";
 import {
   Gauge,
   TrendingUp,
   TrendingDown,
   Target,
+  Info,
   CheckCircle,
   AlertTriangle,
   XCircle,
@@ -203,9 +206,18 @@ export default function PerformancePage() {
               >
                 {/* Header with status */}
                 <div className="flex items-start justify-between">
-                  <p className="text-sm font-semibold text-foreground leading-tight">
-                    {config.name}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-foreground leading-tight">
+                      {config.name}
+                    </p>
+                    <span
+                      data-tooltip-id="ratio-tooltip"
+                      data-tooltip-content={config.description}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors" />
+                    </span>
+                  </div>
                   <div
                     className={cn(
                       "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
@@ -250,15 +262,18 @@ export default function PerformancePage() {
                   </span>
                 </div>
 
-                {/* Description */}
-                <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                  {config.description}
-                </p>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Ratio tooltip (shared instance) */}
+      <Tooltip
+        id="ratio-tooltip"
+        place="top"
+        className="!max-w-xs !rounded-lg !text-xs !leading-relaxed"
+      />
 
       {/* Drill-down modal */}
       {selectedRatioId && results && (
