@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { useAppStore } from "@/stores/app-store";
 import { SupabaseProvider } from "@/components/providers/supabase-provider";
+import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
   children,
@@ -22,10 +23,20 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, router]);
 
+  const isDemo = useAppStore((s) => s.isDemo);
+
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className={cn("flex h-screen overflow-hidden bg-background", isDemo && "pt-8")}>
+      {isDemo && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
+          Mode démo — Les données ne sont pas sauvegardées.{" "}
+          <a href="/register" className="underline hover:no-underline">
+            Créer un compte
+          </a>
+        </div>
+      )}
       <aside className="hidden lg:flex lg:w-[72px] lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
         <Sidebar />
       </aside>

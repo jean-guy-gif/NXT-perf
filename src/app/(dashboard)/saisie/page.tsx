@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PERIOD_LABELS, FIELD_TOOLTIPS } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
 import { useResults } from "@/hooks/use-results";
+import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { SaisieDrillDownModal } from "@/components/dashboard/saisie-drill-down-modal";
 import type { SaisieSection } from "@/lib/formation";
 import type { PeriodResults } from "@/types/results";
@@ -46,7 +47,7 @@ export default function SaisiePage() {
   const [periodType, setPeriodType] = useState<PeriodType>("month");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [saved, setSaved] = useState(false);
-  const addResults = useAppStore((s) => s.addResults);
+  const { saveResult } = useSupabaseResults();
   const user = useAppStore((s) => s.user);
   const previousResults = useResults();
   const [selectedSection, setSelectedSection] = useState<SaisieSection | null>(null);
@@ -154,7 +155,7 @@ export default function SaisiePage() {
     };
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
@@ -211,7 +212,11 @@ export default function SaisiePage() {
       updatedAt: now.toISOString(),
     };
 
-    addResults(result);
+    const error = await saveResult(result);
+    if (error) {
+      console.error("Failed to save:", error);
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

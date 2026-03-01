@@ -2,6 +2,7 @@
 
 import { Search, Bell, Plus, Sun, Moon, ArrowLeftRight, AlertTriangle, Info } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
