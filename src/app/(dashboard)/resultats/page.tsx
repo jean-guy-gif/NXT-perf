@@ -14,6 +14,7 @@ import {
   mockWeeklyResults,
   mockYearlyResults,
 } from "@/data/mock-results";
+import { useAppStore } from "@/stores/app-store";
 import type { PeriodResults } from "@/types/results";
 
 const tabs = [
@@ -63,15 +64,16 @@ export default function ResultatsPage() {
   const [periodOffset, setPeriodOffset] = useState(0);
 
   const monthResults = useResults();
+  const isDemo = useAppStore((s) => s.isDemo);
 
   // Select the right data based on period view
   const results: PeriodResults | null = useMemo(() => {
-    if (periodView === "week" && periodOffset === 0) return mockWeeklyResults;
-    if (periodView === "year" && periodOffset === 0) return mockYearlyResults;
+    if (periodView === "week" && periodOffset === 0) return isDemo ? mockWeeklyResults : null;
+    if (periodView === "year" && periodOffset === 0) return isDemo ? mockYearlyResults : null;
     if (periodView === "month" && periodOffset === 0) return monthResults;
     // For offsets != 0, return null (no data for other periods yet)
     return null;
-  }, [periodView, periodOffset, monthResults]);
+  }, [periodView, periodOffset, monthResults, isDemo]);
 
   const periodLabel = getPeriodLabel(periodView, periodOffset);
   const isCurrentPeriod = periodOffset === 0;

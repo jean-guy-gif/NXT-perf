@@ -24,6 +24,7 @@ import { formatCurrency } from "@/lib/formatters";
 import { mockTeamStats } from "@/data/mock-team";
 import { mockMonthlyCA } from "@/data/mock-results";
 import { useAllResults } from "@/hooks/use-results";
+import type { TeamAlert } from "@/types/team";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
@@ -203,7 +204,7 @@ function getPeriodLabel(mode: PeriodMode, dateFrom: string, dateTo: string): str
 }
 
 export default function CockpitPage() {
-  const stats = mockTeamStats;
+  const isDemo = useAppStore((s) => s.isDemo);
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const users = useAppStore((s) => s.users);
@@ -337,10 +338,31 @@ export default function CockpitPage() {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
 
   // Monthly evolution data (team-wide)
-  const teamMonthlyCA = mockMonthlyCA.map((d) => ({
-    ...d,
-    ca: d.ca * conseillers.length,
-  }));
+  const teamMonthlyCA = isDemo
+    ? mockMonthlyCA.map((d) => ({ ...d, ca: d.ca * conseillers.length }))
+    : [];
+
+  // Alerts: use mock in demo, generate from real data otherwise
+  const alerts: TeamAlert[] = useMemo(() => {
+    if (isDemo) return mockTeamStats.alerts;
+    const generated: TeamAlert[] = [];
+    for (const user of conseillers) {
+      const results = allResults.find((r) => r.userId === user.id);
+      if (!results) continue;
+      const ratios = computeAllRatios(results, user.category, ratioConfigs);
+      const dangerRatios = ratios.filter((r) => r.status === "danger");
+      for (const r of dangerRatios) {
+        generated.push({
+          id: `${user.id}-${r.ratioId}`,
+          type: "danger",
+          message: `${user.firstName} ${user.lastName} : ratio "${r.ratioId}" en danger (${r.percentageOfTarget}% de l'objectif)`,
+          relatedUserId: user.id,
+          relatedRatioId: r.ratioId,
+        });
+      }
+    }
+    return generated;
+  }, [isDemo, conseillers, allResults, ratioConfigs]);
 
   // Per-advisor performance for bar chart
   const advisorPerfData = conseillers.map((user) => {
@@ -484,7 +506,7 @@ export default function CockpitPage() {
           <AlertTriangle className="h-5 w-5 text-orange-500" />
           Alertes prioritaires
         </h2>
-        {stats.alerts.slice(0, 3).map((alert) => (
+        {alerts.slice(0, 3).map((alert) => (
           <div
             key={alert.id}
             className={cn(

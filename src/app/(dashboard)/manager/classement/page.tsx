@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import {
@@ -13,6 +13,8 @@ import {
   mockRankingsCompromis,
 } from "@/data/mock-team";
 import { Trophy, Medal, Award, TrendingDown, Users, User } from "lucide-react";
+import { useAppStore } from "@/stores/app-store";
+import { useAllResults } from "@/hooks/use-results";
 import type { RankingEntry } from "@/types/team";
 
 type MetricKey =
@@ -36,7 +38,7 @@ const metrics: { key: MetricKey; label: string }[] = [
   { key: "ca", label: "CA" },
 ];
 
-const rankingsMap: Record<MetricKey, RankingEntry[]> = {
+const mockRankingsMap: Record<MetricKey, RankingEntry[]> = {
   estimations: mockRankingsEstimations,
   mandats: mockRankingsMandats,
   visites: mockRankingsVisites,
@@ -59,10 +61,51 @@ function formatValue(value: number, metric: MetricKey): string {
   return String(value);
 }
 
+import type { PeriodResults } from "@/types/results";
+import type { User as AppUser } from "@/types/user";
+
+function buildRankings(
+  metric: MetricKey,
+  users: AppUser[],
+  allResults: PeriodResults[],
+  currentUser: AppUser | null,
+): RankingEntry[] {
+  const conseillers = users.filter(
+    (u) => u.role === "conseiller" && currentUser && u.teamId === currentUser.teamId
+  );
+  const entries: RankingEntry[] = conseillers.map((user) => {
+    const results = allResults.find((r) => r.userId === user.id);
+    let value = 0;
+    if (results) {
+      switch (metric) {
+        case "estimations": value = results.vendeurs.estimationsRealisees; break;
+        case "mandats": value = results.vendeurs.mandatsSignes; break;
+        case "visites": value = results.acheteurs.nombreVisites; break;
+        case "offres": value = results.acheteurs.offresRecues; break;
+        case "compromis": value = results.acheteurs.compromisSignes; break;
+        case "actes": value = results.ventes.actesSignes; break;
+        case "ca": value = results.ventes.chiffreAffaires; break;
+      }
+    }
+    return { userId: user.id, userName: `${user.firstName} ${user.lastName}`, value, rank: 0 };
+  });
+  entries.sort((a, b) => b.value - a.value);
+  entries.forEach((e, i) => { e.rank = i + 1; });
+  return entries;
+}
+
 export default function ClassementPage() {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("ca");
   const [viewMode, setViewMode] = useState<ViewMode>("individuel");
-  const rankings = rankingsMap[activeMetric];
+  const isDemo = useAppStore((s) => s.isDemo);
+  const users = useAppStore((s) => s.users);
+  const currentUser = useAppStore((s) => s.user);
+  const allResults = useAllResults();
+
+  const rankings = useMemo(() => {
+    if (isDemo) return mockRankingsMap[activeMetric];
+    return buildRankings(activeMetric, users, allResults, currentUser);
+  }, [isDemo, activeMetric, users, allResults, currentUser]);
 
   const top3 = rankings.slice(0, 3);
   const bottom3 = [...rankings].reverse().slice(0, 3);

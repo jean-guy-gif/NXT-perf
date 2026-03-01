@@ -215,7 +215,8 @@ export default function SaisiePage() {
 
     const error = await saveResult(result);
     if (error) {
-      const msg = typeof error === "object" ? (error.message || error.details || error.hint || JSON.stringify(error)) : String(error);
+      const errObj = error as Record<string, unknown>;
+      const msg = typeof error === "object" ? (String(errObj.message || errObj.details || errObj.hint || JSON.stringify(error))) : String(error);
       console.error("Failed to save:", msg);
       setSaveError("Erreur lors de la sauvegarde : " + msg);
       return;
