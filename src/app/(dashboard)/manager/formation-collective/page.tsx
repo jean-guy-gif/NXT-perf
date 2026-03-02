@@ -17,9 +17,13 @@ export default function FormationCollectivePage() {
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const users = useAppStore((s) => s.users);
   const currentUser = useAppStore((s) => s.user);
-  const conseillers = users.filter(
-    (u) => u.role === "conseiller" && currentUser && u.teamId === currentUser.teamId
-  );
+  const isDemo = useAppStore((s) => s.isDemo);
+  const conseillers = users.filter((u) => {
+    if (u.role !== "conseiller") return false;
+    if (!currentUser) return false;
+    if (isDemo) return u.teamId === currentUser.teamId;
+    return u.managerId === currentUser.id;
+  });
 
   const teamAnalysis = useMemo(() => {
     const diagnosticsByUser: { userId: string; userName: string; diag: ReturnType<typeof generateFormationDiagnostic> }[] = [];

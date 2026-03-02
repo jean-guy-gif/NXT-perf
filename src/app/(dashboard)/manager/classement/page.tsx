@@ -69,10 +69,14 @@ function buildRankings(
   users: AppUser[],
   allResults: PeriodResults[],
   currentUser: AppUser | null,
+  isDemo: boolean,
 ): RankingEntry[] {
-  const conseillers = users.filter(
-    (u) => u.role === "conseiller" && currentUser && u.teamId === currentUser.teamId
-  );
+  const conseillers = users.filter((u) => {
+    if (u.role !== "conseiller") return false;
+    if (!currentUser) return false;
+    if (isDemo) return u.teamId === currentUser.teamId;
+    return u.managerId === currentUser.id;
+  });
   const entries: RankingEntry[] = conseillers.map((user) => {
     const results = allResults.find((r) => r.userId === user.id);
     let value = 0;
@@ -104,7 +108,7 @@ export default function ClassementPage() {
 
   const rankings = useMemo(() => {
     if (isDemo) return mockRankingsMap[activeMetric];
-    return buildRankings(activeMetric, users, allResults, currentUser);
+    return buildRankings(activeMetric, users, allResults, currentUser, isDemo);
   }, [isDemo, activeMetric, users, allResults, currentUser]);
 
   const top3 = rankings.slice(0, 3);
