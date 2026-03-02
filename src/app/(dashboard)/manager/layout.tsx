@@ -10,7 +10,7 @@ export default function ManagerLayout({
 }) {
   const user = useAppStore((s) => s.user);
 
-  if (user?.role !== "manager") {
+  if (user?.role !== "manager" && user?.role !== "directeur") {
     redirect("/dashboard");
   }
 

@@ -23,6 +23,9 @@ const pageTitles: Record<string, string> = {
   "/manager/classement": "Classement",
   "/parametres": "Paramètres",
   "/manager/formation-collective": "Formation Collective",
+  "/directeur/cockpit": "Cockpit Agence",
+  "/directeur/equipes": "Équipes",
+  "/directeur/classement": "Classement Agence",
 };
 
 export function Header() {
@@ -98,10 +101,10 @@ export function Header() {
           />
         </div>
 
-        {isDemo && (
+        {isDemo && (user?.role === "manager" || user?.role === "directeur") && (
           <button
             onClick={switchRole}
-            title={`Basculer en mode ${user?.role === "manager" ? "conseiller" : "manager"}`}
+            title={`Basculer en mode ${user?.role === "directeur" ? "manager" : "directeur"}`}
             className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
           >
             <ArrowLeftRight className="h-4 w-4" />
@@ -115,7 +118,7 @@ export function Header() {
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {user?.role === "manager" && (
+        {(user?.role === "manager" || user?.role === "directeur") && (
           <button
             onClick={() => setShowAddModal(true)}
             title="Ajouter un conseiller"
