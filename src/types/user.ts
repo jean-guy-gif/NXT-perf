@@ -1,4 +1,4 @@
-export type UserRole = "conseiller" | "manager";
+export type UserRole = "conseiller" | "manager" | "directeur";
 export type UserCategory = "debutant" | "confirme" | "expert";
 
 export interface User {

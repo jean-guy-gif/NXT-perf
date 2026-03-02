@@ -172,12 +172,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   switchRole: () => {
     const current = get().user;
     if (!current) return;
-    const isManager = current.role === "manager";
     const users = get().users;
-    const newUser = isManager
-      ? users.find((u) => u.role === "conseiller") ?? current
-      : users.find((u) => u.role === "manager") ?? current;
-    set({ user: newUser });
+
+    if (current.role === "directeur") {
+      // Directeur → Manager: same person, just change role
+      set({ user: { ...current, role: "manager" } });
+    } else if (current.role === "manager") {
+      // Check if this user is the directeur who switched down
+      const directeur = users.find((u) => u.role === "directeur");
+      if (directeur && directeur.id === current.id) {
+        // Manager → Directeur: switch back up
+        set({ user: { ...current, role: "directeur" } });
+      } else {
+        // Regular manager → conseiller (existing behavior)
+        const conseiller = users.find((u) => u.role === "conseiller");
+        if (conseiller) set({ user: conseiller });
+      }
+    } else {
+      // Conseiller → Manager (existing behavior)
+      const manager = users.find((u) => u.role === "manager");
+      if (manager) set({ user: manager });
+    }
   },
 
   addUser: (user) => {
