@@ -1,21 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { formatCurrency } from "@/lib/formatters";
-import {
-  mockRankingsCA,
-  mockRankingsMandats,
-  mockRankingsActes,
-  mockRankingsEstimations,
-  mockRankingsVisites,
-  mockRankingsOffres,
-  mockRankingsCompromis,
-} from "@/data/mock-team";
 import { Trophy, Medal, Award, TrendingDown, Users, User } from "lucide-react";
-import { useAppStore } from "@/stores/app-store";
-import { useAllResults } from "@/hooks/use-results";
-import type { RankingEntry } from "@/types/team";
+import { formatCurrency } from "@/lib/formatters";
+import { useDirectorData } from "@/hooks/use-director-data";
+import type { PeriodResults } from "@/types/results";
+import type { User as AppUser } from "@/types/user";
+import type { TeamAggregate } from "@/hooks/use-director-data";
+import { cn } from "@/lib/utils";
 
 type MetricKey =
   | "estimations"
@@ -26,7 +18,7 @@ type MetricKey =
   | "actes"
   | "ca";
 
-type ViewMode = "individuel" | "equipe";
+type ViewMode = "conseiller" | "equipe";
 
 const metrics: { key: MetricKey; label: string }[] = [
   { key: "estimations", label: "Estimations" },
@@ -38,16 +30,6 @@ const metrics: { key: MetricKey; label: string }[] = [
   { key: "ca", label: "CA" },
 ];
 
-const mockRankingsMap: Record<MetricKey, RankingEntry[]> = {
-  estimations: mockRankingsEstimations,
-  mandats: mockRankingsMandats,
-  visites: mockRankingsVisites,
-  offres: mockRankingsOffres,
-  compromis: mockRankingsCompromis,
-  actes: mockRankingsActes,
-  ca: mockRankingsCA,
-};
-
 const rankIcons = [Trophy, Medal, Award];
 const rankColors = ["text-yellow-500", "text-gray-400", "text-orange-600"];
 const rankBg = [
@@ -56,85 +38,126 @@ const rankBg = [
   "border-orange-600/30 bg-orange-600/5",
 ];
 
+interface RankEntry {
+  id: string;
+  name: string;
+  value: number;
+  rank: number;
+  subtitle?: string;
+}
+
 function formatValue(value: number, metric: MetricKey): string {
   if (metric === "ca") return formatCurrency(value);
   return String(value);
 }
 
-import type { PeriodResults } from "@/types/results";
-import type { User as AppUser } from "@/types/user";
+function getMetricValue(
+  results: PeriodResults | undefined,
+  metric: MetricKey
+): number {
+  if (!results) return 0;
+  switch (metric) {
+    case "estimations":
+      return results.vendeurs.estimationsRealisees;
+    case "mandats":
+      return results.vendeurs.mandatsSignes;
+    case "visites":
+      return results.acheteurs.nombreVisites;
+    case "offres":
+      return results.acheteurs.offresRecues;
+    case "compromis":
+      return results.acheteurs.compromisSignes;
+    case "actes":
+      return results.ventes.actesSignes;
+    case "ca":
+      return results.ventes.chiffreAffaires;
+  }
+}
 
-function buildRankings(
-  metric: MetricKey,
-  users: AppUser[],
+function buildAgentRankings(
+  conseillers: AppUser[],
   allResults: PeriodResults[],
-  currentUser: AppUser | null,
-  isDemo: boolean,
-): RankingEntry[] {
-  const conseillers = users.filter((u) => {
-    if (u.role !== "conseiller") return false;
-    if (!currentUser) return false;
-    if (isDemo) return u.teamId === currentUser.teamId;
-    return u.managerId === currentUser.id;
-  });
-  const entries: RankingEntry[] = conseillers.map((user) => {
+  metric: MetricKey,
+  teams: TeamAggregate[]
+): RankEntry[] {
+  const entries: RankEntry[] = conseillers.map((user) => {
     const results = allResults.find((r) => r.userId === user.id);
-    let value = 0;
-    if (results) {
-      switch (metric) {
-        case "estimations": value = results.vendeurs.estimationsRealisees; break;
-        case "mandats": value = results.vendeurs.mandatsSignes; break;
-        case "visites": value = results.acheteurs.nombreVisites; break;
-        case "offres": value = results.acheteurs.offresRecues; break;
-        case "compromis": value = results.acheteurs.compromisSignes; break;
-        case "actes": value = results.ventes.actesSignes; break;
-        case "ca": value = results.ventes.chiffreAffaires; break;
-      }
-    }
-    return { userId: user.id, userName: `${user.firstName} ${user.lastName}`, value, rank: 0 };
+    const team = teams.find((t) => t.teamId === user.teamId);
+    return {
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      value: getMetricValue(results, metric),
+      rank: 0,
+      subtitle: team?.teamName,
+    };
   });
   entries.sort((a, b) => b.value - a.value);
-  entries.forEach((e, i) => { e.rank = i + 1; });
+  entries.forEach((e, i) => {
+    e.rank = i + 1;
+  });
   return entries;
 }
 
-export default function ClassementPage() {
+function buildTeamRankings(
+  teams: TeamAggregate[],
+  allResults: PeriodResults[],
+  metric: MetricKey
+): RankEntry[] {
+  const entries: RankEntry[] = teams.map((team) => {
+    let total = 0;
+    for (const agent of team.agents) {
+      const results = allResults.find((r) => r.userId === agent.id);
+      total += getMetricValue(results, metric);
+    }
+    return {
+      id: team.teamId,
+      name: team.teamName,
+      value: total,
+      rank: 0,
+      subtitle: team.managerName,
+    };
+  });
+  entries.sort((a, b) => b.value - a.value);
+  entries.forEach((e, i) => {
+    e.rank = i + 1;
+  });
+  return entries;
+}
+
+export default function ClassementAgencePage() {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("ca");
-  const [viewMode, setViewMode] = useState<ViewMode>("individuel");
-  const isDemo = useAppStore((s) => s.isDemo);
-  const users = useAppStore((s) => s.users);
-  const currentUser = useAppStore((s) => s.user);
-  const allResults = useAllResults();
+  const [viewMode, setViewMode] = useState<ViewMode>("conseiller");
+  const { teams, allConseillers, allResults } = useDirectorData();
 
   const rankings = useMemo(() => {
-    if (isDemo) return mockRankingsMap[activeMetric];
-    return buildRankings(activeMetric, users, allResults, currentUser, isDemo);
-  }, [isDemo, activeMetric, users, allResults, currentUser]);
+    if (viewMode === "conseiller") {
+      return buildAgentRankings(allConseillers, allResults, activeMetric, teams);
+    }
+    return buildTeamRankings(teams, allResults, activeMetric);
+  }, [viewMode, activeMetric, allConseillers, allResults, teams]);
 
   const top3 = rankings.slice(0, 3);
   const bottom3 = [...rankings].reverse().slice(0, 3);
 
-  // Team aggregate for "equipe" mode
-  const teamTotal = rankings.reduce((sum, r) => sum + r.value, 0);
-  const teamAvg = rankings.length > 0 ? teamTotal / rankings.length : 0;
-
   return (
     <div className="space-y-6">
+      {/* Header with view toggle */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Classement</h1>
-        {/* View Mode Toggle */}
+        <h1 className="text-2xl font-bold text-foreground">
+          Classement Agence
+        </h1>
         <div className="flex gap-1 rounded-lg bg-muted p-1">
           <button
-            onClick={() => setViewMode("individuel")}
+            onClick={() => setViewMode("conseiller")}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              viewMode === "individuel"
+              viewMode === "conseiller"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
             <User className="h-3.5 w-3.5" />
-            Individuel
+            Par conseiller
           </button>
           <button
             onClick={() => setViewMode("equipe")}
@@ -146,12 +169,12 @@ export default function ClassementPage() {
             )}
           >
             <Users className="h-3.5 w-3.5" />
-            Equipe
+            Par équipe
           </button>
         </div>
       </div>
 
-      {/* Metric Selector - scrollable on mobile */}
+      {/* Metric Selector */}
       <div className="overflow-x-auto -mx-1 px-1">
         <div className="flex gap-1 rounded-lg bg-muted p-1 min-w-max">
           {metrics.map((m) => (
@@ -171,31 +194,7 @@ export default function ClassementPage() {
         </div>
       </div>
 
-      {viewMode === "equipe" && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 text-center">
-            <p className="text-sm text-muted-foreground">Total equipe</p>
-            <p className="mt-1 text-3xl font-bold text-primary">
-              {formatValue(teamTotal, activeMetric)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5 text-center">
-            <p className="text-sm text-muted-foreground">Moyenne</p>
-            <p className="mt-1 text-3xl font-bold text-foreground">
-              {activeMetric === "ca"
-                ? formatCurrency(Math.round(teamAvg))
-                : teamAvg.toFixed(1)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5 text-center">
-            <p className="text-sm text-muted-foreground">Conseillers</p>
-            <p className="mt-1 text-3xl font-bold text-foreground">
-              {rankings.length}
-            </p>
-          </div>
-        </div>
-      )}
-
+      {/* Top 3 and Bottom 3 */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top 3 */}
         <div className="space-y-3">
@@ -207,7 +206,7 @@ export default function ClassementPage() {
             const Icon = rankIcons[idx] ?? Trophy;
             return (
               <div
-                key={entry.userId}
+                key={entry.id}
                 className={cn(
                   "flex items-center gap-4 rounded-xl border p-4 transition-colors",
                   rankBg[idx] ?? "border-border bg-card"
@@ -223,11 +222,13 @@ export default function ClassementPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">
-                    {entry.userName}
+                    {entry.name}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    #{entry.rank}
-                  </p>
+                  {entry.subtitle && (
+                    <p className="text-xs text-muted-foreground">
+                      {entry.subtitle}
+                    </p>
+                  )}
                 </div>
                 <p className="text-xl font-bold text-foreground">
                   {formatValue(entry.value, activeMetric)}
@@ -241,11 +242,11 @@ export default function ClassementPage() {
         <div className="space-y-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-muted-foreground">
             <TrendingDown className="h-5 w-5 text-red-400" />
-            A suivre
+            À suivre
           </h2>
           {bottom3.map((entry) => (
             <div
-              key={entry.userId}
+              key={entry.id}
               className="flex items-center gap-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 transition-colors"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-sm font-bold text-red-500">
@@ -253,8 +254,13 @@ export default function ClassementPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground truncate">
-                  {entry.userName}
+                  {entry.name}
                 </p>
+                {entry.subtitle && (
+                  <p className="text-xs text-muted-foreground">
+                    {entry.subtitle}
+                  </p>
+                )}
               </div>
               <p className="text-xl font-bold text-foreground">
                 {formatValue(entry.value, activeMetric)}
@@ -274,8 +280,18 @@ export default function ClassementPage() {
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                  Conseiller
+                  {viewMode === "conseiller" ? "Conseiller" : "Équipe"}
                 </th>
+                {viewMode === "conseiller" && (
+                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                    Équipe
+                  </th>
+                )}
+                {viewMode === "equipe" && (
+                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                    Manager
+                  </th>
+                )}
                 <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
                   {metrics.find((m) => m.key === activeMetric)?.label}
                 </th>
@@ -284,7 +300,7 @@ export default function ClassementPage() {
             <tbody>
               {rankings.map((entry, idx) => (
                 <tr
-                  key={entry.userId}
+                  key={entry.id}
                   className={cn(
                     "border-b border-border last:border-b-0 transition-colors",
                     idx < 3
@@ -311,7 +327,10 @@ export default function ClassementPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground">
-                    {entry.userName}
+                    {entry.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {entry.subtitle}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-bold text-foreground">
                     {formatValue(entry.value, activeMetric)}

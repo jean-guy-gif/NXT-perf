@@ -7,6 +7,15 @@ export interface DbOrganization {
   created_at: string;
 }
 
+export interface DbTeam {
+  id: string;
+  org_id: string;
+  manager_id: string | null;
+  name: string;
+  invite_code: string | null;
+  created_at: string;
+}
+
 export interface DbProfile {
   id: string;
   org_id: string;
@@ -14,9 +23,11 @@ export interface DbProfile {
   email: string;
   first_name: string;
   last_name: string;
-  role: "conseiller" | "manager";
+  role: "conseiller" | "manager" | "directeur" | "coach";
   category: "debutant" | "confirme" | "expert";
   avatar_url: string | null;
+  onboarding_status: string | null;
+  profile_type: string | null;
   created_at: string;
 }
 

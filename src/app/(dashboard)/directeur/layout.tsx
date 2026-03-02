@@ -3,7 +3,7 @@
 import { useAppStore } from "@/stores/app-store";
 import { redirect } from "next/navigation";
 
-export default function ManagerLayout({
+export default function DirecteurLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -11,7 +11,7 @@ export default function ManagerLayout({
   const user = useAppStore((s) => s.user);
   const roles = user?.availableRoles ?? [];
 
-  if (!roles.includes("manager") && !roles.includes("directeur")) {
+  if (!roles.includes("directeur")) {
     redirect("/dashboard");
   }
 

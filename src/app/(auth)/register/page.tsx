@@ -4,19 +4,59 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { UserRole, UserCategory } from "@/types/user";
+import type { UserRole, UserCategory, ProfileType } from "@/types/user";
 import { CATEGORY_LABELS } from "@/lib/constants";
+import { Check } from "lucide-react";
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  conseiller: "Conseiller",
+  manager: "Manager",
+  directeur: "Directeur",
+  coach: "Coach",
+};
+
+/** Default role pre-selection based on profile type from /welcome */
+function defaultRolesForProfile(profile: ProfileType | null): UserRole[] {
+  switch (profile) {
+    case "INSTITUTION":
+      return ["directeur", "manager"];
+    case "MANAGER":
+      return ["manager"];
+    case "AGENT":
+      return ["conseiller"];
+    case "COACH":
+      return ["coach"];
+    default:
+      return ["conseiller"];
+  }
+}
+
+/** Pick highest priority role as the primary/active role */
+function primaryRole(roles: UserRole[]): UserRole {
+  if (roles.includes("directeur")) return "directeur";
+  if (roles.includes("manager")) return "manager";
+  if (roles.includes("coach")) return "coach";
+  return "conseiller";
+}
 
 function RegisterForm() {
   const searchParams = useSearchParams();
   const initialCode = searchParams.get("code") ?? "";
-  const initialRole = initialCode ? "conseiller" : (searchParams.get("role") === "manager" ? "manager" : "conseiller") as UserRole;
+  const profileParam = (searchParams.get("profile") ?? null) as ProfileType | null;
+
+  // Legacy support: ?role= still works
+  const legacyRole = searchParams.get("role");
+  const derivedProfile: ProfileType | null = profileParam
+    ?? (legacyRole === "manager" ? "MANAGER" : legacyRole === "conseiller" ? "AGENT" : null);
+
   const roleLocked = !!initialCode;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>(initialRole);
+  const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(
+    roleLocked ? ["conseiller"] : defaultRolesForProfile(derivedProfile)
+  );
   const [category, setCategory] = useState<UserCategory>("confirme");
   const [inviteCode, setInviteCode] = useState(initialCode);
   const [orgName, setOrgName] = useState("");
@@ -26,6 +66,22 @@ function RegisterForm() {
   const [inviteCodeStatus, setInviteCodeStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [validatedOrgName, setValidatedOrgName] = useState("");
   const router = useRouter();
+
+  const toggleRole = (role: UserRole) => {
+    if (roleLocked) return;
+    setSelectedRoles((prev) => {
+      if (prev.includes(role)) {
+        // Don't allow empty selection
+        if (prev.length === 1) return prev;
+        return prev.filter((r) => r !== role);
+      }
+      return [...prev, role];
+    });
+  };
+
+  const isManager = selectedRoles.includes("manager") || selectedRoles.includes("directeur");
+  const isConseillerOnly = selectedRoles.includes("conseiller") && !isManager;
+  const mainRole = primaryRole(selectedRoles);
 
   const validateInviteCode = useCallback(async (code: string) => {
     const trimmed = code.trim();
@@ -76,14 +132,14 @@ function RegisterForm() {
     const finalInviteCode = inviteCode.trim();
 
     // Manager must either provide an invite code or an org name
-    if (role === "manager" && !finalInviteCode && !orgName.trim()) {
+    if (isManager && !finalInviteCode && !orgName.trim()) {
       setError("Renseignez un code d'invitation ou un nom d'organisation.");
       setLoading(false);
       return;
     }
 
-    // Conseiller must provide an invite code
-    if (role === "conseiller" && !finalInviteCode) {
+    // Conseiller-only must provide an invite code
+    if (isConseillerOnly && !finalInviteCode) {
       setError("Le code d'invitation est obligatoire.");
       setLoading(false);
       return;
@@ -119,7 +175,8 @@ function RegisterForm() {
         data: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          role,
+          role: mainRole,
+          available_roles: selectedRoles,
           category,
           invite_code: finalInviteCode || undefined,
           org_name: (!finalInviteCode && orgName.trim()) ? orgName.trim() : undefined,
@@ -144,8 +201,8 @@ function RegisterForm() {
       return;
     }
 
-    // Full reload to ensure session cookies are sent
-    window.location.href = role === "manager" ? "/manager/equipe" : "/dashboard";
+    // Full reload to ensure session cookies are sent — onboarding will route them
+    window.location.href = "/onboarding";
   };
 
   const inputClassName =
@@ -220,29 +277,45 @@ function RegisterForm() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
-            Rôle
+            Rôle(s)
           </label>
-          <div className="flex gap-3">
-            {(["conseiller", "manager"] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                disabled={roleLocked && r !== "conseiller"}
-                onClick={() => { setRole(r); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                  role === r
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-input bg-background text-muted-foreground hover:bg-muted"
-                } ${roleLocked && r !== "conseiller" ? "cursor-not-allowed opacity-40" : ""}`}
-              >
-                {r === "conseiller" ? "Conseiller" : "Manager"}
-              </button>
-            ))}
-          </div>
-          {roleLocked && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Vous rejoignez une équipe existante en tant que conseiller.
-            </p>
+          {roleLocked ? (
+            <>
+              <div className="flex gap-2">
+                <div className="flex-1 rounded-lg border border-primary bg-primary/10 px-3 py-2 text-center text-sm font-medium text-primary">
+                  Conseiller
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Vous rejoignez une équipe existante en tant que conseiller.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                {(["conseiller", "manager", "directeur", "coach"] as UserRole[]).map((r) => {
+                  const selected = selectedRoles.includes(r);
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => toggleRole(r)}
+                      className={`relative flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        selected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-input bg-background text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {selected && <Check className="h-3.5 w-3.5" />}
+                      {ROLE_LABELS[r]}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Sélectionnez un ou plusieurs rôles. Vous aurez accès aux vues correspondantes.
+              </p>
+            </>
           )}
         </div>
 
@@ -265,7 +338,7 @@ function RegisterForm() {
           </select>
         </div>
 
-        {role === "manager" && (
+        {isManager && !roleLocked && (
           <div className="space-y-3">
             <label className="mb-1.5 block text-sm font-medium text-foreground">
               Organisation
@@ -315,7 +388,7 @@ function RegisterForm() {
                   value={inviteCode}
                   onChange={(e) => { setInviteCode(e.target.value); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
                   onBlur={() => validateInviteCode(inviteCode)}
-                  placeholder="Ex: START-ACAD-a3f2"
+                  placeholder="Ex: AG-1234"
                   className={inputClassName}
                 />
                 <InviteCodeFeedback status={inviteCodeStatus} orgName={validatedOrgName} />
@@ -324,7 +397,7 @@ function RegisterForm() {
           </div>
         )}
 
-        {role === "conseiller" && (
+        {isConseillerOnly && !roleLocked && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
               Code d&apos;invitation <span className="text-destructive">*</span>
@@ -334,7 +407,7 @@ function RegisterForm() {
               value={inviteCode}
               onChange={(e) => { setInviteCode(e.target.value); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
               onBlur={() => validateInviteCode(inviteCode)}
-              placeholder="Ex: START-ACAD-a3f2"
+              placeholder="Ex: MG-1234"
               className={inputClassName}
               required
             />

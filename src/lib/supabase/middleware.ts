@@ -7,7 +7,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/register") ||
     request.nextUrl.pathname.startsWith("/forgot-password") ||
-    request.nextUrl.pathname.startsWith("/welcome");
+    request.nextUrl.pathname.startsWith("/welcome") ||
+    request.nextUrl.pathname.startsWith("/onboarding");
 
   const isDemo = request.cookies.get("nxt-demo-mode")?.value === "true";
 

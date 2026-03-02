@@ -6,6 +6,21 @@ export function buildInviteLink(code: string): string {
   return `${window.location.origin}/register?code=${encodeURIComponent(code)}`;
 }
 
+/** Build an onboarding link for the new AG/MG code formats */
+export function buildOnboardingInviteLink(code: string): string {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/onboarding?join=${encodeURIComponent(code)}`;
+}
+
+export function buildOnboardingShareMessage(code: string): string {
+  const link = buildOnboardingInviteLink(code);
+  return [
+    "Salut,",
+    `Rejoins NXT-Perf avec ce code : ${code}`,
+    `Lien : ${link}`,
+  ].join("\n");
+}
+
 export function buildMailtoUrl(
   code: string,
   inviteLink: string,

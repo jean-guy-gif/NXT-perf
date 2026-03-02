@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useSupabase } from "./use-supabase";
-import type { DbProfile } from "@/types/database";
+import type { DbProfile, DbTeam } from "@/types/database";
 import type { User } from "@/types/user";
 
 /**
@@ -21,28 +21,40 @@ export function useSupabaseTeam() {
     if (isDemo || !profile) return;
 
     async function load() {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*");
-      // RLS ensures we only get profiles from our org
+      const [profilesRes, teamsRes] = await Promise.all([
+        supabase.from("profiles").select("*"),
+        supabase.from("teams").select("*"),
+      ]);
+      // RLS ensures we only get profiles/teams from our org
 
-      if (!error && data) {
-        const dbProfiles = data as DbProfile[];
-        for (const p of dbProfiles) {
-          const user: User = {
-            id: p.id,
-            email: p.email,
-            firstName: p.first_name,
-            lastName: p.last_name,
-            role: p.role,
-            category: p.category,
-            teamId: p.team_id ?? "",
-            managerId: undefined,
-            avatarUrl: p.avatar_url ?? undefined,
-            createdAt: p.created_at,
-          };
-          addUser(user);
+      if (profilesRes.error || teamsRes.error) return;
+
+      const dbProfiles = profilesRes.data as DbProfile[];
+      const dbTeams = teamsRes.data as DbTeam[];
+
+      // Build teamId → managerId lookup
+      const teamManagerMap = new Map<string, string>();
+      for (const t of dbTeams) {
+        if (t.manager_id) {
+          teamManagerMap.set(t.id, t.manager_id);
         }
+      }
+
+      for (const p of dbProfiles) {
+        const user: User = {
+          id: p.id,
+          email: p.email,
+          firstName: p.first_name,
+          lastName: p.last_name,
+          role: p.role,
+          availableRoles: [p.role],
+          category: p.category,
+          teamId: p.team_id ?? "",
+          managerId: p.team_id ? teamManagerMap.get(p.team_id) : undefined,
+          avatarUrl: p.avatar_url ?? undefined,
+          createdAt: p.created_at,
+        };
+        addUser(user);
       }
     }
 
