@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { User, OnboardingStatus, ProfileType } from "@/types/user";
+import type { User, UserRole, OnboardingStatus, ProfileType } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { DbProfile } from "@/types/database";
@@ -9,6 +9,25 @@ import { defaultRatioConfigs } from "@/data/mock-ratios";
 import type { CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
 import { mockCoachAssignments, mockCoachActions, mockCoachPlans } from "@/data/mock-coach";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
+
+/** Map user roles to sidebar view IDs */
+export type ViewId = "agent" | "manager" | "directeur" | "coach";
+
+export const VIEW_LABELS: Record<ViewId, string> = {
+  agent: "Agent",
+  manager: "Manager",
+  directeur: "Agence",
+  coach: "Coach",
+};
+
+export function rolesToViews(roles: UserRole[]): ViewId[] {
+  const views: ViewId[] = [];
+  if (roles.includes("conseiller")) views.push("agent");
+  if (roles.includes("manager")) views.push("manager");
+  if (roles.includes("directeur")) views.push("directeur");
+  if (roles.includes("coach")) views.push("coach");
+  return views;
+}
 
 export type RemovalReason = "deale" | "abandonne";
 
@@ -57,6 +76,10 @@ interface AppState {
   coachAssignments: CoachAssignment[];
   coachActions: CoachAction[];
   coachPlans: CoachPlan[];
+
+  // ── View toggles ──
+  activeViews: ViewId[];
+  toggleView: (view: ViewId) => void;
 
   // ── Demo mode ──
   enterDemo: () => void;
@@ -126,6 +149,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   coachAssignments: [],
   coachActions: [],
   coachPlans: [],
+  activeViews: [],
+
+  // ── View toggles ──
+  toggleView: (view) => {
+    set((s) => {
+      if (s.activeViews.includes(view)) {
+        if (s.activeViews.length <= 1) return s;
+        return { activeViews: s.activeViews.filter((v) => v !== view) };
+      }
+      return { activeViews: [...s.activeViews, view] };
+    });
+  },
 
   // ── Demo mode ──
   enterDemo: () => {
@@ -141,6 +176,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachAssignments: mockCoachAssignments,
       coachActions: mockCoachActions,
       coachPlans: mockCoachPlans,
+      activeViews: rolesToViews(demoUser.availableRoles),
     });
   },
 
@@ -156,6 +192,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       removedItems: [],
       institutions: [],
       teamInfos: [],
+      activeViews: [],
     });
   },
 
@@ -164,7 +201,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const found = get().users.find((u) => u.email === email);
     if (!found) return "not_found";
     if (found.password && found.password !== password) return "wrong_password";
-    set({ user: found, isAuthenticated: true });
+    set({ user: found, isAuthenticated: true, activeViews: rolesToViews(found.availableRoles) });
     return "success";
   },
 
@@ -173,7 +210,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null });
+      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, activeViews: [] });
     }
   },
 
@@ -220,9 +257,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         profileType: (profile.profile_type as ProfileType) ?? undefined,
         institutionId: profile.org_id ?? undefined,
       };
-      set({ profile, user, isAuthenticated: true });
+      set({ profile, user, isAuthenticated: true, activeViews: rolesToViews(availableRoles) });
     } else {
-      set({ profile: null, user: null, isAuthenticated: false });
+      set({ profile: null, user: null, isAuthenticated: false, activeViews: [] });
     }
   },
 

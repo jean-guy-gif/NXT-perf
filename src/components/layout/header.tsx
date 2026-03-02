@@ -1,7 +1,7 @@
 "use client";
 
-import { Search, Bell, Plus, Sun, Moon, ArrowLeftRight, AlertTriangle, Info, LogOut } from "lucide-react";
-import { useAppStore } from "@/stores/app-store";
+import { Search, Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut } from "lucide-react";
+import { useAppStore, VIEW_LABELS, rolesToViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -35,8 +35,14 @@ export function Header() {
   const user = useAppStore((s) => s.user);
   const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
-  const switchRole = useAppStore((s) => s.switchRole);
+  const activeViews = useAppStore((s) => s.activeViews);
+  const toggleView = useAppStore((s) => s.toggleView);
   const isDemo = useAppStore((s) => s.isDemo);
+
+  const availableViews = useMemo(
+    () => rolesToViews(user?.availableRoles ?? []),
+    [user?.availableRoles]
+  );
   const [isDark, setIsDark] = useState(true);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -102,14 +108,27 @@ export function Header() {
           />
         </div>
 
-        {isDemo && (user?.availableRoles?.includes("manager") || user?.availableRoles?.includes("directeur")) && (
-          <button
-            onClick={switchRole}
-            title={`Basculer en mode ${user?.role === "directeur" ? "manager" : user?.role === "manager" ? "conseiller" : "manager"}`}
-            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeftRight className="h-4 w-4" />
-          </button>
+        {availableViews.length > 1 && (
+          <div className="flex items-center gap-0.5 rounded-full bg-muted/60 p-0.5">
+            {availableViews.map((view) => {
+              const isActive = activeViews.includes(view);
+              return (
+                <button
+                  key={view}
+                  onClick={() => toggleView(view)}
+                  title={`${isActive ? "Masquer" : "Afficher"} la vue ${VIEW_LABELS[view]}`}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-[var(--transition-fast)]",
+                    isActive
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {VIEW_LABELS[view]}
+                </button>
+              );
+            })}
+          </div>
         )}
 
         <button
