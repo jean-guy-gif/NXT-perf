@@ -29,6 +29,20 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
   return views;
 }
 
+/** Derive available roles from primary role (hierarchical fallback when DB column is absent) */
+export function deriveAvailableRoles(role: UserRole): UserRole[] {
+  switch (role) {
+    case "directeur":
+      return ["directeur", "manager", "conseiller"];
+    case "manager":
+      return ["manager", "conseiller"];
+    case "coach":
+      return ["coach"];
+    default:
+      return ["conseiller"];
+  }
+}
+
 export type RemovalReason = "deale" | "abandonne";
 
 export interface RemovedItem {
@@ -237,11 +251,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setProfile: (profile) => {
     if (profile) {
       const role = profile.role;
-      // Derive availableRoles from DB: use available_roles if present, else [role]
-      const rawAvailable = (profile as DbProfile & { available_roles?: string[] }).available_roles;
-      const availableRoles: import("@/types/user").UserRole[] = Array.isArray(rawAvailable)
-        ? rawAvailable as import("@/types/user").UserRole[]
-        : [role];
+      // Use available_roles from DB if present, else derive from primary role
+      const rawAvailable = profile.available_roles;
+      const availableRoles: UserRole[] = Array.isArray(rawAvailable) && rawAvailable.length > 0
+        ? rawAvailable as UserRole[]
+        : deriveAvailableRoles(role);
       const user: User = {
         id: profile.id,
         email: profile.email,
