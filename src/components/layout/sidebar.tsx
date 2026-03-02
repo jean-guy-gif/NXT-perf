@@ -49,12 +49,7 @@ const navItems: NavItem[] = [
     label: "Formation Collective",
     managerOnly: true,
   },
-  {
-    href: "/manager/parametres",
-    icon: Settings,
-    label: "Paramètres",
-    managerOnly: true,
-  },
+  { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
 export function Sidebar() {
