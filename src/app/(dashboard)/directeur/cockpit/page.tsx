@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   DollarSign,
   FileCheck,
@@ -15,6 +15,9 @@ import { formatCurrency } from "@/lib/formatters";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { computeAllRatios } from "@/lib/ratios";
+import type { RatioId, RatioConfig, ComputedRatio } from "@/types/ratios";
+import type { User } from "@/types/user";
+import type { PeriodResults } from "@/types/results";
 import { cn } from "@/lib/utils";
 
 type Tab = "globale" | "equipe" | "conseiller";
@@ -111,6 +114,15 @@ export default function CockpitAgencePage() {
             />
           </div>
 
+          {/* Performance moyenne globale — tous les conseillers */}
+          <TeamAverageRatios
+            title="Performance moyenne de l'agence"
+            subtitle={`Moyenne des ${orgStats.totalAgents} conseillers sur chaque ratio`}
+            conseillers={allConseillers}
+            allResults={allResults}
+            ratioConfigs={ratioConfigs}
+          />
+
           {/* Team summary cards */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {teams.map((team) => (
@@ -193,6 +205,15 @@ export default function CockpitAgencePage() {
                   {team.agentCount} conseillers
                 </span>
               </div>
+
+              {/* Ratios moyens de l'équipe */}
+              <TeamAverageRatios
+                title={`Performance moyenne — ${team.teamName}`}
+                subtitle={`Moyenne des ${team.agentCount} conseillers sur chaque ratio`}
+                conseillers={team.agents}
+                allResults={allResults}
+                ratioConfigs={ratioConfigs}
+              />
 
               <div className="space-y-2">
                 {team.agents.map((agent) => {
@@ -372,6 +393,117 @@ export default function CockpitAgencePage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ────── Team Average Ratios Component ────── */
+function TeamAverageRatios({
+  title,
+  subtitle,
+  conseillers,
+  allResults,
+  ratioConfigs,
+}: {
+  title: string;
+  subtitle: string;
+  conseillers: User[];
+  allResults: PeriodResults[];
+  ratioConfigs: Record<RatioId, RatioConfig>;
+}) {
+  const teamRatios = useMemo(() => {
+    const allComputedByUser: ComputedRatio[][] = [];
+    for (const user of conseillers) {
+      const results = allResults.find((r) => r.userId === user.id);
+      if (!results) continue;
+      allComputedByUser.push(computeAllRatios(results, user.category, ratioConfigs));
+    }
+    if (allComputedByUser.length === 0) return [];
+
+    const ratioIds = Object.keys(ratioConfigs) as RatioId[];
+    return ratioIds.map((id) => {
+      const config = ratioConfigs[id];
+      const values = allComputedByUser
+        .map((ratios) => ratios.find((r) => r.ratioId === id))
+        .filter(Boolean) as ComputedRatio[];
+      const avgValue = values.length > 0
+        ? values.reduce((s, r) => s + r.value, 0) / values.length
+        : 0;
+      const avgPct = values.length > 0
+        ? Math.round(values.reduce((s, r) => s + r.percentageOfTarget, 0) / values.length)
+        : 0;
+      const status: "ok" | "warning" | "danger" =
+        avgPct >= 80 ? "ok" : avgPct >= 60 ? "warning" : "danger";
+      return { id, config, avgValue, avgPct, status };
+    });
+  }, [conseillers, allResults, ratioConfigs]);
+
+  if (teamRatios.length === 0) return null;
+
+  const globalAvg = Math.round(
+    teamRatios.reduce((s, r) => s + r.avgPct, 0) / teamRatios.length
+  );
+  const globalStatus: "ok" | "warning" | "danger" =
+    globalAvg >= 80 ? "ok" : globalAvg >= 60 ? "warning" : "danger";
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Score global</p>
+          <p className={cn(
+            "text-2xl font-bold",
+            globalStatus === "ok" ? "text-green-500" : globalStatus === "warning" ? "text-orange-500" : "text-red-500"
+          )}>
+            {globalAvg}%
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {teamRatios.map((r) => (
+          <div
+            key={r.id}
+            className={cn(
+              "rounded-xl border bg-card p-4",
+              r.status === "ok"
+                ? "border-green-500/20"
+                : r.status === "warning"
+                  ? "border-orange-500/20"
+                  : "border-red-500/20"
+            )}
+          >
+            <p className="text-xs text-muted-foreground">{r.config.name}</p>
+            <p className={cn(
+              "mt-1 text-xl font-bold",
+              r.status === "ok" ? "text-green-500" : r.status === "warning" ? "text-orange-500" : "text-red-500"
+            )}>
+              {r.config.isPercentage
+                ? `${Math.round(r.avgValue)}%`
+                : r.avgValue.toFixed(1)}
+            </p>
+            <ProgressBar
+              value={r.avgPct}
+              status={r.status}
+              showValue={false}
+              size="sm"
+              className="mt-2"
+            />
+            <p className="mt-1 text-xs text-muted-foreground text-right">
+              {r.avgPct}% de l&apos;objectif
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
