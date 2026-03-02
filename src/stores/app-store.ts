@@ -6,6 +6,8 @@ import type { DbProfile } from "@/types/database";
 import { mockUsers } from "@/data/mock-users";
 import { mockResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
+import type { CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
+import { mockCoachAssignments, mockCoachActions, mockCoachPlans } from "@/data/mock-coach";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 
 export type RemovalReason = "deale" | "abandonne";
@@ -51,6 +53,11 @@ interface AppState {
   institutions: Institution[];
   teamInfos: TeamInfo[];
 
+  // ── Coach ──
+  coachAssignments: CoachAssignment[];
+  coachActions: CoachAction[];
+  coachPlans: CoachPlan[];
+
   // ── Demo mode ──
   enterDemo: () => void;
   exitDemo: () => void;
@@ -92,6 +99,16 @@ interface AppState {
   createPersonalTeam: () => void;
   completeOnboarding: (profileType: ProfileType) => void;
   setOnboardingStatus: (status: OnboardingStatus) => void;
+
+  // ── Coach actions ──
+  addCoachAction: (action: CoachAction) => void;
+  toggleCoachAction: (id: string) => void;
+  removeCoachAction: (id: string) => void;
+  createCoachPlan: (plan: CoachPlan) => void;
+  completeCoachPlan: (id: string) => void;
+  cancelCoachPlan: (id: string) => void;
+  revokeCoachAssignment: (assignmentId: string) => void;
+  updateExcludedManagers: (assignmentId: string, managerIds: string[]) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -106,6 +123,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   removedItems: [],
   institutions: [],
   teamInfos: [],
+  coachAssignments: [],
+  coachActions: [],
+  coachPlans: [],
 
   // ── Demo mode ──
   enterDemo: () => {
@@ -118,6 +138,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       users: mockUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
       results: mockResults,
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
+      coachAssignments: mockCoachAssignments,
+      coachActions: mockCoachActions,
+      coachPlans: mockCoachPlans,
     });
   },
 
@@ -438,4 +461,52 @@ export const useAppStore = create<AppState>((set, get) => ({
       user: s.user ? { ...s.user, onboardingStatus: status } : s.user,
     }));
   },
+
+  // ── Coach actions ──
+
+  addCoachAction: (action) =>
+    set((s) => ({ coachActions: [...s.coachActions, action] })),
+
+  toggleCoachAction: (id) =>
+    set((s) => ({
+      coachActions: s.coachActions.map((a) =>
+        a.id === id ? { ...a, status: a.status === "TODO" ? "DONE" as const : "TODO" as const } : a
+      ),
+    })),
+
+  removeCoachAction: (id) =>
+    set((s) => ({
+      coachActions: s.coachActions.filter((a) => a.id !== id),
+    })),
+
+  createCoachPlan: (plan) =>
+    set((s) => ({ coachPlans: [...s.coachPlans, plan] })),
+
+  completeCoachPlan: (id) =>
+    set((s) => ({
+      coachPlans: s.coachPlans.map((p) =>
+        p.id === id ? { ...p, status: "COMPLETED" as const } : p
+      ),
+    })),
+
+  cancelCoachPlan: (id) =>
+    set((s) => ({
+      coachPlans: s.coachPlans.map((p) =>
+        p.id === id ? { ...p, status: "CANCELLED" as const } : p
+      ),
+    })),
+
+  revokeCoachAssignment: (assignmentId) =>
+    set((s) => ({
+      coachAssignments: s.coachAssignments.map((a) =>
+        a.id === assignmentId ? { ...a, status: "REVOKED" as const } : a
+      ),
+    })),
+
+  updateExcludedManagers: (assignmentId, managerIds) =>
+    set((s) => ({
+      coachAssignments: s.coachAssignments.map((a) =>
+        a.id === assignmentId ? { ...a, excludedManagerIds: managerIds } : a
+      ),
+    })),
 }));
