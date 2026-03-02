@@ -7,7 +7,7 @@ import { useCoachData } from "@/hooks/use-coach-data";
 import type { CoachUserSummary } from "@/hooks/use-coach-data";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { Users, Building2, UserCheck, AlertTriangle } from "lucide-react";
+import { Users, Building2, UserCheck, AlertTriangle, ShieldMinus } from "lucide-react";
 import type { RatioId } from "@/types/ratios";
 
 /* ────── Types ────── */
@@ -108,13 +108,19 @@ function UserCard({
 
 /* ────── Institution Card ────── */
 function InstitutionCard({
+  assignmentId,
   targetId,
+  excludedManagerIds,
   summaries,
 }: {
+  assignmentId: string;
   targetId: string;
+  excludedManagerIds: string[] | null;
   summaries: CoachUserSummary[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const users = useAppStore((s) => s.users);
+  const updateExcludedManagers = useAppStore((s) => s.updateExcludedManagers);
 
   // Filter summaries belonging to this institution
   const members = summaries.filter(
@@ -131,6 +137,15 @@ function InstitutionCard({
         )
       : 0;
 
+  // All managers in this org (from full user list, not just summaries)
+  const orgManagers = users.filter(
+    (u) =>
+      u.institutionId === targetId &&
+      (u.role === "manager" || u.role === "directeur")
+  );
+  const excluded = new Set(excludedManagerIds ?? []);
+  const excludedCount = excluded.size;
+
   return (
     <div
       onClick={() => setExpanded(!expanded)}
@@ -140,6 +155,12 @@ function InstitutionCard({
       <div className="flex items-center gap-2 mb-3">
         <Building2 className="h-4 w-4 text-muted-foreground" />
         <p className="font-medium text-sm">Organisation</p>
+        {excludedCount > 0 && (
+          <span className="ml-auto rounded-full bg-orange-500/10 text-orange-500 px-2 py-0.5 text-xs font-medium inline-flex items-center gap-1">
+            <ShieldMinus className="h-3 w-3" />
+            {excludedCount} exclu{excludedCount > 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       {/* Stats grid */}
@@ -186,6 +207,42 @@ function InstitutionCard({
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Expanded: Périmètre — manager exclusions */}
+      {expanded && orgManagers.length > 0 && (
+        <div className="border-t pt-3 mt-2">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">
+            Périmètre — Managers inclus
+          </p>
+          <div className="space-y-1">
+            {orgManagers.map((mgr) => (
+              <label
+                key={mgr.id}
+                className="flex items-center gap-2 py-1 text-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  className="rounded border-border accent-primary h-4 w-4"
+                  checked={!excluded.has(mgr.id)}
+                  onChange={(e) => {
+                    const newExcluded = e.target.checked
+                      ? [...excluded].filter((id) => id !== mgr.id)
+                      : [...excluded, mgr.id];
+                    updateExcludedManagers(assignmentId, newExcluded);
+                  }}
+                />
+                <span>
+                  {mgr.firstName} {mgr.lastName}
+                </span>
+                <span className="text-xs text-muted-foreground ml-auto capitalize">
+                  {mgr.role}
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -294,7 +351,9 @@ export default function CoachCockpitPage() {
               {institutions.map((inst) => (
                 <InstitutionCard
                   key={inst.id}
+                  assignmentId={inst.id}
                   targetId={inst.targetId}
+                  excludedManagerIds={inst.excludedManagerIds}
                   summaries={summaries}
                 />
               ))}
