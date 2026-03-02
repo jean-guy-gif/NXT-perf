@@ -21,7 +21,7 @@ const pageTitles: Record<string, string> = {
   "/manager/cockpit": "Cockpit Manager",
   "/manager/equipe": "Équipe",
   "/manager/classement": "Classement",
-  "/manager/parametres": "Paramètres",
+  "/parametres": "Paramètres",
   "/manager/formation-collective": "Formation Collective",
 };
 
@@ -33,6 +33,7 @@ export function Header() {
   const results = useAppStore((s) => s.results);
   const removedItems = useAppStore((s) => s.removedItems);
   const switchRole = useAppStore((s) => s.switchRole);
+  const isDemo = useAppStore((s) => s.isDemo);
   const [isDark, setIsDark] = useState(true);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,13 +99,15 @@ export function Header() {
           />
         </div>
 
-        <button
-          onClick={switchRole}
-          title={`Basculer en mode ${user?.role === "manager" ? "conseiller" : "manager"}`}
-          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeftRight className="h-4 w-4" />
-        </button>
+        {isDemo && (
+          <button
+            onClick={switchRole}
+            title={`Basculer en mode ${user?.role === "manager" ? "conseiller" : "manager"}`}
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+          </button>
+        )}
 
         <button
           onClick={toggleTheme}
@@ -204,7 +207,6 @@ export function Header() {
         </button>
         <button
           onClick={async () => {
-            const isDemo = useAppStore.getState().isDemo;
             if (!isDemo) {
               const supabase = createClient();
               await supabase.auth.signOut();
