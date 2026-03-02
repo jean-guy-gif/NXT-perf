@@ -11,6 +11,7 @@ import {
   RotateCcw,
   CheckCircle,
   AlertTriangle,
+  HeartHandshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,22 @@ export default function ParametresPage() {
   const { updateThreshold } = useSupabaseRatioConfigs();
   const resetRatioConfigs = useAppStore((s) => s.resetRatioConfigs);
   const [saved, setSaved] = useState(false);
+
+  const user = useAppStore((s) => s.user);
+  const coachAssignments = useAppStore((s) => s.coachAssignments);
+  const allUsers = useAppStore((s) => s.users);
+  const revokeCoachAssignment = useAppStore((s) => s.revokeCoachAssignment);
+
+  const myCoachAssignment = coachAssignments.find(
+    (a) =>
+      a.status === "ACTIVE" &&
+      ((a.targetType === "AGENT" && a.targetId === user?.id) ||
+        (a.targetType === "MANAGER" && a.targetId === user?.id) ||
+        (a.targetType === "INSTITUTION" && a.targetId === user?.institutionId))
+  );
+  const myCoach = myCoachAssignment
+    ? allUsers.find((u) => u.id === myCoachAssignment.coachId)
+    : null;
 
   const ratioIds = Object.keys(ratioConfigs) as RatioId[];
 
@@ -86,6 +103,37 @@ export default function ParametresPage() {
           </p>
         </div>
       </div>
+
+      {/* Mon coach */}
+      {myCoach && myCoachAssignment && (
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <HeartHandshake className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Mon coach</h3>
+          </div>
+          <p className="text-sm">
+            {myCoach.firstName} {myCoach.lastName}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Depuis le{" "}
+            {new Date(myCoachAssignment.createdAt).toLocaleDateString("fr-FR")}
+          </p>
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  "Voulez-vous vraiment retirer votre coach ? Il perdra immédiatement l'accès à vos données."
+                )
+              ) {
+                revokeCoachAssignment(myCoachAssignment.id);
+              }
+            }}
+            className="mt-3 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground hover:bg-destructive/90"
+          >
+            Retirer le coach
+          </button>
+        </div>
+      )}
 
       {/* Thresholds Table */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
