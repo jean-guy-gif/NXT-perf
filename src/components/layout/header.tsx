@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut } from "lucide-react";
+import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut } from "lucide-react";
 import { useAppStore, VIEW_LABELS, rolesToViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
@@ -99,17 +99,8 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Rechercher..."
-            className="h-9 w-64 rounded-[var(--radius-button)] border border-transparent bg-muted pl-9 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground transition-all duration-[var(--transition-fast)] focus:border-primary/30 focus:ring-1 focus:ring-primary/40"
-          />
-        </div>
-
         {availableViews.length > 1 && (
-          <div className="flex items-center gap-0.5 rounded-full bg-muted/60 p-0.5">
+          <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted p-0.5">
             {availableViews.map((view) => {
               const isActive = activeViews.includes(view);
               return (
@@ -118,10 +109,10 @@ export function Header() {
                   onClick={() => toggleView(view)}
                   title={`${isActive ? "Masquer" : "Afficher"} la vue ${VIEW_LABELS[view]}`}
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-[var(--transition-fast)]",
+                    "rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-[var(--transition-fast)]",
                     isActive
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
                   )}
                 >
                   {VIEW_LABELS[view]}
