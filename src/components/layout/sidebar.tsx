@@ -62,23 +62,21 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const user = useAppStore((s) => s.user);
-  const roles = user?.availableRoles ?? [user?.role].filter(Boolean) as string[];
-  const isManager = roles.includes("manager") || roles.includes("directeur");
-  const isDirector = roles.includes("directeur");
-  const isCoach = roles.includes("coach");
+  const activeViews = useAppStore((s) => s.activeViews);
 
-  const filteredItems = navItems.filter((item) => {
-    if (item.managerOnly) return isManager;
-    if (item.directorOnly) return isDirector;
-    if (item.coachOnly) return isCoach;
-    return true;
-  });
-
-  const advisorItems = filteredItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly);
-  const managerItems = filteredItems.filter((item) => item.managerOnly);
-  const directorItems = filteredItems.filter((item) => item.directorOnly);
-  const coachItems = filteredItems.filter((item) => item.coachOnly);
+  const advisorItems = activeViews.includes("agent")
+    ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && item.href !== "/parametres")
+    : [];
+  const managerItems = activeViews.includes("manager")
+    ? navItems.filter((item) => item.managerOnly)
+    : [];
+  const directorItems = activeViews.includes("directeur")
+    ? navItems.filter((item) => item.directorOnly)
+    : [];
+  const coachItems = activeViews.includes("coach")
+    ? navItems.filter((item) => item.coachOnly)
+    : [];
+  const settingsItem = navItems.find((item) => item.href === "/parametres")!;
 
   return (
     <nav className="flex h-full flex-col items-center gap-1 overflow-y-auto bg-sidebar py-4 px-2">
@@ -132,6 +130,8 @@ export function Sidebar() {
       )}
 
       <div className="mt-auto" />
+
+      <SidebarItem item={settingsItem} pathname={pathname} />
     </nav>
   );
 }
