@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -10,18 +10,51 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 function RegisterForm() {
   const searchParams = useSearchParams();
   const initialRole = (searchParams.get("role") === "manager" ? "manager" : "conseiller") as UserRole;
+  const initialCode = searchParams.get("code") ?? "";
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>(initialRole);
   const [category, setCategory] = useState<UserCategory>("confirme");
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(initialCode);
   const [orgName, setOrgName] = useState("");
-  const [managerMode, setManagerMode] = useState<"create" | "join">("create");
+  const [managerMode, setManagerMode] = useState<"create" | "join">(initialCode ? "join" : "create");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [inviteCodeStatus, setInviteCodeStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [validatedOrgName, setValidatedOrgName] = useState("");
   const router = useRouter();
+
+  const validateInviteCode = useCallback(async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setInviteCodeStatus("idle");
+      setValidatedOrgName("");
+      return;
+    }
+    setInviteCodeStatus("checking");
+    const supabase = createClient();
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("id, name")
+      .eq("invite_code", trimmed)
+      .single();
+    if (org) {
+      setInviteCodeStatus("valid");
+      setValidatedOrgName(org.name);
+    } else {
+      setInviteCodeStatus("invalid");
+      setValidatedOrgName("");
+    }
+  }, []);
+
+  // Auto-validate when code comes from URL
+  useEffect(() => {
+    if (initialCode) {
+      validateInviteCode(initialCode);
+    }
+  }, [initialCode, validateInviteCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,18 +88,25 @@ function RegisterForm() {
       return;
     }
 
-    // If joining with invite code, verify it exists
+    // If joining with invite code, verify it exists (skip if already validated)
     if (finalInviteCode) {
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("id")
-        .eq("invite_code", finalInviteCode)
-        .single();
-
-      if (!org) {
+      if (inviteCodeStatus === "invalid") {
         setError("Code d'invitation invalide. Vérifiez avec votre manager.");
         setLoading(false);
         return;
+      }
+      if (inviteCodeStatus !== "valid") {
+        const { data: org } = await supabase
+          .from("organizations")
+          .select("id")
+          .eq("invite_code", finalInviteCode)
+          .single();
+
+        if (!org) {
+          setError("Code d'invitation invalide. Vérifiez avec votre manager.");
+          setLoading(false);
+          return;
+        }
       }
     }
 
@@ -104,7 +144,7 @@ function RegisterForm() {
     }
 
     // Full reload to ensure session cookies are sent
-    window.location.href = "/dashboard";
+    window.location.href = role === "manager" ? "/manager/equipe" : "/dashboard";
   };
 
   const inputClassName =
@@ -186,7 +226,7 @@ function RegisterForm() {
               <button
                 key={r}
                 type="button"
-                onClick={() => setRole(r)}
+                onClick={() => { setRole(r); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                   role === r
                     ? "border-primary bg-primary/10 text-primary"
@@ -226,7 +266,7 @@ function RegisterForm() {
             <div className="flex gap-2 rounded-lg bg-muted p-1">
               <button
                 type="button"
-                onClick={() => { setManagerMode("create"); setInviteCode(""); }}
+                onClick={() => { setManagerMode("create"); setInviteCode(""); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
                 className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   managerMode === "create"
                     ? "bg-background text-foreground shadow-sm"
@@ -237,7 +277,7 @@ function RegisterForm() {
               </button>
               <button
                 type="button"
-                onClick={() => { setManagerMode("join"); setOrgName(""); }}
+                onClick={() => { setManagerMode("join"); setOrgName(""); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
                 className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   managerMode === "join"
                     ? "bg-background text-foreground shadow-sm"
@@ -266,13 +306,12 @@ function RegisterForm() {
                 <input
                   type="text"
                   value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
+                  onChange={(e) => { setInviteCode(e.target.value); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
+                  onBlur={() => validateInviteCode(inviteCode)}
                   placeholder="Ex: START-ACAD-a3f2"
                   className={inputClassName}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Demandez le code au manager de l&apos;organisation
-                </p>
+                <InviteCodeFeedback status={inviteCodeStatus} orgName={validatedOrgName} />
               </div>
             )}
           </div>
@@ -286,14 +325,13 @@ function RegisterForm() {
             <input
               type="text"
               value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
+              onChange={(e) => { setInviteCode(e.target.value); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
+              onBlur={() => validateInviteCode(inviteCode)}
               placeholder="Ex: START-ACAD-a3f2"
               className={inputClassName}
               required
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Demandez le code à votre manager
-            </p>
+            <InviteCodeFeedback status={inviteCodeStatus} orgName={validatedOrgName} />
           </div>
         )}
 
@@ -319,6 +357,46 @@ function RegisterForm() {
         </Link>
       </p>
     </div>
+  );
+}
+
+/* ────── Invite Code Feedback Component ────── */
+function InviteCodeFeedback({
+  status,
+  orgName,
+}: {
+  status: "idle" | "checking" | "valid" | "invalid";
+  orgName: string;
+}) {
+  if (status === "idle") return null;
+
+  if (status === "checking") {
+    return (
+      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        Vérification...
+      </p>
+    );
+  }
+
+  if (status === "valid") {
+    return (
+      <p className="mt-1 flex items-center gap-1.5 text-xs text-green-600">
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        Code valide — Organisation : {orgName}
+      </p>
+    );
+  }
+
+  return (
+    <p className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+      Code invalide
+    </p>
   );
 }
 

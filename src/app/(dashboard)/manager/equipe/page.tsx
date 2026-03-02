@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
@@ -11,13 +11,14 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import type { RatioConfig, RatioId, ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
-import { Users as UsersIcon, Trash2, Copy, Check } from "lucide-react";
+import { Users as UsersIcon, UserPlus, Trash2, Copy, Check, Mail, MessageCircle } from "lucide-react";
+import { buildInviteLink, buildMailtoUrl, buildWhatsappUrl, buildInviteMessage } from "@/lib/invite";
 
 type ViewMode = "individual" | "collective";
 
 export default function EquipePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("collective");
-  const [selectedUserId, setSelectedUserId] = useState<string>("u-demo-1");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const removeUser = useAppStore((s) => s.removeUser);
@@ -35,6 +36,16 @@ export default function EquipePage() {
     if (isDemo && currentUser) return u.teamId === currentUser.teamId;
     return true;
   });
+  // Auto-select first conseiller when list changes or selected user disappears
+  const conseillerIds = conseillers.map((u) => u.id).join(",");
+  const firstConseillerId = conseillers[0]?.id ?? "";
+  useEffect(() => {
+    const ids = conseillerIds.split(",").filter(Boolean);
+    if (ids.length > 0 && !ids.includes(selectedUserId)) {
+      setSelectedUserId(ids[0]);
+    }
+  }, [conseillerIds, selectedUserId]);
+
   const selectedUser = conseillers.find((u) => u.id === selectedUserId);
   const selectedResults = allResults.find((r) => r.userId === selectedUserId);
   const selectedRatios =
@@ -84,6 +95,13 @@ export default function EquipePage() {
         </div>
       </div>
 
+      {conseillers.length === 0 ? (
+        <EmptyTeamState
+          invitationCode={invitationCode}
+          category={currentUser?.category ?? "confirme"}
+        />
+      ) : (
+        <>
       {/* View Toggle */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">
         <button
@@ -304,6 +322,91 @@ export default function EquipePage() {
           )}
         </div>
       )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ────── Empty Team State Component ────── */
+function EmptyTeamState({
+  invitationCode,
+  category,
+}: {
+  invitationCode: string;
+  category: import("@/types/user").UserCategory;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [copiedMsg, setCopiedMsg] = useState(false);
+
+  const inviteLink = buildInviteLink(invitationCode);
+  const message = buildInviteMessage(invitationCode, inviteLink, category);
+  const mailtoUrl = buildMailtoUrl(invitationCode, inviteLink, category);
+  const whatsappUrl = buildWhatsappUrl(invitationCode, inviteLink, category);
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(invitationCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyMessage = () => {
+    navigator.clipboard.writeText(message);
+    setCopiedMsg(true);
+    setTimeout(() => setCopiedMsg(false), 2000);
+  };
+
+  return (
+    <div className="flex flex-col items-center rounded-xl border border-border bg-card px-6 py-12 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+        <UserPlus className="h-8 w-8 text-primary" />
+      </div>
+      <h2 className="text-xl font-semibold text-foreground">
+        Votre équipe est vide
+      </h2>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        Partagez le code d&apos;invitation ci-dessous à vos conseillers pour
+        qu&apos;ils créent leur compte et rejoignent votre équipe.
+      </p>
+
+      <div className="mt-6 flex items-center gap-2">
+        <code className="rounded-lg bg-muted px-6 py-3 text-lg font-bold tracking-wider text-primary">
+          {invitationCode}
+        </code>
+        <button
+          onClick={handleCopyCode}
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Copier le code"
+        >
+          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+        </button>
+      </div>
+
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <button
+          onClick={handleCopyMessage}
+          className="inline-flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          {copiedMsg ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          {copiedMsg ? "Copié !" : "Copier le message"}
+        </button>
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+        >
+          <MessageCircle className="h-4 w-4" />
+          WhatsApp
+        </a>
+        <a
+          href={mailtoUrl}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Mail className="h-4 w-4" />
+          Email
+        </a>
+      </div>
     </div>
   );
 }
