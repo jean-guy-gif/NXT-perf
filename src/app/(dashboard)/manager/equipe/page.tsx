@@ -565,7 +565,7 @@ function TeamCard({
                 setEditing(true);
               }}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="Renommer l&apos;équipe"
+              title="Renommer l'équipe"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -625,7 +625,7 @@ function TeamCard({
               ) : (
                 <button
                   onClick={() => setConfirmRemoveId(agent.id)}
-                  title="Retirer de l&apos;équipe"
+                  title="Retirer de l'équipe"
                   className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <X className="h-4 w-4" />
