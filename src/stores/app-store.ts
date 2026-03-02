@@ -24,6 +24,7 @@ interface AppState {
   isAuthenticated: boolean;
   isDemo: boolean;
   profile: DbProfile | null;
+  orgInviteCode: string | null;
 
   // ── Data (cache for Supabase, or mock for demo) ──
   users: User[];
@@ -44,6 +45,7 @@ interface AppState {
   // ── Supabase auth ──
   setProfile: (profile: DbProfile | null) => void;
   setAuthenticated: (authed: boolean) => void;
+  setOrgInviteCode: (code: string | null) => void;
 
   // ── Data actions (used in both modes) ──
   setUser: (user: User) => void;
@@ -70,6 +72,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isAuthenticated: false,
   isDemo: false,
   profile: null,
+  orgInviteCode: null,
   users: [],
   results: [],
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
@@ -116,7 +119,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null });
+      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null });
     }
   },
 
@@ -161,6 +164,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setAuthenticated: (authed) => set({ isAuthenticated: authed }),
 
+  setOrgInviteCode: (code) => set({ orgInviteCode: code }),
+
   // ── Data actions ──
   setUser: (user) => set({ user }),
 
@@ -176,9 +181,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addUser: (user) => {
-    set((state) => ({
-      users: [...state.users, user],
-    }));
+    set((state) => {
+      // Idempotent: skip if user with same id already exists
+      if (state.users.some((u) => u.id === user.id)) return state;
+      return { users: [...state.users, user] };
+    });
   },
 
   removeUser: (userId) => {

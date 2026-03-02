@@ -25,10 +25,16 @@ export default function EquipePage() {
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const users = useAppStore((s) => s.users);
   const currentUser = useAppStore((s) => s.user);
+  const isDemo = useAppStore((s) => s.isDemo);
+  const orgInviteCode = useAppStore((s) => s.orgInviteCode);
 
-  const conseillers = users.filter(
-    (u) => u.role === "conseiller" && currentUser && u.teamId === currentUser.teamId
-  );
+  // In Supabase mode, RLS already scopes to our org — just filter by role.
+  // In demo mode, also filter by teamId for backward compat with mock data.
+  const conseillers = users.filter((u) => {
+    if (u.role !== "conseiller") return false;
+    if (isDemo && currentUser) return u.teamId === currentUser.teamId;
+    return true;
+  });
   const selectedUser = conseillers.find((u) => u.id === selectedUserId);
   const selectedResults = allResults.find((r) => r.userId === selectedUserId);
   const selectedRatios =
@@ -40,7 +46,9 @@ export default function EquipePage() {
         )
       : [];
 
-  const invitationCode = currentUser ? `INV-${currentUser.id}` : "";
+  const invitationCode = isDemo
+    ? (currentUser ? `INV-${currentUser.id}` : "")
+    : (orgInviteCode ?? "Chargement...");
 
   const handleCopy = () => {
     navigator.clipboard.writeText(invitationCode);

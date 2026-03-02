@@ -18,6 +18,7 @@ export default function DashboardLayout({
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const isDemo = useAppStore((s) => s.isDemo);
   const setProfile = useAppStore((s) => s.setProfile);
+  const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
   const router = useRouter();
   const [loading, setLoading] = useState(!isAuthenticated);
 
@@ -41,6 +42,19 @@ export default function DashboardLayout({
 
         if (profile) {
           setProfile(profile);
+
+          // Load org invite code for manager equipe page
+          if (profile.org_id) {
+            const { data: org } = await supabase
+              .from("organizations")
+              .select("invite_code")
+              .eq("id", profile.org_id)
+              .single();
+            if (org) {
+              setOrgInviteCode(org.invite_code);
+            }
+          }
+
           setLoading(false);
           return;
         }
@@ -50,7 +64,7 @@ export default function DashboardLayout({
     };
 
     checkSession();
-  }, [isAuthenticated, router, setProfile]);
+  }, [isAuthenticated, router, setProfile, setOrgInviteCode]);
 
   if (loading) {
     return (

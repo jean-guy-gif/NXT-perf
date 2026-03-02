@@ -16,10 +16,9 @@ export function useSupabaseTeam() {
   const isDemo = useAppStore((s) => s.isDemo);
   const profile = useAppStore((s) => s.profile);
   const addUser = useAppStore((s) => s.addUser);
-  const users = useAppStore((s) => s.users);
 
   useEffect(() => {
-    if (isDemo || !profile || users.length > 0) return;
+    if (isDemo || !profile) return;
 
     async function load() {
       const { data, error } = await supabase
@@ -48,5 +47,5 @@ export function useSupabaseTeam() {
     }
 
     load();
-  }, [supabase, isDemo, profile, users.length, addUser]);
+  }, [supabase, isDemo, profile, addUser]);
 }

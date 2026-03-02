@@ -18,6 +18,7 @@ function RegisterForm() {
   const [category, setCategory] = useState<UserCategory>("confirme");
   const [inviteCode, setInviteCode] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [managerMode, setManagerMode] = useState<"create" | "join">("create");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -218,42 +219,83 @@ function RegisterForm() {
         </div>
 
         {role === "manager" && (
-          <div>
+          <div className="space-y-3">
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Nom de l&apos;organisation
+              Organisation
             </label>
-            <input
-              type="text"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              placeholder="Ex: Start Academy, Mon Agence, etc."
-              className={inputClassName}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Laissez vide si vous rejoignez une organisation existante avec un code
-            </p>
+            <div className="flex gap-2 rounded-lg bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => { setManagerMode("create"); setInviteCode(""); }}
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  managerMode === "create"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Créer une organisation
+              </button>
+              <button
+                type="button"
+                onClick={() => { setManagerMode("join"); setOrgName(""); }}
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  managerMode === "join"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Rejoindre avec un code
+              </button>
+            </div>
+
+            {managerMode === "create" ? (
+              <div>
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Ex: Start Academy, Mon Agence, etc."
+                  className={inputClassName}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Un code d&apos;invitation sera généré automatiquement
+                </p>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  placeholder="Ex: START-ACAD-a3f2"
+                  className={inputClassName}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Demandez le code au manager de l&apos;organisation
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">
-            Code d&apos;invitation{" "}
-            {role === "conseiller" && <span className="text-destructive">*</span>}
-          </label>
-          <input
-            type="text"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            placeholder={role === "manager" ? "Optionnel si vous créez une org" : "Ex: START-2026"}
-            className={inputClassName}
-            required={role === "conseiller"}
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {role === "conseiller"
-              ? "Demandez le code à votre manager"
-              : "Renseignez un code si vous rejoignez une organisation existante"}
-          </p>
-        </div>
+        {role === "conseiller" && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">
+              Code d&apos;invitation <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="Ex: START-ACAD-a3f2"
+              className={inputClassName}
+              required
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Demandez le code à votre manager
+            </p>
+          </div>
+        )}
 
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
