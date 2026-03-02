@@ -10,76 +10,29 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
 import type { UserCategory } from "@/types/user";
 import type { RatioId } from "@/types/ratios";
+import type { ComputedRatio } from "@/types/ratios";
 
 type CompareMode = "advisor" | "profile";
 type TabType = "interne" | "temporel";
-type TimePeriod = "mois" | "trimestre" | "semestre" | "annee";
 
-const periodLabels: Record<TimePeriod, string> = {
-  mois: "Mois",
-  trimestre: "Trimestre",
-  semestre: "Semestre",
-  annee: "Année",
-};
+function getPerformanceIndicator(ratio: ComputedRatio) {
+  const pct = ratio.percentageOfTarget;
 
-const mockPreviousPeriodPerf: Record<TimePeriod, Record<RatioId, number>> = {
-  mois: {
-    contacts_rdv: 72,
-    estimations_mandats: 85,
-    pct_mandats_exclusifs: 60,
-    visites_offre: 90,
-    offres_compromis: 55,
-    mandats_simples_vente: 40,
-    mandats_exclusifs_vente: 78,
-  },
-  trimestre: {
-    contacts_rdv: 68,
-    estimations_mandats: 80,
-    pct_mandats_exclusifs: 55,
-    visites_offre: 75,
-    offres_compromis: 65,
-    mandats_simples_vente: 50,
-    mandats_exclusifs_vente: 70,
-  },
-  semestre: {
-    contacts_rdv: 74,
-    estimations_mandats: 78,
-    pct_mandats_exclusifs: 62,
-    visites_offre: 82,
-    offres_compromis: 58,
-    mandats_simples_vente: 45,
-    mandats_exclusifs_vente: 65,
-  },
-  annee: {
-    contacts_rdv: 70,
-    estimations_mandats: 75,
-    pct_mandats_exclusifs: 50,
-    visites_offre: 70,
-    offres_compromis: 60,
-    mandats_simples_vente: 42,
-    mandats_exclusifs_vente: 60,
-  },
-};
-
-function getPerformanceIndicator(current: number, previous: number) {
-  const diff = current - previous;
-  const pct = previous > 0 ? (diff / previous) * 100 : diff > 0 ? 100 : 0;
-
-  if (pct > 10) {
+  if (ratio.status === "ok") {
     return {
       emoji: "🏄‍♂️",
       label: "Sur-performance",
       colorClass: "text-green-500",
       bgClass: "bg-green-500/10 border-green-500/30",
-      diff: `+${Math.round(pct)}%`,
+      pct: `${Math.round(pct)}%`,
     };
-  } else if (pct >= -10) {
+  } else if (ratio.status === "warning") {
     return {
       emoji: "🏊‍♂️",
       label: "Performance stable",
       colorClass: "text-blue-500",
       bgClass: "bg-blue-500/10 border-blue-500/30",
-      diff: pct >= 0 ? `+${Math.round(pct)}%` : `${Math.round(pct)}%`,
+      pct: `${Math.round(pct)}%`,
     };
   } else {
     return {
@@ -87,7 +40,7 @@ function getPerformanceIndicator(current: number, previous: number) {
       label: "Sous-performance",
       colorClass: "text-red-500",
       bgClass: "bg-red-500/10 border-red-500/30",
-      diff: `${Math.round(pct)}%`,
+      pct: `${Math.round(pct)}%`,
     };
   }
 }
@@ -98,7 +51,6 @@ export default function ComparaisonPage() {
   const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>("u-demo-2");
   const [selectedProfile, setSelectedProfile] =
     useState<UserCategory>("expert");
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("mois");
 
   const { user, category } = useUser();
   const myResults = useResults();
@@ -138,45 +90,38 @@ export default function ComparaisonPage() {
     };
   });
 
-  // Temporal comparison data
-  const temporalData = useMemo(() => {
-    const prevPerf = mockPreviousPeriodPerf[timePeriod];
+  // Performance vs level thresholds
+  const levelData = useMemo(() => {
     return myRatios.map((r) => {
       const config = ratioConfigs[r.ratioId as RatioId];
-      const previous = prevPerf[r.ratioId as RatioId] ?? 0;
-      const current = r.percentageOfTarget;
-      const indicator = getPerformanceIndicator(current, previous);
+      const indicator = getPerformanceIndicator(r);
       return {
         ratioId: r.ratioId,
         name: config?.name ?? r.ratioId,
         shortName: config?.name.split("→")[0].trim().slice(0, 14) ?? r.ratioId,
-        current,
-        previous,
+        percentageOfTarget: r.percentageOfTarget,
+        value: r.value,
+        threshold: r.thresholdForCategory,
+        isPercentage: config?.isPercentage ?? false,
+        unit: config?.unit ?? "",
         indicator,
       };
     });
-  }, [myRatios, ratioConfigs, timePeriod]);
+  }, [myRatios, ratioConfigs]);
 
-  const temporalChartData = temporalData.map((d) => ({
+  const levelChartData = levelData.map((d) => ({
     name: d.shortName,
-    "Période actuelle": d.current,
-    "Période précédente": d.previous,
+    "Ma performance": d.percentageOfTarget,
+    "Objectif": 100,
   }));
 
-  const surPerf = temporalData.filter((d) => d.indicator.label === "Sur-performance");
-  const stablePerf = temporalData.filter((d) => d.indicator.label === "Performance stable");
-  const sousPerf = temporalData.filter((d) => d.indicator.label === "Sous-performance");
+  const surPerf = levelData.filter((d) => d.indicator.label === "Sur-performance");
+  const stablePerf = levelData.filter((d) => d.indicator.label === "Performance stable");
+  const sousPerf = levelData.filter((d) => d.indicator.label === "Sous-performance");
 
   const otherUsers = users.filter(
     (u) => u.id !== user?.id && u.role === "conseiller"
   );
-
-  const periodCompareLabel: Record<TimePeriod, string> = {
-    mois: "mois précédent",
-    trimestre: "trimestre précédent",
-    semestre: "semestre précédent",
-    annee: "année précédente",
-  };
 
   return (
     <div className="space-y-6">
@@ -204,7 +149,7 @@ export default function ComparaisonPage() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Évolution temporelle
+          Performance vs Niveau
         </button>
       </div>
 
@@ -302,32 +247,20 @@ export default function ComparaisonPage() {
         </div>
       )}
 
-      {/* ========== EVOLUTION TEMPORELLE ========== */}
+      {/* ========== PERFORMANCE VS NIVEAU ========== */}
       {tab === "temporel" && (
         <div className="space-y-6">
-          {/* Period selector */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex gap-1 rounded-lg bg-muted p-1">
-              {(["mois", "trimestre", "semestre", "annee"] as TimePeriod[]).map(
-                (tp) => (
-                  <button
-                    key={tp}
-                    onClick={() => setTimePeriod(tp)}
-                    className={cn(
-                      "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-                      timePeriod === tp
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {periodLabels[tp]}
-                  </button>
-                )
-              )}
+          {/* Level indicator */}
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+            <span className="text-2xl">
+              {category === "debutant" ? "🌱" : category === "confirme" ? "💼" : "🏆"}
+            </span>
+            <div>
+              <p className="text-sm text-muted-foreground">Performance évaluée selon le niveau</p>
+              <p className="font-semibold text-foreground">
+                {CATEGORY_LABELS[category]}
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              vs {periodCompareLabel[timePeriod]}
-            </p>
           </div>
 
           {/* Quick visual summary */}
@@ -367,22 +300,21 @@ export default function ComparaisonPage() {
           {/* Chart */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="mb-4 font-semibold text-foreground">
-              Comparaison {periodLabels[timePeriod].toLowerCase()} actuel vs{" "}
-              {periodCompareLabel[timePeriod]} (% objectif)
+              Ma performance vs objectif {CATEGORY_LABELS[category]} (% de l&apos;objectif)
             </h3>
             <BarChart
-              data={temporalChartData}
+              data={levelChartData}
               xKey="name"
               bars={[
                 {
-                  dataKey: "Période actuelle",
+                  dataKey: "Ma performance",
                   color: NXT_COLORS.green,
-                  name: "Période actuelle",
+                  name: "Ma performance",
                 },
                 {
-                  dataKey: "Période précédente",
+                  dataKey: "Objectif",
                   color: NXT_COLORS.violet,
-                  name: "Période précédente",
+                  name: "Objectif",
                 },
               ]}
               height={300}
@@ -391,13 +323,13 @@ export default function ComparaisonPage() {
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded bg-green-500" />
                 <span className="text-sm text-muted-foreground">
-                  {periodLabels[timePeriod]} actuel
+                  Ma performance
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded bg-indigo-500" />
                 <span className="text-sm text-muted-foreground">
-                  {periodLabels[timePeriod]} précédent{timePeriod === "annee" ? "e" : ""}
+                  Objectif {CATEGORY_LABELS[category]}
                 </span>
               </div>
             </div>
@@ -409,7 +341,7 @@ export default function ComparaisonPage() {
               Détail par ratio
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {temporalData.map((d) => (
+              {levelData.map((d) => (
                 <div
                   key={d.ratioId}
                   className={cn(
@@ -425,19 +357,19 @@ export default function ComparaisonPage() {
                       <div className="mt-2 flex items-baseline gap-3">
                         <div>
                           <p className="text-xs text-muted-foreground">
-                            Actuel
+                            Ma valeur
                           </p>
                           <p className="text-xl font-bold text-foreground">
-                            {d.current}%
+                            {d.isPercentage ? `${Math.round(d.value)}%` : d.value.toFixed(1)}
                           </p>
                         </div>
-                        <div className="text-muted-foreground">→</div>
+                        <div className="text-muted-foreground">/</div>
                         <div>
                           <p className="text-xs text-muted-foreground">
-                            Précédent
+                            Objectif
                           </p>
                           <p className="text-lg font-semibold text-muted-foreground">
-                            {d.previous}%
+                            {d.isPercentage ? `${Math.round(d.threshold)}%` : d.threshold.toFixed(1)}
                           </p>
                         </div>
                       </div>
@@ -450,7 +382,7 @@ export default function ComparaisonPage() {
                           d.indicator.colorClass
                         )}
                       >
-                        {d.indicator.diff}
+                        {d.indicator.pct}
                       </span>
                     </div>
                   </div>
@@ -467,21 +399,21 @@ export default function ComparaisonPage() {
                 <span className="text-xl">🏄‍♂️</span>
                 <div>
                   <p className="text-sm font-medium text-green-500">Sur-performance</p>
-                  <p className="text-xs text-muted-foreground">&gt; +10% vs période précédente</p>
+                  <p className="text-xs text-muted-foreground">Atteint ou dépasse l&apos;objectif {CATEGORY_LABELS[category]}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xl">🏊‍♂️</span>
                 <div>
                   <p className="text-sm font-medium text-blue-500">Performance stable</p>
-                  <p className="text-xs text-muted-foreground">±10% vs période précédente</p>
+                  <p className="text-xs text-muted-foreground">Proche de l&apos;objectif (70-100%)</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xl">🐟</span>
                 <div>
                   <p className="text-sm font-medium text-red-500">Sous-performance</p>
-                  <p className="text-xs text-muted-foreground">&lt; -10% vs période précédente</p>
+                  <p className="text-xs text-muted-foreground">En dessous de 70% de l&apos;objectif</p>
                 </div>
               </div>
             </div>

@@ -38,13 +38,7 @@ type NiveauOption = {
   emoji: string;
 };
 
-const niveauOptions: NiveauOption[] = [
-  {
-    value: "actuel",
-    label: "Mon Niveau actuel",
-    description: "Basé sur vos ratios de performance actuels depuis Ma Performance",
-    emoji: "📊",
-  },
+const niveauOptions: (NiveauOption & { disabled?: boolean; disabledReason?: string })[] = [
   {
     value: "debutant",
     label: "Junior",
@@ -62,6 +56,14 @@ const niveauOptions: NiveauOption[] = [
     label: "Expert",
     description: "Plus de 5 ans d'expérience — ratios exigeants pour top performers",
     emoji: "🏆",
+  },
+  {
+    value: "actuel",
+    label: "Mon Niveau actuel",
+    description: "Objectifs basés sur vos taux de transformation réels",
+    emoji: "📊",
+    disabled: true,
+    disabledReason: "Disponible après 8-9 mois d'activité (volume de données insuffisant)",
   },
 ];
 
@@ -114,8 +116,8 @@ export default function ObjectifsPage() {
   const [gpsSaved, setGpsSaved] = useState(false);
   const [savedGps, setSavedGps] = useState<{ ca: number; avg: number } | null>(null);
 
-  /* ── Niveau state ── */
-  const [selectedNiveau, setSelectedNiveau] = useState<NiveauChoice>("actuel");
+  /* ── Niveau state — defaults to account category ── */
+  const [selectedNiveau, setSelectedNiveau] = useState<NiveauChoice>(category);
   const [niveauSaved, setNiveauSaved] = useState(false);
 
   /* ── Ratios actuels (depuis Ma Performance) ── */
@@ -430,18 +432,22 @@ export default function ObjectifsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {niveauOptions.map((option) => {
                 const isSelected = selectedNiveau === option.value;
+                const isDisabled = !!option.disabled;
                 return (
                   <button
                     key={option.value}
-                    onClick={() => setSelectedNiveau(option.value)}
+                    onClick={() => !isDisabled && setSelectedNiveau(option.value)}
+                    disabled={isDisabled}
                     className={cn(
                       "relative rounded-xl border-2 p-5 text-left transition-all",
-                      isSelected
-                        ? "border-primary bg-primary/5 shadow-md"
-                        : "border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30"
+                      isDisabled
+                        ? "cursor-not-allowed border-border/50 bg-muted/20 opacity-50"
+                        : isSelected
+                          ? "border-primary bg-primary/5 shadow-md"
+                          : "border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30"
                     )}
                   >
-                    {isSelected && (
+                    {isSelected && !isDisabled && (
                       <div className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary">
                         <CheckCircle className="h-4 w-4 text-primary-foreground" />
                       </div>
@@ -453,6 +459,11 @@ export default function ObjectifsPage() {
                     <p className="mt-1 text-sm text-muted-foreground">
                       {option.description}
                     </p>
+                    {isDisabled && option.disabledReason && (
+                      <p className="mt-2 text-xs text-orange-400 italic">
+                        {option.disabledReason}
+                      </p>
+                    )}
                   </button>
                 );
               })}
