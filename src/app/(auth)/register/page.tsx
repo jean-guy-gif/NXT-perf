@@ -9,8 +9,9 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 
 function RegisterForm() {
   const searchParams = useSearchParams();
-  const initialRole = (searchParams.get("role") === "manager" ? "manager" : "conseiller") as UserRole;
   const initialCode = searchParams.get("code") ?? "";
+  const initialRole = initialCode ? "conseiller" : (searchParams.get("role") === "manager" ? "manager" : "conseiller") as UserRole;
+  const roleLocked = !!initialCode;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -226,17 +227,23 @@ function RegisterForm() {
               <button
                 key={r}
                 type="button"
+                disabled={roleLocked && r !== "conseiller"}
                 onClick={() => { setRole(r); setInviteCodeStatus("idle"); setValidatedOrgName(""); }}
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                   role === r
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-input bg-background text-muted-foreground hover:bg-muted"
-                }`}
+                } ${roleLocked && r !== "conseiller" ? "cursor-not-allowed opacity-40" : ""}`}
               >
                 {r === "conseiller" ? "Conseiller" : "Manager"}
               </button>
             ))}
           </div>
+          {roleLocked && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Vous rejoignez une équipe existante en tant que conseiller.
+            </p>
+          )}
         </div>
 
         <div>
