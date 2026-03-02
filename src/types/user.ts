@@ -36,3 +36,8 @@ export function hasManagerAccess(user: User | null): boolean {
 export function hasDirectorAccess(user: User | null): boolean {
   return hasRole(user, "directeur");
 }
+
+/** Check if a user has coach-level access */
+export function hasCoachAccess(user: User | null): boolean {
+  return hasRole(user, "coach");
+}

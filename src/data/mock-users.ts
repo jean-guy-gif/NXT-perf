@@ -178,6 +178,22 @@ export const mockUsers: User[] = [
     profileType: "AGENT",
     institutionId: "org-demo",
   },
+  // ── Coach ──
+  {
+    id: "coach-1",
+    email: "coach@demo.fr",
+    password: "demo",
+    firstName: "Pierre",
+    lastName: "Durand",
+    role: "coach",
+    availableRoles: ["coach"],
+    category: "expert",
+    teamId: "team-demo",
+    createdAt: "2024-01-01T00:00:00Z",
+    onboardingStatus: "DONE",
+    profileType: "COACH",
+    institutionId: "org-demo",
+  },
 ];
 
 export const mockCurrentUser = mockUsers[0];
