@@ -9,8 +9,9 @@ export default function ManagerLayout({
   children: React.ReactNode;
 }) {
   const user = useAppStore((s) => s.user);
+  const roles = user?.availableRoles ?? [];
 
-  if (user?.role !== "manager" && user?.role !== "directeur") {
+  if (!roles.includes("manager") && !roles.includes("directeur")) {
     redirect("/dashboard");
   }
 

@@ -9,8 +9,9 @@ export default function DirecteurLayout({
   children: React.ReactNode;
 }) {
   const user = useAppStore((s) => s.user);
+  const roles = user?.availableRoles ?? [];
 
-  if (user?.role !== "directeur") {
+  if (!roles.includes("directeur")) {
     redirect("/dashboard");
   }
 

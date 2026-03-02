@@ -101,10 +101,10 @@ export function Header() {
           />
         </div>
 
-        {isDemo && (user?.role === "manager" || user?.role === "directeur") && (
+        {isDemo && (user?.availableRoles?.includes("manager") || user?.availableRoles?.includes("directeur")) && (
           <button
             onClick={switchRole}
-            title={`Basculer en mode ${user?.role === "directeur" ? "manager" : "directeur"}`}
+            title={`Basculer en mode ${user?.role === "directeur" ? "manager" : user?.role === "manager" ? "conseiller" : "manager"}`}
             className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
           >
             <ArrowLeftRight className="h-4 w-4" />
@@ -118,7 +118,7 @@ export function Header() {
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {(user?.role === "manager" || user?.role === "directeur") && (
+        {(user?.availableRoles?.includes("manager") || user?.availableRoles?.includes("directeur")) && (
           <button
             onClick={() => setShowAddModal(true)}
             title="Ajouter un conseiller"

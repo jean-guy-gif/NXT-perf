@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import type { User } from "@/types/user";
+import type { User, OnboardingStatus, ProfileType } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { DbProfile } from "@/types/database";
 import { mockUsers } from "@/data/mock-users";
 import { mockResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
+import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 
 export type RemovalReason = "deale" | "abandonne";
 
@@ -16,6 +17,20 @@ export interface RemovedItem {
   type: "info_vente" | "acheteur_chaud";
   reason: RemovalReason;
   removedAt: string;
+}
+
+export interface Institution {
+  id: string;
+  name: string;
+  inviteCode: string;
+}
+
+export interface TeamInfo {
+  id: string;
+  name: string;
+  institutionId: string;
+  managerId: string;
+  inviteCode: string;
 }
 
 interface AppState {
@@ -31,6 +46,10 @@ interface AppState {
   results: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
   removedItems: RemovedItem[];
+
+  // ── Onboarding (demo mode) ──
+  institutions: Institution[];
+  teamInfos: TeamInfo[];
 
   // ── Demo mode ──
   enterDemo: () => void;
@@ -65,6 +84,14 @@ interface AppState {
     value: number
   ) => void;
   resetRatioConfigs: () => void;
+
+  // ── Onboarding actions ──
+  createInstitution: (name: string) => { agCode: string; mgCode: string; institutionId: string; teamId: string };
+  joinInstitution: (code: string) => { mgCode: string; teamId: string } | null;
+  joinTeam: (code: string) => boolean;
+  createPersonalTeam: () => void;
+  completeOnboarding: (profileType: ProfileType) => void;
+  setOnboardingStatus: (status: OnboardingStatus) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -77,16 +104,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   results: [],
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
   removedItems: [],
+  institutions: [],
+  teamInfos: [],
 
   // ── Demo mode ──
   enterDemo: () => {
-    const demoUser = mockUsers[0];
+    const demoUser = { ...mockUsers[0], onboardingStatus: "DONE" as const };
     document.cookie = "nxt-demo-mode=true;path=/;max-age=86400";
     set({
       isDemo: true,
       isAuthenticated: true,
       user: demoUser,
-      users: mockUsers,
+      users: mockUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
       results: mockResults,
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
     });
@@ -102,6 +131,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       results: [],
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
       removedItems: [],
+      institutions: [],
+      teamInfos: [],
     });
   },
 
@@ -145,16 +176,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Supabase auth ──
   setProfile: (profile) => {
     if (profile) {
+      const role = profile.role;
+      // Derive availableRoles from DB: use available_roles if present, else [role]
+      const rawAvailable = (profile as DbProfile & { available_roles?: string[] }).available_roles;
+      const availableRoles: import("@/types/user").UserRole[] = Array.isArray(rawAvailable)
+        ? rawAvailable as import("@/types/user").UserRole[]
+        : [role];
       const user: User = {
         id: profile.id,
         email: profile.email,
         firstName: profile.first_name,
         lastName: profile.last_name,
-        role: profile.role,
+        role,
+        availableRoles,
         category: profile.category,
         teamId: profile.team_id ?? "",
         avatarUrl: profile.avatar_url ?? undefined,
         createdAt: profile.created_at,
+        onboardingStatus: (profile.onboarding_status as OnboardingStatus) ?? "NOT_STARTED",
+        profileType: (profile.profile_type as ProfileType) ?? undefined,
+        institutionId: profile.org_id ?? undefined,
       };
       set({ profile, user, isAuthenticated: true });
     } else {
@@ -172,6 +213,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   switchRole: () => {
     const current = get().user;
     if (!current) return;
+    if (current.role === "coach") return; // Coach cannot switch roles
     const users = get().users;
 
     if (current.role === "directeur") {
@@ -291,5 +333,109 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   resetRatioConfigs: () => {
     set({ ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)) });
+  },
+
+  // ── Onboarding actions ──
+
+  createInstitution: (name) => {
+    const state = get();
+    const existingAgCodes = new Set(state.institutions.map((i) => i.inviteCode));
+    const existingMgCodes = new Set(state.teamInfos.map((t) => t.inviteCode));
+
+    const agCode = generateInstitutionCode(existingAgCodes);
+    const institutionId = `org-${Date.now()}`;
+    const teamId = `team-${Date.now()}`;
+    const mgCode = generateTeamCode(existingMgCodes);
+
+    const institution: Institution = { id: institutionId, name, inviteCode: agCode };
+    const teamInfo: TeamInfo = {
+      id: teamId,
+      name: `Équipe de ${state.user?.firstName ?? "Manager"}`,
+      institutionId,
+      managerId: state.user?.id ?? "",
+      inviteCode: mgCode,
+    };
+
+    set((s) => ({
+      institutions: [...s.institutions, institution],
+      teamInfos: [...s.teamInfos, teamInfo],
+      orgInviteCode: agCode,
+      user: s.user
+        ? { ...s.user, role: "manager", teamId, institutionId }
+        : s.user,
+    }));
+
+    return { agCode, mgCode, institutionId, teamId };
+  },
+
+  joinInstitution: (code) => {
+    const state = get();
+    const institution = state.institutions.find((i) => i.inviteCode === code.trim());
+    if (!institution) return null;
+
+    const existingMgCodes = new Set(state.teamInfos.map((t) => t.inviteCode));
+    const mgCode = generateTeamCode(existingMgCodes);
+    const teamId = `team-${Date.now()}`;
+
+    const teamInfo: TeamInfo = {
+      id: teamId,
+      name: `Équipe de ${state.user?.firstName ?? "Manager"}`,
+      institutionId: institution.id,
+      managerId: state.user?.id ?? "",
+      inviteCode: mgCode,
+    };
+
+    set((s) => ({
+      teamInfos: [...s.teamInfos, teamInfo],
+      orgInviteCode: code.trim(),
+      user: s.user
+        ? { ...s.user, role: "manager", teamId, institutionId: institution.id }
+        : s.user,
+    }));
+
+    return { mgCode, teamId };
+  },
+
+  joinTeam: (code) => {
+    const state = get();
+    const teamInfo = state.teamInfos.find((t) => t.inviteCode === code.trim());
+    if (!teamInfo) return false;
+
+    set((s) => ({
+      user: s.user
+        ? {
+            ...s.user,
+            role: "conseiller",
+            teamId: teamInfo.id,
+            managerId: teamInfo.managerId,
+            institutionId: teamInfo.institutionId,
+          }
+        : s.user,
+    }));
+
+    return true;
+  },
+
+  createPersonalTeam: () => {
+    const state = get();
+    const teamId = `team-solo-${Date.now()}`;
+
+    set((s) => ({
+      user: s.user ? { ...s.user, teamId } : s.user,
+    }));
+  },
+
+  completeOnboarding: (profileType) => {
+    set((s) => ({
+      user: s.user
+        ? { ...s.user, onboardingStatus: "DONE", profileType }
+        : s.user,
+    }));
+  },
+
+  setOnboardingStatus: (status) => {
+    set((s) => ({
+      user: s.user ? { ...s.user, onboardingStatus: status } : s.user,
+    }));
   },
 }));

@@ -47,6 +47,7 @@ export function useSupabaseTeam() {
           firstName: p.first_name,
           lastName: p.last_name,
           role: p.role,
+          availableRoles: [p.role],
           category: p.category,
           teamId: p.team_id ?? "",
           managerId: p.team_id ? teamManagerMap.get(p.team_id) : undefined,

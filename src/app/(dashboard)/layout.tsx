@@ -17,6 +17,7 @@ export default function DashboardLayout({
 }) {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const isDemo = useAppStore((s) => s.isDemo);
+  const user = useAppStore((s) => s.user);
   const setProfile = useAppStore((s) => s.setProfile);
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
   const router = useRouter();
@@ -66,6 +67,14 @@ export default function DashboardLayout({
     checkSession();
   }, [isAuthenticated, router, setProfile, setOrgInviteCode]);
 
+  // Onboarding guard: redirect to /onboarding if not done (skip in demo mode)
+  useEffect(() => {
+    if (!isAuthenticated || isDemo || loading) return;
+    if (user && user.onboardingStatus && user.onboardingStatus !== "DONE") {
+      router.replace("/onboarding");
+    }
+  }, [isAuthenticated, isDemo, loading, user, router]);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -75,6 +84,9 @@ export default function DashboardLayout({
   }
 
   if (!isAuthenticated) return null;
+
+  // Don't render dashboard if onboarding not done (non-demo)
+  if (!isDemo && user?.onboardingStatus && user.onboardingStatus !== "DONE") return null;
 
   return (
     <div className={cn("flex h-screen overflow-hidden bg-background", isDemo && "pt-8")}>

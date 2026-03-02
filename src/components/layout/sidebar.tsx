@@ -60,8 +60,9 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const user = useAppStore((s) => s.user);
-  const isManager = user?.role === "manager" || user?.role === "directeur";
-  const isDirector = user?.role === "directeur";
+  const roles = user?.availableRoles ?? [user?.role].filter(Boolean) as string[];
+  const isManager = roles.includes("manager") || roles.includes("directeur");
+  const isDirector = roles.includes("directeur");
 
   const filteredItems = navItems.filter((item) => {
     if (item.managerOnly) return isManager;

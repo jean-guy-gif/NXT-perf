@@ -2,7 +2,34 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Users, UserCheck } from "lucide-react";
+import { Building2, Users, UserCheck, GraduationCap } from "lucide-react";
+
+const profiles = [
+  {
+    profile: "INSTITUTION",
+    icon: Building2,
+    title: "Je crée une agence",
+    desc: "Créez votre agence et invitez vos managers et conseillers",
+  },
+  {
+    profile: "MANAGER",
+    icon: Users,
+    title: "Je suis Manager",
+    desc: "Rejoignez une agence existante ou créez votre équipe",
+  },
+  {
+    profile: "AGENT",
+    icon: UserCheck,
+    title: "Je suis Conseiller",
+    desc: "Rejoignez l'équipe de votre manager avec un code d'invitation",
+  },
+  {
+    profile: "COACH",
+    icon: GraduationCap,
+    title: "Je suis Coach",
+    desc: "Accompagnez vos clients vers la performance",
+  },
+];
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -20,35 +47,21 @@ export default function WelcomePage() {
       </p>
 
       <div className="space-y-3">
-        <button
-          onClick={() => router.push("/register?role=manager")}
-          className="flex w-full items-center gap-4 rounded-xl border border-input bg-background p-4 text-left transition-all hover:border-primary hover:bg-primary/5"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Users className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <p className="font-semibold text-foreground">Je suis Manager</p>
-            <p className="text-sm text-muted-foreground">
-              Créez votre équipe et pilotez la performance de vos conseillers
-            </p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => router.push("/register?role=conseiller")}
-          className="flex w-full items-center gap-4 rounded-xl border border-input bg-background p-4 text-left transition-all hover:border-primary hover:bg-primary/5"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <UserCheck className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <p className="font-semibold text-foreground">Je suis Conseiller</p>
-            <p className="text-sm text-muted-foreground">
-              Rejoignez l&apos;équipe de votre manager avec un code d&apos;invitation
-            </p>
-          </div>
-        </button>
+        {profiles.map((p) => (
+          <button
+            key={p.profile}
+            onClick={() => router.push(`/register?profile=${p.profile}`)}
+            className="flex w-full items-center gap-4 rounded-xl border border-input bg-background p-4 text-left transition-all hover:border-primary hover:bg-primary/5"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <p.icon className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{p.title}</p>
+              <p className="text-sm text-muted-foreground">{p.desc}</p>
+            </div>
+          </button>
+        ))}
       </div>
 
       <div className="mt-6 border-t border-border pt-4">

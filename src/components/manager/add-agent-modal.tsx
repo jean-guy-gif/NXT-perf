@@ -82,6 +82,7 @@ export function AddAgentModal({
       firstName: trimmedFirst,
       lastName: trimmedLast,
       role: "conseiller",
+      availableRoles: ["conseiller"],
       category,
       teamId: managerTeamId,
       managerId,
