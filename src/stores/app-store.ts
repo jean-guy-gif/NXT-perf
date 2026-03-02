@@ -56,8 +56,8 @@ interface AppState {
   unassignAgent: (agentId: string) => void;
   addResults: (result: PeriodResults) => void;
   setResults: (results: PeriodResults[]) => void;
-  removeInfoVente: (resultId: string, itemId: string, reason: RemovalReason) => void;
-  removeAcheteurChaud: (resultId: string, itemId: string, reason: RemovalReason) => void;
+  updateInfoVenteStatut: (resultId: string, itemId: string, statut: "deale" | "abandonne") => void;
+  updateAcheteurChaudStatut: (resultId: string, itemId: string, statut: "deale" | "abandonne") => void;
   setRatioConfigs: (configs: Record<RatioId, RatioConfig>) => void;
   updateRatioThreshold: (
     ratioId: RatioId,
@@ -221,74 +221,40 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setResults: (results) => set({ results }),
 
-  removeInfoVente: (resultId, itemId, reason) => {
-    set((state) => {
-      const result = state.results.find((r) => r.id === resultId);
-      const item = result?.prospection.informationsVente.find((i) => i.id === itemId);
-      return {
-        results: state.results.map((r) =>
-          r.id === resultId
-            ? {
-                ...r,
-                prospection: {
-                  ...r.prospection,
-                  informationsVente: r.prospection.informationsVente.filter(
-                    (i) => i.id !== itemId
-                  ),
-                },
-              }
-            : r
-        ),
-        removedItems: item
-          ? [
-              ...state.removedItems,
-              {
-                id: item.id,
-                nom: item.nom,
-                commentaire: item.commentaire,
-                type: "info_vente" as const,
-                reason,
-                removedAt: new Date().toISOString(),
+  updateInfoVenteStatut: (resultId, itemId, statut) => {
+    set((state) => ({
+      results: state.results.map((r) =>
+        r.id === resultId
+          ? {
+              ...r,
+              prospection: {
+                ...r.prospection,
+                informationsVente: r.prospection.informationsVente.map((i) =>
+                  i.id === itemId ? { ...i, statut } : i
+                ),
               },
-            ]
-          : state.removedItems,
-      };
-    });
+            }
+          : r
+      ),
+    }));
   },
 
-  removeAcheteurChaud: (resultId, itemId, reason) => {
-    set((state) => {
-      const result = state.results.find((r) => r.id === resultId);
-      const item = result?.acheteurs.acheteursChauds.find((i) => i.id === itemId);
-      return {
-        results: state.results.map((r) =>
-          r.id === resultId
-            ? {
-                ...r,
-                acheteurs: {
-                  ...r.acheteurs,
-                  acheteursChauds: r.acheteurs.acheteursChauds.filter(
-                    (i) => i.id !== itemId
-                  ),
-                },
-              }
-            : r
-        ),
-        removedItems: item
-          ? [
-              ...state.removedItems,
-              {
-                id: item.id,
-                nom: item.nom,
-                commentaire: item.commentaire,
-                type: "acheteur_chaud" as const,
-                reason,
-                removedAt: new Date().toISOString(),
+  updateAcheteurChaudStatut: (resultId, itemId, statut) => {
+    set((state) => ({
+      results: state.results.map((r) =>
+        r.id === resultId
+          ? {
+              ...r,
+              acheteurs: {
+                ...r.acheteurs,
+                acheteursChauds: r.acheteurs.acheteursChauds.map((i) =>
+                  i.id === itemId ? { ...i, statut } : i
+                ),
               },
-            ]
-          : state.removedItems,
-      };
-    });
+            }
+          : r
+      ),
+    }));
   },
 
   setRatioConfigs: (configs) => set({ ratioConfigs: configs }),

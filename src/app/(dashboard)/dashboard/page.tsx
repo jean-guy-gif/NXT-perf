@@ -44,7 +44,8 @@ import {
 const emptyMonthlyData: Array<{ month: string; value: number }> = [];
 const emptyCAData: Array<{ month: string; ca: number }> = [];
 const emptyActivityData: Array<{ day: string; contacts: number; visites: number }> = [];
-import { useAppStore, type RemovedItem } from "@/stores/app-store";
+import { useAppStore } from "@/stores/app-store";
+import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
@@ -153,7 +154,6 @@ function DashboardContent() {
   const { user } = useUser();
   const results = useResults();
   const { computedRatios, ratioConfigs } = useRatios();
-  const removedItems = useAppStore((s) => s.removedItems);
   const isDemo = useAppStore((s) => s.isDemo);
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
@@ -164,6 +164,13 @@ function DashboardContent() {
   const kpiChartConfigs = useMemo(() => getKpiChartConfigs(isDemo), [isDemo]);
   const monthlyCAData = isDemo ? mockMonthlyCA : emptyCAData;
   const weeklyActivityData = isDemo ? mockWeeklyActivity : emptyActivityData;
+
+  const treatedCount = useMemo(() => {
+    if (!results) return 0;
+    const infoTraites = results.prospection.informationsVente.filter((i) => i.statut !== "en_cours").length;
+    const achetTraites = results.acheteurs.acheteursChauds.filter((i) => i.statut !== "en_cours").length;
+    return infoTraites + achetTraites;
+  }, [results]);
 
   // Allow navigation via ?tab=suivi (from notifications, etc.)
   useEffect(() => {
@@ -292,9 +299,9 @@ function DashboardContent() {
         >
           <Archive className="h-4 w-4" />
           Suivi contacts
-          {removedItems.length > 0 && (
+          {treatedCount > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-              {removedItems.length}
+              {treatedCount}
             </span>
           )}
         </button>
@@ -1132,7 +1139,7 @@ function DashboardContent() {
 
       {/* ========== TAB: SUIVI CONTACTS ========== */}
       {activeTab === "suivi" && (
-        <SuiviContactsPanel removedItems={removedItems} results={results} />
+        <SuiviContactsPanel results={results} />
       )}
     </div>
   );
@@ -1142,29 +1149,46 @@ function DashboardContent() {
 /*  Suivi Contacts Panel                                               */
 /* ------------------------------------------------------------------ */
 
-function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedItem[]; results: PeriodResults | null }) {
-  const removeInfoVente = useAppStore((s) => s.removeInfoVente);
-  const removeAcheteurChaud = useAppStore((s) => s.removeAcheteurChaud);
+function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
+  const updateInfoVenteStatut = useAppStore((s) => s.updateInfoVenteStatut);
+  const updateAcheteurChaudStatut = useAppStore((s) => s.updateAcheteurChaudStatut);
+  const { persistResult } = useSupabaseResults();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  const activeInfoVente = results?.prospection.informationsVente ?? [];
-  const activeAcheteurs = results?.acheteurs.acheteursChauds ?? [];
+  const allInfoVente = results?.prospection.informationsVente ?? [];
+  const allAcheteurs = results?.acheteurs.acheteursChauds ?? [];
+
+  const activeInfoVente = allInfoVente.filter((i) => i.statut === "en_cours");
+  const activeAcheteurs = allAcheteurs.filter((i) => i.statut === "en_cours");
   const totalActifs = activeInfoVente.length + activeAcheteurs.length;
 
-  const totalDeale = removedItems.filter((i) => i.reason === "deale").length;
-  const totalAbandonne = removedItems.filter((i) => i.reason === "abandonne").length;
+  const treatedItems = [
+    ...allInfoVente.filter((i) => i.statut !== "en_cours").map((i) => ({ ...i, type: "info_vente" as const })),
+    ...allAcheteurs.filter((i) => i.statut !== "en_cours").map((i) => ({ ...i, type: "acheteur_chaud" as const })),
+  ];
+  const totalDeale = treatedItems.filter((i) => i.statut === "deale").length;
+  const totalAbandonne = treatedItems.filter((i) => i.statut === "abandonne").length;
 
-  const handleRemoveInfo = (itemId: string, reason: "deale" | "abandonne") => {
+  const handleUpdateInfo = (itemId: string, statut: "deale" | "abandonne") => {
     if (results) {
-      removeInfoVente(results.id, itemId, reason);
+      updateInfoVenteStatut(results.id, itemId, statut);
       setConfirmingId(null);
+      // Persist: read fresh result from store after state update
+      setTimeout(() => {
+        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+        if (fresh) persistResult(fresh);
+      }, 0);
     }
   };
 
-  const handleRemoveAcheteur = (itemId: string, reason: "deale" | "abandonne") => {
+  const handleUpdateAcheteur = (itemId: string, statut: "deale" | "abandonne") => {
     if (results) {
-      removeAcheteurChaud(results.id, itemId, reason);
+      updateAcheteurChaudStatut(results.id, itemId, statut);
       setConfirmingId(null);
+      setTimeout(() => {
+        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+        if (fresh) persistResult(fresh);
+      }, 0);
     }
   };
 
@@ -1190,7 +1214,7 @@ function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedIt
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total traités</p>
-              <p className="text-2xl font-bold text-foreground">{removedItems.length}</p>
+              <p className="text-2xl font-bold text-foreground">{treatedItems.length}</p>
             </div>
           </div>
         </div>
@@ -1244,7 +1268,7 @@ function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedIt
                 commentaire={item.commentaire}
                 confirmingId={confirmingId}
                 setConfirmingId={setConfirmingId}
-                onRemove={(reason) => handleRemoveInfo(item.id, reason)}
+                onRemove={(reason) => handleUpdateInfo(item.id, reason)}
               />
             ))}
           </div>
@@ -1277,7 +1301,7 @@ function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedIt
                 commentaire={item.commentaire}
                 confirmingId={confirmingId}
                 setConfirmingId={setConfirmingId}
-                onRemove={(reason) => handleRemoveAcheteur(item.id, reason)}
+                onRemove={(reason) => handleUpdateAcheteur(item.id, reason)}
               />
             ))}
           </div>
@@ -1285,7 +1309,7 @@ function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedIt
       </div>
 
       {/* ── Historique des contacts traités ── */}
-      {removedItems.length > 0 && (
+      {treatedItems.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Archive className="h-4 w-4 text-muted-foreground" />
@@ -1293,12 +1317,12 @@ function SuiviContactsPanel({ removedItems, results }: { removedItems: RemovedIt
               Historique
             </h3>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {removedItems.length}
+              {treatedItems.length}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {removedItems.map((item) => (
-              <RemovedItemCard key={item.id + item.removedAt} item={item} />
+            {treatedItems.map((item) => (
+              <TreatedItemCard key={item.id} item={item} />
             ))}
           </div>
         </div>
@@ -1380,14 +1404,8 @@ function ActiveContactCard({
   );
 }
 
-function RemovedItemCard({ item }: { item: RemovedItem }) {
-  const isDeale = item.reason === "deale";
-  const date = new Date(item.removedAt);
-  const dateStr = date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+function TreatedItemCard({ item }: { item: { nom: string; commentaire: string; statut: string } }) {
+  const isDeale = item.statut === "deale";
 
   return (
     <div
@@ -1421,7 +1439,6 @@ function RemovedItemCard({ item }: { item: RemovedItem }) {
           {isDeale ? "Dealé" : "Abandonné"}
         </span>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">{dateStr}</p>
     </div>
   );
 }

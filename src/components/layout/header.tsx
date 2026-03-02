@@ -31,7 +31,6 @@ export function Header() {
   const user = useAppStore((s) => s.user);
   const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
-  const removedItems = useAppStore((s) => s.removedItems);
   const switchRole = useAppStore((s) => s.switchRole);
   const isDemo = useAppStore((s) => s.isDemo);
   const [isDark, setIsDark] = useState(true);
@@ -40,8 +39,8 @@ export function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const notifications = useMemo(
-    () => computeNotifications(user, results, removedItems, users),
-    [user, results, removedItems, users]
+    () => computeNotifications(user, results, users),
+    [user, results, users]
   );
 
   // Close dropdown on click outside

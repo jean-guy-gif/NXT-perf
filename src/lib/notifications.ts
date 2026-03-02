@@ -1,6 +1,5 @@
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
-import type { RemovedItem } from "@/stores/app-store";
 
 export interface AppNotification {
   id: string;
@@ -21,25 +20,43 @@ function formatDays(days: number): string {
   return rounded <= 1 ? "1 jour" : `${rounded} jours`;
 }
 
+/** Check if any results for a user contain treated contacts (statut !== "en_cours") */
+function hasTreatedContacts(userResults: PeriodResults[]): boolean {
+  return userResults.some(
+    (r) =>
+      r.prospection.informationsVente.some((i) => i.statut !== "en_cours") ||
+      r.acheteurs.acheteursChauds.some((i) => i.statut !== "en_cours")
+  );
+}
+
+/** Latest updatedAt among results that have treated contacts */
+function latestTreatedAt(userResults: PeriodResults[]): string | null {
+  return userResults.reduce<string | null>((latest, r) => {
+    const hasTreated =
+      r.prospection.informationsVente.some((i) => i.statut !== "en_cours") ||
+      r.acheteurs.acheteursChauds.some((i) => i.statut !== "en_cours");
+    if (hasTreated && (!latest || r.updatedAt > latest)) return r.updatedAt;
+    return latest;
+  }, null);
+}
+
 export function computeNotifications(
   user: User | null,
   results: PeriodResults[],
-  removedItems: RemovedItem[],
   allUsers: User[]
 ): AppNotification[] {
   if (!user) return [];
 
   if (user.role === "manager") {
-    return computeManagerNotifications(user, results, removedItems, allUsers);
+    return computeManagerNotifications(user, results, allUsers);
   }
 
-  return computeConseillerNotifications(user, results, removedItems);
+  return computeConseillerNotifications(user, results);
 }
 
 function computeConseillerNotifications(
   user: User,
-  results: PeriodResults[],
-  removedItems: RemovedItem[]
+  results: PeriodResults[]
 ): AppNotification[] {
   const notifs: AppNotification[] = [];
 
@@ -63,21 +80,21 @@ function computeConseillerNotifications(
     });
   }
 
-  // Check last contact action (deal/abandon)
-  const latestRemovedAt = removedItems.reduce<string | null>((latest, item) => {
-    if (!latest || item.removedAt > latest) return item.removedAt;
-    return latest;
-  }, null);
+  // Check last contact action (deal/abandon) — derived from treated contacts in results
+  const lastTreated = latestTreatedAt(userResults);
 
-  if (!latestRemovedAt || Date.now() - new Date(latestRemovedAt).getTime() > SEVEN_DAYS_MS) {
-    const days = latestRemovedAt ? daysSince(latestRemovedAt) : null;
+  if (!lastTreated || Date.now() - new Date(lastTreated).getTime() > SEVEN_DAYS_MS) {
+    const hasTreated = hasTreatedContacts(userResults);
+    const days = lastTreated ? daysSince(lastTreated) : null;
     notifs.push({
       id: "contacts-retard",
       type: "warning",
       message: "Pas d'action sur vos contacts depuis plus d'une semaine",
       detail: days
         ? `Dernière action il y a ${formatDays(days)}`
-        : "Aucune action dealé/abandonné enregistrée",
+        : hasTreated
+          ? "Aucune action récente"
+          : "Aucune action dealé/abandonné enregistrée",
       link: "/dashboard?tab=suivi",
     });
   }
@@ -88,7 +105,6 @@ function computeConseillerNotifications(
 function computeManagerNotifications(
   user: User,
   results: PeriodResults[],
-  removedItems: RemovedItem[],
   allUsers: User[]
 ): AppNotification[] {
   const notifs: AppNotification[] = [];
@@ -121,13 +137,10 @@ function computeManagerNotifications(
     });
   }
 
-  // Check global contact actions
-  const latestRemovedAt = removedItems.reduce<string | null>((latest, item) => {
-    if (!latest || item.removedAt > latest) return item.removedAt;
-    return latest;
-  }, null);
+  // Check global contact actions — derived from results
+  const lastTreated = latestTreatedAt(results);
 
-  if (!latestRemovedAt || Date.now() - new Date(latestRemovedAt).getTime() > SEVEN_DAYS_MS) {
+  if (!lastTreated || Date.now() - new Date(lastTreated).getTime() > SEVEN_DAYS_MS) {
     notifs.push({
       id: "manager-contacts-retard",
       type: "warning",

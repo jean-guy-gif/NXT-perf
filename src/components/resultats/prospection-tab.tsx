@@ -9,20 +9,25 @@ import {
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { DynamicInfoFields } from "./dynamic-info-fields";
 import { useAppStore } from "@/stores/app-store";
+import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
-import type { RemovalReason } from "@/stores/app-store";
 
 interface ProspectionTabProps {
   results: PeriodResults;
 }
 
 export function ProspectionTab({ results }: ProspectionTabProps) {
-  const removeInfoVente = useAppStore((s) => s.removeInfoVente);
+  const updateInfoVenteStatut = useAppStore((s) => s.updateInfoVenteStatut);
+  const { persistResult } = useSupabaseResults();
   const { prospection } = results;
 
-  const handleRemove = (itemId: string, reason: RemovalReason) => {
-    removeInfoVente(results.id, itemId, reason);
+  const handleRemove = (itemId: string, reason: "deale" | "abandonne") => {
+    updateInfoVenteStatut(results.id, itemId, reason);
+    setTimeout(() => {
+      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+      if (fresh) persistResult(fresh);
+    }, 0);
   };
 
   return (
@@ -59,7 +64,7 @@ export function ProspectionTab({ results }: ProspectionTabProps) {
       </div>
 
       <DynamicInfoFields
-        items={prospection.informationsVente}
+        items={prospection.informationsVente.filter((i) => i.statut === "en_cours")}
         label="Informations de vente obtenues"
         onRemove={handleRemove}
       />

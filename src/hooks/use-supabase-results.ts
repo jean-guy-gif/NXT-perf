@@ -81,5 +81,35 @@ export function useSupabaseResults() {
     [supabase, isDemo]
   );
 
-  return { saveResult };
+  /**
+   * Persist a PeriodResults to Supabase using its own userId.
+   * Unlike saveResult (which uses the auth user), this allows
+   * persisting a result that belongs to any user (e.g. from the store).
+   */
+  const persistResult = useCallback(
+    async (result: PeriodResults) => {
+      if (isDemo) return;
+
+      const { error } = await supabase.from("period_results").upsert(
+        {
+          user_id: result.userId,
+          period_type: result.periodType,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+          data: {
+            prospection: result.prospection,
+            vendeurs: result.vendeurs,
+            acheteurs: result.acheteurs,
+            ventes: result.ventes,
+          },
+        },
+        { onConflict: "user_id,period_type,period_start" }
+      );
+
+      return error;
+    },
+    [supabase, isDemo]
+  );
+
+  return { saveResult, persistResult };
 }

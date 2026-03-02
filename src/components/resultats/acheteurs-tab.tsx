@@ -10,20 +10,25 @@ import {
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { DynamicInfoFields } from "./dynamic-info-fields";
 import { useAppStore } from "@/stores/app-store";
+import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
-import type { RemovalReason } from "@/stores/app-store";
 
 interface AcheteursTabProps {
   results: PeriodResults;
 }
 
 export function AcheteursTab({ results }: AcheteursTabProps) {
-  const removeAcheteurChaud = useAppStore((s) => s.removeAcheteurChaud);
+  const updateAcheteurChaudStatut = useAppStore((s) => s.updateAcheteurChaudStatut);
+  const { persistResult } = useSupabaseResults();
   const { acheteurs } = results;
 
-  const handleRemove = (itemId: string, reason: RemovalReason) => {
-    removeAcheteurChaud(results.id, itemId, reason);
+  const handleRemove = (itemId: string, reason: "deale" | "abandonne") => {
+    updateAcheteurChaudStatut(results.id, itemId, reason);
+    setTimeout(() => {
+      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+      if (fresh) persistResult(fresh);
+    }, 0);
   };
 
   return (
@@ -67,7 +72,7 @@ export function AcheteursTab({ results }: AcheteursTabProps) {
       </div>
 
       <DynamicInfoFields
-        items={acheteurs.acheteursChauds}
+        items={acheteurs.acheteursChauds.filter((i) => i.statut === "en_cours")}
         label="Détail acheteurs chauds"
         onRemove={handleRemove}
       />
