@@ -97,29 +97,13 @@ export default function EquipePage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Équipe</h1>
 
-      {/* Code d'invitation */}
-      <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            Code d&apos;invitation pour vos conseillers
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Partagez ce code pour qu&apos;ils rejoignent votre équipe à l&apos;inscription
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <code className="rounded-lg bg-background px-4 py-2 text-sm font-bold text-primary">
-            {invitationCode}
-          </code>
-          <button
-            onClick={handleCopy}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="Copier le code"
-          >
-            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
+      {/* Code d'invitation + partage */}
+      <InviteBanner
+        invitationCode={invitationCode}
+        category={currentUser?.category ?? "confirme"}
+        copied={copied}
+        onCopy={handleCopy}
+      />
 
       {/* Team Management Panel — Supabase mode only */}
       {!isDemo && (
@@ -868,6 +852,84 @@ function TeamAverageRatios({
             </p>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ────── Invite Banner with sharing buttons ────── */
+function InviteBanner({
+  invitationCode,
+  category,
+  copied,
+  onCopy,
+}: {
+  invitationCode: string;
+  category: import("@/types/user").UserCategory;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const [copiedMsg, setCopiedMsg] = useState(false);
+
+  const inviteLink = buildInviteLink(invitationCode);
+  const message = buildInviteMessage(invitationCode, inviteLink, category);
+  const mailtoUrl = buildMailtoUrl(invitationCode, inviteLink, category);
+  const whatsappUrl = buildWhatsappUrl(invitationCode, inviteLink, category);
+
+  const handleCopyMessage = () => {
+    navigator.clipboard.writeText(message);
+    setCopiedMsg(true);
+    setTimeout(() => setCopiedMsg(false), 2000);
+  };
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            Code d&apos;invitation pour vos conseillers
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Partagez ce code pour qu&apos;ils rejoignent votre équipe à l&apos;inscription
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <code className="rounded-lg bg-background px-4 py-2 text-sm font-bold text-primary">
+            {invitationCode}
+          </code>
+          <button
+            onClick={onCopy}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Copier le code"
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-3 border-t border-primary/10 pt-3">
+        <button
+          onClick={handleCopyMessage}
+          className="inline-flex items-center gap-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          {copiedMsg ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          {copiedMsg ? "Copié !" : "Copier le message"}
+        </button>
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+        >
+          <MessageCircle className="h-4 w-4" />
+          WhatsApp
+        </a>
+        <a
+          href={mailtoUrl}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Mail className="h-4 w-4" />
+          Email
+        </a>
       </div>
     </div>
   );
