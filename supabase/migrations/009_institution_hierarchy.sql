@@ -47,7 +47,18 @@ CREATE POLICY "profiles_update_team_manager"
     AND public.is_manager()
   );
 
--- 5. Update results_select policy to filter by team for managers
+-- 5. Tighten teams update/delete policies: only the owning manager
+DROP POLICY IF EXISTS "teams_update_manager" ON public.teams;
+CREATE POLICY "teams_update_manager"
+  ON public.teams FOR UPDATE
+  USING (manager_id = auth.uid());
+
+DROP POLICY IF EXISTS "teams_delete_manager" ON public.teams;
+CREATE POLICY "teams_delete_manager"
+  ON public.teams FOR DELETE
+  USING (manager_id = auth.uid());
+
+-- 7. Update results_select policy to filter by team for managers
 DROP POLICY IF EXISTS "results_select" ON public.period_results;
 CREATE POLICY "results_select"
   ON public.period_results FOR SELECT
@@ -62,7 +73,7 @@ CREATE POLICY "results_select"
     )
   );
 
--- 6. Update objectives_select similarly
+-- 8. Update objectives_select similarly
 DROP POLICY IF EXISTS "objectives_select" ON public.objectives;
 CREATE POLICY "objectives_select"
   ON public.objectives FOR SELECT

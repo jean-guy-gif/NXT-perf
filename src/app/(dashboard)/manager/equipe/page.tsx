@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
@@ -67,18 +67,13 @@ export default function EquipePage() {
     return false;
   });
 
-  // Auto-select first conseiller when list changes or selected user disappears
-  const conseillerIds = conseillers.map((u) => u.id).join(",");
-  const firstConseillerId = conseillers[0]?.id ?? "";
-  useEffect(() => {
-    const ids = conseillerIds.split(",").filter(Boolean);
-    if (ids.length > 0 && !ids.includes(selectedUserId)) {
-      setSelectedUserId(ids[0]);
-    }
-  }, [conseillerIds, selectedUserId]);
+  // Derive effective selection: if selected user is gone from list, fall back to first
+  const effectiveSelectedUserId = conseillers.some((u) => u.id === selectedUserId)
+    ? selectedUserId
+    : (conseillers[0]?.id ?? "");
 
-  const selectedUser = conseillers.find((u) => u.id === selectedUserId);
-  const selectedResults = allResults.find((r) => r.userId === selectedUserId);
+  const selectedUser = conseillers.find((u) => u.id === effectiveSelectedUserId);
+  const selectedResults = allResults.find((r) => r.userId === effectiveSelectedUserId);
   const selectedRatios =
     selectedResults && selectedUser
       ? computeAllRatios(
@@ -288,7 +283,7 @@ export default function EquipePage() {
       {viewMode === "individual" && (
         <div className="space-y-6">
           <select
-            value={selectedUserId}
+            value={effectiveSelectedUserId}
             onChange={(e) => setSelectedUserId(e.target.value)}
             className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
           >
