@@ -7,6 +7,14 @@ export interface DbOrganization {
   created_at: string;
 }
 
+export interface DbTeam {
+  id: string;
+  org_id: string;
+  manager_id: string | null;
+  name: string;
+  created_at: string;
+}
+
 export interface DbProfile {
   id: string;
   org_id: string;
