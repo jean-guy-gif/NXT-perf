@@ -17,6 +17,7 @@ import {
   Zap,
   BookOpen,
   Building2,
+  HeartHandshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
@@ -27,6 +28,7 @@ interface NavItem {
   label: string;
   managerOnly?: boolean;
   directorOnly?: boolean;
+  coachOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -54,6 +56,7 @@ const navItems: NavItem[] = [
   { href: "/directeur/cockpit", icon: Building2, label: "Cockpit Agence", directorOnly: true },
   { href: "/directeur/equipes", icon: Users, label: "Équipes", directorOnly: true },
   { href: "/directeur/classement", icon: Trophy, label: "Classement Agence", directorOnly: true },
+  { href: "/coach/cockpit", icon: HeartHandshake, label: "Cockpit Coach", coachOnly: true },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
@@ -63,16 +66,19 @@ export function Sidebar() {
   const roles = user?.availableRoles ?? [user?.role].filter(Boolean) as string[];
   const isManager = roles.includes("manager") || roles.includes("directeur");
   const isDirector = roles.includes("directeur");
+  const isCoach = roles.includes("coach");
 
   const filteredItems = navItems.filter((item) => {
     if (item.managerOnly) return isManager;
     if (item.directorOnly) return isDirector;
+    if (item.coachOnly) return isCoach;
     return true;
   });
 
-  const advisorItems = filteredItems.filter((item) => !item.managerOnly && !item.directorOnly);
+  const advisorItems = filteredItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly);
   const managerItems = filteredItems.filter((item) => item.managerOnly);
   const directorItems = filteredItems.filter((item) => item.directorOnly);
+  const coachItems = filteredItems.filter((item) => item.coachOnly);
 
   return (
     <nav className="flex h-full flex-col items-center gap-1 overflow-y-auto bg-sidebar py-4 px-2">
@@ -108,6 +114,17 @@ export function Sidebar() {
           <div className="my-3 h-px w-8 bg-sidebar-border" />
           <div className="flex flex-col items-center gap-1">
             {directorItems.map((item) => (
+              <SidebarItem key={item.href} item={item} pathname={pathname} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {coachItems.length > 0 && (
+        <>
+          <div className="my-3 h-px w-8 bg-sidebar-border" />
+          <div className="flex flex-col items-center gap-1">
+            {coachItems.map((item) => (
               <SidebarItem key={item.href} item={item} pathname={pathname} />
             ))}
           </div>

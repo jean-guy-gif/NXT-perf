@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   "/directeur/cockpit": "Cockpit Agence",
   "/directeur/equipes": "Équipes",
   "/directeur/classement": "Classement Agence",
+  "/coach/cockpit": "Cockpit Coach",
 };
 
 export function Header() {
