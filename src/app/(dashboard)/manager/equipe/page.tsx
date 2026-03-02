@@ -8,10 +8,25 @@ import { useAppStore } from "@/stores/app-store";
 import { formatCurrency } from "@/lib/formatters";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
+import { useTeamManagement } from "@/hooks/use-team-management";
 import type { RatioConfig, RatioId, ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
-import { Users as UsersIcon, UserPlus, Trash2, Copy, Check, Mail, MessageCircle } from "lucide-react";
+import type { DbProfile } from "@/types/database";
+import {
+  Users as UsersIcon,
+  UserPlus,
+  Trash2,
+  Copy,
+  Check,
+  Mail,
+  MessageCircle,
+  Building2,
+  Pencil,
+  X,
+  Plus,
+  Loader2,
+} from "lucide-react";
 import { buildInviteLink, buildMailtoUrl, buildWhatsappUrl, buildInviteMessage } from "@/lib/invite";
 
 type ViewMode = "individual" | "collective";
@@ -28,14 +43,30 @@ export default function EquipePage() {
   const currentUser = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemo);
   const orgInviteCode = useAppStore((s) => s.orgInviteCode);
+  const profile = useAppStore((s) => s.profile);
 
-  // In Supabase mode, RLS already scopes to our org — just filter by role.
-  // In demo mode, also filter by teamId for backward compat with mock data.
+  const {
+    team,
+    teamAgents,
+    unassignedAgents,
+    loading: teamLoading,
+    error: teamError,
+    createTeam,
+    renameTeam,
+    addAgent,
+    removeAgent,
+  } = useTeamManagement();
+
+  // In demo mode, filter by teamId for backward compat with mock data.
+  // In Supabase mode, filter by manager's team.
   const conseillers = users.filter((u) => {
     if (u.role !== "conseiller") return false;
     if (isDemo && currentUser) return u.teamId === currentUser.teamId;
-    return true;
+    // Supabase mode: filter by manager's team
+    if (team) return u.teamId === team.id;
+    return false;
   });
+
   // Auto-select first conseiller when list changes or selected user disappears
   const conseillerIds = conseillers.map((u) => u.id).join(",");
   const firstConseillerId = conseillers[0]?.id ?? "";
@@ -95,11 +126,30 @@ export default function EquipePage() {
         </div>
       </div>
 
-      {conseillers.length === 0 ? (
+      {/* Team Management Panel — Supabase mode only */}
+      {!isDemo && (
+        <TeamManagementPanel
+          team={team}
+          teamAgents={teamAgents}
+          unassignedAgents={unassignedAgents}
+          loading={teamLoading}
+          error={teamError}
+          profile={profile}
+          createTeam={createTeam}
+          renameTeam={renameTeam}
+          addAgent={addAgent}
+          removeAgent={removeAgent}
+        />
+      )}
+
+      {conseillers.length === 0 && isDemo ? (
         <EmptyTeamState
           invitationCode={invitationCode}
           category={currentUser?.category ?? "confirme"}
         />
+      ) : conseillers.length === 0 && !isDemo ? (
+        /* In Supabase mode with no team or empty team, don't show EmptyTeamState */
+        null
       ) : (
         <>
       {/* View Toggle */}
@@ -324,6 +374,312 @@ export default function EquipePage() {
       )}
         </>
       )}
+    </div>
+  );
+}
+
+/* ────── Team Management Panel (Supabase mode) ────── */
+function TeamManagementPanel({
+  team,
+  teamAgents,
+  unassignedAgents,
+  loading,
+  error,
+  profile,
+  createTeam,
+  renameTeam,
+  addAgent,
+  removeAgent,
+}: {
+  team: import("@/types/database").DbTeam | null;
+  teamAgents: DbProfile[];
+  unassignedAgents: DbProfile[];
+  loading: boolean;
+  error: string | null;
+  profile: DbProfile | null;
+  createTeam: (name: string) => Promise<void>;
+  renameTeam: (name: string) => Promise<void>;
+  addAgent: (agentId: string) => Promise<void>;
+  removeAgent: (agentId: string) => Promise<void>;
+}) {
+  const [creating, setCreating] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center rounded-xl border border-border bg-card p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Chargement de l&apos;équipe…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+        <p className="text-sm text-destructive">{error}</p>
+      </div>
+    );
+  }
+
+  // No team yet — show create CTA
+  if (!team) {
+    const handleCreate = async () => {
+      setCreating(true);
+      const firstName = profile?.first_name ?? "Manager";
+      await createTeam(`Équipe de ${firstName}`);
+      setCreating(false);
+    };
+
+    return (
+      <div className="flex flex-col items-center rounded-xl border border-border bg-card px-6 py-10 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+          <Building2 className="h-7 w-7 text-primary" />
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">
+          Créez votre équipe
+        </h2>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">
+          Créez votre équipe pour commencer à gérer vos conseillers.
+        </p>
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {creating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
+          Créer mon équipe
+        </button>
+      </div>
+    );
+  }
+
+  // Team exists — show management card
+  return (
+    <TeamCard
+      team={team}
+      teamAgents={teamAgents}
+      unassignedAgents={unassignedAgents}
+      renameTeam={renameTeam}
+      addAgent={addAgent}
+      removeAgent={removeAgent}
+    />
+  );
+}
+
+/* ────── Team Card (editable name + agent list + add agent) ────── */
+function TeamCard({
+  team,
+  teamAgents,
+  unassignedAgents,
+  renameTeam,
+  addAgent,
+  removeAgent,
+}: {
+  team: import("@/types/database").DbTeam;
+  teamAgents: DbProfile[];
+  unassignedAgents: DbProfile[];
+  renameTeam: (name: string) => Promise<void>;
+  addAgent: (agentId: string) => Promise<void>;
+  removeAgent: (agentId: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(team.name);
+  const [saving, setSaving] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === team.name) {
+      setEditing(false);
+      setEditName(team.name);
+      return;
+    }
+    setSaving(true);
+    await renameTeam(trimmed);
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setEditName(team.name);
+  };
+
+  const handleAddAgent = async () => {
+    if (!selectedAgentId) return;
+    setAdding(true);
+    await addAgent(selectedAgentId);
+    setSelectedAgentId("");
+    setAdding(false);
+  };
+
+  const handleRemoveAgent = async (agentId: string) => {
+    setConfirmRemoveId(null);
+    await removeAgent(agentId);
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      {/* Editable team name */}
+      <div className="mb-4 flex items-center gap-2">
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveName();
+                if (e.key === "Escape") handleCancelEdit();
+              }}
+              autoFocus
+              className="rounded-lg border border-input bg-background px-3 py-1.5 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <button
+              onClick={handleSaveName}
+              disabled={saving}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+              Enregistrer
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            >
+              Annuler
+            </button>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-lg font-semibold text-foreground">{team.name}</h2>
+            <button
+              onClick={() => {
+                setEditName(team.name);
+                setEditing(true);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Renommer l&apos;équipe"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Agent list */}
+      <div className="mb-1">
+        <p className="text-sm font-medium text-muted-foreground">
+          Conseillers ({teamAgents.length})
+        </p>
+      </div>
+
+      {teamAgents.length > 0 ? (
+        <div className="mb-4 divide-y divide-border rounded-lg border border-border">
+          {teamAgents.map((agent) => (
+            <div
+              key={agent.id}
+              className="flex items-center justify-between px-4 py-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                  {agent.first_name[0]}
+                  {agent.last_name[0]}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {agent.first_name} {agent.last_name}
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-xs font-medium",
+                      CATEGORY_COLORS[agent.category]
+                    )}
+                  >
+                    {CATEGORY_LABELS[agent.category]}
+                  </span>
+                </div>
+              </div>
+
+              {confirmRemoveId === agent.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleRemoveAgent(agent.id)}
+                    className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90"
+                  >
+                    Confirmer
+                  </button>
+                  <button
+                    onClick={() => setConfirmRemoveId(null)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmRemoveId(agent.id)}
+                  title="Retirer de l&apos;équipe"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mb-4 rounded-lg border border-dashed border-border px-4 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Aucun conseiller dans l&apos;équipe
+          </p>
+        </div>
+      )}
+
+      {/* Add agent form */}
+      <div>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">
+          Agents non assignés ({unassignedAgents.length})
+        </p>
+        {unassignedAgents.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+            >
+              <option value="">Sélectionner un conseiller…</option>
+              {unassignedAgents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.first_name} {agent.last_name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleAddAgent}
+              disabled={!selectedAgentId || adding}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {adding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Ajouter
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">
+            Tous les conseillers sont assignés
+          </p>
+        )}
+      </div>
     </div>
   );
 }
