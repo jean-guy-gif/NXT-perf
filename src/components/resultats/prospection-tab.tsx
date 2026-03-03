@@ -19,11 +19,20 @@ interface ProspectionTabProps {
 
 export function ProspectionTab({ results }: ProspectionTabProps) {
   const updateInfoVenteStatut = useAppStore((s) => s.updateInfoVenteStatut);
+  const markInfoVenteProfiled = useAppStore((s) => s.markInfoVenteProfiled);
   const { persistResult } = useSupabaseResults();
   const { prospection } = results;
 
   const handleRemove = (itemId: string, reason: "deale" | "abandonne") => {
     updateInfoVenteStatut(results.id, itemId, reason);
+    setTimeout(() => {
+      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+      if (fresh) persistResult(fresh);
+    }, 0);
+  };
+
+  const handleProfile = (itemId: string) => {
+    markInfoVenteProfiled(results.id, itemId);
     setTimeout(() => {
       const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
       if (fresh) persistResult(fresh);
@@ -67,6 +76,7 @@ export function ProspectionTab({ results }: ProspectionTabProps) {
         items={prospection.informationsVente.filter((i) => i.statut === "en_cours")}
         label="Informations de vente obtenues"
         onRemove={handleRemove}
+        onProfile={handleProfile}
       />
     </div>
   );

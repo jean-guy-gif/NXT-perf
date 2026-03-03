@@ -20,11 +20,20 @@ interface AcheteursTabProps {
 
 export function AcheteursTab({ results }: AcheteursTabProps) {
   const updateAcheteurChaudStatut = useAppStore((s) => s.updateAcheteurChaudStatut);
+  const markAcheteurChaudProfiled = useAppStore((s) => s.markAcheteurChaudProfiled);
   const { persistResult } = useSupabaseResults();
   const { acheteurs } = results;
 
   const handleRemove = (itemId: string, reason: "deale" | "abandonne") => {
     updateAcheteurChaudStatut(results.id, itemId, reason);
+    setTimeout(() => {
+      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+      if (fresh) persistResult(fresh);
+    }, 0);
+  };
+
+  const handleProfile = (itemId: string) => {
+    markAcheteurChaudProfiled(results.id, itemId);
     setTimeout(() => {
       const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
       if (fresh) persistResult(fresh);
@@ -75,6 +84,7 @@ export function AcheteursTab({ results }: AcheteursTabProps) {
         items={acheteurs.acheteursChauds.filter((i) => i.statut === "en_cours")}
         label="Détail acheteurs chauds"
         onRemove={handleRemove}
+        onProfile={handleProfile}
       />
     </div>
   );

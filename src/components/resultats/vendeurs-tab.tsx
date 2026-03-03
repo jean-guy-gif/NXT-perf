@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MandatBlock } from "./mandat-block";
+import { useAppStore } from "@/stores/app-store";
+import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 
@@ -18,7 +20,17 @@ interface VendeursTabProps {
 }
 
 export function VendeursTab({ results }: VendeursTabProps) {
+  const markMandatProfiled = useAppStore((s) => s.markMandatProfiled);
+  const { persistResult } = useSupabaseResults();
   const { vendeurs } = results;
+
+  const handleProfile = (mandatId: string) => {
+    markMandatProfiled(results.id, mandatId);
+    setTimeout(() => {
+      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+      if (fresh) persistResult(fresh);
+    }, 0);
+  };
 
   return (
     <div className="space-y-6">
@@ -53,7 +65,11 @@ export function VendeursTab({ results }: VendeursTabProps) {
           </h4>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {vendeurs.mandats.map((mandat) => (
-              <MandatBlock key={mandat.id} mandat={mandat} />
+              <MandatBlock
+                key={mandat.id}
+                mandat={mandat}
+                onProfile={() => handleProfile(mandat.id)}
+              />
             ))}
           </div>
         </div>

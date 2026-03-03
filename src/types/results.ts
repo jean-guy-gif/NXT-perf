@@ -5,6 +5,7 @@ export interface VenteInfo {
   nom: string;
   commentaire: string;
   statut: ContactStatut;
+  profiled?: boolean;
 }
 
 export interface ProspectionData {
@@ -18,6 +19,7 @@ export interface MandatEntry {
   id: string;
   nomVendeur: string;
   type: "simple" | "exclusif";
+  profiled?: boolean;
 }
 
 export interface VendeursData {
@@ -35,6 +37,7 @@ export interface AcheteurChaud {
   nom: string;
   commentaire: string;
   statut: ContactStatut;
+  profiled?: boolean;
 }
 
 export interface AcheteursData {
