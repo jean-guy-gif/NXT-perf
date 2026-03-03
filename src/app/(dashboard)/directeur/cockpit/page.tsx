@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   DollarSign,
   FileCheck,
@@ -1048,9 +1049,9 @@ export default function CockpitAgencePage() {
                     const ca = results?.ventes.chiffreAffaires ?? 0;
 
                     return (
-                      <div
+                      <Link
                         key={agent.id}
-                        onClick={() => router.push(`/directeur/conseiller/${agent.id}?period=${periodMode}`)}
+                        href={`/directeur/conseiller/${agent.id}?period=${periodMode}`}
                         className="flex items-center gap-3 rounded-lg bg-muted/30 p-2 cursor-pointer transition-colors hover:bg-muted/60"
                       >
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
@@ -1099,7 +1100,7 @@ export default function CockpitAgencePage() {
                         >
                           {avgPerf}%
                         </span>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
