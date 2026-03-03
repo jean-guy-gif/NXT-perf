@@ -56,7 +56,7 @@ const navItems: NavItem[] = [
   { href: "/directeur/cockpit", icon: Building2, label: "Cockpit Agence", directorOnly: true },
   { href: "/directeur/equipes", icon: Users, label: "Équipes", directorOnly: true },
   { href: "/directeur/classement", icon: Trophy, label: "Classement Agence", directorOnly: true },
-  { href: "/coach/cockpit", icon: HeartHandshake, label: "Cockpit Coach", coachOnly: true },
+  { href: "/coach/dashboard", icon: HeartHandshake, label: "Tableau de bord", coachOnly: true },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
