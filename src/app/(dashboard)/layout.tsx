@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
@@ -9,6 +10,8 @@ import { useAppStore } from "@/stores/app-store";
 import { SupabaseProvider } from "@/components/providers/supabase-provider";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+
+const SIDEBAR_KEY = "nxt-sidebar-collapsed";
 
 export default function DashboardLayout({
   children,
@@ -22,6 +25,25 @@ export default function DashboardLayout({
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
   const router = useRouter();
   const [loading, setLoading] = useState(!isAuthenticated);
+
+  // Sidebar collapsed state — default collapsed (true) to match current UX
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_KEY);
+    if (stored !== null) {
+      setSidebarCollapsed(stored === "true");
+    }
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_KEY, String(next));
+      return next;
+    });
+  }, []);
 
   // On mount, check Supabase session before redirecting
   useEffect(() => {
@@ -98,9 +120,29 @@ export default function DashboardLayout({
           </a>
         </div>
       )}
-      <aside className="hidden lg:flex lg:w-[72px] lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
-        <Sidebar />
-      </aside>
+      <div className="relative hidden lg:flex">
+        <aside
+          className={cn(
+            "flex flex-col border-r border-border bg-sidebar transition-all duration-300",
+            sidebarCollapsed ? "w-[72px]" : "w-[240px]"
+          )}
+        >
+          <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+        </aside>
+
+        {/* Floating edge toggle */}
+        <button
+          onClick={toggleSidebar}
+          className="absolute -right-3.5 top-1/2 z-50 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
+          title={sidebarCollapsed ? "Déplier la barre" : "Replier la barre"}
+        >
+          {sidebarCollapsed ? (
+            <ChevronsRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronsLeft className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Header />
