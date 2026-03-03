@@ -55,11 +55,11 @@ export default function ConseillerDetailPage({
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-lg text-muted-foreground">Conseiller introuvable</p>
         <Link
-          href="/directeur/cockpit"
+          href="/directeur/pilotage"
           className="flex items-center gap-2 text-sm text-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          Retour au cockpit
+          Retour au pilotage
         </Link>
       </div>
     );
@@ -86,8 +86,8 @@ export default function ConseillerDetailPage({
     <div className="space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/directeur/cockpit" className="hover:text-foreground transition-colors">
-          Cockpit Agence
+        <Link href="/directeur/pilotage" className="hover:text-foreground transition-colors">
+          Pilotage Agence
         </Link>
         <ChevronRight className="h-3.5 w-3.5" />
         <span>Conseiller</span>
@@ -123,11 +123,11 @@ export default function ConseillerDetailPage({
           </div>
         </div>
         <Link
-          href={`/directeur/cockpit`}
+          href={`/directeur/pilotage`}
           className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Retour au cockpit
+          Retour au pilotage
         </Link>
       </div>
 
