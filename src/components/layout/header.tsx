@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut } from "lucide-react";
-import { useAppStore, VIEW_LABELS, rolesToViews } from "@/stores/app-store";
+import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,11 @@ const pageTitles: Record<string, string> = {
   "/manager/classement": "Classement",
   "/parametres": "Paramètres",
   "/manager/formation-collective": "Formation Collective",
-  "/directeur/cockpit": "Cockpit Agence",
+  "/directeur/pilotage": "Pilotage Agence",
   "/directeur/equipes": "Équipes",
-  "/directeur/classement": "Classement Agence",
+  "/directeur/projection": "Projection",
+  "/directeur/rentabilite": "Rentabilité",
+  "/directeur/formation-collective": "Formation Collective Agence",
   "/coach/cockpit": "Cockpit Coach",
 };
 
@@ -35,13 +37,17 @@ export function Header() {
   const user = useAppStore((s) => s.user);
   const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
-  const activeViews = useAppStore((s) => s.activeViews);
-  const toggleView = useAppStore((s) => s.toggleView);
+  const hiddenViews = useAppStore((s) => s.hiddenViews);
+  const toggleViewVisibility = useAppStore((s) => s.toggleViewVisibility);
   const isDemo = useAppStore((s) => s.isDemo);
 
   const availableViews = useMemo(
     () => rolesToViews(user?.availableRoles ?? []),
     [user?.availableRoles]
+  );
+  const visibleViews = useMemo(
+    () => getVisibleViews(user?.availableRoles ?? [], hiddenViews),
+    [user?.availableRoles, hiddenViews]
   );
   const [isDark, setIsDark] = useState(true);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -102,15 +108,15 @@ export function Header() {
         {availableViews.length > 1 && (
           <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted p-0.5">
             {availableViews.map((view) => {
-              const isActive = activeViews.includes(view);
+              const isVisible = visibleViews.includes(view);
               return (
                 <button
                   key={view}
-                  onClick={() => toggleView(view)}
-                  title={`${isActive ? "Masquer" : "Afficher"} la vue ${VIEW_LABELS[view]}`}
+                  onClick={() => toggleViewVisibility(view)}
+                  title={`${isVisible ? "Masquer" : "Afficher"} la vue ${VIEW_LABELS[view]}`}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-[var(--transition-fast)]",
-                    isActive
+                    isVisible
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
                   )}

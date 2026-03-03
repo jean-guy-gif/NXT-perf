@@ -74,3 +74,33 @@ export const FIELD_TOOLTIPS: Record<string, string> = {
   actesSignes: "Nombre d'actes authentiques signés chez le notaire sur la période. C'est la vente définitive et irrévocable. Un compromis n'est pas un acte.",
   chiffreAffaires: "Montant total de vos honoraires d'agence (HT ou TTC selon votre convention) sur les actes signés de la période. C'est le prix de votre prestation, pas le prix de vente du bien.",
 };
+
+/** Monthly objectives by category — used for agency GPS calculations */
+export const CATEGORY_OBJECTIVES: Record<string, {
+  estimations: number;
+  mandats: number;
+  exclusivite: number;
+  visites: number;
+  offres: number;
+  compromis: number;
+  actes: number;
+  ca: number;
+}> = {
+  debutant: { estimations: 8, mandats: 4, exclusivite: 30, visites: 20, offres: 3, compromis: 1, actes: 1, ca: 8000 },
+  confirme: { estimations: 15, mandats: 8, exclusivite: 50, visites: 30, offres: 5, compromis: 3, actes: 2, ca: 20000 },
+  expert:   { estimations: 20, mandats: 12, exclusivite: 70, visites: 40, offres: 8, compromis: 5, actes: 4, ca: 40000 },
+};
+
+export type GPSTheme = "estimations" | "mandats" | "exclusivite" | "visites" | "offres" | "compromis" | "actes" | "ca_compromis" | "ca_acte";
+
+export const GPS_THEME_LABELS: Record<GPSTheme, string> = {
+  estimations: "Estimations",
+  mandats: "Mandats",
+  exclusivite: "% Exclusivité",
+  visites: "Visites",
+  offres: "Offres",
+  compromis: "Compromis",
+  actes: "Actes",
+  ca_compromis: "CA Compromis",
+  ca_acte: "CA Acte",
+};

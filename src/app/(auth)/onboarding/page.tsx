@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 import { isInstitutionCode, isTeamCode } from "@/lib/codes";
 import {
   saveOnboardingDraft,
@@ -49,11 +50,26 @@ function OnboardingFlow() {
     }
   }, [user?.onboardingStatus, router]);
 
-  // If not authenticated at all, redirect to welcome
+  // If not authenticated, redirect to welcome
+  // Use getUser() (server-verified) and wait before redirecting
+  const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace("/welcome");
-    }
+    if (isAuthenticated) { setAuthChecked(true); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      // Re-check store after delay (may have hydrated)
+      if (useAppStore.getState().isAuthenticated) {
+        if (!cancelled) setAuthChecked(true);
+        return;
+      }
+      const supabase = createClient();
+      const { data: { user: supaUser } } = await supabase.auth.getUser();
+      if (!cancelled && !supaUser) {
+        router.replace("/welcome");
+      }
+      if (!cancelled) setAuthChecked(true);
+    }, 1500);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [isAuthenticated, router]);
 
   // Restore draft on mount

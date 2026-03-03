@@ -1,4 +1,4 @@
-import type { CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
+import type { CoachAssignment, CoachAction, CoachPlan, CoachPlanAction } from "@/types/coach";
 
 export const mockCoachAssignments: CoachAssignment[] = [
   // ── Coach Pierre Durand (coach-1) — 3 assignments ──
@@ -166,18 +166,61 @@ export const mockCoachActions: CoachAction[] = [
   },
 ];
 
+/* Helper to keep action declarations concise */
+function pa(
+  id: string,
+  label: string,
+  frequency: string,
+  channel: string,
+  proof: string,
+  linkedKpi: CoachPlanAction["linkedKpi"],
+  done: boolean
+): CoachPlanAction {
+  return { id, label, frequency, channel, proof, linkedKpi, done };
+}
+
 export const mockCoachPlans: CoachPlan[] = [
-  // ── Pierre Durand / ca-1 (Alice) — plan actif ──
+  // ── Pierre Durand / ca-1 (Alice) — plan validé ──
   {
     id: "cplan-1",
     coachAssignmentId: "ca-1",
+    title: "Plan : Contacts → RDV Estimation",
+    objective: "Améliorer le ratio Contacts → RDV Estimation",
     startDate: "2026-03-01",
-    status: "ACTIVE",
+    status: "VALIDATED",
     weeks: [
-      { weekNumber: 1, focus: "Contacts → RDV", actions: ["Relancer les prospects non contactés", "Préparer un script d'appel"] },
-      { weekNumber: 2, focus: "Contacts → RDV", actions: ["Mettre en pratique les actions de S1", "Mesurer les premiers résultats"] },
-      { weekNumber: 3, focus: "Estimations → Mandats", actions: ["Revoir l'argumentation prix", "Préparer un dossier comparatif"] },
-      { weekNumber: 4, focus: "Estimations → Mandats", actions: ["Consolider les acquis", "Bilan du plan 30 jours"] },
+      {
+        weekNumber: 1,
+        focus: "Contacts → RDV",
+        actions: [
+          pa("pa-1-1-1", "Relancer les prospects non contactés", "quotidien", "téléphone", "CRM mis à jour", "contacts_rdv", true),
+          pa("pa-1-1-2", "Préparer un script d'appel structuré", "ponctuel", "bureau", "Script rédigé", "contacts_rdv", true),
+        ],
+      },
+      {
+        weekNumber: 2,
+        focus: "Contacts → RDV",
+        actions: [
+          pa("pa-1-2-1", "Mettre en pratique le script sur 15 contacts", "quotidien", "téléphone", "CRM mis à jour", "contacts_rdv", false),
+          pa("pa-1-2-2", "Mesurer le taux de prise de RDV", "hebdomadaire", "bureau", "Tableau de bord", "contacts_rdv", false),
+        ],
+      },
+      {
+        weekNumber: 3,
+        focus: "Estimations → Mandats",
+        actions: [
+          pa("pa-1-3-1", "Revoir l'argumentation prix avec comparables", "2x/semaine", "terrain", "CR estimation", "estimations_mandats", false),
+          pa("pa-1-3-2", "Préparer un dossier comparatif par secteur", "ponctuel", "bureau", "Dossier imprimé", "estimations_mandats", false),
+        ],
+      },
+      {
+        weekNumber: 4,
+        focus: "Estimations → Mandats",
+        actions: [
+          pa("pa-1-4-1", "Consolider les acquis des semaines précédentes", "quotidien", "mixte", "Rapport vendeur", "estimations_mandats", false),
+          pa("pa-1-4-2", "Bilan du plan 30 jours avec le coach", "ponctuel", "visio", "CR bilan", null, false),
+        ],
+      },
     ],
   },
 
@@ -185,41 +228,131 @@ export const mockCoachPlans: CoachPlan[] = [
   {
     id: "cplan-demo-1",
     coachAssignmentId: "ca-demo-1",
+    title: "Plan : Prise de poste Théo",
+    objective: "Accompagner la montée en compétences de Théo sur ses premières semaines",
     startDate: "2026-02-01",
     status: "COMPLETED",
     weeks: [
-      { weekNumber: 1, focus: "Prise de poste", actions: ["Bilan de démarrage", "Identifier les points forts et axes de travail"] },
-      { weekNumber: 2, focus: "Prise de poste", actions: ["Définir les objectifs hebdomadaires", "Mettre en place un rituel de suivi"] },
-      { weekNumber: 3, focus: "Prospection", actions: ["Construire un fichier de 50 contacts", "Préparer les premiers appels"] },
-      { weekNumber: 4, focus: "Prospection", actions: ["Bilan des premières prises de contact", "Ajuster le discours commercial"] },
+      {
+        weekNumber: 1,
+        focus: "Prise de poste",
+        actions: [
+          pa("pa-d1-1-1", "Bilan de démarrage complet", "ponctuel", "bureau", "Fiche bilan remplie", null, true),
+          pa("pa-d1-1-2", "Identifier les points forts et axes de travail", "ponctuel", "bureau", "Grille d'évaluation", null, true),
+        ],
+      },
+      {
+        weekNumber: 2,
+        focus: "Prise de poste",
+        actions: [
+          pa("pa-d1-2-1", "Définir les objectifs hebdomadaires", "hebdomadaire", "visio", "Fiche objectifs", null, true),
+          pa("pa-d1-2-2", "Mettre en place un rituel de suivi quotidien", "quotidien", "téléphone", "Check-in réalisé", null, true),
+        ],
+      },
+      {
+        weekNumber: 3,
+        focus: "Prospection",
+        actions: [
+          pa("pa-d1-3-1", "Construire un fichier de 50 contacts qualifiés", "ponctuel", "bureau", "Fichier Excel", "contacts_rdv", true),
+          pa("pa-d1-3-2", "Préparer et passer les premiers appels", "quotidien", "téléphone", "CRM mis à jour", "contacts_rdv", true),
+        ],
+      },
+      {
+        weekNumber: 4,
+        focus: "Prospection",
+        actions: [
+          pa("pa-d1-4-1", "Bilan des premières prises de contact", "ponctuel", "bureau", "Rapport d'activité", "contacts_rdv", true),
+          pa("pa-d1-4-2", "Ajuster le discours commercial", "ponctuel", "visio", "Script révisé", "contacts_rdv", true),
+        ],
+      },
     ],
   },
 
-  // ── Jean-Guy / ca-demo-1 (Théo) — plan actif en cours ──
+  // ── Jean-Guy / ca-demo-1 (Théo) — plan validé en cours ──
   {
     id: "cplan-demo-2",
     coachAssignmentId: "ca-demo-1",
+    title: "Plan : Conversion contacts et exclusivité",
+    objective: "Améliorer le ratio Contacts → RDV et le taux d'exclusivité",
     startDate: "2026-03-01",
-    status: "ACTIVE",
+    status: "VALIDATED",
     weeks: [
-      { weekNumber: 1, focus: "Contacts → RDV", actions: ["Appliquer le script d'appel sur 20 contacts", "Obtenir 5 RDV minimum"] },
-      { weekNumber: 2, focus: "Contacts → RDV", actions: ["Analyser le taux de transformation", "Ajuster l'approche selon les retours"] },
-      { weekNumber: 3, focus: "% Exclusivité", actions: ["Travailler l'argumentaire exclusivité", "Simuler un RDV estimation"] },
-      { weekNumber: 4, focus: "% Exclusivité", actions: ["Accompagner sur un vrai RDV estimation", "Bilan du plan et définir la suite"] },
+      {
+        weekNumber: 1,
+        focus: "Contacts → RDV",
+        actions: [
+          pa("pa-d2-1-1", "Appliquer le script d'appel sur 20 contacts", "quotidien", "téléphone", "CRM mis à jour", "contacts_rdv", true),
+          pa("pa-d2-1-2", "Obtenir 5 RDV estimation minimum", "hebdomadaire", "terrain", "Agenda confirmé", "contacts_rdv", false),
+        ],
+      },
+      {
+        weekNumber: 2,
+        focus: "Contacts → RDV",
+        actions: [
+          pa("pa-d2-2-1", "Analyser le taux de transformation S1", "ponctuel", "bureau", "Tableau de bord", "contacts_rdv", false),
+          pa("pa-d2-2-2", "Ajuster l'approche selon les retours terrain", "2x/semaine", "visio", "CR coaching", "contacts_rdv", false),
+        ],
+      },
+      {
+        weekNumber: 3,
+        focus: "% Exclusivité",
+        actions: [
+          pa("pa-d2-3-1", "Travailler l'argumentaire exclusivité", "2x/semaine", "bureau", "Fiche argumentaire", "pct_mandats_exclusifs", false),
+          pa("pa-d2-3-2", "Simuler un RDV estimation avec jeu de rôle", "ponctuel", "bureau", "Grille d'évaluation", "pct_mandats_exclusifs", false),
+        ],
+      },
+      {
+        weekNumber: 4,
+        focus: "% Exclusivité",
+        actions: [
+          pa("pa-d2-4-1", "Accompagner Théo sur un vrai RDV estimation", "ponctuel", "terrain", "CR visite", "pct_mandats_exclusifs", false),
+          pa("pa-d2-4-2", "Bilan du plan et définir la suite", "ponctuel", "visio", "CR bilan", null, false),
+        ],
+      },
     ],
   },
 
-  // ── Jean-Guy / ca-demo-2 (Marc/team-gamma) — accompagnement équipe ──
+  // ── Jean-Guy / ca-demo-2 (Marc/team-gamma) — accompagnement équipe validé ──
   {
     id: "cplan-demo-3",
     coachAssignmentId: "ca-demo-2",
+    title: "Plan : Montée en compétences équipe Gamma",
+    objective: "Améliorer la performance collective et accompagner Nicolas en priorité",
     startDate: "2026-03-01",
-    status: "ACTIVE",
+    status: "VALIDATED",
     weeks: [
-      { weekNumber: 1, focus: "Audit équipe", actions: ["Analyser les KPIs individuels de chaque agent", "Identifier Nicolas comme priorité coaching"] },
-      { weekNumber: 2, focus: "Session collective", actions: ["Organiser un atelier exclusivité avec l'équipe", "Définir les objectifs collectifs Q2"] },
-      { weekNumber: 3, focus: "Accompagnement Nicolas", actions: ["Co-animer un RDV estimation avec Nicolas", "Débriefer et fixer un plan d'action individuel"] },
-      { weekNumber: 4, focus: "Bilan", actions: ["Mesurer les progrès de l'équipe", "Préparer le plan du mois suivant"] },
+      {
+        weekNumber: 1,
+        focus: "Audit équipe",
+        actions: [
+          pa("pa-d3-1-1", "Analyser les KPIs individuels de chaque agent", "ponctuel", "bureau", "Tableau comparatif", null, true),
+          pa("pa-d3-1-2", "Identifier Nicolas comme priorité coaching", "ponctuel", "bureau", "Fiche diagnostic", null, true),
+        ],
+      },
+      {
+        weekNumber: 2,
+        focus: "Session collective",
+        actions: [
+          pa("pa-d3-2-1", "Organiser un atelier exclusivité avec l'équipe", "ponctuel", "bureau", "Support de formation", "pct_mandats_exclusifs", false),
+          pa("pa-d3-2-2", "Définir les objectifs collectifs Q2", "ponctuel", "visio", "Fiche objectifs équipe", null, false),
+        ],
+      },
+      {
+        weekNumber: 3,
+        focus: "Accompagnement Nicolas",
+        actions: [
+          pa("pa-d3-3-1", "Co-animer un RDV estimation avec Nicolas", "ponctuel", "terrain", "CR visite", "estimations_mandats", false),
+          pa("pa-d3-3-2", "Débriefer et fixer un plan d'action individuel", "ponctuel", "bureau", "Plan individuel", null, false),
+        ],
+      },
+      {
+        weekNumber: 4,
+        focus: "Bilan",
+        actions: [
+          pa("pa-d3-4-1", "Mesurer les progrès de l'équipe sur les ratios clés", "ponctuel", "bureau", "Rapport mensuel", null, false),
+          pa("pa-d3-4-2", "Préparer le plan du mois suivant", "ponctuel", "visio", "Ébauche plan M+1", null, false),
+        ],
+      },
     ],
   },
 ];

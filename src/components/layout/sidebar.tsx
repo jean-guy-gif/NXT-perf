@@ -16,11 +16,13 @@ import {
   Settings,
   Zap,
   BookOpen,
-  Building2,
+  Compass,
+  TrendingUp,
+  Calculator,
   HeartHandshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/app-store";
+import { useAppStore, getVisibleViews } from "@/stores/app-store";
 
 interface NavItem {
   href: string;
@@ -53,10 +55,12 @@ const navItems: NavItem[] = [
     label: "Formation Collective",
     managerOnly: true,
   },
-  { href: "/directeur/cockpit", icon: Building2, label: "Cockpit Agence", directorOnly: true },
+  { href: "/directeur/pilotage", icon: Compass, label: "Pilotage Agence", directorOnly: true },
   { href: "/directeur/equipes", icon: Users, label: "Équipes", directorOnly: true },
-  { href: "/directeur/classement", icon: Trophy, label: "Classement Agence", directorOnly: true },
-  { href: "/coach/cockpit", icon: HeartHandshake, label: "Cockpit Coach", coachOnly: true },
+  { href: "/directeur/projection", icon: TrendingUp, label: "Projection", directorOnly: true },
+  { href: "/directeur/rentabilite", icon: Calculator, label: "Rentabilité", directorOnly: true },
+  { href: "/directeur/formation-collective", icon: BookOpen, label: "Formation Collective", directorOnly: true },
+  { href: "/coach/dashboard", icon: HeartHandshake, label: "Tableau de bord", coachOnly: true },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
@@ -67,18 +71,20 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const activeViews = useAppStore((s) => s.activeViews);
+  const availableRoles = useAppStore((s) => s.user?.availableRoles ?? []);
+  const hiddenViews = useAppStore((s) => s.hiddenViews);
+  const visibleViews = getVisibleViews(availableRoles, hiddenViews);
 
-  const advisorItems = activeViews.includes("agent")
+  const advisorItems = visibleViews.includes("agent")
     ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && item.href !== "/parametres")
     : [];
-  const managerItems = activeViews.includes("manager")
+  const managerItems = visibleViews.includes("manager")
     ? navItems.filter((item) => item.managerOnly)
     : [];
-  const directorItems = activeViews.includes("directeur")
+  const directorItems = visibleViews.includes("directeur")
     ? navItems.filter((item) => item.directorOnly)
     : [];
-  const coachItems = activeViews.includes("coach")
+  const coachItems = visibleViews.includes("coach")
     ? navItems.filter((item) => item.coachOnly)
     : [];
   const settingsItem = navItems.find((item) => item.href === "/parametres")!;
@@ -110,9 +116,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       </Link>
 
-      {/* Agent section */}
+      {/* Conseiller section */}
       {advisorItems.length > 0 && (
-        <SidebarSection label="Agent" collapsed={collapsed}>
+        <SidebarSection label="Conseiller" collapsed={collapsed}>
           {advisorItems.map((item) => (
             <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
           ))}

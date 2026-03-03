@@ -314,7 +314,10 @@ export const mockResults: PeriodResults[] = [
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-27T10:00:00Z",
   },
-  // Théo Vasseur (team-beta, junior)
+  // Théo Vasseur (team-beta, junior) — EN DIFFICULTÉ
+  // contacts/rdv=11.7 (seuil 20 → ok junior), estim/mandat=3 (seuil 3 → pile)
+  // exclu=0% (seuil 30% → danger), visites/offre=6 (seuil 12 → ok)
+  // offres/compromis=∞ (0 compromis → danger), CA=0
   {
     id: "r-b3",
     userId: "u-demo-b3",
@@ -322,20 +325,26 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 15, contactsTotaux: 35, rdvEstimation: 1,
-      informationsVente: [],
+      contactsEntrants: 15, contactsTotaux: 35, rdvEstimation: 3,
+      informationsVente: [
+        { id: "iv-t1", nom: "M. Renoir", commentaire: "Studio étudiant à vendre", statut: "en_cours" },
+      ],
     },
     vendeurs: {
-      rdvEstimation: 1, estimationsRealisees: 1, mandatsSignes: 0, mandats: [],
-      rdvSuivi: 1, requalificationSimpleExclusif: 0, baissePrix: 0,
+      rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 1,
+      mandats: [{ id: "mt1", nomVendeur: "M. Renoir", type: "simple" }],
+      rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [], acheteursSortisVisite: 1, nombreVisites: 5,
-      offresRecues: 0, compromisSignes: 0,
+      acheteursChauds: [
+        { id: "act1", nom: "Mlle Bouvier", commentaire: "Premier achat, budget 150k", statut: "en_cours" },
+      ],
+      acheteursSortisVisite: 2, nombreVisites: 6,
+      offresRecues: 1, compromisSignes: 0,
     },
     ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-15T10:00:00Z",
+    updatedAt: "2026-02-20T10:00:00Z",
   },
   // ── Team 3 results ──
   // Marc Fontaine (manager team-gamma)
@@ -407,7 +416,10 @@ export const mockResults: PeriodResults[] = [
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-25T10:00:00Z",
   },
-  // Nicolas Mercier (team-gamma, junior)
+  // Nicolas Mercier (team-gamma, junior) — MOYEN/FAIBLE
+  // contacts/rdv=6 (seuil 20 → ok junior), estim/mandat=2.5 (seuil 3 → ok)
+  // exclu=50% (seuil 30% → ok), visites/offre=5 (seuil 12 → ok)
+  // offres/compromis=∞ (0 compromis → danger), CA=0
   {
     id: "r-g2",
     userId: "u-demo-g2",
@@ -415,21 +427,30 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 12, contactsTotaux: 30, rdvEstimation: 1,
-      informationsVente: [{ id: "iv-g3", nom: "M. Vernet", commentaire: "Appartement T3", statut: "en_cours" }],
+      contactsEntrants: 18, contactsTotaux: 30, rdvEstimation: 5,
+      informationsVente: [
+        { id: "iv-g3", nom: "M. Vernet", commentaire: "Appartement T3", statut: "en_cours" },
+        { id: "iv-g4", nom: "Mme Pascal", commentaire: "Maison mitoyenne, départ province", statut: "en_cours" },
+      ],
     },
     vendeurs: {
-      rdvEstimation: 1, estimationsRealisees: 1, mandatsSignes: 1,
-      mandats: [{ id: "mg4", nomVendeur: "M. Vernet", type: "simple" }],
-      rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
+      rdvEstimation: 5, estimationsRealisees: 5, mandatsSignes: 2,
+      mandats: [
+        { id: "mg4", nomVendeur: "M. Vernet", type: "exclusif" },
+        { id: "mg5", nomVendeur: "Mme Pascal", type: "simple" },
+      ],
+      rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [], acheteursSortisVisite: 1, nombreVisites: 4,
-      offresRecues: 0, compromisSignes: 0,
+      acheteursChauds: [
+        { id: "acg3", nom: "M. Sanchez", commentaire: "Budget 180k, T2/T3", statut: "en_cours" },
+      ],
+      acheteursSortisVisite: 2, nombreVisites: 5,
+      offresRecues: 1, compromisSignes: 0,
     },
     ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
     createdAt: "2026-02-01T08:00:00Z",
-    updatedAt: "2026-02-12T10:00:00Z",
+    updatedAt: "2026-02-18T10:00:00Z",
   },
 ];
 

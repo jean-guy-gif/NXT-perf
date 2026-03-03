@@ -9,6 +9,9 @@ export interface User {
   password?: string;
   firstName: string;
   lastName: string;
+  /** Rôle d'inscription — stable, ne change jamais */
+  mainRole: UserRole;
+  /** Rôle actif — mutable via switchRole() */
   role: UserRole;
   availableRoles: UserRole[];
   category: UserCategory;
