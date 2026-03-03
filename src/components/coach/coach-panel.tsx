@@ -146,9 +146,11 @@ export function CoachPanel({ assignmentId, userId, ratios }: CoachPanelProps) {
   const todoActions = allActions.filter((a) => a.status === "TODO").slice(0, 3);
   const doneActions = allActions.filter((a) => a.status === "DONE");
 
-  // Active plan for this assignment
+  // Active or validated plan for this assignment
   const activePlan = coachPlans.find(
-    (p) => p.coachAssignmentId === assignmentId && p.status === "ACTIVE"
+    (p) =>
+      p.coachAssignmentId === assignmentId &&
+      (p.status === "ACTIVE" || p.status === "VALIDATED" || p.status === "DRAFT")
   );
 
   const handleAddAction = (title: string, dueDate: string | null) => {
@@ -249,6 +251,12 @@ export function CoachPanel({ assignmentId, userId, ratios }: CoachPanelProps) {
 
         {activePlan ? (
           <div className="space-y-3">
+            {/* Plan title & objective */}
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">{activePlan.title}</p>
+              <p className="text-xs text-muted-foreground">{activePlan.objective}</p>
+            </div>
+
             {/* 4-week timeline */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {activePlan.weeks.map((week) => (
@@ -261,13 +269,19 @@ export function CoachPanel({ assignmentId, userId, ratios }: CoachPanelProps) {
                   </p>
                   <p className="text-sm font-semibold">{week.focus}</p>
                   <ul className="space-y-0.5">
-                    {week.actions.map((action, i) => (
+                    {week.actions.map((action) => (
                       <li
-                        key={i}
+                        key={action.id}
                         className="flex items-start gap-1.5 text-xs text-muted-foreground"
                       >
-                        <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
-                        {action}
+                        {action.done ? (
+                          <Check className="mt-0.5 h-3 w-3 shrink-0 text-green-500" />
+                        ) : (
+                          <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
+                        )}
+                        <span className={action.done ? "line-through" : ""}>
+                          {action.label}
+                        </span>
                       </li>
                     ))}
                   </ul>
