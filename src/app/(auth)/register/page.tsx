@@ -131,20 +131,6 @@ function RegisterForm() {
 
     const finalInviteCode = inviteCode.trim();
 
-    // Manager must either provide an invite code or an org name
-    if (isManager && !finalInviteCode && !orgName.trim()) {
-      setError("Renseignez un code d'invitation ou un nom d'organisation.");
-      setLoading(false);
-      return;
-    }
-
-    // Conseiller-only must provide an invite code
-    if (isConseillerOnly && !finalInviteCode) {
-      setError("Le code d'invitation est obligatoire.");
-      setLoading(false);
-      return;
-    }
-
     // If joining with invite code, verify it exists (skip if already validated)
     if (finalInviteCode) {
       if (inviteCodeStatus === "invalid") {
@@ -167,6 +153,11 @@ function RegisterForm() {
       }
     }
 
+    // Compute context_mode (simple & robust)
+    const isCoachOnly = selectedRoles.every((r) => r === "coach");
+    const contextMode: "invite" | "personal" = finalInviteCode ? "invite" : "personal";
+    const coachStandalone = !finalInviteCode && isCoachOnly;
+
     // Sign up with metadata (trigger will create profile + org if needed)
     const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
@@ -175,11 +166,13 @@ function RegisterForm() {
         data: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          role: mainRole,
-          available_roles: selectedRoles,
+          main_role: mainRole,
+          selected_roles: selectedRoles,
           category,
-          invite_code: finalInviteCode || undefined,
-          org_name: (!finalInviteCode && orgName.trim()) ? orgName.trim() : undefined,
+          context_mode: contextMode,
+          invite_code: finalInviteCode || null,
+          org_name: orgName.trim() || null,
+          coach_standalone: coachStandalone,
         },
       },
     });
@@ -400,7 +393,8 @@ function RegisterForm() {
         {isConseillerOnly && !roleLocked && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Code d&apos;invitation <span className="text-destructive">*</span>
+              Code d&apos;invitation{" "}
+              <span className="text-xs font-normal text-muted-foreground">(optionnel)</span>
             </label>
             <input
               type="text"
@@ -409,9 +403,11 @@ function RegisterForm() {
               onBlur={() => validateInviteCode(inviteCode)}
               placeholder="Ex: MG-1234"
               className={inputClassName}
-              required
             />
             <InviteCodeFeedback status={inviteCodeStatus} orgName={validatedOrgName} />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Sans code, un espace personnel sera créé.
+            </p>
           </div>
         )}
 
