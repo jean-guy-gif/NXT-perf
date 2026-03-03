@@ -57,11 +57,17 @@ export default function DashboardLayout({
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
+        // Retry profile fetch — trigger may still be running after signup
+        let profile = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+          if (data) { profile = data; break; }
+          await new Promise((r) => setTimeout(r, 1000));
+        }
 
         if (profile) {
           setProfile(profile);
