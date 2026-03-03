@@ -194,8 +194,13 @@ function RegisterForm() {
       return;
     }
 
-    // Full reload to ensure session cookies are sent — onboarding will route them
-    window.location.href = "/onboarding";
+    // Personal/coach accounts have onboarding=DONE → go straight to dashboard
+    // Invite accounts need onboarding to pick team
+    if (contextMode === "personal") {
+      window.location.href = "/dashboard";
+    } else {
+      window.location.href = "/onboarding";
+    }
   };
 
   const inputClassName =

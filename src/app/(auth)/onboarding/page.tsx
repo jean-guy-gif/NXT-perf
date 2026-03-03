@@ -51,17 +51,25 @@ function OnboardingFlow() {
   }, [user?.onboardingStatus, router]);
 
   // If not authenticated, redirect to welcome
-  // Check Supabase session directly (store may not be hydrated yet)
+  // Use getUser() (server-verified) and wait before redirecting
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
     if (isAuthenticated) { setAuthChecked(true); return; }
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      // Re-check store after delay (may have hydrated)
+      if (useAppStore.getState().isAuthenticated) {
+        if (!cancelled) setAuthChecked(true);
+        return;
+      }
+      const supabase = createClient();
+      const { data: { user: supaUser } } = await supabase.auth.getUser();
+      if (!cancelled && !supaUser) {
         router.replace("/welcome");
       }
-      setAuthChecked(true);
-    });
+      if (!cancelled) setAuthChecked(true);
+    }, 1500);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [isAuthenticated, router]);
 
   // Restore draft on mount
