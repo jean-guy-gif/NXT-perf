@@ -16,7 +16,9 @@ import {
   Settings,
   Zap,
   BookOpen,
-  Building2,
+  Compass,
+  TrendingUp,
+  Calculator,
   HeartHandshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,9 +55,10 @@ const navItems: NavItem[] = [
     label: "Formation Collective",
     managerOnly: true,
   },
-  { href: "/directeur/cockpit", icon: Building2, label: "Cockpit Agence", directorOnly: true },
+  { href: "/directeur/pilotage", icon: Compass, label: "Pilotage Agence", directorOnly: true },
   { href: "/directeur/equipes", icon: Users, label: "Équipes", directorOnly: true },
-  { href: "/directeur/classement", icon: Trophy, label: "Classement Agence", directorOnly: true },
+  { href: "/directeur/projection", icon: TrendingUp, label: "Projection", directorOnly: true },
+  { href: "/directeur/rentabilite", icon: Calculator, label: "Rentabilité", directorOnly: true },
   { href: "/directeur/formation-collective", icon: BookOpen, label: "Formation Collective", directorOnly: true },
   { href: "/coach/dashboard", icon: HeartHandshake, label: "Tableau de bord", coachOnly: true },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
