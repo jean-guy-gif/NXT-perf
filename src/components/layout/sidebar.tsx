@@ -60,7 +60,12 @@ const navItems: NavItem[] = [
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const activeViews = useAppStore((s) => s.activeViews);
 
@@ -79,79 +84,147 @@ export function Sidebar() {
   const settingsItem = navItems.find((item) => item.href === "/parametres")!;
 
   return (
-    <nav className="flex h-full flex-col items-center gap-1 overflow-y-auto bg-sidebar py-4 px-2">
-      <Link href="/dashboard" className="mb-6 flex items-center justify-center">
+    <nav className={cn(
+      "flex h-full flex-col overflow-y-auto bg-sidebar py-4",
+      collapsed ? "items-center px-2" : "px-3"
+    )}>
+      {/* Logo */}
+      <Link
+        href="/dashboard"
+        className={cn(
+          "mb-6 flex items-center flex-shrink-0",
+          collapsed ? "justify-center" : "gap-3 px-2"
+        )}
+      >
         <Image
           src="/logo-icon.svg"
           alt="NXT Perf"
-          width={40}
-          height={40}
-          className="rounded-[var(--radius-button)] shadow-sm"
+          width={36}
+          height={36}
+          className="rounded-[var(--radius-button)] shadow-sm flex-shrink-0"
         />
+        {!collapsed && (
+          <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap overflow-hidden">
+            NXT Profiling
+          </span>
+        )}
       </Link>
 
-      <div className="flex flex-col items-center gap-1">
-        {advisorItems.map((item) => (
-          <SidebarItem key={item.href} item={item} pathname={pathname} />
-        ))}
-      </div>
+      {/* Agent section */}
+      {advisorItems.length > 0 && (
+        <SidebarSection label="Agent" collapsed={collapsed}>
+          {advisorItems.map((item) => (
+            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </SidebarSection>
+      )}
 
+      {/* Manager section */}
       {managerItems.length > 0 && (
-        <>
-          <div className="my-3 h-px w-8 bg-sidebar-border" />
-          <div className="flex flex-col items-center gap-1">
-            {managerItems.map((item) => (
-              <SidebarItem key={item.href} item={item} pathname={pathname} />
-            ))}
-          </div>
-        </>
+        <SidebarSection label="Manager" collapsed={collapsed}>
+          {managerItems.map((item) => (
+            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </SidebarSection>
       )}
 
+      {/* Director section */}
       {directorItems.length > 0 && (
-        <>
-          <div className="my-3 h-px w-8 bg-sidebar-border" />
-          <div className="flex flex-col items-center gap-1">
-            {directorItems.map((item) => (
-              <SidebarItem key={item.href} item={item} pathname={pathname} />
-            ))}
-          </div>
-        </>
+        <SidebarSection label="Directeur" collapsed={collapsed}>
+          {directorItems.map((item) => (
+            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </SidebarSection>
       )}
 
+      {/* Coach section */}
       {coachItems.length > 0 && (
-        <>
-          <div className="my-3 h-px w-8 bg-sidebar-border" />
-          <div className="flex flex-col items-center gap-1">
-            {coachItems.map((item) => (
-              <SidebarItem key={item.href} item={item} pathname={pathname} />
-            ))}
-          </div>
-        </>
+        <SidebarSection label="Coach" collapsed={collapsed}>
+          {coachItems.map((item) => (
+            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </SidebarSection>
       )}
 
+      {/* Spacer */}
       <div className="mt-auto" />
 
-      <SidebarItem item={settingsItem} pathname={pathname} />
+      {/* Settings */}
+      <SidebarItem item={settingsItem} pathname={pathname} collapsed={collapsed} />
     </nav>
+  );
+}
+
+function SidebarSection({
+  label,
+  collapsed,
+  children,
+}: {
+  label: string;
+  collapsed: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-1">
+      {collapsed ? (
+        <div className="my-2 mx-auto h-px w-8 bg-sidebar-border" />
+      ) : (
+        <div className="mb-1.5 mt-3 px-3">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            {label}
+          </span>
+        </div>
+      )}
+      <div className={cn(
+        "flex flex-col gap-0.5",
+        collapsed && "items-center"
+      )}>
+        {children}
+      </div>
+    </div>
   );
 }
 
 function SidebarItem({
   item,
   pathname,
+  collapsed,
 }: {
   item: NavItem;
   pathname: string;
+  collapsed: boolean;
 }) {
   const isActive =
     pathname === item.href || pathname.startsWith(item.href + "/");
 
+  if (collapsed) {
+    return (
+      <Link
+        href={item.href}
+        title={item.label}
+        className={cn(
+          "group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] transition-all duration-[var(--transition-fast)]",
+          isActive
+            ? "bg-primary/15 text-primary shadow-sm"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        )}
+      >
+        {isActive && (
+          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+        )}
+        <item.icon className="h-5 w-5" />
+        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
+          {item.label}
+        </span>
+      </Link>
+    );
+  }
+
   return (
     <Link
       href={item.href}
-      title={item.label}
       className={cn(
-        "group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] transition-all duration-[var(--transition-fast)]",
+        "relative flex h-10 items-center gap-3 rounded-[var(--radius-button)] px-3 text-sm font-medium transition-all duration-[var(--transition-fast)]",
         isActive
           ? "bg-primary/15 text-primary shadow-sm"
           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -160,10 +233,8 @@ function SidebarItem({
       {isActive && (
         <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
       )}
-      <item.icon className="h-5 w-5" />
-      <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
-        {item.label}
-      </span>
+      <item.icon className="h-5 w-5 flex-shrink-0" />
+      <span className="truncate">{item.label}</span>
     </Link>
   );
 }
