@@ -21,6 +21,8 @@ import {
   XCircle,
   Info,
   Flame,
+  ExternalLink,
+  Check,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { DonutChart } from "@/components/charts/donut-chart";
@@ -1152,6 +1154,8 @@ function DashboardContent() {
 function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
   const updateInfoVenteStatut = useAppStore((s) => s.updateInfoVenteStatut);
   const updateAcheteurChaudStatut = useAppStore((s) => s.updateAcheteurChaudStatut);
+  const markInfoVenteProfiled = useAppStore((s) => s.markInfoVenteProfiled);
+  const markAcheteurChaudProfiled = useAppStore((s) => s.markAcheteurChaudProfiled);
   const { persistResult } = useSupabaseResults();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -1161,6 +1165,7 @@ function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
   const activeInfoVente = allInfoVente.filter((i) => i.statut === "en_cours");
   const activeAcheteurs = allAcheteurs.filter((i) => i.statut === "en_cours");
   const totalActifs = activeInfoVente.length + activeAcheteurs.length;
+  const totalProfiled = [...allInfoVente, ...allAcheteurs].filter((i) => i.profiled).length;
 
   const treatedItems = [
     ...allInfoVente.filter((i) => i.statut !== "en_cours").map((i) => ({ ...i, type: "info_vente" as const })),
@@ -1192,10 +1197,32 @@ function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
     }
   };
 
+  const handleProfileInfo = (itemId: string) => {
+    if (results) {
+      markInfoVenteProfiled(results.id, itemId);
+      setTimeout(() => {
+        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+        if (fresh) persistResult(fresh);
+      }, 0);
+      window.open("https://nxt-profiling.fr/profiling", "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleProfileAcheteur = (itemId: string) => {
+    if (results) {
+      markAcheteurChaudProfiled(results.id, itemId);
+      setTimeout(() => {
+        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
+        if (fresh) persistResult(fresh);
+      }, 0);
+      window.open("https://nxt-profiling.fr/profiling", "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
@@ -1240,6 +1267,17 @@ function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
             </div>
           </div>
         </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/20">
+              <Check className="h-5 w-5 text-violet-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Profilés</p>
+              <p className="text-2xl font-bold text-violet-500">{totalProfiled}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Contacts actifs : Informations de vente ── */}
@@ -1266,9 +1304,11 @@ function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
                 id={item.id}
                 nom={item.nom}
                 commentaire={item.commentaire}
+                profiled={item.profiled}
                 confirmingId={confirmingId}
                 setConfirmingId={setConfirmingId}
                 onRemove={(reason) => handleUpdateInfo(item.id, reason)}
+                onProfile={() => handleProfileInfo(item.id)}
               />
             ))}
           </div>
@@ -1299,9 +1339,11 @@ function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
                 id={item.id}
                 nom={item.nom}
                 commentaire={item.commentaire}
+                profiled={item.profiled}
                 confirmingId={confirmingId}
                 setConfirmingId={setConfirmingId}
                 onRemove={(reason) => handleUpdateAcheteur(item.id, reason)}
+                onProfile={() => handleProfileAcheteur(item.id)}
               />
             ))}
           </div>
@@ -1335,18 +1377,23 @@ function ActiveContactCard({
   id,
   nom,
   commentaire,
+  profiled,
   confirmingId,
   setConfirmingId,
   onRemove,
+  onProfile,
 }: {
   id: string;
   nom: string;
   commentaire: string;
+  profiled?: boolean;
   confirmingId: string | null;
   setConfirmingId: (id: string | null) => void;
   onRemove: (reason: "deale" | "abandonne") => void;
+  onProfile?: () => void;
 }) {
   const isConfirming = confirmingId === id;
+  const isProfiled = profiled === true;
 
   return (
     <div
@@ -1357,7 +1404,15 @@ function ActiveContactCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{nom}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-foreground">{nom}</p>
+            {isProfiled && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-500">
+                <Check className="h-2.5 w-2.5" />
+                Profilé
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-sm text-muted-foreground">{commentaire}</p>
         </div>
         {!isConfirming ? (
@@ -1397,7 +1452,31 @@ function ActiveContactCard({
               <XCircle className="h-4 w-4" />
               Abandonné
             </button>
+            {isProfiled ? (
+              <a
+                href="https://nxt-profiling.fr/profiling"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500/25 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-500/35 dark:text-violet-400"
+              >
+                <Check className="h-4 w-4" />
+                Déjà profilé
+              </a>
+            ) : (
+              <button
+                onClick={() => onProfile?.()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500/15 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-500/25 dark:text-violet-400"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Profiler
+              </button>
+            )}
           </div>
+          {!isProfiled && (
+            <p className="mt-2 text-center text-[11px] text-violet-500/70">
+              +34% transformation client avec NXT Profiling
+            </p>
+          )}
         </div>
       )}
     </div>

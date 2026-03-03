@@ -14,6 +14,7 @@ import {
   Calendar,
   Phone,
   Flame,
+  ExternalLink,
 } from "lucide-react";
 import type { ContactStatut } from "@/types/results";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -35,6 +36,7 @@ type StatutGroupData = {
   en_cours: { count: number; noms: string[] };
   deale: { count: number; noms: string[] };
   abandonne: { count: number; noms: string[] };
+  profile: { count: number; noms: string[] };
   total: number;
 };
 
@@ -42,6 +44,7 @@ const STATUT_STYLES = {
   en_cours: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/30" },
   deale: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500/30" },
   abandonne: { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500/30" },
+  profile: { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/30" },
 } as const;
 
 function ClickableBadge({
@@ -54,7 +57,7 @@ function ClickableBadge({
 }: {
   count: number;
   noms: string[];
-  statut: "en_cours" | "deale" | "abandonne";
+  statut: "en_cours" | "deale" | "abandonne" | "profile";
   popoverKey: string;
   openPopover: string | null;
   setOpenPopover: (key: string | null) => void;
@@ -87,14 +90,27 @@ function ClickableBadge({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpenPopover(null)} />
           <div className={cn(
-            "absolute z-50 mt-1 left-1/2 -translate-x-1/2 min-w-[160px] rounded-lg border bg-card p-2 shadow-lg",
+            "absolute z-50 mt-1 left-1/2 -translate-x-1/2 min-w-[180px] rounded-lg border bg-card p-2 shadow-lg",
             style.border
           )}>
             {noms.map((nom, i) => (
-              <p key={i} className="whitespace-nowrap px-2 py-1 text-xs text-foreground">
-                {nom}
-              </p>
+              <div key={i} className="flex items-center justify-between gap-2 px-2 py-1">
+                <span className="whitespace-nowrap text-xs text-foreground">{nom}</span>
+                <a
+                  href="https://nxt-profiling.fr/profiling"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 rounded p-0.5 text-violet-500 transition-colors hover:bg-violet-500/15"
+                  title="Profiler ce client"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
             ))}
+            <p className="mt-1 border-t border-border/50 pt-1 text-center text-[10px] text-violet-500/70">
+              +34% avec NXT Profiling
+            </p>
           </div>
         </>
       )}
@@ -122,7 +138,7 @@ function TrackingRow({
       <td className="py-2.5 pr-4 font-medium text-foreground max-w-[140px]">
         <span className="block truncate" title={name}>{name}</span>
       </td>
-      {(["en_cours", "deale", "abandonne"] as const).map((statut) => (
+      {(["en_cours", "deale", "abandonne", "profile"] as const).map((statut) => (
         <td key={statut} className="py-2.5 px-4 text-center">
           <ClickableBadge
             count={data[statut].count}
@@ -153,7 +169,7 @@ function TrackingTotalRow({
   return (
     <tr className="bg-muted/30 font-semibold">
       <td className="py-2.5 pr-4 text-foreground">Équipe</td>
-      {(["en_cours", "deale", "abandonne"] as const).map((statut) => (
+      {(["en_cours", "deale", "abandonne", "profile"] as const).map((statut) => (
         <td key={statut} className="py-2.5 px-4 text-center">
           <ClickableBadge
             count={data[statut].count}
@@ -285,7 +301,7 @@ export default function CockpitPage() {
 
   /* ── Contact & buyer tracking per advisor ── */
   const trackingData = useMemo(() => {
-    const groupByStatut = (items: { nom: string; statut: ContactStatut }[]): StatutGroupData => ({
+    const groupByStatut = (items: { nom: string; statut: ContactStatut; profiled?: boolean }[]): StatutGroupData => ({
       en_cours: {
         count: items.filter((i) => i.statut === "en_cours").length,
         noms: items.filter((i) => i.statut === "en_cours").map((i) => i.nom),
@@ -298,6 +314,10 @@ export default function CockpitPage() {
         count: items.filter((i) => i.statut === "abandonne").length,
         noms: items.filter((i) => i.statut === "abandonne").map((i) => i.nom),
       },
+      profile: {
+        count: items.filter((i) => i.profiled).length,
+        noms: items.filter((i) => i.profiled).map((i) => i.nom),
+      },
       total: items.length,
     });
 
@@ -305,6 +325,7 @@ export default function CockpitPage() {
       en_cours: { count: 0, noms: [] },
       deale: { count: 0, noms: [] },
       abandonne: { count: 0, noms: [] },
+      profile: { count: 0, noms: [] },
       total: 0,
     };
 
@@ -330,6 +351,10 @@ export default function CockpitPage() {
       abandonne: {
         count: perAdvisor.reduce((s, a) => s + a[key].abandonne.count, 0),
         noms: perAdvisor.flatMap((a) => a[key].abandonne.noms),
+      },
+      profile: {
+        count: perAdvisor.reduce((s, a) => s + a[key].profile.count, 0),
+        noms: perAdvisor.flatMap((a) => a[key].profile.noms),
       },
       total: perAdvisor.reduce((s, a) => s + a[key].total, 0),
     });
@@ -691,6 +716,7 @@ export default function CockpitPage() {
                 <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
                 <th className="pb-3 px-4 text-center font-medium text-green-500">Dealés</th>
                 <th className="pb-3 px-4 text-center font-medium text-red-500">Abandonnés</th>
+                <th className="pb-3 px-4 text-center font-medium text-violet-500">Profilés</th>
                 <th className="pb-3 pl-4 text-center font-medium text-muted-foreground">Total</th>
               </tr>
             </thead>
@@ -733,6 +759,7 @@ export default function CockpitPage() {
                 <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
                 <th className="pb-3 px-4 text-center font-medium text-green-500">Dealés</th>
                 <th className="pb-3 px-4 text-center font-medium text-red-500">Abandonnés</th>
+                <th className="pb-3 px-4 text-center font-medium text-violet-500">Profilés</th>
                 <th className="pb-3 pl-4 text-center font-medium text-muted-foreground">Total</th>
               </tr>
             </thead>
