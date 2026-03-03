@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   DollarSign,
@@ -231,7 +230,6 @@ function TrackingTotalRow({
 /* ────── Main Page ────── */
 export default function CockpitAgencePage() {
   const [activeTab, setActiveTab] = useState<Tab>("globale");
-  const router = useRouter();
   const { teams, allConseillers, orgStats, allResults, ratioConfigs } =
     useDirectorData();
 
@@ -1170,11 +1168,13 @@ export default function CockpitAgencePage() {
                   .map(({ agent, ca, actes, avgPerf, teamName }) => (
                     <tr
                       key={agent.id}
-                      onClick={() => router.push(`/directeur/conseiller/${agent.id}?period=${periodMode}`)}
-                      className="border-b border-border last:border-b-0 transition-colors hover:bg-muted/30 cursor-pointer"
+                      className="relative border-b border-border last:border-b-0 transition-colors hover:bg-muted/30"
                     >
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <Link
+                          href={`/directeur/conseiller/${agent.id}?period=${periodMode}`}
+                          className="flex items-center gap-2 after:absolute after:inset-0 after:content-['']"
+                        >
                           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
                             {agent.firstName[0]}
                             {agent.lastName[0]}
@@ -1182,7 +1182,7 @@ export default function CockpitAgencePage() {
                           <span className="text-sm font-medium text-foreground">
                             {agent.firstName} {agent.lastName}
                           </span>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {teamName}
