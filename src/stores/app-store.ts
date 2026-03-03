@@ -14,7 +14,7 @@ import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 export type ViewId = "agent" | "manager" | "directeur" | "coach";
 
 export const VIEW_LABELS: Record<ViewId, string> = {
-  agent: "Agent",
+  agent: "Conseiller",
   manager: "Manager",
   directeur: "Agence",
   coach: "Coach",
@@ -27,6 +27,20 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
   if (roles.includes("directeur")) views.push("directeur");
   if (roles.includes("coach")) views.push("coach");
   return views;
+}
+
+/** Route par défaut pour chaque rôle */
+export const DEFAULT_ROUTES: Record<UserRole, string> = {
+  conseiller: "/dashboard",
+  manager: "/manager/cockpit",
+  directeur: "/directeur/cockpit",
+  coach: "/coach/dashboard",
+};
+
+/** Compute visible views: authorizedViews minus user-hidden preferences */
+export function getVisibleViews(availableRoles: UserRole[], hiddenViews: ViewId[]): ViewId[] {
+  const authorized = rolesToViews(availableRoles);
+  return authorized.filter((v) => !hiddenViews.includes(v));
 }
 
 /** Derive available roles from primary role (hierarchical fallback when DB column is absent) */
@@ -91,9 +105,9 @@ interface AppState {
   coachActions: CoachAction[];
   coachPlans: CoachPlan[];
 
-  // ── View toggles ──
-  activeViews: ViewId[];
-  toggleView: (view: ViewId) => void;
+  // ── View preferences (hiddenViews = user hides a view, never adds permissions) ──
+  hiddenViews: ViewId[];
+  toggleViewVisibility: (view: ViewId) => void;
 
   // ── Demo mode ──
   enterDemo: () => void;
@@ -112,7 +126,10 @@ interface AppState {
 
   // ── Data actions (used in both modes) ──
   setUser: (user: User) => void;
-  switchRole: () => void;
+  /** Permission-checked role switch — returns redirect path, or null if denied/no-op */
+  switchRole: (targetRole: UserRole) => string | null;
+  /** Demo only — switches to a different mock user for testing */
+  switchDemoUser: () => void;
   addUser: (user: User) => void;
   removeUser: (userId: string) => void;
   assignAgent: (agentId: string, managerId: string) => void;
@@ -169,16 +186,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   coachAssignments: [],
   coachActions: [],
   coachPlans: [],
-  activeViews: [],
+  hiddenViews: [],
 
-  // ── View toggles ──
-  toggleView: (view) => {
+  // ── View preferences ──
+  toggleViewVisibility: (view) => {
     set((s) => {
-      if (s.activeViews.includes(view)) {
-        if (s.activeViews.length <= 1) return s;
-        return { activeViews: s.activeViews.filter((v) => v !== view) };
+      const authorized = rolesToViews(s.user?.availableRoles ?? []);
+      if (!authorized.includes(view)) return s; // Can't toggle a view you don't have
+      if (s.hiddenViews.includes(view)) {
+        // Un-hide
+        return { hiddenViews: s.hiddenViews.filter((v) => v !== view) };
       }
-      return { activeViews: [...s.activeViews, view] };
+      // Hide — but don't allow hiding ALL views
+      const wouldBeVisible = authorized.filter((v) => !s.hiddenViews.includes(v) && v !== view);
+      if (wouldBeVisible.length === 0) return s;
+      return { hiddenViews: [...s.hiddenViews, view] };
     });
   },
 
@@ -196,7 +218,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachAssignments: mockCoachAssignments,
       coachActions: mockCoachActions,
       coachPlans: mockCoachPlans,
-      activeViews: rolesToViews(demoUser.availableRoles),
+      hiddenViews: [],
     });
   },
 
@@ -212,7 +234,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       removedItems: [],
       institutions: [],
       teamInfos: [],
-      activeViews: [],
+      hiddenViews: [],
     });
   },
 
@@ -221,7 +243,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const found = get().users.find((u) => u.email === email);
     if (!found) return "not_found";
     if (found.password && found.password !== password) return "wrong_password";
-    set({ user: found, isAuthenticated: true, activeViews: rolesToViews(found.availableRoles) });
+    set({ user: found, isAuthenticated: true, hiddenViews: [] });
     return "success";
   },
 
@@ -230,7 +252,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, activeViews: [] });
+      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, hiddenViews: [] });
     }
   },
 
@@ -267,6 +289,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         email: profile.email,
         firstName: profile.first_name,
         lastName: profile.last_name,
+        mainRole: role,
         role,
         availableRoles,
         category: profile.category,
@@ -277,9 +300,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         profileType: (profile.profile_type as ProfileType) ?? undefined,
         institutionId: profile.org_id ?? undefined,
       };
-      set({ profile, user, isAuthenticated: true, activeViews: rolesToViews(availableRoles) });
+      set({ profile, user, isAuthenticated: true, hiddenViews: [] });
     } else {
-      set({ profile: null, user: null, isAuthenticated: false, activeViews: [] });
+      set({ profile: null, user: null, isAuthenticated: false, hiddenViews: [] });
     }
   },
 
@@ -290,31 +313,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Data actions ──
   setUser: (user) => set({ user }),
 
-  switchRole: () => {
+  switchRole: (targetRole) => {
+    const current = get().user;
+    if (!current) return null;
+    // Permission guard: only switch to roles the user actually has
+    if (!current.availableRoles.includes(targetRole)) return null;
+    // No-op if already on this role
+    if (current.role === targetRole) return null;
+    // Same user, just change active role
+    set({ user: { ...current, role: targetRole } });
+    return DEFAULT_ROUTES[targetRole];
+  },
+
+  /** Demo only — cycles through mock users for testing. Isolated from prod switchRole. */
+  switchDemoUser: () => {
     const current = get().user;
     if (!current) return;
-    if (current.role === "coach") return; // Coach cannot switch roles
     const users = get().users;
-
-    if (current.role === "directeur") {
-      // Directeur → Manager: same person, just change role
-      set({ user: { ...current, role: "manager" } });
-    } else if (current.role === "manager") {
-      // Check if this user is the directeur who switched down
-      const directeur = users.find((u) => u.role === "directeur");
-      if (directeur && directeur.id === current.id) {
-        // Manager → Directeur: switch back up
-        set({ user: { ...current, role: "directeur" } });
-      } else {
-        // Regular manager → conseiller (existing behavior)
-        const conseiller = users.find((u) => u.role === "conseiller");
-        if (conseiller) set({ user: conseiller });
-      }
-    } else {
-      // Conseiller → Manager (existing behavior)
-      const manager = users.find((u) => u.role === "manager");
-      if (manager) set({ user: manager });
-    }
+    const currentIdx = users.findIndex((u) => u.id === current.id);
+    if (currentIdx === -1) return;
+    // Cycle to next user
+    const nextUser = users[(currentIdx + 1) % users.length];
+    set({ user: nextUser, hiddenViews: [] });
   },
 
   addUser: (user) => {

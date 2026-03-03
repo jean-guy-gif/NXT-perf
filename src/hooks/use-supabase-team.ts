@@ -46,6 +46,7 @@ export function useSupabaseTeam() {
           email: p.email,
           firstName: p.first_name,
           lastName: p.last_name,
+          mainRole: p.role,
           role: p.role,
           availableRoles: [p.role],
           category: p.category,

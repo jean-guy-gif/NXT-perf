@@ -81,6 +81,7 @@ export function AddAgentModal({
       password: "changeme",
       firstName: trimmedFirst,
       lastName: trimmedLast,
+      mainRole: "conseiller",
       role: "conseiller",
       availableRoles: ["conseiller"],
       category,
