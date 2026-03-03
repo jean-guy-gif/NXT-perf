@@ -617,14 +617,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   validateCoachPlan: (id) =>
     set((s) => ({
       coachPlans: s.coachPlans.map((p) =>
-        p.id === id ? { ...p, status: "VALIDATED" as const } : p
+        p.id === id && p.status === "DRAFT" ? { ...p, status: "VALIDATED" as const } : p
       ),
     })),
 
   revertCoachPlanToDraft: (id) =>
     set((s) => ({
       coachPlans: s.coachPlans.map((p) =>
-        p.id === id ? { ...p, status: "DRAFT" as const } : p
+        p.id === id && p.status === "VALIDATED" ? { ...p, status: "DRAFT" as const } : p
       ),
     })),
 

@@ -172,16 +172,18 @@ function PersonRow({
 /* ────── INSTITUTION View ────── */
 function InstitutionView({
   data,
+  targetId,
 }: {
   data: ReturnType<typeof useCoachTargetData>;
+  targetId: string;
 }) {
-  const { agencyKpis, managersAggregate, advisorsAggregate, assignment } = data;
+  const { agencyKpis, managersAggregate, advisorsAggregate, assignment, weakKpis } = data;
 
   const kpis = agencyKpis
     ? [
         {
           label: "CA total",
-          value: agencyKpis.totalCA.toLocaleString("fr-FR") + " \u20AC",
+          value: agencyKpis.totalCA.toLocaleString("fr-FR") + " €",
           icon: TrendingUp,
         },
         {
@@ -297,7 +299,7 @@ function InstitutionView({
 
       {/* Plan link */}
       <Link
-        href="./plan"
+        href={`/coach/targets/INSTITUTION/${targetId}/plan`}
         className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
       >
         Plan 30 jours
@@ -309,8 +311,8 @@ function InstitutionView({
         <div className="rounded-xl border bg-card p-5">
           <CoachPanel
             assignmentId={assignment.id}
-            userId={advisorsAggregate?.[0]?.user.id ?? ""}
-            ratios={advisorsAggregate?.[0]?.ratios ?? []}
+            userId={targetId}
+            ratios={weakKpis}
           />
         </div>
       )}
@@ -418,7 +420,7 @@ function ManagerView({
 
       {/* Plan link */}
       <Link
-        href="./plan"
+        href={`/coach/targets/MANAGER/${targetId}/plan`}
         className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
       >
         Plan 30 jours
@@ -457,21 +459,21 @@ function AgentView({
   // Extract KPIs from results
   const ca =
     userResults?.ventes.chiffreAffaires != null
-      ? userResults.ventes.chiffreAffaires.toLocaleString("fr-FR") + " \u20AC"
-      : "\u2014";
+      ? userResults.ventes.chiffreAffaires.toLocaleString("fr-FR") + " €"
+      : "—";
   const actes =
     userResults?.ventes.actesSignes != null
       ? String(userResults.ventes.actesSignes)
-      : "\u2014";
+      : "—";
   const mandats =
     userResults?.vendeurs.mandatsSignes != null
       ? String(userResults.vendeurs.mandatsSignes)
-      : "\u2014";
+      : "—";
   const exclusiviteRatio = advisorRatios?.find(
     (r) => r.ratioId === "pct_mandats_exclusifs"
   );
   const exclusivite =
-    exclusiviteRatio != null ? `${exclusiviteRatio.value}%` : "\u2014";
+    exclusiviteRatio != null ? `${exclusiviteRatio.value}%` : "—";
 
   const kpis = [
     { label: "Chiffre d'Affaires", value: ca, icon: TrendingUp },
@@ -501,7 +503,7 @@ function AgentView({
 
       {/* Plan link */}
       <Link
-        href="./plan"
+        href={`/coach/targets/AGENT/${targetId}/plan`}
         className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
       >
         Plan 30 jours
@@ -547,7 +549,7 @@ export default function TargetScopeViewPage({
 
   return (
     <div className="space-y-6">
-      {validType === "INSTITUTION" && <InstitutionView data={data} />}
+      {validType === "INSTITUTION" && <InstitutionView data={data} targetId={targetId} />}
       {validType === "MANAGER" && (
         <ManagerView data={data} targetId={targetId} />
       )}

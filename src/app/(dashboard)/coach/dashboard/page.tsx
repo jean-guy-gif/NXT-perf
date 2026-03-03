@@ -55,6 +55,9 @@ function PlanBadge({ assignmentId }: { assignmentId: string }) {
   const coachPlans = useAppStore((s) => s.coachPlans);
 
   const plan = coachPlans.find(
+    (p) => p.coachAssignmentId === assignmentId &&
+      (p.status === "DRAFT" || p.status === "VALIDATED" || p.status === "ACTIVE")
+  ) ?? coachPlans.find(
     (p) => p.coachAssignmentId === assignmentId
   );
 
