@@ -33,7 +33,7 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
 export const DEFAULT_ROUTES: Record<UserRole, string> = {
   conseiller: "/dashboard",
   manager: "/manager/cockpit",
-  directeur: "/directeur/cockpit",
+  directeur: "/directeur/pilotage",
   coach: "/coach/dashboard",
 };
 
@@ -82,6 +82,15 @@ export interface TeamInfo {
   inviteCode: string;
 }
 
+export interface DirectorCosts {
+  commissionDirecteur: number;
+  commissionManagers: number;
+  commissionConseillers: number;
+  coutsFixes: number;
+  masseSalariale: number;
+  autresCharges: number;
+}
+
 interface AppState {
   // ── Auth ──
   user: User | null;
@@ -104,6 +113,12 @@ interface AppState {
   coachAssignments: CoachAssignment[];
   coachActions: CoachAction[];
   coachPlans: CoachPlan[];
+
+  // ── Director inputs (persisted in localStorage) ──
+  agencyObjective: { annualCA: number; avgActValue: number } | null;
+  directorCosts: DirectorCosts | null;
+  setAgencyObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
+  setDirectorCosts: (costs: DirectorCosts | null) => void;
 
   // ── View preferences (hiddenViews = user hides a view, never adds permissions) ──
   hiddenViews: ViewId[];
@@ -187,6 +202,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   coachActions: [],
   coachPlans: [],
   hiddenViews: [],
+  agencyObjective: null,
+  directorCosts: null,
 
   // ── View preferences ──
   toggleViewVisibility: (view) => {
@@ -203,6 +220,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { hiddenViews: [...s.hiddenViews, view] };
     });
   },
+
+  setAgencyObjective: (obj) => set({ agencyObjective: obj }),
+  setDirectorCosts: (costs) => set({ directorCosts: costs }),
 
   // ── Demo mode ──
   enterDemo: () => {
