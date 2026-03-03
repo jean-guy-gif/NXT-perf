@@ -147,6 +147,9 @@ interface AppState {
   createCoachPlan: (plan: CoachPlan) => void;
   completeCoachPlan: (id: string) => void;
   cancelCoachPlan: (id: string) => void;
+  updateCoachPlan: (id: string, updates: Partial<CoachPlan>) => void;
+  validateCoachPlan: (id: string) => void;
+  revertCoachPlanToDraft: (id: string) => void;
   revokeCoachAssignment: (assignmentId: string) => void;
   updateExcludedManagers: (assignmentId: string, managerIds: string[]) => void;
 }
@@ -601,6 +604,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       coachPlans: s.coachPlans.map((p) =>
         p.id === id ? { ...p, status: "CANCELLED" as const } : p
+      ),
+    })),
+
+  updateCoachPlan: (id, updates) =>
+    set((s) => ({
+      coachPlans: s.coachPlans.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    })),
+
+  validateCoachPlan: (id) =>
+    set((s) => ({
+      coachPlans: s.coachPlans.map((p) =>
+        p.id === id ? { ...p, status: "VALIDATED" as const } : p
+      ),
+    })),
+
+  revertCoachPlanToDraft: (id) =>
+    set((s) => ({
+      coachPlans: s.coachPlans.map((p) =>
+        p.id === id ? { ...p, status: "DRAFT" as const } : p
       ),
     })),
 
