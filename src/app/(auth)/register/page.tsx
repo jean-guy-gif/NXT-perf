@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole, UserCategory, ProfileType } from "@/types/user";
+import type { DbProfile } from "@/types/database";
+import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { Check } from "lucide-react";
 
@@ -188,11 +190,29 @@ function RegisterForm() {
       return;
     }
 
-    if (!signUpData.session) {
+    if (!signUpData.session || !signUpData.user) {
       setError("Compte créé mais session non établie. Essayez de vous connecter.");
       router.push("/login");
       return;
     }
+
+    // Pre-load profile in store so dashboard layout skips the async fetch
+    const optimisticProfile: DbProfile = {
+      id: signUpData.user.id,
+      org_id: "", // will be set by trigger — not needed for initial render
+      team_id: null,
+      email: email.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      role: mainRole,
+      available_roles: selectedRoles,
+      category,
+      avatar_url: null,
+      onboarding_status: contextMode === "personal" ? "DONE" : "NOT_STARTED",
+      profile_type: derivedProfile,
+      created_at: new Date().toISOString(),
+    };
+    useAppStore.getState().setProfile(optimisticProfile);
 
     // Personal/coach accounts have onboarding=DONE → go straight to dashboard
     // Invite accounts need onboarding to pick team
