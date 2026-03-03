@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 import { isInstitutionCode, isTeamCode } from "@/lib/codes";
 import {
   saveOnboardingDraft,
@@ -49,11 +50,18 @@ function OnboardingFlow() {
     }
   }, [user?.onboardingStatus, router]);
 
-  // If not authenticated at all, redirect to welcome
+  // If not authenticated, redirect to welcome
+  // Check Supabase session directly (store may not be hydrated yet)
+  const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace("/welcome");
-    }
+    if (isAuthenticated) { setAuthChecked(true); return; }
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace("/welcome");
+      }
+      setAuthChecked(true);
+    });
   }, [isAuthenticated, router]);
 
   // Restore draft on mount
