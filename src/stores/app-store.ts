@@ -239,6 +239,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachActions: mockCoachActions,
       coachPlans: mockCoachPlans,
       hiddenViews: [],
+      agencyObjective: { annualCA: 500000, avgActValue: 12000 },
+      directorCosts: {
+        commissionDirecteur: 50,
+        commissionManagers: 10,
+        commissionConseillers: 5,
+        coutsFixes: 8000,
+        masseSalariale: 15000,
+        autresCharges: 3000,
+      },
     });
   },
 
@@ -255,6 +264,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       institutions: [],
       teamInfos: [],
       hiddenViews: [],
+      agencyObjective: null,
+      directorCosts: null,
     });
   },
 
