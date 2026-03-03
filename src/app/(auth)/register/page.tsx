@@ -197,9 +197,9 @@ function RegisterForm() {
     // Personal/coach accounts have onboarding=DONE → go straight to dashboard
     // Invite accounts need onboarding to pick team
     if (contextMode === "personal") {
-      window.location.href = "/dashboard";
+      router.push("/dashboard");
     } else {
-      window.location.href = "/onboarding";
+      router.push("/onboarding");
     }
   };
 
