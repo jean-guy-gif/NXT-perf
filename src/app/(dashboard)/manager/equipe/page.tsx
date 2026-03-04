@@ -624,7 +624,7 @@ function TeamCard({
       {/* Add agent form */}
       <div>
         <p className="mb-2 text-sm font-medium text-muted-foreground">
-          Agents non assignés ({unassignedAgents.length})
+          Conseillers non assignés ({unassignedAgents.length})
         </p>
         {unassignedAgents.length > 0 ? (
           <div className="flex items-center gap-2">

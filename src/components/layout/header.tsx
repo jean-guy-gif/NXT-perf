@@ -19,6 +19,7 @@ const pageTitles: Record<string, string> = {
   "/formation": "Ma Formation",
   "/objectifs": "Mes Objectifs",
   "/manager/cockpit": "Cockpit Manager",
+  "/manager/gps": "GPS Équipe",
   "/manager/equipe": "Équipe",
   "/manager/classement": "Classement",
   "/parametres": "Paramètres",
