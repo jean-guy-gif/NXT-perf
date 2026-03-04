@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
   { href: "/formation", icon: GraduationCap, label: "Ma Formation" },
   { href: "/objectifs", icon: Target, label: "Mes Objectifs" },
   { href: "/manager/cockpit", icon: Zap, label: "Cockpit", managerOnly: true },
+  { href: "/manager/gps", icon: Target, label: "GPS Équipe", managerOnly: true },
   { href: "/manager/equipe", icon: Users, label: "Équipe", managerOnly: true },
   {
     href: "/manager/classement",
