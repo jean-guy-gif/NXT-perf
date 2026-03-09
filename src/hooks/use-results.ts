@@ -10,7 +10,12 @@ export function useResults(userId?: string): PeriodResults | null {
   const targetUserId = userId ?? user?.id;
 
   return useMemo(() => {
-    return results.find((r) => r.userId === targetUserId) ?? null;
+    const userResults = results.filter((r) => r.userId === targetUserId);
+    if (userResults.length === 0) return null;
+    // Return the most recent result (latest periodStart)
+    return userResults.reduce((latest, r) =>
+      r.periodStart > latest.periodStart ? r : latest
+    );
   }, [results, targetUserId]);
 }
 
