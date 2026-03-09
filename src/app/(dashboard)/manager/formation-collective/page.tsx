@@ -326,7 +326,7 @@ export default function FormationCollectivePage() {
               </div>
             </div>
             <button
-              onClick={() => window.open("https://nxt.antigravity.fr", "_blank")}
+              onClick={() => window.open("https://train-my-agent.vercel.app/", "_blank")}
               className="flex items-center gap-2 rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-600 transition-colors"
             >
               Accéder à NXT

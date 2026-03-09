@@ -319,7 +319,7 @@ export default function FormationPage() {
                       {/* CTA vers NXT */}
                       <button
                         onClick={() =>
-                          window.open("https://nxt.antigravity.fr", "_blank")
+                          window.open("https://train-my-agent.vercel.app/", "_blank")
                         }
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                       >
@@ -379,7 +379,7 @@ export default function FormationPage() {
                       {isWeak && (
                         <button
                           onClick={() =>
-                            window.open("https://nxt.antigravity.fr", "_blank")
+                            window.open("https://train-my-agent.vercel.app/", "_blank")
                           }
                           className="flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                         >
@@ -411,7 +411,7 @@ export default function FormationPage() {
               </div>
               <button
                 onClick={() =>
-                  window.open("https://nxt.antigravity.fr", "_blank")
+                  window.open("https://train-my-agent.vercel.app/", "_blank")
                 }
                 className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-600"
               >
