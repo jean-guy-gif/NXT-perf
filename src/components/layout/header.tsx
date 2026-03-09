@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, X, Mail } from "lucide-react";
+import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail } from "lucide-react";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
@@ -9,6 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { computeNotifications } from "@/lib/notifications";
 import { AddAgentModal } from "@/components/manager/add-agent-modal";
+import { ExportModal } from "@/components/export/export-modal";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Tableau de bord",
@@ -54,6 +55,7 @@ export function Header() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const notifications = useMemo(
@@ -144,6 +146,22 @@ export function Header() {
           className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground sm:hidden"
         >
           <Upload className="h-4 w-4" />
+        </button>
+
+        <button
+          onClick={() => setShowExportModal(true)}
+          title="Exporter les données"
+          className="hidden items-center gap-2 rounded-[var(--radius-button)] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground sm:flex"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Exporter
+        </button>
+        <button
+          onClick={() => setShowExportModal(true)}
+          title="Exporter les données"
+          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground sm:hidden"
+        >
+          <Download className="h-4 w-4" />
         </button>
 
         <button
@@ -266,6 +284,9 @@ export function Header() {
       )}
       {showImportModal && (
         <ImportDataModal onClose={() => setShowImportModal(false)} />
+      )}
+      {showExportModal && (
+        <ExportModal onClose={() => setShowExportModal(false)} />
       )}
     </header>
   );
