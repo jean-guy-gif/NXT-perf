@@ -43,11 +43,22 @@ export default function EquipesPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-6 rounded bg-muted-foreground/40" />
-          <span>Réalisé</span>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+        {/* Niveau tags */}
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: "rgba(99,102,241,0.15)", color: "#6366f1" }}>AGC</span>
+          <span>Agence</span>
         </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: "rgba(139,92,246,0.15)", color: "#8b5cf6" }}>MGR</span>
+          <span>Manager</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-muted-foreground/60">abc</span>
+          <span>Conseiller</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        {/* Performance */}
         <div className="flex items-center gap-2">
           <div className="h-0.5 w-6 border-t-2 border-dashed border-foreground/60" />
           <span>Objectif</span>

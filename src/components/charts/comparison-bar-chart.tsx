@@ -38,36 +38,109 @@ function CustomTooltipContent({ active, payload }: { active?: boolean; payload?:
   );
 }
 
-// Custom bar shape that draws the objective marker line
+// Custom bar shape that draws the coloured bar for "realise" and a dashed line for "objectif".
+// The bar's dataKey is max(realise, objectif) so the chart domain always includes both values.
 function BarWithObjective(props: {
   x?: number; y?: number; width?: number; height?: number;
-  payload?: EntityBar;
+  payload?: EntityBar & { value: number };
   fill?: string;
-  background?: { height: number };
 }) {
-  const { x = 0, y = 0, width = 0, height = 0, payload, fill, background } = props;
+  const { x = 0, y = 0, width = 0, height = 0, payload, fill } = props;
   if (!payload) return null;
 
-  // Calculate objective line X position using the bar's scale
-  // The bar width represents "realise", we need to find where "objectif" falls
-  const barScale = payload.realise > 0 ? width / payload.realise : 0;
-  const objLineX = x + (payload.objectif * barScale);
+  const maxVal = payload.value; // max(realise, objectif)
+  const scale = maxVal > 0 ? width / maxVal : 0;
+  const realiseWidth = Math.max(0, payload.realise * scale);
+  const objLineX = x + payload.objectif * scale;
 
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} ry={4} />
+      {/* Coloured bar for realise only */}
+      <rect x={x} y={y} width={realiseWidth} height={height} fill={fill} rx={4} ry={4} />
       {/* Objective marker line */}
       {payload.objectif > 0 && (
         <line
           x1={objLineX}
-          y1={y - 2}
+          y1={y - 4}
           x2={objLineX}
-          y2={y + height + 2}
+          y2={y + height + 4}
           stroke="var(--foreground)"
-          strokeWidth={2}
-          strokeDasharray="4 2"
-          opacity={0.6}
+          strokeWidth={2.5}
+          strokeDasharray="4 3"
+          opacity={0.85}
         />
+      )}
+    </g>
+  );
+}
+
+const NIVEAU_TAG: Record<string, { label: string; color: string }> = {
+  agence: { label: "AGC", color: "#6366f1" },
+  manager: { label: "MGR", color: "#8b5cf6" },
+};
+
+function CustomYTick({ x, y, payload, data }: {
+  x?: number; y?: number;
+  payload?: { value: string; index: number };
+  data: (EntityBar & { value: number })[];
+}) {
+  if (!payload) return null;
+  const entry = data[payload.index];
+  if (!entry) return null;
+
+  const tag = NIVEAU_TAG[entry.niveau];
+  const isConseiller = entry.niveau === "conseiller";
+  const textColor = "color-mix(in oklch, currentColor, transparent 45%)";
+  const lightColor = "color-mix(in oklch, currentColor, transparent 60%)";
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {tag ? (
+        <>
+          <rect
+            x={-110}
+            y={-9}
+            width={30}
+            height={18}
+            rx={4}
+            fill={tag.color}
+            opacity={0.15}
+          />
+          <text
+            x={-95}
+            y={1}
+            textAnchor="middle"
+            fontSize={9}
+            fontWeight={600}
+            fill={tag.color}
+            dominantBaseline="middle"
+          >
+            {tag.label}
+          </text>
+          <text
+            x={-75}
+            y={1}
+            textAnchor="start"
+            fontSize={12}
+            fontWeight={entry.niveau === "agence" ? 700 : 500}
+            fill={textColor}
+            dominantBaseline="middle"
+          >
+            {entry.name}
+          </text>
+        </>
+      ) : (
+        <text
+          x={-65}
+          y={1}
+          textAnchor="start"
+          fontSize={11}
+          fontWeight={400}
+          fill={isConseiller ? lightColor : textColor}
+          dominantBaseline="middle"
+        >
+          {entry.name}
+        </text>
       )}
     </g>
   );
@@ -76,14 +149,13 @@ function BarWithObjective(props: {
 export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
   const chartData = data.map(d => ({
     ...d,
-    value: d.realise,
-    label: d.niveau === "conseiller" ? `  ${d.name}` : d.name,
+    value: Math.max(d.realise, d.objectif),
   }));
 
   return (
     <div style={{ width: "100%", height: `${Math.max(400, data.length * 50)}px` }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} layout="vertical" barSize={24} margin={{ left: 120, right: 40 }}>
+        <BarChart data={chartData} layout="vertical" barSize={24} margin={{ left: 130, right: 40 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="color-mix(in oklch, currentColor, transparent 88%)"
@@ -97,11 +169,11 @@ export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
           />
           <YAxis
             type="category"
-            dataKey="label"
+            dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
-            width={110}
+            tick={<CustomYTick data={chartData} />}
+            width={130}
           />
           <Tooltip content={<CustomTooltipContent />} cursor={false} />
           <Bar dataKey="value" shape={<BarWithObjective />}>
