@@ -285,31 +285,66 @@ function ImportDataModal({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-2)]">
+      <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-2)]">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
             <Upload className="h-5 w-5 text-primary" />
             <h2 className="text-base font-semibold text-foreground">
-              Gagnez du temps avec l'import de données
+              Importer vos données existantes dans NXT
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-5">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Importez vos données existantes pour retrouver en un seul endroit vos historiques, vos progressions et vos analyses précédentes.
+            Vous utilisez déjà un CRM, un logiciel immobilier ou des fichiers de suivi pour piloter votre activité ?
           </p>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Pour activer cette fonctionnalité et être accompagné dans la consolidation de vos données, contactez-nous :
+            Nous pouvons importer les données chiffrées utiles à votre analyse afin de reconstituer votre historique et consolider vos indicateurs dans NXT.
           </p>
-          <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
-            <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-            <span className="text-sm font-medium text-primary">contact@nxt-perf.fr</span>
+
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Ce que nous pouvons importer</h3>
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Votre chiffre d'affaires historique</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Vos volumes d'activité</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Votre stock de mandats actifs</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Les noms des propriétaires et le type de mandat</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Vos informations de vente</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Vos acheteurs chauds</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />Plus largement, toutes les données chiffrées et structurées utiles au pilotage</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Ce que NXT peut faire après l'import</h3>
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />Consolider vos données dans un seul environnement</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />Reconstituer vos historiques de performance</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />Analyser vos progressions</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />Comparer vos résultats dans le temps</li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />Générer des analyses et recommandations à partir de vos données réelles</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Un accompagnement simple et sécurisé</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Chaque import est étudié avec notre équipe afin de vérifier la qualité, la structure et la cohérence des données à reprendre.
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-1">Pour activer l'import de vos données :</p>
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium text-primary">contact@nxt-perf.fr</span>
+            </div>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
