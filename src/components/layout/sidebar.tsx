@@ -112,7 +112,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         />
         {!collapsed && (
           <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap overflow-hidden">
-            NXT Profiling
+            NXT Performance
           </span>
         )}
       </Link>
