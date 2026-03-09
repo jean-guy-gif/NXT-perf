@@ -167,6 +167,26 @@ const coachSteps: TourStep[] = [
   },
 ];
 
+const reseauSteps: TourStep[] = [
+  {
+    title: "Bienvenue sur NXT Performance",
+    description: "Cette visite rapide te présente les principales fonctionnalités de ton espace réseau. Tu peux la passer à tout moment.",
+  },
+  {
+    target: '[href="/reseau/dashboard"]',
+    title: "Tableau de bord réseau",
+    description: "Ici, tu visualises la performance consolidée de l'ensemble de tes agences : KPI globaux, classement des agences, alertes et top performers.",
+  },
+  {
+    title: "Comparaison des agences",
+    description: "Tu peux comparer les agences entre elles sur les indicateurs clés : CA, mandats, exclusivité, offres et score global.",
+  },
+  {
+    title: "Détail agence",
+    description: "En cliquant sur une agence, tu accèdes à son détail complet : résultats, équipes, collaborateurs et benchmark vs réseau.",
+  },
+];
+
 export function getTourSteps(role: UserRole): TourStep[] {
   switch (role) {
     case "conseiller":
@@ -177,6 +197,8 @@ export function getTourSteps(role: UserRole): TourStep[] {
       return directeurSteps;
     case "coach":
       return coachSteps;
+    case "reseau":
+      return reseauSteps;
     default:
       return conseillerSteps;
   }
@@ -188,7 +210,8 @@ export function getTourSteps(role: UserRole): TourStep[] {
  * show the tour for their highest-level role.
  */
 export function getTourRole(availableRoles: UserRole[], mainRole: UserRole): UserRole {
-  // Prioritize: directeur > manager > coach > conseiller
+  // Prioritize: reseau > directeur > manager > coach > conseiller
+  if (mainRole === "reseau" || availableRoles.includes("reseau")) return "reseau";
   if (mainRole === "directeur" || availableRoles.includes("directeur")) return "directeur";
   if (mainRole === "coach" || (availableRoles.includes("coach") && !availableRoles.includes("manager"))) return "coach";
   if (mainRole === "manager" || availableRoles.includes("manager")) return "manager";

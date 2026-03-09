@@ -13,7 +13,9 @@ export type ExportScope =
   | "mon-agence"
   | "detail-collaborateurs"
   | "client-coach"
-  | "portefeuille-coach";
+  | "portefeuille-coach"
+  | "mon-reseau"
+  | "reseau-detail-agences";
 
 export type ExportDataType = "all" | "volumes" | "ratios";
 
@@ -178,11 +180,18 @@ export function getScopeOptionsForRole(role: UserRole, isCoach: boolean): ScopeO
     );
   }
 
+  if (role === "reseau") {
+    options.push(
+      { value: "mon-reseau", label: "Vue globale réseau" },
+      { value: "reseau-detail-agences", label: "Détail par agence" },
+    );
+  }
+
   return options;
 }
 
 export function needsDetailLevel(scope: ExportScope): boolean {
-  return ["mon-equipe", "mon-agence", "portefeuille-coach"].includes(scope);
+  return ["mon-equipe", "mon-agence", "portefeuille-coach", "mon-reseau", "reseau-detail-agences"].includes(scope);
 }
 
 // ── Period helpers ──
@@ -531,6 +540,13 @@ function resolveScope(input: ExportInput): User[] {
       return allUsers.filter((u) => allMemberIds.has(u.id));
     }
 
+    case "mon-reseau":
+    case "reseau-detail-agences": {
+      // Réseau scope: all users across all institutions in the network
+      // In the current architecture, the réseau user sees all users
+      return allUsers.filter((u) => u.role === "conseiller" || u.role === "manager" || u.role === "directeur");
+    }
+
     default:
       return [];
   }
@@ -581,6 +597,12 @@ export function buildFilename(config: ExportConfig, user: User): string {
       break;
     case "portefeuille-coach":
       parts.push("coach-portefeuille");
+      break;
+    case "mon-reseau":
+      parts.push("reseau-global");
+      break;
+    case "reseau-detail-agences":
+      parts.push("reseau-detail");
       break;
   }
 

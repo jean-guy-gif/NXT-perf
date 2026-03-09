@@ -15,6 +15,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   manager: "Manager",
   directeur: "Directeur",
   coach: "Coach",
+  reseau: "Réseau",
 };
 
 /** Default role pre-selection based on profile type from /welcome */

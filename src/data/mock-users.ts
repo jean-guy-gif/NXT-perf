@@ -10,7 +10,7 @@ export const mockUsers: User[] = [
     lastName: "Ourmières",
     mainRole: "directeur",
     role: "directeur",
-    availableRoles: ["directeur", "manager", "conseiller", "coach"],
+    availableRoles: ["reseau", "directeur", "manager", "conseiller", "coach"],
     category: "expert",
     teamId: "team-demo",
     createdAt: "2024-01-01T00:00:00Z",

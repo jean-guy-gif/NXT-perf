@@ -23,7 +23,7 @@ export interface DbProfile {
   email: string;
   first_name: string;
   last_name: string;
-  role: "conseiller" | "manager" | "directeur" | "coach";
+  role: "conseiller" | "manager" | "directeur" | "coach" | "reseau";
   available_roles: string[] | null;
   category: "debutant" | "confirme" | "expert";
   avatar_url: string | null;

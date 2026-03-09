@@ -11,15 +11,17 @@ import type { FinancialData, FinancialFieldId } from "@/types/finance";
 import { mockCoachAssignments, mockCoachActions, mockCoachPlans, mockCoachNotes, mockCoachSessions, mockCoachQuickPlans } from "@/data/mock-coach";
 import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
+import { mockNetworkUsers, mockNetworkResults, mockNetworkJanuaryResults, mockNetworkInstitutions, mockNetworks, mockReseauUser, type Network } from "@/data/mock-network";
 
 /** Map user roles to sidebar view IDs */
-export type ViewId = "agent" | "manager" | "directeur" | "coach";
+export type ViewId = "agent" | "manager" | "directeur" | "coach" | "reseau";
 
 export const VIEW_LABELS: Record<ViewId, string> = {
   agent: "Conseiller",
   manager: "Manager",
   directeur: "Agence",
   coach: "Coach",
+  reseau: "Réseau",
 };
 
 export function rolesToViews(roles: UserRole[]): ViewId[] {
@@ -28,6 +30,7 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
   if (roles.includes("manager")) views.push("manager");
   if (roles.includes("directeur")) views.push("directeur");
   if (roles.includes("coach")) views.push("coach");
+  if (roles.includes("reseau")) views.push("reseau");
   return views;
 }
 
@@ -37,6 +40,7 @@ export const DEFAULT_ROUTES: Record<UserRole, string> = {
   manager: "/manager/cockpit",
   directeur: "/directeur/pilotage",
   coach: "/coach/dashboard",
+  reseau: "/reseau/dashboard",
 };
 
 /** Compute visible views: authorizedViews minus user-hidden preferences */
@@ -48,6 +52,8 @@ export function getVisibleViews(availableRoles: UserRole[], hiddenViews: ViewId[
 /** Derive available roles from primary role (hierarchical fallback when DB column is absent) */
 export function deriveAvailableRoles(role: UserRole): UserRole[] {
   switch (role) {
+    case "reseau":
+      return ["reseau"];
     case "directeur":
       return ["directeur", "manager", "conseiller"];
     case "manager":
@@ -110,6 +116,7 @@ interface AppState {
   // ── Onboarding (demo mode) ──
   institutions: Institution[];
   teamInfos: TeamInfo[];
+  networks: Network[];
 
   // ── Coach ──
   coachAssignments: CoachAssignment[];
@@ -212,6 +219,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   removedItems: [],
   institutions: [],
   teamInfos: [],
+  networks: [],
   coachAssignments: [],
   coachActions: [],
   coachPlans: [],
@@ -254,8 +262,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       isDemo: true,
       isAuthenticated: true,
       user: demoUser,
-      users: mockUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
-      results: [...mockJanuaryResults, ...mockResults],
+      users: [
+        ...mockUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
+        ...mockNetworkUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
+        { ...mockReseauUser, onboardingStatus: "DONE" as const },
+      ],
+      results: [...mockJanuaryResults, ...mockResults, ...mockNetworkJanuaryResults, ...mockNetworkResults],
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
       coachAssignments: mockCoachAssignments,
       coachActions: mockCoachActions,
@@ -263,7 +275,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachNotes: mockCoachNotes,
       coachSessions: mockCoachSessions,
       coachQuickPlans: mockCoachQuickPlans,
-      institutions: [{ id: "org-demo", name: "NXT Immobilier", inviteCode: "ORG-DEMO" }],
+      institutions: [
+        { id: "org-demo", name: "NXT Immobilier", inviteCode: "ORG-DEMO" },
+        ...mockNetworkInstitutions,
+      ],
+      networks: mockNetworks,
       hiddenViews: [],
       agencyObjective: { annualCA: 500000, avgActValue: 12000 },
       financialData: { ...mockFinancialData },
@@ -290,6 +306,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       removedItems: [],
       institutions: [],
       teamInfos: [],
+      networks: [],
       hiddenViews: [],
       agencyObjective: null,
       directorCosts: null,

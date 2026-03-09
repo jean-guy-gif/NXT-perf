@@ -31,6 +31,7 @@ const pageTitles: Record<string, string> = {
   "/directeur/pilotage-financier": "Pilotage financier",
   "/directeur/formation-collective": "Formation Collective Agence",
   "/coach/cockpit": "Cockpit Coach",
+  "/reseau/dashboard": "Tableau de bord Réseau",
 };
 
 export function Header() {

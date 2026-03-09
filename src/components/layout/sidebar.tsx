@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Wallet,
   HeartHandshake,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -31,6 +32,7 @@ interface NavItem {
   managerOnly?: boolean;
   directorOnly?: boolean;
   coachOnly?: boolean;
+  networkOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -62,6 +64,7 @@ const navItems: NavItem[] = [
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage financier", directorOnly: true },
   { href: "/directeur/formation-collective", icon: BookOpen, label: "Formation Collective", directorOnly: true },
   { href: "/coach/dashboard", icon: HeartHandshake, label: "Tableau de bord", coachOnly: true },
+  { href: "/reseau/dashboard", icon: Network, label: "Tableau de bord", networkOnly: true },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
@@ -77,7 +80,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const visibleViews = getVisibleViews(availableRoles, hiddenViews);
 
   const advisorItems = visibleViews.includes("agent")
-    ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && item.href !== "/parametres")
+    ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && !item.networkOnly && item.href !== "/parametres")
     : [];
   const managerItems = visibleViews.includes("manager")
     ? navItems.filter((item) => item.managerOnly)
@@ -87,6 +90,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     : [];
   const coachItems = visibleViews.includes("coach")
     ? navItems.filter((item) => item.coachOnly)
+    : [];
+  const networkItems = visibleViews.includes("reseau")
+    ? navItems.filter((item) => item.networkOnly)
     : [];
   const settingsItem = navItems.find((item) => item.href === "/parametres")!;
 
@@ -148,6 +154,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {coachItems.length > 0 && (
         <SidebarSection label="Coach" collapsed={collapsed}>
           {coachItems.map((item) => (
+            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </SidebarSection>
+      )}
+
+      {/* Réseau section */}
+      {networkItems.length > 0 && (
+        <SidebarSection label="Réseau" collapsed={collapsed}>
+          {networkItems.map((item) => (
             <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
           ))}
         </SidebarSection>
