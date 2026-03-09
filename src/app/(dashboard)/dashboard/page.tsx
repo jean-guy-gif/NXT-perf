@@ -31,6 +31,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
+import { useYTDResults } from "@/hooks/use-ytd-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { formatCurrency } from "@/lib/formatters";
 import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
@@ -155,6 +156,7 @@ export default function DashboardPage() {
 function DashboardContent() {
   const { user } = useUser();
   const results = useResults();
+  const ytdResults = useYTDResults();
   const { computedRatios, ratioConfigs } = useRatios();
   const isDemo = useAppStore((s) => s.isDemo);
   const searchParams = useSearchParams();
@@ -218,6 +220,34 @@ function DashboardContent() {
       ? Math.round(
           (vendeurs.mandats.filter((m) => m.type === "exclusif").length /
             vendeurs.mandats.length) *
+            100
+        )
+      : 0;
+
+  // ── YTD (year-to-date) data for Vue d'ensemble ──
+  const ytd = ytdResults ?? results;
+  const ytdVendeurs = ytd.vendeurs;
+  const ytdAcheteurs = ytd.acheteurs;
+  const ytdVentes = ytd.ventes;
+
+  const ytdMandatData = [
+    {
+      name: "Exclusifs",
+      value: ytdVendeurs.mandats.filter((m) => m.type === "exclusif").length,
+      color: NXT_COLORS.green,
+    },
+    {
+      name: "Simples",
+      value: ytdVendeurs.mandats.filter((m) => m.type === "simple").length,
+      color: NXT_COLORS.yellow,
+    },
+  ];
+
+  const ytdExclusiviteRate =
+    ytdVendeurs.mandats.length > 0
+      ? Math.round(
+          (ytdVendeurs.mandats.filter((m) => m.type === "exclusif").length /
+            ytdVendeurs.mandats.length) *
             100
         )
       : 0;
@@ -386,11 +416,16 @@ function DashboardContent() {
       {/* ========== TAB: VUE D'ENSEMBLE ========== */}
       {activeTab === "overview" && (
         <>
+          {/* YTD period label */}
+          <p className="text-sm text-muted-foreground">
+            Cumul depuis le 1er janvier {new Date().getFullYear()}
+          </p>
+
           {/* KPI Cards Row */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               title="Estimations réalisées"
-              value={vendeurs.estimationsRealisees}
+              value={ytdVendeurs.estimationsRealisees}
               trend={{ value: 12.5, isPositive: true }}
               icon={ClipboardCheck}
               status="ok"
@@ -398,7 +433,7 @@ function DashboardContent() {
             />
             <KpiCard
               title="Mandats signés"
-              value={vendeurs.mandatsSignes}
+              value={ytdVendeurs.mandatsSignes}
               trend={{ value: 8.3, isPositive: true }}
               icon={FileSignature}
               status="ok"
@@ -406,7 +441,7 @@ function DashboardContent() {
             />
             <KpiCard
               title="Compromis signés"
-              value={acheteurs.compromisSignes}
+              value={ytdAcheteurs.compromisSignes}
               trend={{ value: 4.5, isPositive: true }}
               icon={Handshake}
               status="ok"
@@ -414,7 +449,7 @@ function DashboardContent() {
             />
             <KpiCard
               title="Chiffre d'affaires"
-              value={formatCurrency(ventes.chiffreAffaires)}
+              value={formatCurrency(ytdVentes.chiffreAffaires)}
               trend={{ value: 15.2, isPositive: true }}
               icon={DollarSign}
               status="ok"
@@ -433,13 +468,13 @@ function DashboardContent() {
                     Répartition des mandats
                   </h3>
                   <DonutChart
-                    data={mandatData}
-                    centerValue={`${vendeurs.mandatsSignes}`}
+                    data={ytdMandatData}
+                    centerValue={`${ytdVendeurs.mandatsSignes}`}
                     centerLabel="Mandats"
                     height={220}
                   />
                   <div className="mt-3 flex justify-center gap-4">
-                    {mandatData.map((d) => (
+                    {ytdMandatData.map((d) => (
                       <div key={d.name} className="flex items-center gap-2">
                         <div
                           className="h-2.5 w-2.5 rounded-full"
@@ -462,10 +497,10 @@ function DashboardContent() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          CA Mensuel
+                          CA Cumulé
                         </p>
                         <p className="text-xl font-bold text-foreground">
-                          {formatCurrency(ventes.chiffreAffaires)}
+                          {formatCurrency(ytdVentes.chiffreAffaires)}
                         </p>
                       </div>
                       <span className="ml-auto rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-500">
@@ -484,12 +519,12 @@ function DashboardContent() {
                           Taux d&apos;exclusivité
                         </p>
                         <p className="text-xl font-bold text-foreground">
-                          {exclusiviteRate}%
+                          {ytdExclusiviteRate}%
                         </p>
                       </div>
                     </div>
                     <ProgressBar
-                      value={exclusiviteRate}
+                      value={ytdExclusiviteRate}
                       status="ok"
                       size="sm"
                       showValue={false}
@@ -548,15 +583,15 @@ function DashboardContent() {
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-green-500/10 p-3">
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-green-500">+4,5%</span> Gagné
+                      <span className="text-green-500">CA cumulé</span>
                     </p>
                     <p className="mt-1 text-lg font-bold text-green-500">
-                      {formatCurrency(ventes.chiffreAffaires)}
+                      {formatCurrency(ytdVentes.chiffreAffaires)}
                     </p>
                   </div>
                   <div className="rounded-lg bg-red-500/10 p-3">
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-red-500">Objectif</span>
+                      <span className="text-red-500">Objectif annuel</span>
                     </p>
                     <p className="mt-1 text-lg font-bold text-red-500">
                       {formatCurrency(120000)}
