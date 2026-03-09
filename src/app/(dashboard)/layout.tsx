@@ -10,6 +10,8 @@ import { useAppStore } from "@/stores/app-store";
 import { SupabaseProvider } from "@/components/providers/supabase-provider";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { GuidedTour } from "@/components/tour/guided-tour";
+import { getTourStatus, getTourSteps, getTourRole } from "@/lib/guided-tour";
 
 const SIDEBAR_KEY = "nxt-sidebar-collapsed";
 
@@ -28,6 +30,9 @@ export default function DashboardLayout({
 
   // Sidebar collapsed state — default collapsed (true) to match current UX
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+
+  // Guided tour state
+  const [showTour, setShowTour] = useState(false);
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -103,6 +108,24 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, isDemo, loading, user, router]);
 
+  // Auto-launch guided tour on first visit after account creation
+  useEffect(() => {
+    if (!isAuthenticated || loading || !user) return;
+    // Small delay to let the dashboard render first
+    const timer = setTimeout(() => {
+      const tourRole = getTourRole(user.availableRoles, user.mainRole);
+      const status = getTourStatus(tourRole);
+      if (status === "unseen") {
+        setShowTour(true);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, loading, user]);
+
+  // Tour data
+  const tourRole = user ? getTourRole(user.availableRoles, user.mainRole) : "conseiller";
+  const tourSteps = getTourSteps(tourRole);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -158,6 +181,14 @@ export default function DashboardLayout({
       </div>
 
       <MobileSidebar />
+
+      {showTour && (
+        <GuidedTour
+          steps={tourSteps}
+          role={tourRole}
+          onComplete={() => setShowTour(false)}
+        />
+      )}
     </div>
   );
 }

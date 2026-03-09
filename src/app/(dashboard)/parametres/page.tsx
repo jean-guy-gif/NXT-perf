@@ -12,8 +12,10 @@ import {
   CheckCircle,
   AlertTriangle,
   HeartHandshake,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
 
 export default function ParametresPage() {
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
@@ -134,6 +136,30 @@ export default function ParametresPage() {
           </button>
         </div>
       )}
+
+      {/* Visite guidée */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Visite guidée</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Revoir la présentation des fonctionnalités de votre espace.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (!user) return;
+              const role = getTourRole(user.availableRoles, user.mainRole);
+              resetTourStatus(role);
+              window.location.reload();
+            }}
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Play className="h-3.5 w-3.5" />
+            Relancer la visite
+          </button>
+        </div>
+      </div>
 
       {/* Thresholds Table */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
