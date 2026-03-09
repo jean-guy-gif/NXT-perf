@@ -454,6 +454,355 @@ export const mockResults: PeriodResults[] = [
   },
 ];
 
+// ── January 2026 results (for YTD aggregation) ──
+export const mockJanuaryResults: PeriodResults[] = [
+  // Manager (Jean-Guy Dupont)
+  {
+    id: "r-manager-jan",
+    userId: "m-demo",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 30, contactsTotaux: 45, rdvEstimation: 4,
+      informationsVente: [
+        { id: "iv-mj1", nom: "Mme Arnaud", commentaire: "Appartement T4 centre", statut: "deale", profiled: true },
+        { id: "iv-mj2", nom: "M. Chevalier", commentaire: "Maison de ville", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
+      mandats: [
+        { id: "mmj1", nomVendeur: "Mme Arnaud", type: "exclusif", profiled: true },
+        { id: "mmj2", nomVendeur: "M. Chevalier", type: "exclusif" },
+        { id: "mmj3", nomVendeur: "M. Tessier", type: "simple" },
+      ],
+      rdvSuivi: 6, requalificationSimpleExclusif: 1, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acmj1", nom: "M. Blanc", commentaire: "Budget 600k, villa", statut: "deale" },
+        { id: "acmj2", nom: "Couple Renard", commentaire: "Investissement locatif", statut: "deale" },
+      ],
+      acheteursSortisVisite: 6, nombreVisites: 10, offresRecues: 3, compromisSignes: 2,
+    },
+    ventes: { actesSignes: 1, chiffreAffaires: 22000, delaiMoyenVente: 55 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Catherine Durand (expert)
+  {
+    id: "r3-jan",
+    userId: "u-demo-3",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 35, contactsTotaux: 55, rdvEstimation: 6,
+      informationsVente: [
+        { id: "iv6j", nom: "M. Dubois", commentaire: "Résidence principale, retraite", statut: "deale" },
+        { id: "iv6jb", nom: "Mme Colin", commentaire: "Investissement locatif", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 6, estimationsRealisees: 6, mandatsSignes: 4,
+      mandats: [
+        { id: "m19j", nomVendeur: "M. Dubois", type: "exclusif" },
+        { id: "m20j", nomVendeur: "Mme Colin", type: "exclusif" },
+        { id: "m21j", nomVendeur: "M. Girard", type: "exclusif" },
+        { id: "m22j", nomVendeur: "Mme Petit", type: "simple" },
+      ],
+      rdvSuivi: 8, requalificationSimpleExclusif: 1, baissePrix: 1,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "ac6j", nom: "M. Moreau", commentaire: "Budget 450k", statut: "deale" },
+        { id: "ac6jb", nom: "Couple Lefevre", commentaire: "Maison 4p", statut: "deale" },
+      ],
+      acheteursSortisVisite: 7, nombreVisites: 14, offresRecues: 3, compromisSignes: 2,
+    },
+    ventes: { actesSignes: 2, chiffreAffaires: 35000, delaiMoyenVente: 48 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Bob Bernard (confirmé)
+  {
+    id: "r2-jan",
+    userId: "u-demo-2",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 28, contactsTotaux: 42, rdvEstimation: 4,
+      informationsVente: [
+        { id: "iv4j", nom: "M. Duval", commentaire: "Déménagement professionnel", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
+      mandats: [
+        { id: "m3j", nomVendeur: "M. Duval", type: "exclusif" },
+        { id: "m4j", nomVendeur: "Mme Roux", type: "exclusif" },
+        { id: "m5j", nomVendeur: "M. Noel", type: "simple" },
+      ],
+      rdvSuivi: 6, requalificationSimpleExclusif: 1, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "ac3j", nom: "M. Lemoine", commentaire: "Budget 400k", statut: "deale" },
+        { id: "ac4j", nom: "Mlle Garnier", commentaire: "Premier achat T3", statut: "en_cours" },
+      ],
+      acheteursSortisVisite: 5, nombreVisites: 11, offresRecues: 3, compromisSignes: 2,
+    },
+    ventes: { actesSignes: 1, chiffreAffaires: 18000, delaiMoyenVente: 62 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Alice Martin (confirmé)
+  {
+    id: "r1-jan",
+    userId: "u-demo-1",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 25, contactsTotaux: 40, rdvEstimation: 2,
+      informationsVente: [
+        { id: "iv1j", nom: "M. Fernandez", commentaire: "Succession, maison", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
+      mandats: [
+        { id: "m1j", nomVendeur: "M. Fernandez", type: "exclusif" },
+      ],
+      rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "ac1j", nom: "Mme Gauthier", commentaire: "Budget 280k, T3", statut: "deale" },
+      ],
+      acheteursSortisVisite: 3, nombreVisites: 8, offresRecues: 1, compromisSignes: 1,
+    },
+    ventes: { actesSignes: 1, chiffreAffaires: 9800, delaiMoyenVente: 72 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Sophie Lemaire (manager team-beta)
+  {
+    id: "r-m2-jan",
+    userId: "m-demo-2",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 22, contactsTotaux: 38, rdvEstimation: 3,
+      informationsVente: [
+        { id: "iv-s1j", nom: "Mme Boucher", commentaire: "Vente T2 centre", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
+      mandats: [
+        { id: "ms1j", nomVendeur: "Mme Boucher", type: "exclusif" },
+        { id: "ms2j", nomVendeur: "M. Picard", type: "simple" },
+      ],
+      rdvSuivi: 5, requalificationSimpleExclusif: 0, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acs1j", nom: "M. Brunet", commentaire: "Budget 350k", statut: "deale" },
+      ],
+      acheteursSortisVisite: 4, nombreVisites: 8, offresRecues: 2, compromisSignes: 1,
+    },
+    ventes: { actesSignes: 1, chiffreAffaires: 14000, delaiMoyenVente: 68 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Lucas Morel (team-beta, confirmé)
+  {
+    id: "r-b1-jan",
+    userId: "u-demo-b1",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 18, contactsTotaux: 32, rdvEstimation: 2,
+      informationsVente: [
+        { id: "iv-b1j", nom: "M. Mercier", commentaire: "Retraite, pavillon", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
+      mandats: [{ id: "mb1j", nomVendeur: "M. Mercier", type: "exclusif" }],
+      rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [{ id: "acb1j", nom: "Mlle Dupuis", commentaire: "Budget 200k", statut: "deale" }],
+      acheteursSortisVisite: 2, nombreVisites: 6, offresRecues: 1, compromisSignes: 1,
+    },
+    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Marine Roche (team-beta, expert)
+  {
+    id: "r-b2-jan",
+    userId: "u-demo-b2",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 35, contactsTotaux: 52, rdvEstimation: 6,
+      informationsVente: [
+        { id: "iv-b2aj", nom: "M. Laurent", commentaire: "Villa avec piscine", statut: "deale" },
+        { id: "iv-b2bj", nom: "Mme Roussel", commentaire: "Appartement haussmannien", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 6, estimationsRealisees: 5, mandatsSignes: 4,
+      mandats: [
+        { id: "mb3j", nomVendeur: "M. Laurent", type: "exclusif" },
+        { id: "mb4j", nomVendeur: "Mme Roussel", type: "exclusif" },
+        { id: "mb5j", nomVendeur: "M. Henry", type: "exclusif" },
+        { id: "mb6j", nomVendeur: "Mme David", type: "simple" },
+      ],
+      rdvSuivi: 8, requalificationSimpleExclusif: 1, baissePrix: 1,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acb2j", nom: "SCI Horizon", commentaire: "Budget 700k", statut: "deale" },
+        { id: "acb3j", nom: "M. et Mme Blanc", commentaire: "Résidence principale", statut: "deale" },
+      ],
+      acheteursSortisVisite: 7, nombreVisites: 13, offresRecues: 4, compromisSignes: 3,
+    },
+    ventes: { actesSignes: 2, chiffreAffaires: 38000, delaiMoyenVente: 50 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Théo Vasseur (team-beta, junior)
+  {
+    id: "r-b3-jan",
+    userId: "u-demo-b3",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 12, contactsTotaux: 28, rdvEstimation: 2,
+      informationsVente: [
+        { id: "iv-t1j", nom: "Mme Morin", commentaire: "T2 à vendre", statut: "en_cours" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
+      mandats: [{ id: "mt1j", nomVendeur: "Mme Morin", type: "simple" }],
+      rdvSuivi: 1, requalificationSimpleExclusif: 0, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "act1j", nom: "M. Berger", commentaire: "Budget 120k, studio", statut: "en_cours" },
+      ],
+      acheteursSortisVisite: 1, nombreVisites: 4, offresRecues: 0, compromisSignes: 0,
+    },
+    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Marc Fontaine (manager team-gamma)
+  {
+    id: "r-m3-jan",
+    userId: "m-demo-3",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 28, contactsTotaux: 42, rdvEstimation: 5,
+      informationsVente: [
+        { id: "iv-marc1j", nom: "Mme Fournier", commentaire: "Départ étranger", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 5, estimationsRealisees: 4, mandatsSignes: 3,
+      mandats: [
+        { id: "mf1j", nomVendeur: "Mme Fournier", type: "exclusif" },
+        { id: "mf2j", nomVendeur: "M. Masson", type: "exclusif" },
+        { id: "mf3j", nomVendeur: "Mme Clement", type: "simple" },
+      ],
+      rdvSuivi: 5, requalificationSimpleExclusif: 1, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acm3aj", nom: "M. Perrin", commentaire: "Investisseur, 2 lots", statut: "deale" },
+      ],
+      acheteursSortisVisite: 5, nombreVisites: 9, offresRecues: 3, compromisSignes: 2,
+    },
+    ventes: { actesSignes: 2, chiffreAffaires: 24000, delaiMoyenVente: 58 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Julie Carpentier (team-gamma, confirmé)
+  {
+    id: "r-g1-jan",
+    userId: "u-demo-g1",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 24, contactsTotaux: 38, rdvEstimation: 3,
+      informationsVente: [
+        { id: "iv-g1j", nom: "M. Bonnet", commentaire: "Maison de campagne", statut: "deale" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
+      mandats: [
+        { id: "mg1j", nomVendeur: "M. Bonnet", type: "exclusif" },
+        { id: "mg2j", nomVendeur: "Mme Marchand", type: "simple" },
+      ],
+      rdvSuivi: 4, requalificationSimpleExclusif: 0, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acg1j", nom: "Couple Roche", commentaire: "Budget 300k, T3", statut: "deale" },
+      ],
+      acheteursSortisVisite: 4, nombreVisites: 9, offresRecues: 2, compromisSignes: 1,
+    },
+    ventes: { actesSignes: 1, chiffreAffaires: 15000, delaiMoyenVente: 65 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+  // Nicolas Mercier (team-gamma, junior)
+  {
+    id: "r-g2-jan",
+    userId: "u-demo-g2",
+    periodType: "month",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-31",
+    prospection: {
+      contactsEntrants: 14, contactsTotaux: 25, rdvEstimation: 3,
+      informationsVente: [
+        { id: "iv-g3j", nom: "Mme Lopez", commentaire: "T2 investissement", statut: "en_cours" },
+      ],
+    },
+    vendeurs: {
+      rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 1,
+      mandats: [
+        { id: "mg4j", nomVendeur: "Mme Lopez", type: "exclusif" },
+      ],
+      rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursChauds: [
+        { id: "acg3j", nom: "M. Robin", commentaire: "Budget 160k, T2", statut: "en_cours" },
+      ],
+      acheteursSortisVisite: 2, nombreVisites: 4, offresRecues: 1, compromisSignes: 0,
+    },
+    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-31T10:00:00Z",
+  },
+];
+
 // Weekly results for u-demo-1 (current week)
 export const mockWeeklyResults: PeriodResults = {
   id: "r1-week",

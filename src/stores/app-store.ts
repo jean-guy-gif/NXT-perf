@@ -4,7 +4,7 @@ import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { DbProfile } from "@/types/database";
 import { mockUsers } from "@/data/mock-users";
-import { mockResults } from "@/data/mock-results";
+import { mockResults, mockJanuaryResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 import type { CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
 import { mockCoachAssignments, mockCoachActions, mockCoachPlans } from "@/data/mock-coach";
@@ -233,7 +233,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       isAuthenticated: true,
       user: demoUser,
       users: mockUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
-      results: mockResults,
+      results: [...mockJanuaryResults, ...mockResults],
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
       coachAssignments: mockCoachAssignments,
       coachActions: mockCoachActions,
