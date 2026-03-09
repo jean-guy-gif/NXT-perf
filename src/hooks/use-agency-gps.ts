@@ -3,10 +3,13 @@
 import { useMemo, useState } from "react";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { useAppStore, type DirectorCosts } from "@/stores/app-store";
-import { CATEGORY_OBJECTIVES, type GPSTheme } from "@/lib/constants";
+import { CATEGORY_OBJECTIVES, GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
 import { computeAllRatios } from "@/lib/ratios";
+import { aggregateResults } from "@/lib/aggregate-results";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
+
+export type PilotPeriod = "mois" | "annee";
 
 // ── Types ──
 
@@ -46,6 +49,17 @@ export interface AgencyGPSResult {
   ecart: number;
   avancement: number;
   projection: number;
+}
+
+export interface AgencyOverviewItem {
+  theme: GPSTheme;
+  label: string;
+  realise: number;
+  objectif: number;
+  pct: number;
+  status: PerformanceStatus;
+  isCA: boolean;
+  isPercent: boolean;
 }
 
 export interface TeamDetail {
@@ -134,36 +148,108 @@ function avgRealiseExclu(conseillers: User[], allResults: PeriodResults[]): numb
 
 export function useAgencyGPS() {
   const { teams, allConseillers, allResults, ratioConfigs, orgStats } = useDirectorData();
+  const storeResults = useAppStore(s => s.results);
   const agencyObjective = useAppStore(s => s.agencyObjective);
   const directorCosts = useAppStore(s => s.directorCosts);
   const user = useAppStore(s => s.user);
 
   const [theme, setTheme] = useState<GPSTheme>("mandats");
+  const [period, setPeriod] = useState<PilotPeriod>("mois");
+
+  // ── Compute latest-month results (one per user) ──
+  const latestResults = useMemo<PeriodResults[]>(() => {
+    const byUser = new Map<string, PeriodResults>();
+    for (const r of storeResults) {
+      const prev = byUser.get(r.userId);
+      if (!prev || r.periodStart > prev.periodStart) byUser.set(r.userId, r);
+    }
+    return Array.from(byUser.values());
+  }, [storeResults]);
+
+  // ── Compute YTD aggregated results (one per user) ──
+  const currentYear = new Date().getFullYear();
+  const jan1 = `${currentYear}-01-01`;
+
+  const ytdResults = useMemo<PeriodResults[]>(() => {
+    const byUser = new Map<string, PeriodResults[]>();
+    for (const r of storeResults) {
+      if (r.periodType === "month" && r.periodStart >= jan1) {
+        if (!byUser.has(r.userId)) byUser.set(r.userId, []);
+        byUser.get(r.userId)!.push(r);
+      }
+    }
+    const agg: PeriodResults[] = [];
+    for (const [, userResults] of byUser) {
+      const a = aggregateResults(userResults);
+      if (a) agg.push(a);
+    }
+    return agg;
+  }, [storeResults, jan1]);
+
+  // ── Count distinct months in data (for YTD objective multiplier) ──
+  const monthCount = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of storeResults) {
+      if (r.periodType === "month" && r.periodStart >= jan1) months.add(r.periodStart.slice(0, 7));
+    }
+    return Math.max(1, months.size);
+  }, [storeResults, jan1]);
+
+  // ── Effective results based on period ──
+  const effectiveResults = period === "annee" ? ytdResults : latestResults;
+  const objMultiplier = period === "annee" ? monthCount : 1;
+
+  function sumObjScaled(conseillers: User[], t: GPSTheme): number {
+    return sumObjectif(conseillers, t) * (t === "exclusivite" ? 1 : objMultiplier);
+  }
 
   const agencyGPS = useMemo<AgencyGPSResult>(() => {
     const isExclu = theme === "exclusivite";
     const realise = isExclu
-      ? avgRealiseExclu(allConseillers, allResults)
-      : sumRealise(allConseillers, allResults, theme);
-    const objectif = sumObjectif(allConseillers, theme);
+      ? avgRealiseExclu(allConseillers, effectiveResults)
+      : sumRealise(allConseillers, effectiveResults, theme);
+    const objectif = sumObjScaled(allConseillers, theme);
     const ecart = realise - objectif;
     const avancement = objectif > 0 ? Math.round((realise / objectif) * 100) : 0;
-    const projection = realise * 12;
+    const projection = period === "annee" ? Math.round(realise / monthCount * 12) : realise * 12;
     return { objectif, realise, ecart, avancement, projection };
-  }, [theme, allConseillers, allResults]);
+  }, [theme, allConseillers, effectiveResults, period, objMultiplier, monthCount]);
+
+  const ALL_THEMES: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];
+
+  const agencyOverview = useMemo<AgencyOverviewItem[]>(() => {
+    return ALL_THEMES.map(t => {
+      const isExclu = t === "exclusivite";
+      const realise = isExclu
+        ? avgRealiseExclu(allConseillers, effectiveResults)
+        : sumRealise(allConseillers, effectiveResults, t);
+      const objectif = sumObjScaled(allConseillers, t);
+      const pct = objectif > 0 ? Math.round((realise / objectif) * 100) : 0;
+      return {
+        theme: t,
+        label: GPS_THEME_LABELS[t],
+        realise,
+        objectif,
+        pct,
+        status: getStatus(pct),
+        isCA: t === "ca_compromis" || t === "ca_acte",
+        isPercent: t === "exclusivite",
+      };
+    });
+  }, [allConseillers, effectiveResults, objMultiplier]);
 
   const teamDetails = useMemo<TeamDetail[]>(() => {
     return teams.map(t => {
       const isExclu = theme === "exclusivite";
       const realise = isExclu
-        ? avgRealiseExclu(t.agents, allResults)
-        : sumRealise(t.agents, allResults, theme);
-      const objectif = sumObjectif(t.agents, theme);
+        ? avgRealiseExclu(t.agents, effectiveResults)
+        : sumRealise(t.agents, effectiveResults, theme);
+      const objectif = sumObjScaled(t.agents, theme);
       const ecart = realise - objectif;
       const pct = objectif > 0 ? Math.round((realise / objectif) * 100) : 0;
       return { teamId: t.teamId, teamName: t.teamName, realise, objectif, ecart, pct, status: getStatus(pct) };
     });
-  }, [theme, teams, allResults]);
+  }, [theme, teams, effectiveResults, objMultiplier]);
 
   const entityBars = useMemo<EntityBar[]>(() => {
     const bars: EntityBar[] = [];
@@ -241,7 +327,11 @@ export function useAgencyGPS() {
   return {
     theme,
     setTheme,
+    period,
+    setPeriod,
+    monthCount,
     agencyGPS,
+    agencyOverview,
     teamDetails,
     entityBars,
     projectionData,

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Compass, ChevronDown, ChevronUp } from "lucide-react";
 import { useAgencyGPS } from "@/hooks/use-agency-gps";
+import type { AgencyOverviewItem, PilotPeriod } from "@/hooks/use-agency-gps";
 import { useAppStore } from "@/stores/app-store";
 import { GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
@@ -21,8 +22,22 @@ function fmt(value: number, theme: GPSTheme) {
   return formatNumber(value);
 }
 
+function fmtOverview(item: AgencyOverviewItem) {
+  if (item.isCA) return formatCurrency(item.realise);
+  if (item.isPercent) return `${item.realise} %`;
+  return formatNumber(item.realise);
+}
+
+function fmtOverviewObj(item: AgencyOverviewItem) {
+  if (item.isCA) return formatCurrency(item.objectif);
+  if (item.isPercent) return `${item.objectif} %`;
+  return formatNumber(item.objectif);
+}
+
 export default function PilotageAgencePage() {
-  const { theme, setTheme, agencyGPS, teamDetails, agencyObjective } = useAgencyGPS();
+  const { theme, setTheme, period, setPeriod, monthCount, agencyGPS, agencyOverview, teamDetails, agencyObjective } = useAgencyGPS();
+  const periodLabel = period === "annee" ? `cumul ${monthCount} mois` : "ce mois";
+  const periodObjLabel = period === "annee" ? `objectif ${monthCount} mois` : "objectif mensuel";
   const setAgencyObjective = useAppStore(s => s.setAgencyObjective);
   const [showSaisie, setShowSaisie] = useState(!agencyObjective);
   const [annualCA, setAnnualCA] = useState(agencyObjective?.annualCA ?? 0);
@@ -46,7 +61,44 @@ export default function PilotageAgencePage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">Pilotage Agence</h1>
-          <p className="text-sm text-muted-foreground">GPS de performance agence</p>
+          <p className="text-sm text-muted-foreground">GPS de performance agence — données mensuelles</p>
+        </div>
+      </div>
+
+      {/* ── Vue d'ensemble ── */}
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="text-sm font-semibold">Vue d'ensemble agence <span className="font-normal text-muted-foreground">— {periodLabel}</span></h3>
+          <div className="flex rounded-lg border border-border text-xs">
+            <button onClick={() => setPeriod("mois")} className={cn("rounded-l-lg px-3 py-1 font-medium transition-colors", period === "mois" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>Mois</button>
+            <button onClick={() => setPeriod("annee")} className={cn("rounded-r-lg px-3 py-1 font-medium transition-colors", period === "annee" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>Année</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-px bg-border sm:grid-cols-5 lg:grid-cols-9">
+          {agencyOverview.map(item => (
+            <button
+              key={item.theme}
+              onClick={() => setTheme(item.theme)}
+              className={cn(
+                "flex flex-col gap-1 bg-card px-3 py-3 text-left transition-colors hover:bg-muted/50",
+                theme === item.theme && "ring-2 ring-inset ring-primary"
+              )}
+            >
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</span>
+              <span className="text-lg font-bold">{fmtOverview(item)}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">obj. {fmtOverviewObj(item)}</span>
+                <span className={cn(
+                  "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  item.status === "ok" ? "bg-green-500/10 text-green-500" :
+                  item.status === "warning" ? "bg-orange-500/10 text-orange-500" :
+                  "bg-red-500/10 text-red-500"
+                )}>
+                  {item.pct}%
+                </span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -118,14 +170,17 @@ export default function PilotageAgencePage() {
 
       {/* GPS Card */}
       <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 text-lg font-semibold">{GPS_THEME_LABELS[theme]}</h2>
+        <div className="mb-4 flex items-baseline gap-2">
+          <h2 className="text-lg font-semibold">{GPS_THEME_LABELS[theme]}</h2>
+          <span className="text-xs text-muted-foreground">— {periodLabel}</span>
+        </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p className="text-xs text-muted-foreground">Objectif agence</p>
+            <p className="text-xs text-muted-foreground">{periodObjLabel}</p>
             <p className="text-xl font-bold">{fmt(gps.objectif, theme)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Réalisé</p>
+            <p className="text-xs text-muted-foreground">Réalisé {periodLabel}</p>
             <p className="text-xl font-bold">{fmt(gps.realise, theme)}</p>
           </div>
           <div>
@@ -152,7 +207,7 @@ export default function PilotageAgencePage() {
       {/* Team detail table */}
       <div className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold">Détail par équipe</h3>
+          <h3 className="text-sm font-semibold">Détail par équipe <span className="font-normal text-muted-foreground">— {GPS_THEME_LABELS[theme]}, {periodLabel}</span></h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
