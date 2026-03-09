@@ -263,6 +263,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachNotes: mockCoachNotes,
       coachSessions: mockCoachSessions,
       coachQuickPlans: mockCoachQuickPlans,
+      institutions: [{ id: "org-demo", name: "NXT Immobilier", inviteCode: "ORG-DEMO" }],
       hiddenViews: [],
       agencyObjective: { annualCA: 500000, avgActValue: 12000 },
       financialData: { ...mockFinancialData },

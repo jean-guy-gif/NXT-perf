@@ -120,7 +120,9 @@ function InstitutionCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const users = useAppStore((s) => s.users);
+  const institutions = useAppStore((s) => s.institutions);
   const updateExcludedManagers = useAppStore((s) => s.updateExcludedManagers);
+  const institutionName = institutions.find((i) => i.id === targetId)?.name ?? "NXT Immobilier";
 
   // Filter summaries belonging to this institution
   const members = summaries.filter(
@@ -154,7 +156,7 @@ function InstitutionCard({
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <Building2 className="h-4 w-4 text-muted-foreground" />
-        <p className="font-medium text-sm">Organisation</p>
+        <p className="font-medium text-sm">{institutionName}</p>
         {excludedCount > 0 && (
           <span className="ml-auto rounded-full bg-orange-500/10 text-orange-500 px-2 py-0.5 text-xs font-medium inline-flex items-center gap-1">
             <ShieldMinus className="h-3 w-3" />

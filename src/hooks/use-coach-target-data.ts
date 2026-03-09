@@ -3,9 +3,12 @@
 import { useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { computeAllRatios } from "@/lib/ratios";
+import { extractVolumes } from "@/lib/coach";
+import type { ClientVolumes } from "@/lib/coach";
 import type { CoachTargetType, CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
 import type { User } from "@/types/user";
 import type { ComputedRatio } from "@/types/ratios";
+import type { PeriodResults } from "@/types/results";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -31,18 +34,22 @@ export interface CoachTargetData {
   weakKpis: ComputedRatio[];
 
   // INSTITUTION scope
+  institutionName: string | null;
   agencyKpis: { totalCA: number; totalActes: number; avgScore: number; alertCount: number } | null;
   managersAggregate: Array<{
     user: User;
     teamSize: number;
     avgScore: number;
     alertCount: number;
+    ratios: ComputedRatio[];
+    volumes: ClientVolumes | null;
   }> | null;
   advisorsAggregate: Array<{
     user: User;
     avgScore: number;
     alertCount: number;
     ratios: ComputedRatio[];
+    volumes: ClientVolumes | null;
   }> | null;
 
   // MANAGER scope
@@ -53,6 +60,7 @@ export interface CoachTargetData {
     avgScore: number;
     alertCount: number;
     ratios: ComputedRatio[];
+    volumes: ClientVolumes | null;
   }> | null;
 
   // AGENT scope
@@ -68,6 +76,7 @@ const NULL_RESULT: CoachTargetData = {
   plans: [],
   actions: [],
   weakKpis: [],
+  institutionName: null,
   agencyKpis: null,
   managersAggregate: null,
   advisorsAggregate: null,
@@ -88,6 +97,7 @@ export function useCoachTargetData(
   const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const institutions = useAppStore((s) => s.institutions);
   const coachAssignments = useAppStore((s) => s.coachAssignments);
   const coachActions = useAppStore((s) => s.coachActions);
   const coachPlans = useAppStore((s) => s.coachPlans);
@@ -119,10 +129,20 @@ export function useCoachTargetData(
           p.status === "DRAFT" || p.status === "VALIDATED" || p.status === "ACTIVE"
       ) ?? null;
 
-    // 3. Helper: compute ratios for a user
+    // 3. Helpers
+    const latestResultFor = (userId: string): PeriodResults | undefined => {
+      return [...results]
+        .filter((r) => r.userId === userId)
+        .sort((a, b) => b.periodStart.localeCompare(a.periodStart))[0];
+    };
+
     const ratiosFor = (u: User): ComputedRatio[] => {
-      const userResults = results.find((r) => r.userId === u.id);
+      const userResults = latestResultFor(u.id);
       return userResults ? computeAllRatios(userResults, u.category, ratioConfigs) : [];
+    };
+
+    const volumesFor = (userId: string): ClientVolumes | null => {
+      return extractVolumes(latestResultFor(userId));
     };
 
     // 4. Branch by target type
@@ -207,6 +227,8 @@ export function useCoachTargetData(
           teamSize: teamAgents.length,
           avgScore: mgrAvgScore,
           alertCount: mgrAlertCount,
+          ratios: mgrRatios,
+          volumes: volumesFor(mgr.id),
         };
       });
 
@@ -219,6 +241,7 @@ export function useCoachTargetData(
           avgScore: avgScore(ratios),
           alertCount: alertCount(ratios),
           ratios,
+          volumes: volumesFor(adv.id),
         };
       });
 
@@ -247,6 +270,8 @@ export function useCoachTargetData(
         if (weakKpis.length >= 3) break;
       }
 
+      const institutionName = institutions.find((i) => i.id === targetId)?.name ?? "NXT Immobilier";
+
       return {
         ...NULL_RESULT,
         assignment,
@@ -254,6 +279,7 @@ export function useCoachTargetData(
         plans,
         actions,
         weakKpis,
+        institutionName,
         agencyKpis,
         managersAggregate,
         advisorsAggregate,
@@ -275,6 +301,7 @@ export function useCoachTargetData(
           avgScore: avgScore(ratios),
           alertCount: alertCount(ratios),
           ratios,
+          volumes: volumesFor(adv.id),
         };
       });
 
@@ -321,5 +348,5 @@ export function useCoachTargetData(
 
     // Fallback (should never reach here given CoachTargetType is exhaustive)
     return NULL_RESULT;
-  }, [user, users, results, ratioConfigs, coachAssignments, coachActions, coachPlans, targetType, targetId]);
+  }, [user, users, results, ratioConfigs, institutions, coachAssignments, coachActions, coachPlans, targetType, targetId]);
 }

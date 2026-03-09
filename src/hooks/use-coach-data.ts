@@ -61,6 +61,7 @@ export function useCoachData(coachId: string) {
   const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const storeInstitutions = useAppStore((s) => s.institutions);
   const coachAssignments = useAppStore((s) => s.coachAssignments);
   const coachActions = useAppStore((s) => s.coachActions);
   const coachPlans = useAppStore((s) => s.coachPlans);
@@ -282,7 +283,7 @@ export function useCoachData(coachId: string) {
           assignment,
           targetType: assignment.targetType,
           targetId: assignment.targetId,
-          name: "Organisation",
+          name: storeInstitutions.find((i) => i.id === assignment.targetId)?.name ?? "NXT Immobilier",
           subtitle: `${orgMembers.length} membre${orgMembers.length > 1 ? "s" : ""}`,
           score,
           previousScore: prevScore,
@@ -340,5 +341,5 @@ export function useCoachData(coachId: string) {
       priorityClients,
       topPerformers,
     };
-  }, [coachId, users, results, ratioConfigs, coachAssignments, coachActions, coachPlans]);
+  }, [coachId, users, results, ratioConfigs, storeInstitutions, coachAssignments, coachActions, coachPlans]);
 }

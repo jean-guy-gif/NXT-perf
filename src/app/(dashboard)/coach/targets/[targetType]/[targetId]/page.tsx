@@ -9,8 +9,6 @@ import { TargetHeader } from "@/components/coach/target-header";
 import { ScopeKpiGrid } from "@/components/coach/scope-kpi-grid";
 import { CoachPanel } from "@/components/coach/coach-panel";
 import {
-  CATEGORY_LABELS,
-  CATEGORY_COLORS,
   STATUS_COLORS,
   STATUS_BG_COLORS,
   STATUS_BORDER_COLORS,
@@ -549,39 +547,74 @@ function QuickPlanEditor({ assignmentId }: { assignmentId: string }) {
   );
 }
 
-/* ────── Clickable person row ────── */
-function PersonRow({
-  user,
-  href,
-  score,
-  alerts,
-  extra,
+/* ────── Collaborator table (shared between org & manager views) ────── */
+function CollaboratorTable({
+  collaborators,
+  hrefPrefix,
 }: {
-  user: User;
-  href: string;
-  score: number;
-  alerts: number;
-  extra?: React.ReactNode;
+  collaborators: Array<{
+    user: User;
+    avgScore: number;
+    alertCount: number;
+    ratios: ComputedRatio[];
+    volumes: { contacts: number; estimations: number; mandats: number; offres: number } | null;
+  }>;
+  hrefPrefix: string;
 }) {
+  if (collaborators.length === 0) return null;
+
   return (
-    <Link
-      href={href}
-      className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
-        {extra}
+    <div className="rounded-xl border overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px]">
+          <thead>
+            <tr className="bg-muted/50 text-xs font-medium text-muted-foreground">
+              <th className="text-left px-4 py-2.5">Nom</th>
+              <th className="text-center px-3 py-2.5">Contacts</th>
+              <th className="text-center px-3 py-2.5">Estimations</th>
+              <th className="text-center px-3 py-2.5">Mandats</th>
+              <th className="text-center px-3 py-2.5">Exclu. %</th>
+              <th className="text-center px-3 py-2.5">Offres</th>
+              <th className="text-center px-3 py-2.5">Perf.</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {collaborators.map((c) => {
+              const exclu = c.ratios.find((r) => r.ratioId === "pct_mandats_exclusifs");
+              return (
+                <tr key={c.user.id} className="group">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`${hrefPrefix}${c.user.id}`}
+                      className="flex items-center gap-2 group-hover:text-primary transition-colors"
+                    >
+                      <span className="text-sm font-medium">{c.user.firstName} {c.user.lastName}</span>
+                      <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity" />
+                    </Link>
+                  </td>
+                  <td className="text-center px-3 py-3 text-sm tabular-nums">{c.volumes?.contacts ?? "—"}</td>
+                  <td className="text-center px-3 py-3 text-sm tabular-nums">{c.volumes?.estimations ?? "—"}</td>
+                  <td className="text-center px-3 py-3 text-sm tabular-nums">{c.volumes?.mandats ?? "—"}</td>
+                  <td className="text-center px-3 py-3 text-sm tabular-nums">
+                    {exclu != null ? (
+                      <span className={cn("font-medium", exclu.status === "ok" ? "text-green-500" : exclu.status === "warning" ? "text-orange-500" : "text-red-500")}>
+                        {exclu.value}%
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="text-center px-3 py-3 text-sm tabular-nums">{c.volumes?.offres ?? "—"}</td>
+                  <td className="text-center px-3 py-3">
+                    <span className={cn("text-sm font-semibold tabular-nums", scoreColor(c.avgScore))}>
+                      {c.avgScore}%
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      <div className="flex items-center gap-4 shrink-0">
-        <span className={cn("text-sm font-semibold tabular-nums", scoreColor(score))}>{score}%</span>
-        {alerts > 0 && (
-          <span className="flex items-center gap-1 text-xs text-orange-500">
-            <AlertTriangle className="h-3 w-3" />
-            {alerts}
-          </span>
-        )}
-      </div>
-    </Link>
+    </div>
   );
 }
 
@@ -607,7 +640,7 @@ function InstitutionView({
   data: ReturnType<typeof useCoachTargetData>;
   targetId: string;
 }) {
-  const { agencyKpis, managersAggregate, advisorsAggregate, assignment, weakKpis } = data;
+  const { agencyKpis, managersAggregate, advisorsAggregate, assignment, weakKpis, institutionName } = data;
   const allResults = useAppStore((s) => s.results);
   const users = useAppStore((s) => s.users);
 
@@ -615,8 +648,12 @@ function InstitutionView({
   const orgUsers = users.filter((u) => u.institutionId === targetId);
   let totalContacts = 0, totalEstimations = 0, totalMandats = 0;
   let totalVisites = 0, totalOffres = 0, totalCompromis = 0;
+  let totalExclusifs = 0, totalMandatsForExclu = 0;
   for (const u of orgUsers) {
-    const r = allResults.find((res) => res.userId === u.id && res.periodStart >= "2026-02-01");
+    const sorted = allResults
+      .filter((res) => res.userId === u.id)
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+    const r = sorted[0];
     if (r) {
       totalContacts += r.prospection.contactsTotaux;
       totalEstimations += r.vendeurs.estimationsRealisees;
@@ -624,8 +661,17 @@ function InstitutionView({
       totalVisites += r.acheteurs.nombreVisites;
       totalOffres += r.acheteurs.offresRecues;
       totalCompromis += r.acheteurs.compromisSignes;
+      const exclusifs = r.vendeurs.mandats?.filter((m) => m.type === "exclusif").length ?? 0;
+      totalExclusifs += exclusifs;
+      totalMandatsForExclu += r.vendeurs.mandatsSignes;
     }
   }
+
+  const exclusivitePct = totalMandatsForExclu > 0
+    ? Math.round((totalExclusifs / totalMandatsForExclu) * 100)
+    : 0;
+
+  const displayName = institutionName ?? "NXT Immobilier";
 
   const kpis = agencyKpis
     ? [
@@ -638,18 +684,19 @@ function InstitutionView({
 
   return (
     <div className="space-y-6">
-      <TargetHeader targetType="INSTITUTION" targetName="Organisation" />
+      <TargetHeader targetType="INSTITUTION" targetName={displayName} />
 
       {kpis.length > 0 && <ScopeKpiGrid kpis={kpis} />}
 
-      {/* Volumes */}
+      {/* Volumes globaux */}
       <div>
-        <h2 className="text-sm font-semibold mb-3">Volumes de performance</h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+        <h2 className="text-sm font-semibold mb-3">Volumes de performance globaux</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           {[
             { label: "Contacts", value: totalContacts },
             { label: "Estimations", value: totalEstimations },
             { label: "Mandats", value: totalMandats },
+            { label: "Exclusivités", value: exclusivitePct + "%" },
             { label: "Visites", value: totalVisites },
             { label: "Offres", value: totalOffres },
             { label: "Compromis", value: totalCompromis },
@@ -665,58 +712,72 @@ function InstitutionView({
       {/* Managers table */}
       {managersAggregate && managersAggregate.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold mb-3">Managers</h2>
-          <div className="rounded-xl border overflow-hidden divide-y">
-            <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
-              <span>Nom</span>
-              <span className="text-center">Équipe</span>
-              <span className="text-center">Score</span>
-              <span className="text-center">Alertes</span>
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Managers</h2>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {managersAggregate.length}
+            </span>
+          </div>
+          <div className="rounded-xl border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
+                <thead>
+                  <tr className="bg-muted/50 text-xs font-medium text-muted-foreground">
+                    <th className="text-left px-4 py-2.5">Nom</th>
+                    <th className="text-center px-3 py-2.5">Équipe</th>
+                    <th className="text-center px-3 py-2.5">Contacts</th>
+                    <th className="text-center px-3 py-2.5">Estimations</th>
+                    <th className="text-center px-3 py-2.5">Mandats</th>
+                    <th className="text-center px-3 py-2.5">Offres</th>
+                    <th className="text-center px-3 py-2.5">Perf.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {managersAggregate.map((mgr) => (
+                    <tr key={mgr.user.id} className="group">
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/coach/targets/MANAGER/${mgr.user.id}`}
+                          className="flex items-center gap-2 group-hover:text-primary transition-colors"
+                        >
+                          <span className="text-sm font-medium">{mgr.user.firstName} {mgr.user.lastName}</span>
+                          <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity" />
+                        </Link>
+                      </td>
+                      <td className="text-center px-3 py-3 text-sm tabular-nums">{mgr.teamSize}</td>
+                      <td className="text-center px-3 py-3 text-sm tabular-nums">{mgr.volumes?.contacts ?? "—"}</td>
+                      <td className="text-center px-3 py-3 text-sm tabular-nums">{mgr.volumes?.estimations ?? "—"}</td>
+                      <td className="text-center px-3 py-3 text-sm tabular-nums">{mgr.volumes?.mandats ?? "—"}</td>
+                      <td className="text-center px-3 py-3 text-sm tabular-nums">{mgr.volumes?.offres ?? "—"}</td>
+                      <td className="text-center px-3 py-3">
+                        <span className={cn("text-sm font-semibold tabular-nums", scoreColor(mgr.avgScore))}>
+                          {mgr.avgScore}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {managersAggregate.map((mgr) => (
-              <Link
-                key={mgr.user.id}
-                href={`/coach/targets/MANAGER/${mgr.user.id}`}
-                className="grid grid-cols-4 gap-2 px-4 py-3 hover:bg-muted/50 transition-colors items-center"
-              >
-                <span className="text-sm font-medium truncate">{mgr.user.firstName} {mgr.user.lastName}</span>
-                <span className="text-sm text-center tabular-nums">{mgr.teamSize}</span>
-                <span className={cn("text-sm font-semibold text-center tabular-nums", scoreColor(mgr.avgScore))}>{mgr.avgScore}%</span>
-                <span className="text-sm text-center tabular-nums">{mgr.alertCount}</span>
-              </Link>
-            ))}
           </div>
         </div>
       )}
 
-      {/* Advisors table */}
+      {/* Conseillers table */}
       {advisorsAggregate && advisorsAggregate.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold mb-3">Conseillers</h2>
-          <div className="rounded-xl border overflow-hidden divide-y">
-            <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
-              <span>Nom</span>
-              <span className="text-center">Catégorie</span>
-              <span className="text-center">Score</span>
-              <span className="text-center">Alertes</span>
-            </div>
-            {advisorsAggregate.map((adv) => (
-              <Link
-                key={adv.user.id}
-                href={`/coach/targets/AGENT/${adv.user.id}`}
-                className="grid grid-cols-4 gap-2 px-4 py-3 hover:bg-muted/50 transition-colors items-center"
-              >
-                <span className="text-sm font-medium truncate">{adv.user.firstName} {adv.user.lastName}</span>
-                <span className="text-center">
-                  <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", CATEGORY_COLORS[adv.user.category] ?? "")}>
-                    {CATEGORY_LABELS[adv.user.category] ?? adv.user.category}
-                  </span>
-                </span>
-                <span className={cn("text-sm font-semibold text-center tabular-nums", scoreColor(adv.avgScore))}>{adv.avgScore}%</span>
-                <span className="text-sm text-center tabular-nums">{adv.alertCount}</span>
-              </Link>
-            ))}
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Conseillers</h2>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {advisorsAggregate.length}
+            </span>
           </div>
+          <CollaboratorTable
+            collaborators={advisorsAggregate}
+            hrefPrefix="/coach/targets/AGENT/"
+          />
         </div>
       )}
 
@@ -756,8 +817,11 @@ function ManagerView({
   if (!managerUser) return null;
 
   // Manager results
-  const mgrResults = allResults.find((r) => r.userId === targetId && r.periodStart >= "2026-02-01");
-  const mgrPrevResults = allResults.find((r) => r.userId === targetId && r.periodStart < "2026-02-01");
+  const mgrResultsSorted = allResults
+    .filter((r) => r.userId === targetId)
+    .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+  const mgrResults = mgrResultsSorted[0];
+  const mgrPrevResults = mgrResultsSorted[1];
 
   const avgScoreVal = managerRatios && managerRatios.length > 0
     ? Math.round(managerRatios.reduce((s, r) => s + (r.percentageOfTarget ?? 0), 0) / managerRatios.length)
@@ -768,6 +832,32 @@ function ManagerView({
 
   const teamSize = teamAdvisors?.length ?? 0;
   const alertsVal = managerRatios ? managerRatios.filter((r) => r.status === "danger" || r.status === "warning").length : 0;
+
+  // Aggregate team volumes (manager + team members)
+  const teamAllMembers = [targetId, ...(teamAdvisors?.map((a) => a.user.id) ?? [])];
+  let teamContacts = 0, teamEstimations = 0, teamMandats = 0;
+  let teamVisites = 0, teamOffres = 0, teamCompromis = 0;
+  let teamExclusifs = 0, teamMandatsTotal = 0;
+  for (const uid of teamAllMembers) {
+    const sorted = allResults
+      .filter((r) => r.userId === uid)
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+    const r = sorted[0];
+    if (r) {
+      teamContacts += r.prospection.contactsTotaux;
+      teamEstimations += r.vendeurs.estimationsRealisees;
+      teamMandats += r.vendeurs.mandatsSignes;
+      teamVisites += r.acheteurs.nombreVisites;
+      teamOffres += r.acheteurs.offresRecues;
+      teamCompromis += r.acheteurs.compromisSignes;
+      const excl = r.vendeurs.mandats?.filter((m) => m.type === "exclusif").length ?? 0;
+      teamExclusifs += excl;
+      teamMandatsTotal += r.vendeurs.mandatsSignes;
+    }
+  }
+  const teamExcluPct = teamMandatsTotal > 0
+    ? Math.round((teamExclusifs / teamMandatsTotal) * 100)
+    : 0;
 
   const kpis = [
     { label: "Score moyen", value: avgScoreVal + "%", icon: Award },
@@ -786,8 +876,26 @@ function ManagerView({
       <ScopeKpiGrid kpis={kpis} />
       <DiagnosticCard diagnostic={diagnostic} progression={progression} />
 
-      {/* Volumes */}
-      <VolumesGrid results={mgrResults} />
+      {/* Volumes collectifs de l'équipe */}
+      <div>
+        <h2 className="text-sm font-semibold mb-3">Volumes de performance collectifs</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          {[
+            { label: "Contacts", value: teamContacts },
+            { label: "Estimations", value: teamEstimations },
+            { label: "Mandats", value: teamMandats },
+            { label: "Exclusivités", value: teamExcluPct + "%" },
+            { label: "Visites", value: teamVisites },
+            { label: "Offres", value: teamOffres },
+            { label: "Compromis", value: teamCompromis },
+          ].map((v) => (
+            <div key={v.label} className="rounded-xl border bg-card p-3 text-center">
+              <p className="text-lg font-bold tabular-nums">{v.value}</p>
+              <p className="text-xs text-muted-foreground">{v.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Manager ratios */}
       {managerRatios && managerRatios.length > 0 && (
@@ -800,23 +908,17 @@ function ManagerView({
       {/* Team advisors */}
       {teamAdvisors && teamAdvisors.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold mb-3">Équipe</h2>
-          <div className="rounded-xl border overflow-hidden divide-y">
-            {teamAdvisors.map((adv) => (
-              <PersonRow
-                key={adv.user.id}
-                user={adv.user}
-                href={`/coach/targets/AGENT/${adv.user.id}`}
-                score={adv.avgScore}
-                alerts={adv.alertCount}
-                extra={
-                  <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0", CATEGORY_COLORS[adv.user.category] ?? "")}>
-                    {CATEGORY_LABELS[adv.user.category] ?? adv.user.category}
-                  </span>
-                }
-              />
-            ))}
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Équipe</h2>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {teamAdvisors.length}
+            </span>
           </div>
+          <CollaboratorTable
+            collaborators={teamAdvisors}
+            hrefPrefix="/coach/targets/AGENT/"
+          />
         </div>
       )}
 
