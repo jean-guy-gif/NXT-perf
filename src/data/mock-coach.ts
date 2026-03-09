@@ -1,4 +1,4 @@
-import type { CoachAssignment, CoachAction, CoachPlan, CoachPlanAction } from "@/types/coach";
+import type { CoachAssignment, CoachAction, CoachPlan, CoachPlanAction, CoachNote, CoachSession, CoachQuickPlan } from "@/types/coach";
 
 export const mockCoachAssignments: CoachAssignment[] = [
   // ── Coach Pierre Durand (coach-1) — 3 assignments ──
@@ -354,5 +354,109 @@ export const mockCoachPlans: CoachPlan[] = [
         ],
       },
     ],
+  },
+];
+
+/* ── Coach Notes ── */
+export const mockCoachNotes: CoachNote[] = [
+  {
+    id: "cnote-1",
+    coachAssignmentId: "ca-demo-1",
+    content: "Théo manque de confiance en appel. Travailler le script et la posture vocale. Bonne attitude terrain.",
+    createdAt: "2026-02-22T10:00:00Z",
+    updatedAt: "2026-03-01T14:00:00Z",
+  },
+  {
+    id: "cnote-2",
+    coachAssignmentId: "ca-demo-2",
+    content: "Marc a un bon leadership mais l'équipe manque de rigueur sur l'exclusivité. Nicolas est la priorité.",
+    createdAt: "2026-02-26T09:00:00Z",
+    updatedAt: "2026-02-26T09:00:00Z",
+  },
+  {
+    id: "cnote-3",
+    coachAssignmentId: "ca-demo-3",
+    content: "Organisation solide mais taux de mandats exclusifs trop faible globalement. Culture agence à faire évoluer.",
+    createdAt: "2026-03-02T11:00:00Z",
+    updatedAt: "2026-03-02T11:00:00Z",
+  },
+  {
+    id: "cnote-4",
+    coachAssignmentId: "ca-1",
+    content: "Alice a un très bon potentiel. Problématique pricing vendeur, elle sous-estime parfois les biens.",
+    createdAt: "2026-02-18T15:00:00Z",
+    updatedAt: "2026-02-18T15:00:00Z",
+  },
+];
+
+/* ── Coach Sessions ── */
+export const mockCoachSessions: CoachSession[] = [
+  {
+    id: "csess-1",
+    coachAssignmentId: "ca-demo-1",
+    date: "2026-02-20",
+    title: "Bilan de démarrage",
+    notes: "Points forts identifiés : motivation, ponctualité. Axes : prospection téléphonique, gestion du temps.",
+    createdAt: "2026-02-20T17:00:00Z",
+  },
+  {
+    id: "csess-2",
+    coachAssignmentId: "ca-demo-1",
+    date: "2026-03-01",
+    title: "Suivi prospection S1",
+    notes: "30 contacts réalisés mais seulement 2 RDV. Travailler le pitch d'accroche.",
+    createdAt: "2026-03-01T18:00:00Z",
+  },
+  {
+    id: "csess-3",
+    coachAssignmentId: "ca-demo-2",
+    date: "2026-02-28",
+    title: "Analyse Q1 équipe Gamma",
+    notes: "Résultats disparates. Julie performe bien, Nicolas en difficulté. Marc doit déléguer davantage.",
+    createdAt: "2026-02-28T16:00:00Z",
+  },
+  {
+    id: "csess-4",
+    coachAssignmentId: "ca-demo-3",
+    date: "2026-03-01",
+    title: "Lancement coaching institutionnel",
+    notes: "Objectifs fixés : +15% taux exclusivité en 3 mois. Formation collective planifiée.",
+    createdAt: "2026-03-01T10:00:00Z",
+  },
+  {
+    id: "csess-5",
+    coachAssignmentId: "ca-1",
+    date: "2026-02-15",
+    title: "Premier RDV coaching Alice",
+    notes: "Alice a besoin de structurer sa prospection. Script d'appel à préparer ensemble.",
+    createdAt: "2026-02-15T14:00:00Z",
+  },
+];
+
+/* ── Coach Quick Plans ── */
+export const mockCoachQuickPlans: CoachQuickPlan[] = [
+  {
+    id: "cqp-1",
+    coachAssignmentId: "ca-demo-1",
+    objective: "Atteindre 5 RDV estimation par semaine",
+    actions: [
+      "Appliquer le script d'appel sur 20 contacts/jour",
+      "Relancer les leads chauds sous 24h",
+      "Préparer un argumentaire estimation solide",
+    ],
+    comment: "Focus sur la conversion contacts → RDV. Théo progresse mais doit être plus régulier.",
+    updatedAt: "2026-03-01T14:00:00Z",
+  },
+  {
+    id: "cqp-2",
+    coachAssignmentId: "ca-demo-2",
+    objective: "Améliorer le taux d'exclusivité de l'équipe à 50%",
+    actions: [
+      "Former l'équipe sur l'argumentaire exclusivité",
+      "Accompagner Nicolas sur ses prochains RDV estimation",
+      "Mettre en place un suivi hebdomadaire des mandats",
+    ],
+    comment: "L'équipe Gamma a un bon volume mais manque de conviction sur l'exclusivité.",
+    updatedAt: "2026-03-01T15:00:00Z",
   },
 ];

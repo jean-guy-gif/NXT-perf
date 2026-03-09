@@ -6,9 +6,9 @@ import type { DbProfile } from "@/types/database";
 import { mockUsers } from "@/data/mock-users";
 import { mockResults, mockJanuaryResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
-import type { CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
+import type { CoachAssignment, CoachAction, CoachPlan, CoachNote, CoachSession, CoachQuickPlan } from "@/types/coach";
 import type { FinancialData, FinancialFieldId } from "@/types/finance";
-import { mockCoachAssignments, mockCoachActions, mockCoachPlans } from "@/data/mock-coach";
+import { mockCoachAssignments, mockCoachActions, mockCoachPlans, mockCoachNotes, mockCoachSessions, mockCoachQuickPlans } from "@/data/mock-coach";
 import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 
@@ -115,6 +115,9 @@ interface AppState {
   coachAssignments: CoachAssignment[];
   coachActions: CoachAction[];
   coachPlans: CoachPlan[];
+  coachNotes: CoachNote[];
+  coachSessions: CoachSession[];
+  coachQuickPlans: CoachQuickPlan[];
 
   // ── Director inputs (persisted in localStorage) ──
   agencyObjective: { annualCA: number; avgActValue: number } | null;
@@ -189,6 +192,12 @@ interface AppState {
   revertCoachPlanToDraft: (id: string) => void;
   revokeCoachAssignment: (assignmentId: string) => void;
   updateExcludedManagers: (assignmentId: string, managerIds: string[]) => void;
+
+  // ── Coach notes / sessions / quick plans ──
+  upsertCoachNote: (assignmentId: string, content: string) => void;
+  addCoachSession: (session: CoachSession) => void;
+  removeCoachSession: (id: string) => void;
+  upsertCoachQuickPlan: (assignmentId: string, data: Omit<CoachQuickPlan, "id" | "coachAssignmentId" | "updatedAt">) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -206,6 +215,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   coachAssignments: [],
   coachActions: [],
   coachPlans: [],
+  coachNotes: [],
+  coachSessions: [],
+  coachQuickPlans: [],
   hiddenViews: [],
   agencyObjective: null,
   directorCosts: null,
@@ -248,6 +260,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachAssignments: mockCoachAssignments,
       coachActions: mockCoachActions,
       coachPlans: mockCoachPlans,
+      coachNotes: mockCoachNotes,
+      coachSessions: mockCoachSessions,
+      coachQuickPlans: mockCoachQuickPlans,
       hiddenViews: [],
       agencyObjective: { annualCA: 500000, avgActValue: 12000 },
       financialData: { ...mockFinancialData },
@@ -704,4 +719,63 @@ export const useAppStore = create<AppState>((set, get) => ({
         a.id === assignmentId ? { ...a, excludedManagerIds: managerIds } : a
       ),
     })),
+
+  // ── Coach notes / sessions / quick plans ──
+
+  upsertCoachNote: (assignmentId, content) =>
+    set((s) => {
+      const existing = s.coachNotes.find((n) => n.coachAssignmentId === assignmentId);
+      if (existing) {
+        return {
+          coachNotes: s.coachNotes.map((n) =>
+            n.coachAssignmentId === assignmentId
+              ? { ...n, content, updatedAt: new Date().toISOString() }
+              : n
+          ),
+        };
+      }
+      return {
+        coachNotes: [
+          ...s.coachNotes,
+          {
+            id: "cnote-" + Date.now(),
+            coachAssignmentId: assignmentId,
+            content,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      };
+    }),
+
+  addCoachSession: (session) =>
+    set((s) => ({ coachSessions: [...s.coachSessions, session] })),
+
+  removeCoachSession: (id) =>
+    set((s) => ({ coachSessions: s.coachSessions.filter((ss) => ss.id !== id) })),
+
+  upsertCoachQuickPlan: (assignmentId, data) =>
+    set((s) => {
+      const existing = s.coachQuickPlans.find((p) => p.coachAssignmentId === assignmentId);
+      if (existing) {
+        return {
+          coachQuickPlans: s.coachQuickPlans.map((p) =>
+            p.coachAssignmentId === assignmentId
+              ? { ...p, ...data, updatedAt: new Date().toISOString() }
+              : p
+          ),
+        };
+      }
+      return {
+        coachQuickPlans: [
+          ...s.coachQuickPlans,
+          {
+            id: "cqp-" + Date.now(),
+            coachAssignmentId: assignmentId,
+            ...data,
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      };
+    }),
 }));

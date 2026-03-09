@@ -49,3 +49,32 @@ export interface CoachPlan {
   status: CoachPlanStatus;
   weeks: CoachPlanWeek[];
 }
+
+/* ── Private coach notes per assignment ── */
+export interface CoachNote {
+  id: string;
+  coachAssignmentId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Coaching session log ── */
+export interface CoachSession {
+  id: string;
+  coachAssignmentId: string;
+  date: string;
+  title: string;
+  notes: string;
+  createdAt: string;
+}
+
+/* ── Simple action plan (distinct from the 30-day plan) ── */
+export interface CoachQuickPlan {
+  id: string;
+  coachAssignmentId: string;
+  objective: string;
+  actions: string[];
+  comment: string;
+  updatedAt: string;
+}
