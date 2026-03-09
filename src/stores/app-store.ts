@@ -7,7 +7,9 @@ import { mockUsers } from "@/data/mock-users";
 import { mockResults, mockJanuaryResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 import type { CoachAssignment, CoachAction, CoachPlan } from "@/types/coach";
+import type { FinancialData, FinancialFieldId } from "@/types/finance";
 import { mockCoachAssignments, mockCoachActions, mockCoachPlans } from "@/data/mock-coach";
+import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 
 /** Map user roles to sidebar view IDs */
@@ -117,8 +119,11 @@ interface AppState {
   // ── Director inputs (persisted in localStorage) ──
   agencyObjective: { annualCA: number; avgActValue: number } | null;
   directorCosts: DirectorCosts | null;
+  financialData: Partial<FinancialData>;
   setAgencyObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
   setDirectorCosts: (costs: DirectorCosts | null) => void;
+  setFinancialData: (data: Partial<FinancialData>) => void;
+  updateFinancialField: (field: FinancialFieldId, value: number) => void;
 
   // ── View preferences (hiddenViews = user hides a view, never adds permissions) ──
   hiddenViews: ViewId[];
@@ -204,6 +209,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hiddenViews: [],
   agencyObjective: null,
   directorCosts: null,
+  financialData: {},
 
   // ── View preferences ──
   toggleViewVisibility: (view) => {
@@ -223,6 +229,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setAgencyObjective: (obj) => set({ agencyObjective: obj }),
   setDirectorCosts: (costs) => set({ directorCosts: costs }),
+  setFinancialData: (data) => set({ financialData: data }),
+  updateFinancialField: (field, value) => set((s) => ({
+    financialData: { ...s.financialData, [field]: value },
+  })),
 
   // ── Demo mode ──
   enterDemo: () => {
@@ -240,6 +250,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       coachPlans: mockCoachPlans,
       hiddenViews: [],
       agencyObjective: { annualCA: 500000, avgActValue: 12000 },
+      financialData: { ...mockFinancialData },
       directorCosts: {
         commissionDirecteur: 50,
         commissionManagers: 10,
@@ -266,6 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       hiddenViews: [],
       agencyObjective: null,
       directorCosts: null,
+      financialData: {},
     });
   },
 
