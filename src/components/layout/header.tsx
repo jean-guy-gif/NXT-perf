@@ -27,7 +27,6 @@ const pageTitles: Record<string, string> = {
   "/directeur/pilotage": "Pilotage Agence",
   "/directeur/equipes": "Équipes",
   "/directeur/projection": "Projection",
-  "/directeur/rentabilite": "Rentabilité",
   "/directeur/formation-collective": "Formation Collective Agence",
   "/coach/cockpit": "Cockpit Coach",
 };

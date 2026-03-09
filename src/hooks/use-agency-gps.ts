@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useDirectorData } from "@/hooks/use-director-data";
-import { useAppStore, type DirectorCosts } from "@/stores/app-store";
+import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_OBJECTIVES, GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
 import { aggregateResults } from "@/lib/aggregate-results";
 import type { User } from "@/types/user";
@@ -23,13 +23,6 @@ export interface EntityBar {
   pct: number;
   status: PerformanceStatus;
   teamId?: string;
-}
-
-export interface RentabiliteData {
-  revenuDirecteurVentes: number;
-  revenuDirecteurEquipes: number;
-  resultatAgenceMois: number;
-  projectionRevenuAnnuel: number;
 }
 
 export interface AgencyGPSResult {
@@ -139,8 +132,6 @@ export function useAgencyGPS() {
   const { teams, allConseillers, allResults, orgStats } = useDirectorData();
   const storeResults = useAppStore(s => s.results);
   const agencyObjective = useAppStore(s => s.agencyObjective);
-  const directorCosts = useAppStore(s => s.directorCosts);
-  const user = useAppStore(s => s.user);
 
   const [theme, setTheme] = useState<GPSTheme>("mandats");
   const [period, setPeriod] = useState<PilotPeriod>("mois");
@@ -271,19 +262,6 @@ export function useAgencyGPS() {
     return bars;
   }, [theme, teams, allConseillers, allResults]);
 
-  const rentabilite = useMemo<RentabiliteData | null>(() => {
-    if (!directorCosts) return null;
-    const directorResults = user ? allResults.find(r => r.userId === user.id) : undefined;
-    const caDirecteur = directorResults?.ventes.chiffreAffaires ?? 0;
-    const revenuDirecteurVentes = caDirecteur * (directorCosts.commissionDirecteur / 100);
-    const caEquipes = orgStats.totalCA;
-    const revenuDirecteurEquipes = caEquipes * (directorCosts.commissionDirecteur / 100);
-    const chargesTotal = directorCosts.coutsFixes + directorCosts.masseSalariale + directorCosts.autresCharges;
-    const resultatAgenceMois = caEquipes - chargesTotal;
-    const projectionRevenuAnnuel = (revenuDirecteurVentes + revenuDirecteurEquipes) * 12 - chargesTotal * 12;
-    return { revenuDirecteurVentes, revenuDirecteurEquipes, resultatAgenceMois, projectionRevenuAnnuel };
-  }, [directorCosts, user, allResults, orgStats]);
-
   return {
     theme,
     setTheme,
@@ -294,8 +272,6 @@ export function useAgencyGPS() {
     agencyOverview,
     teamDetails,
     entityBars,
-    rentabilite,
     agencyObjective,
-    directorCosts,
   };
 }
