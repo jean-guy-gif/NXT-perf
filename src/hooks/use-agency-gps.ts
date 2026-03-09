@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { useAppStore, type DirectorCosts } from "@/stores/app-store";
 import { CATEGORY_OBJECTIVES, GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
-import { computeAllRatios } from "@/lib/ratios";
 import { aggregateResults } from "@/lib/aggregate-results";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
@@ -24,16 +23,6 @@ export interface EntityBar {
   pct: number;
   status: PerformanceStatus;
   teamId?: string;
-}
-
-export interface ProjectionEntry {
-  id: string;
-  name: string;
-  niveau: "agence" | "equipe" | "conseiller";
-  performance: number;
-  status: PerformanceStatus;
-  teamId?: string;
-  teamName?: string;
 }
 
 export interface RentabiliteData {
@@ -147,7 +136,7 @@ function avgRealiseExclu(conseillers: User[], allResults: PeriodResults[]): numb
 // ── Hook ──
 
 export function useAgencyGPS() {
-  const { teams, allConseillers, allResults, ratioConfigs, orgStats } = useDirectorData();
+  const { teams, allConseillers, allResults, orgStats } = useDirectorData();
   const storeResults = useAppStore(s => s.results);
   const agencyObjective = useAppStore(s => s.agencyObjective);
   const directorCosts = useAppStore(s => s.directorCosts);
@@ -282,35 +271,6 @@ export function useAgencyGPS() {
     return bars;
   }, [theme, teams, allConseillers, allResults]);
 
-  const projectionData = useMemo<ProjectionEntry[]>(() => {
-    const entries: ProjectionEntry[] = [];
-
-    const agPerf = orgStats.avgPerformance;
-    entries.push({ id: "agence", name: "Agence", niveau: "agence", performance: agPerf, status: getStatus(agPerf) });
-
-    for (const team of teams) {
-      entries.push({ id: `team-${team.teamId}`, name: team.teamName, niveau: "equipe", performance: team.avgPerformance, status: getStatus(team.avgPerformance), teamId: team.teamId, teamName: team.teamName });
-
-      const sortedAgents = [...team.agents]
-        .map(agent => {
-          const res = allResults.find(r => r.userId === agent.id);
-          if (!res) return { agent, perf: 0 };
-          const ratios = computeAllRatios(res, agent.category, ratioConfigs);
-          const perf = ratios.length > 0
-            ? Math.round(ratios.reduce((s, r) => s + r.percentageOfTarget, 0) / ratios.length)
-            : 0;
-          return { agent, perf };
-        })
-        .sort((a, b) => b.perf - a.perf);
-
-      for (const { agent, perf } of sortedAgents) {
-        entries.push({ id: agent.id, name: `${agent.firstName} ${agent.lastName}`, niveau: "conseiller", performance: perf, status: getStatus(perf), teamId: team.teamId, teamName: team.teamName });
-      }
-    }
-
-    return entries;
-  }, [teams, allResults, ratioConfigs, orgStats]);
-
   const rentabilite = useMemo<RentabiliteData | null>(() => {
     if (!directorCosts) return null;
     const directorResults = user ? allResults.find(r => r.userId === user.id) : undefined;
@@ -334,7 +294,6 @@ export function useAgencyGPS() {
     agencyOverview,
     teamDetails,
     entityBars,
-    projectionData,
     rentabilite,
     agencyObjective,
     directorCosts,
