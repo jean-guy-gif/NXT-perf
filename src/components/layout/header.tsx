@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut } from "lucide-react";
+import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, X, Mail } from "lucide-react";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
@@ -53,6 +53,7 @@ export function Header() {
   const [isDark, setIsDark] = useState(true);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const notifications = useMemo(
@@ -128,6 +129,22 @@ export function Header() {
             })}
           </div>
         )}
+
+        <button
+          onClick={() => setShowImportModal(true)}
+          title="Importer des données"
+          className="hidden items-center gap-2 rounded-[var(--radius-button)] border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground sm:flex"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Importer
+        </button>
+        <button
+          onClick={() => setShowImportModal(true)}
+          title="Importer des données"
+          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground sm:hidden"
+        >
+          <Upload className="h-4 w-4" />
+        </button>
 
         <button
           onClick={toggleTheme}
@@ -247,6 +264,70 @@ export function Header() {
           managerId={user.id}
         />
       )}
+      {showImportModal && (
+        <ImportDataModal onClose={() => setShowImportModal(false)} />
+      )}
     </header>
+  );
+}
+
+function ImportDataModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-2)]">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold text-foreground">
+              Gagnez du temps avec l'import de données
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Importez vos données existantes pour retrouver en un seul endroit vos historiques, vos progressions et vos analyses précédentes.
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Pour activer cette fonctionnalité et être accompagné dans la consolidation de vos données, contactez-nous :
+          </p>
+          <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
+            <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-sm font-medium text-primary">contact@nxt-perf.fr</span>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+          <button
+            onClick={onClose}
+            className="rounded-[var(--radius-button)] px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Fermer
+          </button>
+          <a
+            href="mailto:contact@nxt-perf.fr?subject=Demande%20d%27import%20de%20donn%C3%A9es%20NXT"
+            className="flex items-center gap-2 rounded-[var(--radius-button)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:brightness-110"
+          >
+            <Mail className="h-4 w-4" />
+            Nous contacter
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
