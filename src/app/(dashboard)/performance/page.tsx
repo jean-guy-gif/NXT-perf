@@ -15,12 +15,15 @@ import {
   Gauge,
   TrendingUp,
   TrendingDown,
+  Minus,
   Target,
   Info,
   CheckCircle,
   AlertTriangle,
   XCircle,
 } from "lucide-react";
+import { getHumanScore, getGlobalScore } from "@/lib/scoring";
+import { MARKET_BENCHMARKS } from "@/data/mock-benchmark";
 
 const statusConfig = {
   ok: {
@@ -54,6 +57,8 @@ export default function PerformancePage() {
   const { computedRatios, ratioConfigs } = useRatios();
   const results = useResults();
   const [selectedRatioId, setSelectedRatioId] = useState<RatioId | null>(null);
+
+  const globalScore = getGlobalScore(computedRatios);
 
   const overallPerformance =
     computedRatios.length > 0
@@ -117,9 +122,14 @@ export default function PerformancePage() {
             statusConfig[overallStatus].bg
           )}
         >
-          <p className="text-sm font-medium text-muted-foreground">
-            Score global
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-muted-foreground">
+              Score global
+            </p>
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", globalScore.bgColor, globalScore.color)}>
+              {globalScore.label}
+            </span>
+          </div>
           <p
             className={cn(
               "mt-2 text-4xl font-bold",
@@ -194,6 +204,9 @@ export default function PerformancePage() {
             if (!config) return null;
             const sc = statusConfig[ratio.status];
             const StatusIcon = sc.icon;
+            const humanScore = getHumanScore(ratio);
+            const MarketIcon = humanScore.vsMarket === "above" ? TrendingUp : humanScore.vsMarket === "below" ? TrendingDown : Minus;
+            const marketIconColor = humanScore.vsMarket === "above" ? "text-green-500" : humanScore.vsMarket === "below" ? "text-red-500" : "text-muted-foreground";
 
             return (
               <div
@@ -239,6 +252,12 @@ export default function PerformancePage() {
                 <p className="text-xs text-muted-foreground">{config.unit}</p>
 
                 {/* Progress */}
+                {/* Scoring badge */}
+                <span className={cn("mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", humanScore.bgColor, humanScore.color)}>
+                  <MarketIcon className={cn("h-3 w-3", marketIconColor)} />
+                  {humanScore.label}
+                </span>
+
                 <ProgressBar
                   value={ratio.percentageOfTarget}
                   status={ratio.status}
@@ -246,6 +265,7 @@ export default function PerformancePage() {
                   size="sm"
                   className="mt-3"
                 />
+                <p className="text-xs text-muted-foreground mt-1">Moy. marché : {humanScore.marketAverage}%</p>
 
                 {/* Threshold info */}
                 <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
