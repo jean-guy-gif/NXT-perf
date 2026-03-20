@@ -87,18 +87,7 @@ export default function PilotageAgencePage() {
   }, [allConseillers, allResults, ratioConfigs]);
 
   const agencyScore = useMemo(() => {
-    let totalScore = 0;
-    let count = 0;
-    for (const c of allConseillers) {
-      const res = allResults.find((r) => r.userId === c.id);
-      if (!res) continue;
-      const ratios = computeAllRatios(res, c.category, ratioConfigs);
-      const score = getGlobalScore(ratios);
-      totalScore += score.score;
-      count++;
-    }
-    if (count === 0) return null;
-    const avg = Math.round(totalScore / count);
+    if (allConseillers.length === 0) return null;
     return getGlobalScore(
       allConseillers.flatMap((c) => {
         const res = allResults.find((r) => r.userId === c.id);
@@ -165,7 +154,7 @@ export default function PilotageAgencePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ═══ 1. Header ═══ */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -176,63 +165,18 @@ export default function PilotageAgencePage() {
             <p className="text-sm text-muted-foreground">GPS de performance agence — données mensuelles</p>
           </div>
         </div>
-        {agencyScore && (
-          <ScoreBadge score={globalScoreToHumanScore(agencyScore)} size="md" />
-        )}
-      </div>
-
-      {/* ── Agency Recommendations ── */}
-      {agencyRecommendations.length > 0 && (
-        <RecommandationBanner
-          recommendations={agencyRecommendations}
-          ratioConfigs={ratioConfigs}
-          maxItems={3}
-          variant="compact"
-          scope="directeur"
-        />
-      )}
-
-      {/* ── Priority Alerts ── */}
-      <AlertesPrioritaires alerts={agencyAlerts} maxItems={5} />
-
-      {/* ── Vue d'ensemble ── */}
-      <div className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold">Vue d'ensemble agence <span className="font-normal text-muted-foreground">— {periodLabel}</span></h3>
+        <div className="flex items-center gap-3">
+          {agencyScore && (
+            <ScoreBadge score={globalScoreToHumanScore(agencyScore)} size="md" />
+          )}
           <div className="flex rounded-lg border border-border text-xs">
             <button onClick={() => setPeriod("mois")} className={cn("rounded-l-lg px-3 py-1 font-medium transition-colors", period === "mois" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>Mois</button>
             <button onClick={() => setPeriod("annee")} className={cn("rounded-r-lg px-3 py-1 font-medium transition-colors", period === "annee" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>Année</button>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-px bg-border sm:grid-cols-5 lg:grid-cols-9">
-          {agencyOverview.map(item => (
-            <button
-              key={item.theme}
-              onClick={() => setTheme(item.theme)}
-              className={cn(
-                "flex flex-col gap-1 bg-card px-3 py-3 text-left transition-colors hover:bg-muted/50",
-                theme === item.theme && "ring-2 ring-inset ring-primary"
-              )}
-            >
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</span>
-              <span className="text-lg font-bold">{fmtOverview(item)}</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted-foreground">obj. {fmtOverviewObj(item)}</span>
-                <span className={cn(
-                  "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                  item.status === "ok" ? "bg-green-500/10 text-green-500" :
-                  item.status === "warning" ? "bg-orange-500/10 text-orange-500" :
-                  "bg-red-500/10 text-red-500"
-                )}>
-                  {item.pct}%
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Saisie objectif (collapsible) */}
+      {/* ═══ 2. Saisie objectif (collapsible) ═══ */}
       <div className="rounded-lg border border-border bg-card">
         <button
           onClick={() => setShowSaisie(!showSaisie)}
@@ -280,7 +224,7 @@ export default function PilotageAgencePage() {
         )}
       </div>
 
-      {/* Theme selector */}
+      {/* ═══ 3. Theme selector ═══ */}
       <div className="flex flex-wrap gap-2">
         {themes.map(t => (
           <button
@@ -298,7 +242,7 @@ export default function PilotageAgencePage() {
         ))}
       </div>
 
-      {/* GPS Card */}
+      {/* ═══ 4. GPS Agence card ═══ */}
       <div className="rounded-lg border border-border bg-card p-6">
         <div className="mb-4 flex items-baseline gap-2">
           <h2 className="text-lg font-semibold">{GPS_THEME_LABELS[theme]}</h2>
@@ -334,7 +278,40 @@ export default function PilotageAgencePage() {
         </div>
       </div>
 
-      {/* Team detail table */}
+      {/* ═══ 5. Vue d'ensemble (all 9 themes) ═══ */}
+      <div className="rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-4 py-3">
+          <h3 className="text-sm font-semibold">Vue d'ensemble agence <span className="font-normal text-muted-foreground">— {periodLabel}</span></h3>
+        </div>
+        <div className="grid grid-cols-3 gap-px bg-border sm:grid-cols-5 lg:grid-cols-9">
+          {agencyOverview.map(item => (
+            <button
+              key={item.theme}
+              onClick={() => setTheme(item.theme)}
+              className={cn(
+                "flex flex-col gap-1 bg-card px-3 py-3 text-left transition-colors hover:bg-muted/50",
+                theme === item.theme && "ring-2 ring-inset ring-primary"
+              )}
+            >
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</span>
+              <span className="text-lg font-bold">{fmtOverview(item)}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">obj. {fmtOverviewObj(item)}</span>
+                <span className={cn(
+                  "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  item.status === "ok" ? "bg-green-500/10 text-green-500" :
+                  item.status === "warning" ? "bg-orange-500/10 text-orange-500" :
+                  "bg-red-500/10 text-red-500"
+                )}>
+                  {item.pct}%
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ═══ 6. Détail par équipe ═══ */}
       <div className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold">Détail par équipe <span className="font-normal text-muted-foreground">— {GPS_THEME_LABELS[theme]}, {periodLabel}</span></h3>
@@ -379,6 +356,20 @@ export default function PilotageAgencePage() {
           </table>
         </div>
       </div>
+
+      {/* ═══ 8. Recommandations ═══ */}
+      {agencyRecommendations.length > 0 && (
+        <RecommandationBanner
+          recommendations={agencyRecommendations}
+          ratioConfigs={ratioConfigs}
+          maxItems={3}
+          variant="compact"
+          scope="directeur"
+        />
+      )}
+
+      {/* ═══ 9. Alertes prioritaires ═══ */}
+      <AlertesPrioritaires alerts={agencyAlerts} maxItems={5} />
     </div>
   );
 }
