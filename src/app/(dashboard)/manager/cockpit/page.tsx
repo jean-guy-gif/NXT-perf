@@ -36,6 +36,7 @@ import { RecommandationBanner } from "@/components/dashboard/recommandation-bann
 import type { FormationArea } from "@/types/formation";
 import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
+import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
 
 /* ────── Clickable badge with popover ────── */
 type StatutGroupData = {
@@ -453,6 +454,52 @@ export default function CockpitPage() {
       }));
   }, [conseillers, allResults, ratioConfigs]);
 
+  const priorityAlerts = useMemo(() => {
+    const alerts: Array<{ id: string; type: "danger" | "warning" | "info"; title: string; detail: string; conseillerName?: string; link?: string }> = [];
+
+    for (const user of conseillers) {
+      const results = allResults.find((r) => r.userId === user.id);
+      if (!results) continue;
+
+      if (results.prospection.contactsTotaux === 0) {
+        alerts.push({
+          id: `no-contacts-${user.id}`,
+          type: "danger",
+          title: "Aucun contact ce mois",
+          detail: "Pas de prospection enregistrée — vérifiez la saisie",
+          conseillerName: `${user.firstName} ${user.lastName}`,
+          link: "/manager/gps",
+        });
+      }
+
+      const ratios = computeAllRatios(results, user.category, ratioConfigs);
+      const score = getGlobalScore(ratios);
+      const dangerCount = ratios.filter((r) => r.status === "danger").length;
+
+      if (score.level === "critique") {
+        alerts.push({
+          id: `critique-${user.id}`,
+          type: "danger",
+          title: "Performance critique",
+          detail: `Score global : ${score.score}% — intervention urgente`,
+          conseillerName: `${user.firstName} ${user.lastName}`,
+          link: "/manager/gps",
+        });
+      } else if (dangerCount >= 3) {
+        alerts.push({
+          id: `multi-danger-${user.id}`,
+          type: "warning",
+          title: `${dangerCount} ratios en danger`,
+          detail: "Plusieurs axes de progression à traiter",
+          conseillerName: `${user.firstName} ${user.lastName}`,
+          link: "/manager/gps",
+        });
+      }
+    }
+
+    return alerts;
+  }, [conseillers, allResults, ratioConfigs]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -483,6 +530,9 @@ export default function CockpitPage() {
           scope="manager"
         />
       )}
+
+      {/* ── Priority Alerts ── */}
+      <AlertesPrioritaires alerts={priorityAlerts} maxItems={5} />
 
       {/* ── Period Selector ── */}
       <div className="rounded-xl border border-border bg-card p-4">

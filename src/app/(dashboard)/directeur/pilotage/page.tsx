@@ -17,6 +17,7 @@ import type { FormationArea } from "@/types/formation";
 import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
+import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
 
 const themes: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];
 
@@ -105,6 +106,53 @@ export default function PilotageAgencePage() {
     );
   }, [allConseillers, allResults, ratioConfigs]);
 
+  const agencyAlerts = useMemo(() => {
+    const alerts: Array<{ id: string; type: "danger" | "warning" | "info"; title: string; detail: string; conseillerName?: string; link?: string }> = [];
+    let criticalCount = 0;
+
+    for (const c of allConseillers) {
+      const res = allResults.find((r) => r.userId === c.id);
+      if (!res) continue;
+
+      if (res.prospection.contactsTotaux === 0) {
+        alerts.push({
+          id: `no-contacts-${c.id}`,
+          type: "danger",
+          title: "Aucun contact ce mois",
+          detail: "Pas de prospection enregistrée",
+          conseillerName: `${c.firstName} ${c.lastName}`,
+          link: "/directeur/performance",
+        });
+      }
+
+      const ratios = computeAllRatios(res, c.category, ratioConfigs);
+      const score = getGlobalScore(ratios);
+      if (score.level === "critique") {
+        criticalCount++;
+        alerts.push({
+          id: `critique-${c.id}`,
+          type: "danger",
+          title: "Performance critique",
+          detail: `Score : ${score.score}%`,
+          conseillerName: `${c.firstName} ${c.lastName}`,
+          link: "/directeur/performance",
+        });
+      }
+    }
+
+    if (allConseillers.length > 0 && criticalCount > allConseillers.length / 2) {
+      alerts.unshift({
+        id: "agency-majority-critical",
+        type: "danger",
+        title: "Plus de 50% des conseillers en zone critique",
+        detail: `${criticalCount}/${allConseillers.length} conseillers — situation préoccupante`,
+        link: "/directeur/performance",
+      });
+    }
+
+    return alerts;
+  }, [allConseillers, allResults, ratioConfigs]);
+
   function handleSave() {
     if (annualCA > 0 && avgActValue > 0) {
       setAgencyObjective({ annualCA, avgActValue });
@@ -142,6 +190,9 @@ export default function PilotageAgencePage() {
           scope="directeur"
         />
       )}
+
+      {/* ── Priority Alerts ── */}
+      <AlertesPrioritaires alerts={agencyAlerts} maxItems={5} />
 
       {/* ── Vue d'ensemble ── */}
       <div className="rounded-lg border border-border bg-card">
