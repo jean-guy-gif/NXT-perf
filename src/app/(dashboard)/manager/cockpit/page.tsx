@@ -31,6 +31,9 @@ import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { generateFormationDiagnostic } from "@/lib/formation";
+import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
+import type { FormationArea } from "@/types/formation";
 
 /* ────── Clickable badge with popover ────── */
 type StatutGroupData = {
@@ -416,6 +419,38 @@ export default function CockpitPage() {
     };
   });
 
+  const teamRecommendations = useMemo(() => {
+    const areaCount: Record<string, { count: number; area: FormationArea; label: string; totalGap: number }> = {};
+
+    for (const user of conseillers) {
+      const results = allResults.find((r) => r.userId === user.id);
+      if (!results) continue;
+      const ratios = computeAllRatios(results, user.category, ratioConfigs);
+      const diag = generateFormationDiagnostic(ratios, ratioConfigs, user.id);
+
+      for (const rec of diag.recommendations.filter((r) => r.priority <= 2)) {
+        if (!areaCount[rec.area]) {
+          areaCount[rec.area] = { count: 0, area: rec.area, label: rec.label, totalGap: 0 };
+        }
+        areaCount[rec.area].count++;
+        areaCount[rec.area].totalGap += rec.gapPercentage;
+      }
+    }
+
+    return Object.values(areaCount)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((item) => ({
+        area: item.area,
+        label: `${item.count} ${item.label.toLowerCase()}`,
+        priority: (item.count >= 3 ? 1 : 2) as 1 | 2 | 3,
+        currentRatio: 0,
+        targetRatio: 0,
+        gapPercentage: Math.round(item.totalGap / item.count),
+        description: `${item.count} conseiller(s) en difficulté`,
+      }));
+  }, [conseillers, allResults, ratioConfigs]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -435,6 +470,17 @@ export default function CockpitPage() {
           </span>
         </div>
       </div>
+
+      {/* ── Team Recommendations ── */}
+      {teamRecommendations.length > 0 && (
+        <RecommandationBanner
+          recommendations={teamRecommendations}
+          ratioConfigs={ratioConfigs}
+          maxItems={3}
+          variant="compact"
+          scope="manager"
+        />
+      )}
 
       {/* ── Period Selector ── */}
       <div className="rounded-xl border border-border bg-card p-4">
