@@ -1,5 +1,8 @@
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
+import { computeAllRatios } from "@/lib/ratios";
+import { getGlobalScore } from "@/lib/scoring";
+import type { RatioConfig, RatioId } from "@/types/ratios";
 
 export interface AppNotification {
   id: string;
@@ -43,20 +46,22 @@ function latestTreatedAt(userResults: PeriodResults[]): string | null {
 export function computeNotifications(
   user: User | null,
   results: PeriodResults[],
-  allUsers: User[]
+  allUsers: User[],
+  ratioConfigs?: Record<RatioId, RatioConfig>
 ): AppNotification[] {
   if (!user) return [];
 
   if (user.role === "manager") {
-    return computeManagerNotifications(user, results, allUsers);
+    return computeManagerNotifications(user, results, allUsers, ratioConfigs);
   }
 
-  return computeConseillerNotifications(user, results);
+  return computeConseillerNotifications(user, results, ratioConfigs);
 }
 
 function computeConseillerNotifications(
   user: User,
-  results: PeriodResults[]
+  results: PeriodResults[],
+  ratioConfigs?: Record<RatioId, RatioConfig>
 ): AppNotification[] {
   const notifs: AppNotification[] = [];
 
@@ -99,13 +104,55 @@ function computeConseillerNotifications(
     });
   }
 
+  // Ratio-based alerts
+  if (ratioConfigs) {
+    const latestResult = userResults.sort((a, b) => b.periodStart.localeCompare(a.periodStart))[0];
+    if (latestResult) {
+      const ratios = computeAllRatios(latestResult, user.category, ratioConfigs);
+      const dangerRatios = ratios.filter((r) => r.status === "danger");
+      const globalScore = getGlobalScore(ratios);
+
+      if (dangerRatios.length >= 3) {
+        notifs.push({
+          id: "ratios-critiques",
+          type: "warning",
+          message: `${dangerRatios.length} ratios en zone critique`,
+          detail: dangerRatios.map((r) => ratioConfigs[r.ratioId as RatioId]?.name?.split("→")[0].trim()).join(", "),
+          link: "/performance",
+        });
+      } else if (dangerRatios.length > 0) {
+        for (const ratio of dangerRatios) {
+          const config = ratioConfigs[ratio.ratioId as RatioId];
+          notifs.push({
+            id: `ratio-danger-${ratio.ratioId}`,
+            type: "warning",
+            message: `${config?.name?.split("→")[0].trim()} en zone critique`,
+            detail: `${ratio.value}${config?.unit ?? ""} — objectif : ${ratio.thresholdForCategory}${config?.unit ?? ""}`,
+            link: "/performance",
+          });
+        }
+      }
+
+      if (globalScore.level === "critique") {
+        notifs.push({
+          id: "score-global-critique",
+          type: "warning",
+          message: "Performance globale critique",
+          detail: `Score : ${globalScore.score}% — des actions urgentes sont nécessaires`,
+          link: "/formation",
+        });
+      }
+    }
+  }
+
   return notifs;
 }
 
 function computeManagerNotifications(
   user: User,
   results: PeriodResults[],
-  allUsers: User[]
+  allUsers: User[],
+  ratioConfigs?: Record<RatioId, RatioConfig>
 ): AppNotification[] {
   const notifs: AppNotification[] = [];
 
@@ -148,6 +195,31 @@ function computeManagerNotifications(
       detail: "Aucun deal ou abandon enregistré cette semaine",
       link: "/dashboard?tab=suivi",
     });
+  }
+
+  // Ratio-based team alerts
+  if (ratioConfigs) {
+    let weakCount = 0;
+    for (const conseiller of teamConseillers) {
+      const cResults = results.filter((r) => r.userId === conseiller.id);
+      const latest = cResults.sort((a, b) => b.periodStart.localeCompare(a.periodStart))[0];
+      if (latest) {
+        const ratios = computeAllRatios(latest, conseiller.category, ratioConfigs);
+        const score = getGlobalScore(ratios);
+        if (score.level === "faible" || score.level === "critique") weakCount++;
+      }
+    }
+
+    if (weakCount > 0 && teamConseillers.length > 0) {
+      const pct = Math.round((weakCount / teamConseillers.length) * 100);
+      notifs.push({
+        id: "team-weak-performers",
+        type: "warning",
+        message: `${weakCount} conseiller${weakCount > 1 ? "s" : ""} en difficulté (${pct}% de l'équipe)`,
+        detail: "Consultez le GPS Équipe pour identifier les axes d'amélioration",
+        link: "/manager/gps",
+      });
+    }
   }
 
   return notifs;
