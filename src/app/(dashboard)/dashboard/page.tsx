@@ -53,6 +53,8 @@ import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { generateFormationDiagnostic } from "@/lib/formation";
+import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
 
@@ -171,6 +173,10 @@ function DashboardContent() {
   );
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [expandedKpi, setExpandedKpi] = useState<ExpandableKpi | null>(null);
+
+  const diagnostic = user
+    ? generateFormationDiagnostic(computedRatios, ratioConfigs, user.id)
+    : null;
 
   const kpiChartConfigs = useMemo(() => getKpiChartConfigs(isDemo), [isDemo]);
   const monthlyCAData = isDemo ? mockMonthlyCA : emptyCAData;
@@ -345,6 +351,17 @@ function DashboardContent() {
           )}
         </button>
       </div>
+
+      {/* ========== RECOMMANDATION BANNER ========== */}
+      {diagnostic && diagnostic.recommendations.length > 0 && (
+        <RecommandationBanner
+          recommendations={diagnostic.recommendations}
+          ratioConfigs={ratioConfigs}
+          maxItems={2}
+          variant="compact"
+          scope="conseiller"
+        />
+      )}
 
       {/* ========== KPI EXPANSION PANEL ========== */}
       {expandedKpi && (
