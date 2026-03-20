@@ -85,3 +85,14 @@ export function getGlobalScore(ratios: ComputedRatio[]): {
 
   return { score: avg, level, ...SCORE_CONFIG[level] };
 }
+
+export function globalScoreToHumanScore(global: ReturnType<typeof getGlobalScore>): HumanScore {
+  return {
+    level: global.level,
+    label: global.label,
+    color: global.color,
+    bgColor: global.bgColor,
+    vsMarket: "at",
+    marketAverage: 0,
+  };
+}

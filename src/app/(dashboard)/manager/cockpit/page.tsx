@@ -34,6 +34,8 @@ import { usePersistedState } from "@/hooks/use-persisted-state";
 import { generateFormationDiagnostic } from "@/lib/formation";
 import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
 import type { FormationArea } from "@/types/formation";
+import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
+import { ScoreBadge } from "@/components/dashboard/score-badge";
 
 /* ────── Clickable badge with popover ────── */
 type StatutGroupData = {
@@ -696,6 +698,7 @@ export default function CockpitPage() {
                       ratios.length
                   )
                 : 0;
+            const userGlobalScore = getGlobalScore(ratios);
             return (
               <div
                 key={user.id}
@@ -710,6 +713,7 @@ export default function CockpitPage() {
                     {user.firstName} {user.lastName}
                   </p>
                 </div>
+                <ScoreBadge score={globalScoreToHumanScore(userGlobalScore)} />
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-medium",
