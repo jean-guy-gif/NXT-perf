@@ -56,6 +56,12 @@ const PRIORITY_COLORS = {
   3: { border: "border-yellow-500/30", bg: "bg-yellow-500/5", icon: "text-yellow-500" },
 } as const;
 
+const FORMATION_LINKS: Record<string, string> = {
+  conseiller: "/formation",
+  manager: "/manager/formation-collective",
+  directeur: "/directeur/formation-collective",
+};
+
 export function RecommandationBanner({
   recommendations,
   maxItems = 3,
@@ -96,7 +102,7 @@ export function RecommandationBanner({
                   </div>
                 )}
                 <Link
-                  href="/formation"
+                  href={FORMATION_LINKS[scope] ?? "/formation"}
                   className="inline-flex items-center gap-1 text-xs font-medium text-primary mt-2 hover:underline"
                 >
                   Voir la formation
@@ -136,7 +142,7 @@ export function RecommandationBanner({
               <p className="text-xs text-muted-foreground">{msg.action}</p>
             </div>
             <Link
-              href="/formation"
+              href={FORMATION_LINKS[scope] ?? "/formation"}
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               Voir la formation
