@@ -38,8 +38,9 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
+  CartesianGrid,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 
 /* ────── Types ────── */
@@ -701,21 +702,31 @@ export default function DirecteurGPSPage() {
           {alignmentThemes.map((theme) => {
             const fmtFn = theme.isCA ? formatCurrency : formatNumber;
             const gapText = theme.isCA ? formatCurrency(theme.gap) : formatNumber(theme.gap);
+            const barColors = [NXT_COLORS.violet, NXT_COLORS.blue, NXT_COLORS.green];
+            const chartData = [
+              { niveau: "Directeur", value: theme.directeurObj },
+              { niveau: "Managers", value: theme.managersObj },
+              { niveau: "Agents", value: theme.agentsObj },
+            ];
+            const yFormatter = theme.isCA
+              ? (v: number) => `${(v / 1000).toFixed(0)}k €`
+              : (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v));
 
             return (
-              <div key={theme.key} className="rounded-xl border border-border bg-card p-6 space-y-4">
-                <h3 className="text-base font-semibold">Objectifs {theme.label}</h3>
+              <div key={theme.key} className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Objectifs {theme.label}</h3>
+                  <p className="text-xs text-muted-foreground">Objectifs mensuels par niveau</p>
+                </div>
 
-                <div style={{ width: "100%", height: 220 }}>
+                <div style={{ width: "100%", height: 280 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart
-                      data={[
-                        { niveau: "Agents", value: theme.agentsObj },
-                        { niveau: "Managers", value: theme.managersObj },
-                        { niveau: "Directeur", value: theme.directeurObj },
-                      ]}
-                      barGap={4}
-                    >
+                    <RechartsBarChart data={chartData} barGap={8}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="color-mix(in oklch, currentColor, transparent 88%)"
+                        vertical={false}
+                      />
                       <XAxis
                         dataKey="niveau"
                         axisLine={false}
@@ -726,6 +737,7 @@ export default function DirecteurGPSPage() {
                         axisLine={false}
                         tickLine={false}
                         tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
+                        tickFormatter={yFormatter}
                       />
                       <Tooltip
                         contentStyle={{
@@ -736,27 +748,39 @@ export default function DirecteurGPSPage() {
                           fontSize: "12px",
                         }}
                         formatter={(value) => {
-                          if (typeof value === "number" && theme.isCA) return formatCurrency(value);
+                          if (typeof value === "number") return theme.isCA ? formatCurrency(value) : formatNumber(value);
                           return value;
                         }}
                       />
-                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                        {[NXT_COLORS.green, NXT_COLORS.blue, NXT_COLORS.violet].map((color, i) => (
-                          <rect key={i} fill={color} />
+                      <Bar dataKey="value" barSize={40} radius={[6, 6, 0, 0]}>
+                        {chartData.map((_, i) => (
+                          <Cell key={i} fill={barColors[i]} />
                         ))}
                       </Bar>
                     </RechartsBarChart>
                   </ResponsiveContainer>
                 </div>
 
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex gap-4 text-muted-foreground">
-                    <span>Agents : {fmtFn(theme.agentsObj)}</span>
-                    <span>Managers : {fmtFn(theme.managersObj)}</span>
-                    <span>Directeur : {fmtFn(theme.directeurObj)}</span>
-                  </div>
+                {/* Custom legend */}
+                <div className="flex items-center justify-center gap-6 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NXT_COLORS.violet }} />
+                    <span className="text-muted-foreground">Directeur : {fmtFn(theme.directeurObj)}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NXT_COLORS.blue }} />
+                    <span className="text-muted-foreground">Managers : {fmtFn(theme.managersObj)}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NXT_COLORS.green }} />
+                    <span className="text-muted-foreground">Agents : {fmtFn(theme.agentsObj)}</span>
+                  </span>
+                </div>
+
+                {/* Gap analysis */}
+                <div className="flex justify-end">
                   <span className={cn(
-                    "font-medium",
+                    "text-xs font-medium",
                     theme.status === "aligned" ? "text-green-500" :
                     theme.status === "warning" ? "text-orange-500" : "text-red-500"
                   )}>
