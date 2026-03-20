@@ -54,7 +54,7 @@ export default function PilotageAgencePage() {
   const [avgActValue, setAvgActValue] = useState(agencyObjective?.avgActValue ?? 0);
 
   const agencyRecommendations = useMemo(() => {
-    const areaCount: Record<string, { count: number; area: FormationArea; label: string; totalGap: number }> = {};
+    const areaCount: Record<string, { count: number; area: FormationArea; label: string; totalGap: number; names: string[] }> = {};
 
     for (const user of allConseillers) {
       const results = allResults.find((r) => r.userId === user.id);
@@ -64,10 +64,11 @@ export default function PilotageAgencePage() {
 
       for (const rec of diag.recommendations.filter((r) => r.priority <= 2)) {
         if (!areaCount[rec.area]) {
-          areaCount[rec.area] = { count: 0, area: rec.area, label: rec.label, totalGap: 0 };
+          areaCount[rec.area] = { count: 0, area: rec.area, label: rec.label, totalGap: 0, names: [] };
         }
         areaCount[rec.area].count++;
         areaCount[rec.area].totalGap += rec.gapPercentage;
+        areaCount[rec.area].names.push(`${user.firstName} ${user.lastName}`);
       }
     }
 
@@ -81,7 +82,7 @@ export default function PilotageAgencePage() {
         currentRatio: 0,
         targetRatio: 0,
         gapPercentage: Math.round(item.totalGap / item.count),
-        description: `${item.count} conseiller(s) en difficulté`,
+        description: `${item.count} conseiller(s) en difficulté : ${item.names.join(", ")}`,
       }));
   }, [allConseillers, allResults, ratioConfigs]);
 
