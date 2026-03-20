@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { Compass, ChevronDown, ChevronUp } from "lucide-react";
-import { useAgencyGPS } from "@/hooks/use-agency-gps";
+import { useAgencyGPS, sumRealise, sumObjectif, avgRealiseExclu } from "@/hooks/use-agency-gps";
 import type { AgencyOverviewItem, PilotPeriod } from "@/hooks/use-agency-gps";
 import { useDirectorData } from "@/hooks/use-director-data";
+import type { TeamAggregate } from "@/hooks/use-director-data";
 import { useAppStore } from "@/stores/app-store";
 import { GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
@@ -18,6 +19,9 @@ import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
+import { LineChart } from "@/components/charts/line-chart";
+import { NXT_COLORS } from "@/lib/constants";
+import { Layers } from "lucide-react";
 
 const themes: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];
 
@@ -45,7 +49,7 @@ function fmtOverviewObj(item: AgencyOverviewItem) {
 
 export default function PilotageAgencePage() {
   const { theme, setTheme, period, setPeriod, monthCount, agencyGPS, agencyOverview, teamDetails, agencyObjective } = useAgencyGPS();
-  const { allConseillers, allResults, ratioConfigs } = useDirectorData();
+  const { teams, allConseillers, allResults, ratioConfigs } = useDirectorData();
   const periodLabel = period === "annee" ? `cumul ${monthCount} mois` : "ce mois";
   const periodObjLabel = period === "annee" ? `objectif ${monthCount} mois` : "objectif mensuel";
   const setAgencyObjective = useAppStore(s => s.setAgencyObjective);
@@ -142,6 +146,84 @@ export default function PilotageAgencePage() {
 
     return alerts;
   }, [allConseillers, allResults, ratioConfigs]);
+
+  const [multiNiveauView, setMultiNiveauView] = useState<"global" | "equipe">("global");
+
+  // Compute avancement % for each level across all 9 themes
+  const multiNiveauData = useMemo(() => {
+    function computeAvancement(agents: typeof allConseillers, results: typeof allResults, t: GPSTheme) {
+      const isExclu = t === "exclusivite";
+      const realise = isExclu ? avgRealiseExclu(agents, results) : sumRealise(agents, results, t);
+      const objectif = sumObjectif(agents, t);
+      return objectif > 0 ? Math.round((realise / objectif) * 100) : 0;
+    }
+
+    // Agency-level chart data (all 9 themes)
+    const chartData = themes.map((t) => {
+      const conseillersPct = computeAvancement(allConseillers, allResults, t);
+
+      // Managers = sum of each team's data
+      let mgrTotalRealise = 0;
+      let mgrTotalObjectif = 0;
+      for (const team of teams) {
+        const isExclu = t === "exclusivite";
+        mgrTotalRealise += isExclu ? avgRealiseExclu(team.agents, allResults) : sumRealise(team.agents, allResults, t);
+        mgrTotalObjectif += sumObjectif(team.agents, t);
+      }
+      const managersPct = mgrTotalObjectif > 0 ? Math.round((mgrTotalRealise / mgrTotalObjectif) * 100) : 0;
+
+      const agencePct = computeAvancement(allConseillers, allResults, t);
+
+      return {
+        theme: GPS_THEME_LABELS[t],
+        conseillers: conseillersPct,
+        managers: managersPct,
+        agence: agencePct,
+      };
+    });
+
+    // Per-selected-theme summary cards
+    const selectedTheme = theme;
+    const isExclu = selectedTheme === "exclusivite";
+    const consRealise = isExclu ? avgRealiseExclu(allConseillers, allResults) : sumRealise(allConseillers, allResults, selectedTheme);
+    const consObjectif = sumObjectif(allConseillers, selectedTheme);
+    const consEcart = consRealise - consObjectif;
+    const consPct = consObjectif > 0 ? Math.round((consRealise / consObjectif) * 100) : 0;
+
+    let mgrRealise = 0, mgrObjectif = 0;
+    for (const team of teams) {
+      mgrRealise += isExclu ? avgRealiseExclu(team.agents, allResults) : sumRealise(team.agents, allResults, selectedTheme);
+      mgrObjectif += sumObjectif(team.agents, selectedTheme);
+    }
+    const mgrEcart = mgrRealise - mgrObjectif;
+    const mgrPct = mgrObjectif > 0 ? Math.round((mgrRealise / mgrObjectif) * 100) : 0;
+
+    // Per-team chart data
+    const perTeamCharts = teams.map((team) => ({
+      teamId: team.teamId,
+      teamName: team.teamName,
+      managerName: team.managerName,
+      data: themes.map((t) => {
+        const isExcluT = t === "exclusivite";
+        const tRealise = isExcluT ? avgRealiseExclu(team.agents, allResults) : sumRealise(team.agents, allResults, t);
+        const tObjectif = sumObjectif(team.agents, t);
+        const tPct = tObjectif > 0 ? Math.round((tRealise / tObjectif) * 100) : 0;
+        return {
+          theme: GPS_THEME_LABELS[t],
+          equipe: tPct,
+          agence: chartData.find((d) => d.theme === GPS_THEME_LABELS[t])?.agence ?? 0,
+        };
+      }),
+    }));
+
+    return {
+      chartData,
+      perTeamCharts,
+      conseillers: { realise: consRealise, objectif: consObjectif, ecart: consEcart, pct: consPct },
+      managers: { realise: mgrRealise, objectif: mgrObjectif, ecart: mgrEcart, pct: mgrPct },
+      agence: { realise: agencyGPS.realise, objectif: agencyGPS.objectif, ecart: agencyGPS.ecart, pct: agencyGPS.avancement },
+    };
+  }, [theme, allConseillers, allResults, teams, agencyGPS]);
 
   function handleSave() {
     if (annualCA > 0 && avgActValue > 0) {
@@ -355,6 +437,119 @@ export default function PilotageAgencePage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* ═══ 7. GPS multi-niveau ═══ */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">GPS multi-niveau</h2>
+            <span className="text-xs text-muted-foreground">— {GPS_THEME_LABELS[theme]}, {periodLabel}</span>
+          </div>
+          <div className="flex gap-1 rounded-lg bg-muted p-1">
+            <button
+              onClick={() => setMultiNiveauView("global")}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium",
+                multiNiveauView === "global" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              )}
+            >
+              Vue globale
+            </button>
+            <button
+              onClick={() => setMultiNiveauView("equipe")}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium",
+                multiNiveauView === "equipe" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              )}
+            >
+              Par équipe
+            </button>
+          </div>
+        </div>
+
+        {/* 3 summary cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {([
+            { label: "GPS Conseillers", data: multiNiveauData.conseillers, color: "green" },
+            { label: "GPS Managers", data: multiNiveauData.managers, color: "blue" },
+            { label: "GPS Agence", data: multiNiveauData.agence, color: "violet" },
+          ] as const).map((card) => {
+            const status = card.data.pct >= 100 ? "ok" : card.data.pct >= 80 ? "warning" : "danger";
+            return (
+              <div key={card.label} className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-foreground">{card.label}</p>
+                  <span className={cn(
+                    "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                    status === "ok" ? "bg-green-500/10 text-green-500" :
+                    status === "warning" ? "bg-orange-500/10 text-orange-500" :
+                    "bg-red-500/10 text-red-500"
+                  )}>
+                    {card.data.pct}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Réalisé</p>
+                    <p className="font-semibold">{fmt(card.data.realise, theme)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Objectif</p>
+                    <p className="font-semibold">{fmt(card.data.objectif, theme)}</p>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className={cn("text-xs font-medium", card.data.ecart >= 0 ? "text-green-500" : "text-red-500")}>
+                    Écart : {card.data.ecart >= 0 ? "+" : ""}{fmt(card.data.ecart, theme)}
+                  </p>
+                </div>
+                <ProgressBar value={card.data.pct} status={status} showValue={false} size="sm" className="mt-2" />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Global comparison chart */}
+        {multiNiveauView === "global" && (
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h3 className="mb-4 text-sm font-semibold">Avancement par thème — Conseillers vs Managers vs Agence</h3>
+            <LineChart
+              data={multiNiveauData.chartData}
+              xKey="theme"
+              lines={[
+                { dataKey: "conseillers", color: NXT_COLORS.green, name: "Conseillers" },
+                { dataKey: "managers", color: NXT_COLORS.blue, name: "Managers" },
+                { dataKey: "agence", color: NXT_COLORS.violet, name: "Agence" },
+              ]}
+              showGrid
+            />
+          </div>
+        )}
+
+        {/* Per-team charts */}
+        {multiNiveauView === "equipe" && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {multiNiveauData.perTeamCharts.map((tc) => (
+              <div key={tc.teamId} className="rounded-xl border border-border bg-card p-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold">{tc.teamName}</h3>
+                  <p className="text-xs text-muted-foreground">Manager : {tc.managerName}</p>
+                </div>
+                <LineChart
+                  data={tc.data}
+                  xKey="theme"
+                  lines={[
+                    { dataKey: "equipe", color: NXT_COLORS.blue, name: tc.teamName },
+                    { dataKey: "agence", color: NXT_COLORS.violet, name: "Agence" },
+                  ]}
+                  showGrid
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ═══ 8. Recommandations ═══ */}

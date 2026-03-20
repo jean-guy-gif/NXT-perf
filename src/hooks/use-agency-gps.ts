@@ -102,14 +102,14 @@ function getRealiseForTheme(results: PeriodResults | undefined, theme: GPSTheme)
   }
 }
 
-function sumRealise(conseillers: User[], allResults: PeriodResults[], theme: GPSTheme): number {
+export function sumRealise(conseillers: User[], allResults: PeriodResults[], theme: GPSTheme): number {
   return conseillers.reduce((sum, c) => {
     const res = allResults.find(r => r.userId === c.id);
     return sum + getRealiseForTheme(res, theme);
   }, 0);
 }
 
-function sumObjectif(conseillers: User[], theme: GPSTheme): number {
+export function sumObjectif(conseillers: User[], theme: GPSTheme): number {
   if (theme === "exclusivite") {
     if (conseillers.length === 0) return 0;
     const total = conseillers.reduce((s, c) => s + getObjectifForTheme(c.category, theme), 0);
@@ -118,7 +118,7 @@ function sumObjectif(conseillers: User[], theme: GPSTheme): number {
   return conseillers.reduce((s, c) => s + getObjectifForTheme(c.category, theme), 0);
 }
 
-function avgRealiseExclu(conseillers: User[], allResults: PeriodResults[]): number {
+export function avgRealiseExclu(conseillers: User[], allResults: PeriodResults[]): number {
   if (conseillers.length === 0) return 0;
   const total = conseillers.reduce((s, c) => {
     const res = allResults.find(r => r.userId === c.id);
