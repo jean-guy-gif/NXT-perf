@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { Gauge, Users as UsersIcon, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { getHumanScore, getGlobalScore } from "@/lib/scoring";
-import { MARKET_BENCHMARKS } from "@/data/mock-benchmark";
+import { MARKET_BENCHMARKS, formatBenchmark } from "@/data/mock-benchmark";
 import { cn } from "@/lib/utils";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { useAgencyGPS } from "@/hooks/use-agency-gps";
@@ -427,6 +427,7 @@ export default function PerformancePage() {
                     if (!config) return null;
                     const score = getHumanScore(ratio);
                     const benchmark = MARKET_BENCHMARKS[ratio.ratioId as RatioId];
+                    const benchmarkLabel = formatBenchmark(ratio.ratioId as RatioId);
                     const MarketIcon = score.vsMarket === "above" ? TrendingUp : score.vsMarket === "below" ? TrendingDown : Minus;
                     const mColor = score.vsMarket === "above" ? "text-green-500" : score.vsMarket === "below" ? "text-red-500" : "text-muted-foreground";
                     return (
@@ -473,7 +474,7 @@ export default function PerformancePage() {
                         {benchmark && (
                           <div className="mt-1 flex items-center gap-1">
                             <MarketIcon className={cn("h-3 w-3", mColor)} />
-                            <p className="text-xs text-muted-foreground">Moy. marché : {benchmark.marketAverage}%</p>
+                            <p className="text-xs text-muted-foreground">{benchmarkLabel}</p>
                           </div>
                         )}
                         <p className="mt-1 text-right text-xs text-muted-foreground">
@@ -564,10 +565,17 @@ function RatioGridCard({
 /* ────── Single Ratio Card ────── */
 function RatioCard({ ratio }: { ratio: RatioAverage }) {
   const benchmark = MARKET_BENCHMARKS[ratio.id];
-  const vsMarket = benchmark
-    ? ratio.avgValue > benchmark.marketAverage * 1.1 ? "above"
-    : ratio.avgValue >= benchmark.marketAverage * 0.9 ? "at" : "below"
-    : "at";
+  const benchmarkLabel = formatBenchmark(ratio.id);
+  let vsMarket: "above" | "at" | "below" = "at";
+  if (benchmark) {
+    if (benchmark.isLowerBetter) {
+      vsMarket = ratio.avgValue < benchmark.marketAverage * 0.9 ? "above"
+        : ratio.avgValue <= benchmark.marketAverage * 1.1 ? "at" : "below";
+    } else {
+      vsMarket = ratio.avgValue > benchmark.marketAverage * 1.1 ? "above"
+        : ratio.avgValue >= benchmark.marketAverage * 0.9 ? "at" : "below";
+    }
+  }
   const MarketIcon = vsMarket === "above" ? TrendingUp : vsMarket === "below" ? TrendingDown : Minus;
   const marketIconColor = vsMarket === "above" ? "text-green-500" : vsMarket === "below" ? "text-red-500" : "text-muted-foreground";
 
@@ -607,7 +615,7 @@ function RatioCard({ ratio }: { ratio: RatioAverage }) {
       {benchmark && (
         <div className="mt-1 flex items-center gap-1">
           <MarketIcon className={cn("h-3 w-3", marketIconColor)} />
-          <p className="text-xs text-muted-foreground">Moy. marché : {benchmark.marketAverage}%</p>
+          <p className="text-xs text-muted-foreground">{benchmarkLabel}</p>
         </div>
       )}
       <p className="mt-1 text-right text-xs text-muted-foreground">

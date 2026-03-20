@@ -3,43 +3,68 @@ import type { RatioId } from "@/types/ratios";
 export interface MarketBenchmark {
   marketAverage: number;
   topPerformer: number;
-  label: string;
+  isLowerBetter: boolean;
+  unit: string;
 }
 
+// Values are in the SAME unit as ratio values (raw ratio values, not percentages)
+// For isLowerBetter ratios: lower = better (fewer contacts per RDV = better)
+// Calibrated for French real estate market
 export const MARKET_BENCHMARKS: Record<RatioId, MarketBenchmark> = {
   contacts_rdv: {
-    marketAverage: 25,
-    topPerformer: 40,
-    label: "Moy. marché : 25%",
+    // 20% conversion → 5 contacts/RDV, top 35% → ~2.9
+    marketAverage: 5,
+    topPerformer: 2.9,
+    isLowerBetter: true,
+    unit: "contacts/RDV",
   },
   estimations_mandats: {
-    marketAverage: 55,
-    topPerformer: 75,
-    label: "Moy. marché : 55%",
+    // 50% conversion → 2 est/mandat, top 70% → ~1.4
+    marketAverage: 2,
+    topPerformer: 1.4,
+    isLowerBetter: true,
+    unit: "estimations/mandat",
   },
   pct_mandats_exclusifs: {
-    marketAverage: 30,
-    topPerformer: 60,
-    label: "Moy. marché : 30%",
+    // Percentage ratio — values stay as %
+    marketAverage: 25,
+    topPerformer: 50,
+    isLowerBetter: false,
+    unit: "%",
   },
   visites_offre: {
-    marketAverage: 15,
-    topPerformer: 25,
-    label: "Moy. marché : 15%",
+    // 10% conversion → 10 visites/offre, top 20% → 5
+    marketAverage: 10,
+    topPerformer: 5,
+    isLowerBetter: true,
+    unit: "visites/offre",
   },
   offres_compromis: {
-    marketAverage: 50,
-    topPerformer: 70,
-    label: "Moy. marché : 50%",
+    // 45% conversion → ~2.2 offres/compromis, top 65% → ~1.5
+    marketAverage: 2.2,
+    topPerformer: 1.5,
+    isLowerBetter: true,
+    unit: "offres/compromis",
   },
   mandats_simples_vente: {
-    marketAverage: 20,
-    topPerformer: 35,
-    label: "Moy. marché : 20%",
+    // 15% conversion → ~6.7 mandats/vente, top 30% → ~3.3
+    marketAverage: 6.7,
+    topPerformer: 3.3,
+    isLowerBetter: true,
+    unit: "mandats/vente",
   },
   mandats_exclusifs_vente: {
-    marketAverage: 45,
-    topPerformer: 65,
-    label: "Moy. marché : 45%",
+    // 40% conversion → 2.5 mandats/vente, top 60% → ~1.7
+    marketAverage: 2.5,
+    topPerformer: 1.7,
+    isLowerBetter: true,
+    unit: "mandats/vente",
   },
 };
+
+export function formatBenchmark(ratioId: RatioId): string {
+  const b = MARKET_BENCHMARKS[ratioId];
+  if (!b) return "";
+  if (b.unit === "%") return `Moy. marché : ${b.marketAverage}%`;
+  return `Moy. marché : ${Number.isInteger(b.marketAverage) ? b.marketAverage : b.marketAverage.toFixed(1)} ${b.unit}`;
+}

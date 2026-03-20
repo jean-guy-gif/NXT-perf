@@ -23,7 +23,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { getHumanScore, getGlobalScore } from "@/lib/scoring";
-import { MARKET_BENCHMARKS } from "@/data/mock-benchmark";
+import { formatBenchmark } from "@/data/mock-benchmark";
 
 const statusConfig = {
   ok: {
@@ -265,7 +265,7 @@ export default function PerformancePage() {
                   size="sm"
                   className="mt-3"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Moy. marché : {humanScore.marketAverage}%</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatBenchmark(ratio.ratioId as RatioId)}</p>
 
                 {/* Threshold info */}
                 <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">

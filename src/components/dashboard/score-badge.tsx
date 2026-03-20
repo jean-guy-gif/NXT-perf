@@ -37,7 +37,7 @@ export function ScoreBadge({ score, showMarket = false, showTrend = false, size 
       )}
       {showMarket && score.marketAverage > 0 && (
         <span className="text-xs text-muted-foreground">
-          Moy. marché : {score.marketAverage}%
+          Moy. marché : {Number.isInteger(score.marketAverage) ? score.marketAverage : score.marketAverage.toFixed(1)}{score.marketUnit === "%" ? "%" : ` ${score.marketUnit}`}
         </span>
       )}
     </div>

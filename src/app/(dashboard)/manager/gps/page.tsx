@@ -25,7 +25,7 @@ import {
   Users,
   TrendingDown,
 } from "lucide-react";
-import { MARKET_BENCHMARKS } from "@/data/mock-benchmark";
+import { MARKET_BENCHMARKS, formatBenchmark } from "@/data/mock-benchmark";
 
 /* ────── Types ────── */
 type GPSTab = "gps" | "niveau";
@@ -518,7 +518,9 @@ export default function ManagerGPSPage() {
                 const config = ratioConfigs[id];
                 const threshold = thresholdsForLevel[id];
                 const benchmark = MARKET_BENCHMARKS[id];
-                const belowMarket = benchmark && threshold < benchmark.marketAverage;
+                const belowMarket = benchmark && (benchmark.isLowerBetter
+                  ? threshold > benchmark.marketAverage
+                  : threshold < benchmark.marketAverage);
 
                 return (
                   <div
@@ -537,7 +539,7 @@ export default function ManagerGPSPage() {
                       <div className="mt-1 flex items-center gap-1">
                         {belowMarket && <TrendingDown className="h-3 w-3 text-red-500" />}
                         <p className={cn("text-xs", belowMarket ? "text-red-500" : "text-muted-foreground")}>
-                          Moy. marché : {benchmark.marketAverage}%
+                          {formatBenchmark(id)}
                         </p>
                       </div>
                     )}

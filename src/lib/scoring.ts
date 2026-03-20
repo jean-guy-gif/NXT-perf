@@ -10,6 +10,7 @@ export interface HumanScore {
   bgColor: string;
   vsMarket: "above" | "at" | "below";
   marketAverage: number;
+  marketUnit: string;
 }
 
 const SCORE_CONFIG: Record<ScoreLevel, { label: string; color: string; bgColor: string }> = {
@@ -30,18 +31,24 @@ export function getHumanScore(ratio: ComputedRatio): HumanScore {
       bgColor: "bg-muted",
       vsMarket: "at",
       marketAverage: 0,
+      marketUnit: "",
     };
   }
 
   const pct = ratio.percentageOfTarget;
   const value = ratio.value;
+  const lb = benchmark.isLowerBetter;
+
+  // For isLowerBetter: better than top = value <= topPerformer
+  const isTopValue = lb ? value <= benchmark.topPerformer : value >= benchmark.topPerformer;
+  const isAboveAvg = lb ? value <= benchmark.marketAverage : value >= benchmark.marketAverage;
 
   let level: ScoreLevel;
-  if (pct >= 120 && value >= benchmark.topPerformer) {
+  if (pct >= 120 && isTopValue) {
     level = "top";
   } else if (pct >= 100) {
     level = "bon";
-  } else if (pct >= 80 || value >= benchmark.marketAverage) {
+  } else if (pct >= 80 || isAboveAvg) {
     level = "moyen";
   } else if (pct >= 50) {
     level = "faible";
@@ -49,15 +56,22 @@ export function getHumanScore(ratio: ComputedRatio): HumanScore {
     level = "critique";
   }
 
-  const vsMarket: "above" | "at" | "below" =
-    value > benchmark.marketAverage * 1.1 ? "above" :
-    value >= benchmark.marketAverage * 0.9 ? "at" : "below";
+  // vsMarket: for isLowerBetter, lower value = "above" market (better)
+  let vsMarket: "above" | "at" | "below";
+  if (lb) {
+    vsMarket = value < benchmark.marketAverage * 0.9 ? "above" :
+      value <= benchmark.marketAverage * 1.1 ? "at" : "below";
+  } else {
+    vsMarket = value > benchmark.marketAverage * 1.1 ? "above" :
+      value >= benchmark.marketAverage * 0.9 ? "at" : "below";
+  }
 
   return {
     level,
     ...SCORE_CONFIG[level],
     vsMarket,
     marketAverage: benchmark.marketAverage,
+    marketUnit: benchmark.unit,
   };
 }
 
@@ -94,5 +108,6 @@ export function globalScoreToHumanScore(global: ReturnType<typeof getGlobalScore
     bgColor: global.bgColor,
     vsMarket: "at",
     marketAverage: 0,
+    marketUnit: "",
   };
 }
