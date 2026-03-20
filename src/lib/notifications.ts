@@ -51,6 +51,10 @@ export function computeNotifications(
 ): AppNotification[] {
   if (!user) return [];
 
+  if (user.role === "directeur") {
+    return computeDirecteurNotifications(user, results, allUsers, ratioConfigs);
+  }
+
   if (user.role === "manager") {
     return computeManagerNotifications(user, results, allUsers, ratioConfigs);
   }
@@ -219,6 +223,70 @@ function computeManagerNotifications(
         detail: "Consultez le GPS Équipe pour identifier les axes d'amélioration",
         link: "/manager/gps",
       });
+    }
+  }
+
+  return notifs;
+}
+
+function computeDirecteurNotifications(
+  user: User,
+  results: PeriodResults[],
+  allUsers: User[],
+  ratioConfigs?: Record<RatioId, RatioConfig>
+): AppNotification[] {
+  const notifs: AppNotification[] = [];
+
+  const allConseillers = allUsers.filter(
+    (u) => u.role === "conseiller" && u.institutionId === user.institutionId
+  );
+
+  const lateName: string[] = [];
+  for (const c of allConseillers) {
+    const cResults = results.filter((r) => r.userId === c.id);
+    const latestUpdatedAt = cResults.reduce<string | null>((latest, r) => {
+      if (!latest || r.updatedAt > latest) return r.updatedAt;
+      return latest;
+    }, null);
+    if (!latestUpdatedAt || Date.now() - new Date(latestUpdatedAt).getTime() > SEVEN_DAYS_MS) {
+      lateName.push(`${c.firstName} ${c.lastName}`);
+    }
+  }
+
+  if (lateName.length > 0) {
+    notifs.push({
+      id: "directeur-saisie-retard",
+      type: "warning",
+      message: `${lateName.length} collaborateur${lateName.length > 1 ? "s" : ""} sans saisie récente`,
+      detail: lateName.slice(0, 5).join(", ") + (lateName.length > 5 ? ` et ${lateName.length - 5} autres` : ""),
+      link: "/directeur/performance",
+    });
+  }
+
+  if (ratioConfigs) {
+    let totalScore = 0;
+    let scoredCount = 0;
+    for (const c of allConseillers) {
+      const cResults = results.filter((r) => r.userId === c.id);
+      const latest = cResults.sort((a, b) => b.periodStart.localeCompare(a.periodStart))[0];
+      if (latest) {
+        const ratios = computeAllRatios(latest, c.category, ratioConfigs);
+        const score = getGlobalScore(ratios);
+        totalScore += score.score;
+        scoredCount++;
+      }
+    }
+    if (scoredCount > 0) {
+      const avgScore = Math.round(totalScore / scoredCount);
+      if (avgScore < 60) {
+        notifs.push({
+          id: "directeur-performance-faible",
+          type: "warning",
+          message: "Performance globale agence en dessous des objectifs",
+          detail: `Score moyen : ${avgScore}% — consultez le pilotage pour identifier les leviers`,
+          link: "/directeur/pilotage",
+        });
+      }
     }
   }
 
