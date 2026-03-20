@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_OBJECTIVES, GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
@@ -133,8 +134,14 @@ export function useAgencyGPS() {
   const storeResults = useAppStore(s => s.results);
   const agencyObjective = useAppStore(s => s.agencyObjective);
 
-  const [theme, setTheme] = useState<GPSTheme>("mandats");
-  const [period, setPeriod] = useState<PilotPeriod>("mois");
+  const [theme, setTheme] = usePersistedState<GPSTheme>(
+    "nxt-directeur-pilotage-theme",
+    "mandats"
+  );
+  const [period, setPeriod] = usePersistedState<PilotPeriod>(
+    "nxt-directeur-pilotage-period",
+    "mois"
+  );
 
   // ── Compute latest-month results (one per user) ──
   const latestResults = useMemo<PeriodResults[]>(() => {

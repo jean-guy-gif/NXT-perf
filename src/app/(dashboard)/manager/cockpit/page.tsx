@@ -30,6 +30,7 @@ import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 /* ────── Clickable badge with popover ────── */
 type StatutGroupData = {
@@ -233,7 +234,10 @@ export default function CockpitPage() {
   });
 
   /* ── Period state ── */
-  const [periodMode, setPeriodMode] = useState<PeriodMode>("mois");
+  const [periodMode, setPeriodMode] = usePersistedState<PeriodMode>(
+    "nxt-manager-cockpit-period",
+    "mois"
+  );
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
