@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Gauge, Users as UsersIcon, ChevronDown, ChevronRight } from "lucide-react";
+import { Gauge, Users as UsersIcon, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { getHumanScore, getGlobalScore } from "@/lib/scoring";
+import { MARKET_BENCHMARKS } from "@/data/mock-benchmark";
 import { cn } from "@/lib/utils";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { useAgencyGPS } from "@/hooks/use-agency-gps";
@@ -423,6 +425,10 @@ export default function PerformancePage() {
                   {selectedRatios.map((ratio) => {
                     const config = ratioConfigs[ratio.ratioId as RatioId];
                     if (!config) return null;
+                    const score = getHumanScore(ratio);
+                    const benchmark = MARKET_BENCHMARKS[ratio.ratioId as RatioId];
+                    const MarketIcon = score.vsMarket === "above" ? TrendingUp : score.vsMarket === "below" ? TrendingDown : Minus;
+                    const mColor = score.vsMarket === "above" ? "text-green-500" : score.vsMarket === "below" ? "text-red-500" : "text-muted-foreground";
                     return (
                       <div
                         key={ratio.ratioId}
@@ -435,9 +441,14 @@ export default function PerformancePage() {
                               : "border-red-500/20"
                         )}
                       >
-                        <p className="text-xs text-muted-foreground">
-                          {config.name}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            {config.name}
+                          </p>
+                          <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", score.bgColor, score.color)}>
+                            {score.label}
+                          </span>
+                        </div>
                         <p
                           className={cn(
                             "mt-1 text-xl font-bold",
@@ -459,6 +470,12 @@ export default function PerformancePage() {
                           size="sm"
                           className="mt-2"
                         />
+                        {benchmark && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <MarketIcon className={cn("h-3 w-3", mColor)} />
+                            <p className="text-xs text-muted-foreground">Moy. marché : {benchmark.marketAverage}%</p>
+                          </div>
+                        )}
                         <p className="mt-1 text-right text-xs text-muted-foreground">
                           {Math.round(ratio.percentageOfTarget)}% de l&apos;objectif
                         </p>
@@ -519,6 +536,19 @@ function RatioGridCard({
           >
             {globalAvg}%
           </p>
+          <span className={cn(
+            "inline-block mt-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            globalAvg >= 120 ? "bg-green-500/15 text-green-500" :
+            globalAvg >= 100 ? "bg-green-500/10 text-green-500" :
+            globalAvg >= 80 ? "bg-orange-500/10 text-orange-500" :
+            globalAvg >= 50 ? "bg-orange-500/15 text-orange-500" :
+            "bg-red-500/15 text-red-500"
+          )}>
+            {globalAvg >= 120 ? "Top performer" :
+             globalAvg >= 100 ? "Bon niveau" :
+             globalAvg >= 80 ? "Dans la moyenne" :
+             globalAvg >= 50 ? "En dessous" : "Critique"}
+          </span>
         </div>
       </div>
 
@@ -533,6 +563,14 @@ function RatioGridCard({
 
 /* ────── Single Ratio Card ────── */
 function RatioCard({ ratio }: { ratio: RatioAverage }) {
+  const benchmark = MARKET_BENCHMARKS[ratio.id];
+  const vsMarket = benchmark
+    ? ratio.avgValue > benchmark.marketAverage * 1.1 ? "above"
+    : ratio.avgValue >= benchmark.marketAverage * 0.9 ? "at" : "below"
+    : "at";
+  const MarketIcon = vsMarket === "above" ? TrendingUp : vsMarket === "below" ? TrendingDown : Minus;
+  const marketIconColor = vsMarket === "above" ? "text-green-500" : vsMarket === "below" ? "text-red-500" : "text-muted-foreground";
+
   return (
     <div
       className={cn(
@@ -566,6 +604,12 @@ function RatioCard({ ratio }: { ratio: RatioAverage }) {
         size="sm"
         className="mt-2"
       />
+      {benchmark && (
+        <div className="mt-1 flex items-center gap-1">
+          <MarketIcon className={cn("h-3 w-3", marketIconColor)} />
+          <p className="text-xs text-muted-foreground">Moy. marché : {benchmark.marketAverage}%</p>
+        </div>
+      )}
       <p className="mt-1 text-right text-xs text-muted-foreground">
         {ratio.avgPct}% de l&apos;objectif
       </p>

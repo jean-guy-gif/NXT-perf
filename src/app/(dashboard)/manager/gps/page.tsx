@@ -23,7 +23,9 @@ import {
   UserCog,
   ArrowRight,
   Users,
+  TrendingDown,
 } from "lucide-react";
+import { MARKET_BENCHMARKS } from "@/data/mock-benchmark";
 
 /* ────── Types ────── */
 type GPSTab = "gps" | "niveau";
@@ -515,18 +517,30 @@ export default function ManagerGPSPage() {
               {ratioIds.map((id) => {
                 const config = ratioConfigs[id];
                 const threshold = thresholdsForLevel[id];
+                const benchmark = MARKET_BENCHMARKS[id];
+                const belowMarket = benchmark && threshold < benchmark.marketAverage;
 
                 return (
                   <div
                     key={id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3"
+                    className="rounded-lg border border-border bg-muted/30 px-4 py-3"
                   >
-                    <p className="text-sm font-medium text-foreground">
-                      {ratioLabels[id]}
-                    </p>
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
-                      {config.isPercentage ? `${Math.round(threshold)}%` : Number(threshold).toFixed(1)}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground">
+                        {ratioLabels[id]}
+                      </p>
+                      <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                        {config.isPercentage ? `${Math.round(threshold)}%` : Number(threshold).toFixed(1)}
+                      </span>
+                    </div>
+                    {benchmark && (
+                      <div className="mt-1 flex items-center gap-1">
+                        {belowMarket && <TrendingDown className="h-3 w-3 text-red-500" />}
+                        <p className={cn("text-xs", belowMarket ? "text-red-500" : "text-muted-foreground")}>
+                          Moy. marché : {benchmark.marketAverage}%
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
