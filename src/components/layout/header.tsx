@@ -43,6 +43,7 @@ export function Header() {
   const hiddenViews = useAppStore((s) => s.hiddenViews);
   const toggleViewVisibility = useAppStore((s) => s.toggleViewVisibility);
   const isDemo = useAppStore((s) => s.isDemo);
+  const ratioConfigs = useAppStore((s) => s.ratioConfigs);
 
   const availableViews = useMemo(
     () => rolesToViews(user?.availableRoles ?? []),
@@ -60,8 +61,8 @@ export function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const notifications = useMemo(
-    () => computeNotifications(user, results, users),
-    [user, results, users]
+    () => computeNotifications(user, results, users, ratioConfigs),
+    [user, results, users, ratioConfigs]
   );
 
   // Close dropdown on click outside
