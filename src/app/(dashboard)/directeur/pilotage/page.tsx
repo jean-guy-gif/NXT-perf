@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Compass, ChevronDown, ChevronUp } from "lucide-react";
 import { useAgencyGPS } from "@/hooks/use-agency-gps";
 import type { AgencyOverviewItem, PilotPeriod } from "@/hooks/use-agency-gps";
+import { useDirectorData } from "@/hooks/use-director-data";
 import { useAppStore } from "@/stores/app-store";
 import { GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
+import { generateFormationDiagnostic } from "@/lib/formation";
+import { computeAllRatios } from "@/lib/ratios";
+import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
+import type { FormationArea } from "@/types/formation";
 
 const themes: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];
 
@@ -36,12 +41,45 @@ function fmtOverviewObj(item: AgencyOverviewItem) {
 
 export default function PilotageAgencePage() {
   const { theme, setTheme, period, setPeriod, monthCount, agencyGPS, agencyOverview, teamDetails, agencyObjective } = useAgencyGPS();
+  const { allConseillers, allResults, ratioConfigs } = useDirectorData();
   const periodLabel = period === "annee" ? `cumul ${monthCount} mois` : "ce mois";
   const periodObjLabel = period === "annee" ? `objectif ${monthCount} mois` : "objectif mensuel";
   const setAgencyObjective = useAppStore(s => s.setAgencyObjective);
   const [showSaisie, setShowSaisie] = useState(!agencyObjective);
   const [annualCA, setAnnualCA] = useState(agencyObjective?.annualCA ?? 0);
   const [avgActValue, setAvgActValue] = useState(agencyObjective?.avgActValue ?? 0);
+
+  const agencyRecommendations = useMemo(() => {
+    const areaCount: Record<string, { count: number; area: FormationArea; label: string; totalGap: number }> = {};
+
+    for (const user of allConseillers) {
+      const results = allResults.find((r) => r.userId === user.id);
+      if (!results) continue;
+      const ratios = computeAllRatios(results, user.category, ratioConfigs);
+      const diag = generateFormationDiagnostic(ratios, ratioConfigs, user.id);
+
+      for (const rec of diag.recommendations.filter((r) => r.priority <= 2)) {
+        if (!areaCount[rec.area]) {
+          areaCount[rec.area] = { count: 0, area: rec.area, label: rec.label, totalGap: 0 };
+        }
+        areaCount[rec.area].count++;
+        areaCount[rec.area].totalGap += rec.gapPercentage;
+      }
+    }
+
+    return Object.values(areaCount)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((item) => ({
+        area: item.area,
+        label: `${item.count} ${item.label.toLowerCase()}`,
+        priority: (item.count >= 3 ? 1 : 2) as 1 | 2 | 3,
+        currentRatio: 0,
+        targetRatio: 0,
+        gapPercentage: Math.round(item.totalGap / item.count),
+        description: `${item.count} conseiller(s) en difficulté`,
+      }));
+  }, [allConseillers, allResults, ratioConfigs]);
 
   function handleSave() {
     if (annualCA > 0 && avgActValue > 0) {
@@ -64,6 +102,17 @@ export default function PilotageAgencePage() {
           <p className="text-sm text-muted-foreground">GPS de performance agence — données mensuelles</p>
         </div>
       </div>
+
+      {/* ── Agency Recommendations ── */}
+      {agencyRecommendations.length > 0 && (
+        <RecommandationBanner
+          recommendations={agencyRecommendations}
+          ratioConfigs={ratioConfigs}
+          maxItems={3}
+          variant="compact"
+          scope="directeur"
+        />
+      )}
 
       {/* ── Vue d'ensemble ── */}
       <div className="rounded-lg border border-border bg-card">
