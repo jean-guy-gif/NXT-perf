@@ -7,7 +7,7 @@ import type { AgencyOverviewItem, PilotPeriod } from "@/hooks/use-agency-gps";
 import { useDirectorData } from "@/hooks/use-director-data";
 import type { TeamAggregate } from "@/hooks/use-director-data";
 import { useAppStore } from "@/stores/app-store";
-import { GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
+import { GPS_THEME_LABELS, CATEGORY_OBJECTIVES, type GPSTheme } from "@/lib/constants";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
@@ -20,8 +20,9 @@ import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
 import { LineChart } from "@/components/charts/line-chart";
+import { BarChart } from "@/components/charts/bar-chart";
 import { NXT_COLORS } from "@/lib/constants";
-import { Layers } from "lucide-react";
+import { Layers, DollarSign } from "lucide-react";
 
 const themes: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];
 
@@ -49,7 +50,7 @@ function fmtOverviewObj(item: AgencyOverviewItem) {
 
 export default function PilotageAgencePage() {
   const { theme, setTheme, period, setPeriod, monthCount, agencyGPS, agencyOverview, teamDetails, agencyObjective } = useAgencyGPS();
-  const { teams, allConseillers, allResults, ratioConfigs } = useDirectorData();
+  const { teams, allConseillers, allManagers, allResults, ratioConfigs } = useDirectorData();
   const periodLabel = period === "annee" ? `cumul ${monthCount} mois` : "ce mois";
   const periodObjLabel = period === "annee" ? `objectif ${monthCount} mois` : "objectif mensuel";
   const setAgencyObjective = useAppStore(s => s.setAgencyObjective);
@@ -148,6 +149,39 @@ export default function PilotageAgencePage() {
   }, [allConseillers, allResults, ratioConfigs]);
 
   const [multiNiveauView, setMultiNiveauView] = useState<"global" | "equipe">("global");
+
+  const caComparison = useMemo(() => {
+    const conseillerCA = allConseillers.reduce(
+      (sum, c) => sum + (CATEGORY_OBJECTIVES[c.category]?.ca ?? 0),
+      0
+    );
+    const managerCA = allManagers.reduce(
+      (sum, m) => sum + (CATEGORY_OBJECTIVES[m.category]?.ca ?? 0),
+      0
+    );
+    const agenceMonthlyCA = agencyObjective
+      ? Math.round(agencyObjective.annualCA / 12)
+      : null;
+
+    const totalIndividual = conseillerCA + managerCA;
+
+    let insight: string;
+    if (agenceMonthlyCA === null) {
+      insight = "Objectif agence non défini — saisissez-le dans le GPS Agence";
+    } else {
+      const ecart = Math.abs(agenceMonthlyCA - totalIndividual);
+      const ratio = totalIndividual > 0 ? agenceMonthlyCA / totalIndividual : 0;
+      if (ratio > 1.05) {
+        insight = `L'objectif agence dépasse le cumul des objectifs individuels de ${formatCurrency(ecart)}/mois`;
+      } else if (ratio < 0.95) {
+        insight = `Le cumul des objectifs individuels dépasse l'objectif agence de ${formatCurrency(ecart)}/mois`;
+      } else {
+        insight = "Les objectifs sont cohérents entre les niveaux";
+      }
+    }
+
+    return { conseillerCA, managerCA, agenceMonthlyCA, insight };
+  }, [allConseillers, allManagers, agencyObjective]);
 
   // Compute avancement % for each level across all 9 themes
   const multiNiveauData = useMemo(() => {
@@ -436,6 +470,54 @@ export default function PilotageAgencePage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ═══ 6b. Écarts d'objectifs CA ═══ */}
+      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="text-lg font-semibold">Écarts d'objectifs CA</h2>
+            <p className="text-xs text-muted-foreground">Comparaison des objectifs CA mensuels entre les niveaux</p>
+          </div>
+        </div>
+
+        <BarChart
+          data={[
+            {
+              niveau: "Conseillers",
+              ca: caComparison.conseillerCA,
+            },
+            {
+              niveau: "Managers",
+              ca: caComparison.managerCA,
+            },
+            {
+              niveau: "Agence",
+              ca: caComparison.agenceMonthlyCA ?? 0,
+            },
+          ]}
+          xKey="niveau"
+          bars={[
+            { dataKey: "ca", color: NXT_COLORS.green, name: "Objectif CA mensuel" },
+          ]}
+        />
+
+        <div className={cn(
+          "rounded-lg px-4 py-3 text-sm",
+          caComparison.agenceMonthlyCA === null
+            ? "bg-muted/50 text-muted-foreground"
+            : "bg-primary/5 text-foreground"
+        )}>
+          <p>{caComparison.insight}</p>
+          <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span>Conseillers : {formatCurrency(caComparison.conseillerCA)}/mois</span>
+            <span>Managers : {formatCurrency(caComparison.managerCA)}/mois</span>
+            {caComparison.agenceMonthlyCA !== null && (
+              <span>Agence : {formatCurrency(caComparison.agenceMonthlyCA)}/mois</span>
+            )}
+          </div>
         </div>
       </div>
 
