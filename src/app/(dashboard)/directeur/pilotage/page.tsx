@@ -14,6 +14,9 @@ import { generateFormationDiagnostic } from "@/lib/formation";
 import { computeAllRatios } from "@/lib/ratios";
 import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
 import type { FormationArea } from "@/types/formation";
+import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
+import { ScoreBadge } from "@/components/dashboard/score-badge";
+import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 
 const themes: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];
 
@@ -81,6 +84,27 @@ export default function PilotageAgencePage() {
       }));
   }, [allConseillers, allResults, ratioConfigs]);
 
+  const agencyScore = useMemo(() => {
+    let totalScore = 0;
+    let count = 0;
+    for (const c of allConseillers) {
+      const res = allResults.find((r) => r.userId === c.id);
+      if (!res) continue;
+      const ratios = computeAllRatios(res, c.category, ratioConfigs);
+      const score = getGlobalScore(ratios);
+      totalScore += score.score;
+      count++;
+    }
+    if (count === 0) return null;
+    const avg = Math.round(totalScore / count);
+    return getGlobalScore(
+      allConseillers.flatMap((c) => {
+        const res = allResults.find((r) => r.userId === c.id);
+        return res ? computeAllRatios(res, c.category, ratioConfigs) : [];
+      })
+    );
+  }, [allConseillers, allResults, ratioConfigs]);
+
   function handleSave() {
     if (annualCA > 0 && avgActValue > 0) {
       setAgencyObjective({ annualCA, avgActValue });
@@ -93,14 +117,19 @@ export default function PilotageAgencePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Compass className="h-5 w-5 text-primary" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <Compass className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Pilotage Agence</h1>
+            <p className="text-sm text-muted-foreground">GPS de performance agence — données mensuelles</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Pilotage Agence</h1>
-          <p className="text-sm text-muted-foreground">GPS de performance agence — données mensuelles</p>
-        </div>
+        {agencyScore && (
+          <ScoreBadge score={globalScoreToHumanScore(agencyScore)} size="md" />
+        )}
       </div>
 
       {/* ── Agency Recommendations ── */}
@@ -267,6 +296,7 @@ export default function PilotageAgencePage() {
                 <th className="px-4 py-2 text-right">Réalisé</th>
                 <th className="px-4 py-2 text-right">Écart</th>
                 <th className="px-4 py-2 text-right">%</th>
+                <th className="px-4 py-2 text-right">Tendance</th>
               </tr>
             </thead>
             <tbody>
@@ -287,6 +317,9 @@ export default function PilotageAgencePage() {
                     )}>
                       {td.pct}%
                     </span>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <TrendIndicator current={td.realise} previous={td.objectif} />
                   </td>
                 </tr>
               ))}
