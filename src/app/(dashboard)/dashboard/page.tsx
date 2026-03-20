@@ -52,6 +52,7 @@ import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
 
@@ -160,8 +161,14 @@ function DashboardContent() {
   const { computedRatios, ratioConfigs } = useRatios();
   const isDemo = useAppStore((s) => s.isDemo);
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
-  const [favorites, setFavorites] = useState<WidgetId[]>(defaultFavorites);
+  const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
+    "nxt-dashboard-tab",
+    "overview"
+  );
+  const [favorites, setFavorites] = usePersistedState<WidgetId[]>(
+    "nxt-dashboard-favorites",
+    defaultFavorites
+  );
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [expandedKpi, setExpandedKpi] = useState<ExpandableKpi | null>(null);
 
