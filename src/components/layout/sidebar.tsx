@@ -21,6 +21,7 @@ import {
   Wallet,
   HeartHandshake,
   Network,
+  Navigation,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -59,6 +60,7 @@ const navItems: NavItem[] = [
     managerOnly: true,
   },
   { href: "/directeur/pilotage", icon: Compass, label: "Pilotage Agence", directorOnly: true },
+  { href: "/directeur/gps", icon: Navigation, label: "GPS Agence", directorOnly: true },
   { href: "/directeur/equipes", icon: Users, label: "Équipes", directorOnly: true },
   { href: "/directeur/performance", icon: Gauge, label: "Performance", directorOnly: true },
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage financier", directorOnly: true },

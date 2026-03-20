@@ -126,6 +126,11 @@ const directeurSteps: TourStep[] = [
     description: "Ici, tu visualises la performance globale de ton agence : objectifs, réalisé, écart et projection sur chaque indicateur clé.",
   },
   {
+    target: '[href="/directeur/gps"]',
+    title: "GPS Agence",
+    description: "Ici, tu saisis ton objectif agence et tu suis ton GPS personnel et celui de l'agence.",
+  },
+  {
     target: '[href="/directeur/equipes"]',
     title: "Vue équipes",
     description: "Ici, tu compares les résultats de tes équipes et tu identifies les leviers prioritaires de pilotage par manager.",

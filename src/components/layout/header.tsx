@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   "/parametres": "Paramètres",
   "/manager/formation-collective": "Formation Collective",
   "/directeur/pilotage": "Pilotage Agence",
+  "/directeur/gps": "GPS Agence",
   "/directeur/equipes": "Équipes",
   "/directeur/projection": "Projection",
   "/directeur/pilotage-financier": "Pilotage financier",
