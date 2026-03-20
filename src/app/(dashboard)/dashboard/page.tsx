@@ -55,6 +55,8 @@ import type { PeriodResults } from "@/types/results";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { generateFormationDiagnostic } from "@/lib/formation";
 import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
+import { TrendIndicator } from "@/components/dashboard/trend-indicator";
+import { useAllResults } from "@/hooks/use-results";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
 
@@ -177,6 +179,15 @@ function DashboardContent() {
   const diagnostic = user
     ? generateFormationDiagnostic(computedRatios, ratioConfigs, user.id)
     : null;
+
+  const allResultsData = useAllResults();
+  const previousResults = useMemo(() => {
+    if (!user) return null;
+    const userResults = allResultsData
+      .filter((r) => r.userId === user.id)
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+    return userResults.length >= 2 ? userResults[1] : null;
+  }, [allResultsData, user]);
 
   const kpiChartConfigs = useMemo(() => getKpiChartConfigs(isDemo), [isDemo]);
   const monthlyCAData = isDemo ? mockMonthlyCA : emptyCAData;
@@ -1003,34 +1014,54 @@ function DashboardContent() {
 
           {/* Monthly KPIs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              title="Estimations ce mois"
-              value={vendeurs.estimationsRealisees}
-              icon={ClipboardCheck}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "estimations" ? null : "estimations")}
-            />
-            <KpiCard
-              title="Mandats ce mois"
-              value={vendeurs.mandatsSignes}
-              icon={FileSignature}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "mandats" ? null : "mandats")}
-            />
-            <KpiCard
-              title="Compromis ce mois"
-              value={acheteurs.compromisSignes}
-              icon={Handshake}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "compromis" ? null : "compromis")}
-            />
-            <KpiCard
-              title="CA ce mois"
-              value={formatCurrency(ventes.chiffreAffaires)}
-              icon={DollarSign}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "ca" ? null : "ca")}
-            />
+            <div className="space-y-1">
+              <KpiCard
+                title="Estimations ce mois"
+                value={vendeurs.estimationsRealisees}
+                icon={ClipboardCheck}
+                status="ok"
+                onExpand={() => setExpandedKpi(expandedKpi === "estimations" ? null : "estimations")}
+              />
+              {previousResults && (
+                <TrendIndicator current={vendeurs.estimationsRealisees} previous={previousResults.vendeurs.estimationsRealisees} />
+              )}
+            </div>
+            <div className="space-y-1">
+              <KpiCard
+                title="Mandats ce mois"
+                value={vendeurs.mandatsSignes}
+                icon={FileSignature}
+                status="ok"
+                onExpand={() => setExpandedKpi(expandedKpi === "mandats" ? null : "mandats")}
+              />
+              {previousResults && (
+                <TrendIndicator current={vendeurs.mandatsSignes} previous={previousResults.vendeurs.mandatsSignes} />
+              )}
+            </div>
+            <div className="space-y-1">
+              <KpiCard
+                title="Compromis ce mois"
+                value={acheteurs.compromisSignes}
+                icon={Handshake}
+                status="ok"
+                onExpand={() => setExpandedKpi(expandedKpi === "compromis" ? null : "compromis")}
+              />
+              {previousResults && (
+                <TrendIndicator current={acheteurs.compromisSignes} previous={previousResults.acheteurs.compromisSignes} />
+              )}
+            </div>
+            <div className="space-y-1">
+              <KpiCard
+                title="CA ce mois"
+                value={formatCurrency(ventes.chiffreAffaires)}
+                icon={DollarSign}
+                status="ok"
+                onExpand={() => setExpandedKpi(expandedKpi === "ca" ? null : "ca")}
+              />
+              {previousResults && (
+                <TrendIndicator current={ventes.chiffreAffaires} previous={previousResults.ventes.chiffreAffaires} />
+              )}
+            </div>
           </div>
 
           {/* Detailed breakdown */}
