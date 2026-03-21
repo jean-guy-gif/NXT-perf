@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Building2, Users, UserCheck, GraduationCap } from "lucide-react";
+import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 
 const profiles = [
   {
@@ -33,6 +36,25 @@ const profiles = [
 
 export default function WelcomePage() {
   const router = useRouter();
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+
+  // Redirect authenticated users (demo or Supabase) to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    // Check Supabase session — user may have a cookie but store isn't hydrated
+    const checkSession = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        router.replace("/dashboard");
+      }
+    };
+    checkSession();
+  }, [isAuthenticated, router]);
 
   return (
     <div className="rounded-xl border border-border bg-card p-8">

@@ -61,40 +61,44 @@ export default function DashboardLayout({
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (user) {
-        // Retry profile fetch — trigger may still be running after signup
-        let profile = null;
-        for (let attempt = 0; attempt < 5; attempt++) {
-          const { data } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .single();
-          if (data) { profile = data; break; }
-          await new Promise((r) => setTimeout(r, 1000));
-        }
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
-        if (profile) {
-          setProfile(profile);
+      // Retry profile fetch — trigger may still be running after signup
+      let profile = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        if (data) { profile = data; break; }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
 
-          // Load org invite code for manager equipe page
-          if (profile.org_id) {
-            const { data: org } = await supabase
-              .from("organizations")
-              .select("invite_code")
-              .eq("id", profile.org_id)
-              .single();
-            if (org) {
-              setOrgInviteCode(org.invite_code);
-            }
-          }
+      if (!profile) {
+        // User authenticated but no profile yet → onboarding
+        router.replace("/onboarding");
+        return;
+      }
 
-          setLoading(false);
-          return;
+      setProfile(profile);
+
+      // Load org invite code for manager equipe page
+      if (profile.org_id) {
+        const { data: org } = await supabase
+          .from("organizations")
+          .select("invite_code")
+          .eq("id", profile.org_id)
+          .single();
+        if (org) {
+          setOrgInviteCode(org.invite_code);
         }
       }
 
-      router.replace("/welcome");
+      setLoading(false);
     };
 
     checkSession();
