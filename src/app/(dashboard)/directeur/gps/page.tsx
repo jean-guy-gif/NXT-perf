@@ -278,15 +278,15 @@ export default function DirecteurGPSPage() {
     return result;
   }, [effectiveCategory, effectiveRatioConfigs]);
 
-  /* ── Alignment data (Tab 3) ── */
+  /* ── Alignment data (Tab 3) — all values ANNUAL ── */
   const alignmentThemes = useMemo(() => {
     if (!breakdown) return [];
 
-    const breakdownMonthly = {
-      estimations: Math.ceil(breakdown.estimationsNecessaires / 12),
-      mandats: Math.ceil(breakdown.mandatsNecessaires / 12),
-      offres: Math.ceil(breakdown.offresNecessaires / 12),
-      ca: Math.round(effectiveCA / 12),
+    const directeurAnnual = {
+      estimations: breakdown.estimationsNecessaires,
+      mandats: breakdown.mandatsNecessaires,
+      offres: breakdown.offresNecessaires,
+      ca: effectiveCA,
     };
 
     const defs = [
@@ -299,24 +299,17 @@ export default function DirecteurGPSPage() {
     return defs.map((t) => {
       const agentsObj = allConseillers.reduce(
         (sum, c) => sum + (CATEGORY_OBJECTIVES[c.category]?.[t.objKey] ?? 0), 0
-      );
+      ) * 12;
       const managersObj = allManagers.reduce(
         (sum, m) => sum + (CATEGORY_OBJECTIVES[m.category]?.[t.objKey] ?? 0), 0
-      );
-      const directeurObj = breakdownMonthly[t.objKey];
+      ) * 12;
+      const directeurObj = directeurAnnual[t.objKey];
 
-      const values = [agentsObj, managersObj, directeurObj];
-      const maxVal = Math.max(...values);
-      const minVal = Math.min(...values);
-      const gap = maxVal - minVal;
-      const ratio = minVal > 0 ? maxVal / minVal : 1;
+      const cumul = agentsObj + managersObj;
+      const gap = Math.abs(directeurObj - cumul);
+      const covered = directeurObj <= cumul;
 
-      let status: "aligned" | "warning" | "danger";
-      if (ratio <= 1.1) status = "aligned";
-      else if (ratio <= 1.2) status = "warning";
-      else status = "danger";
-
-      return { ...t, agentsObj, managersObj, directeurObj, gap, status };
+      return { ...t, agentsObj, managersObj, directeurObj, gap, covered };
     });
   }, [allConseillers, allManagers, breakdown, effectiveCA]);
 
@@ -721,13 +714,17 @@ export default function DirecteurGPSPage() {
           {alignmentThemes.map((theme) => {
             const fmtFn = theme.isCA ? formatCurrency : formatNumber;
             const gapText = theme.isCA ? formatCurrency(theme.gap) : formatNumber(theme.gap);
-            const barColors = [NXT_COLORS.violet, NXT_COLORS.blue, NXT_COLORS.green];
+            const colorMap: Record<string, string> = {
+              "Agence (Directeur)": NXT_COLORS.violet,
+              Managers: NXT_COLORS.blue,
+              Agents: NXT_COLORS.green,
+            };
             const chartData = [
-              { niveau: "Directeur", value: theme.directeurObj },
+              { niveau: "Agence (Directeur)", value: theme.directeurObj },
               { niveau: "Managers", value: theme.managersObj },
               { niveau: "Agents", value: theme.agentsObj },
-            ];
-            const yFormatter = theme.isCA
+            ].sort((a, b) => b.value - a.value);
+            const xFormatter = theme.isCA
               ? (v: number) => `${(v / 1000).toFixed(0)}k €`
               : (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v));
 
@@ -735,45 +732,45 @@ export default function DirecteurGPSPage() {
               <div key={theme.key} className="rounded-xl border border-border bg-card p-5 space-y-4">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Objectifs {theme.label}</h3>
-                  <p className="text-xs text-muted-foreground">Objectifs mensuels par niveau</p>
+                  <p className="text-xs text-muted-foreground">Objectifs annuels par niveau</p>
                 </div>
 
-                <div style={{ width: "100%", height: 280 }}>
+                <div style={{ width: "100%", height: 200 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart data={chartData} barGap={8}>
+                    <RechartsBarChart data={chartData} layout="vertical" barGap={8}>
                       <CartesianGrid
                         strokeDasharray="3 3"
                         stroke="color-mix(in oklch, currentColor, transparent 88%)"
-                        vertical={false}
+                        horizontal={false}
                       />
-                      <XAxis
+                      <YAxis
+                        type="category"
                         dataKey="niveau"
                         axisLine={false}
                         tickLine={false}
+                        width={130}
                         tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
                       />
-                      <YAxis
+                      <XAxis
+                        type="number"
                         axisLine={false}
                         tickLine={false}
                         tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
-                        tickFormatter={yFormatter}
+                        tickFormatter={xFormatter}
                       />
                       <Tooltip
+                        formatter={(value) => [theme.isCA ? formatCurrency(value as number) : formatNumber(value as number), "Valeur"]}
                         contentStyle={{
-                          backgroundColor: "var(--card, #0F1F46)",
-                          border: "1px solid var(--border, #1a2d5a)",
+                          backgroundColor: "var(--color-background-secondary)",
+                          border: "1px solid var(--color-border-tertiary)",
                           borderRadius: "8px",
-                          color: "var(--foreground, white)",
-                          fontSize: "12px",
+                          color: "var(--color-text-primary)",
                         }}
-                        formatter={(value) => {
-                          if (typeof value === "number") return theme.isCA ? formatCurrency(value) : formatNumber(value);
-                          return value;
-                        }}
+                        labelStyle={{ color: "var(--color-text-primary)" }}
                       />
-                      <Bar dataKey="value" barSize={40} radius={[6, 6, 0, 0]}>
-                        {chartData.map((_, i) => (
-                          <Cell key={i} fill={barColors[i]} />
+                      <Bar dataKey="value" barSize={32} radius={[0, 6, 6, 0]}>
+                        {chartData.map((entry) => (
+                          <Cell key={entry.niveau} fill={colorMap[entry.niveau]} />
                         ))}
                       </Bar>
                     </RechartsBarChart>
@@ -784,7 +781,7 @@ export default function DirecteurGPSPage() {
                 <div className="flex items-center justify-center gap-6 text-xs">
                   <span className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NXT_COLORS.violet }} />
-                    <span className="text-muted-foreground">Directeur : {fmtFn(theme.directeurObj)}</span>
+                    <span className="text-muted-foreground">Agence : {fmtFn(theme.directeurObj)}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NXT_COLORS.blue }} />
@@ -800,11 +797,11 @@ export default function DirecteurGPSPage() {
                 <div className="flex justify-end">
                   <span className={cn(
                     "text-xs font-medium",
-                    theme.status === "aligned" ? "text-green-500" :
-                    theme.status === "warning" ? "text-orange-500" : "text-red-500"
+                    theme.covered ? "text-green-500" : "text-red-500"
                   )}>
-                    {theme.status === "aligned" ? "Aligné" :
-                     `Écart${theme.status === "danger" ? " important" : ""} de ${gapText}`}
+                    {theme.covered
+                      ? `Objectif agence couvert — les objectifs individuels dépassent de ${gapText}`
+                      : `Objectif agence supérieur de ${gapText} — les objectifs individuels ne couvrent pas l'ambition`}
                   </span>
                 </div>
               </div>
