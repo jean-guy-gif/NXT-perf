@@ -280,6 +280,15 @@ export default function DirecteurGPSPage() {
 
   /* ── Alignment data (Tab 3) ── */
   const alignmentThemes = useMemo(() => {
+    if (!breakdown) return [];
+
+    const breakdownMonthly = {
+      estimations: Math.ceil(breakdown.estimationsNecessaires / 12),
+      mandats: Math.ceil(breakdown.mandatsNecessaires / 12),
+      offres: Math.ceil(breakdown.offresNecessaires / 12),
+      ca: Math.round(effectiveCA / 12),
+    };
+
     const defs = [
       { key: "estimations", label: "Estimations", objKey: "estimations" as const, isCA: false },
       { key: "mandats", label: "Mandats", objKey: "mandats" as const, isCA: false },
@@ -294,15 +303,7 @@ export default function DirecteurGPSPage() {
       const managersObj = allManagers.reduce(
         (sum, m) => sum + (CATEGORY_OBJECTIVES[m.category]?.[t.objKey] ?? 0), 0
       );
-
-      let directeurObj: number;
-      if (t.isCA && agencyObjective) {
-        directeurObj = Math.round(agencyObjective.annualCA / 12);
-      } else {
-        directeurObj = allProducers.reduce(
-          (sum, p) => sum + (CATEGORY_OBJECTIVES[p.category]?.[t.objKey] ?? 0), 0
-        );
-      }
+      const directeurObj = breakdownMonthly[t.objKey];
 
       const values = [agentsObj, managersObj, directeurObj];
       const maxVal = Math.max(...values);
@@ -317,7 +318,7 @@ export default function DirecteurGPSPage() {
 
       return { ...t, agentsObj, managersObj, directeurObj, gap, status };
     });
-  }, [allConseillers, allManagers, allProducers, agencyObjective]);
+  }, [allConseillers, allManagers, breakdown, effectiveCA]);
 
   return (
     <div className="space-y-6">
@@ -699,6 +700,24 @@ export default function DirecteurGPSPage() {
       {/* ═══════════ TAB 3 : Alignement objectifs ═══════════ */}
       {activeTab === "alignement" && (
         <div className="space-y-6">
+          {!breakdown && (
+            <div className="rounded-xl border border-border bg-card p-8 text-center">
+              <Navigation className="mx-auto h-10 w-10 text-muted-foreground/50" />
+              <p className="mt-3 text-sm font-medium text-foreground">
+                Définissez votre GPS pour voir l&apos;alignement
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Rendez-vous dans l&apos;onglet GPS Directeur pour définir l&apos;objectif CA annuel de l&apos;agence
+              </p>
+              <button
+                onClick={() => setActiveTab("gps")}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Navigation className="h-4 w-4" />
+                Configurer le GPS
+              </button>
+            </div>
+          )}
           {alignmentThemes.map((theme) => {
             const fmtFn = theme.isCA ? formatCurrency : formatNumber;
             const gapText = theme.isCA ? formatCurrency(theme.gap) : formatNumber(theme.gap);
