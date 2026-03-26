@@ -80,8 +80,9 @@ export default function DashboardLayout({
       }
 
       if (!profile) {
-        // User authenticated but no profile yet → onboarding
-        router.replace("/onboarding");
+        // User authenticated but no profile yet — stay on dashboard with minimal user
+        // Profile will be created by Supabase trigger or onboarding later
+        setLoading(false);
         return;
       }
 
@@ -104,14 +105,6 @@ export default function DashboardLayout({
 
     checkSession();
   }, [isAuthenticated, router, setProfile, setOrgInviteCode]);
-
-  // Onboarding guard: only redirect if user explicitly started onboarding but didn't finish
-  useEffect(() => {
-    if (!isAuthenticated || isDemo || loading) return;
-    if (user && user.onboardingStatus === "NOT_STARTED") {
-      router.replace("/onboarding");
-    }
-  }, [isAuthenticated, isDemo, loading, user, router]);
 
   // Auto-launch guided tour on first visit after account creation
   useEffect(() => {
@@ -153,9 +146,6 @@ export default function DashboardLayout({
   }
 
   if (!isAuthenticated) return null;
-
-  // Don't render dashboard if onboarding not done (non-demo)
-  if (!isDemo && user?.onboardingStatus && user.onboardingStatus !== "DONE") return null;
 
   return (
     <div className={cn("flex h-screen overflow-hidden bg-background", isDemo && "pt-8")}>
