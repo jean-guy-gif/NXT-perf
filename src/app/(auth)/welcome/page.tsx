@@ -68,24 +68,36 @@ export default function WelcomePage() {
         La plateforme de performance pour les professionnels de l&apos;immobilier
       </p>
 
-      {/* DPI Button */}
-      <button
+      {/* DPI Block */}
+      <div
         onClick={() => router.push("/dpi")}
-        className="mb-6 flex w-full items-center gap-4 rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] p-4 text-left text-white transition-all hover:opacity-90"
-        style={{ animation: "dpi-pulse 2s ease-in-out infinite" }}
+        className="mb-6 cursor-pointer rounded-2xl p-6 text-center text-white"
+        style={{
+          background: "linear-gradient(135deg, #3375FF, #6B47FF, #A055FF, #3375FF)",
+          backgroundSize: "300% 300%",
+          animation: "dpiGradient 3s ease infinite, dpiGlow 2s ease-in-out infinite",
+        }}
       >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/20">
-          <Target className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <p className="font-semibold">Diagnostic de Performance Immobilière</p>
-          <p className="text-sm text-white/80">100% Gratuit • 3 minutes • Découvrez votre score</p>
-        </div>
-      </button>
+        <span className="inline-block rounded-full bg-[#22c55e] px-4 py-1 text-sm font-bold uppercase text-white">
+          100% GRATUIT
+        </span>
+        <h2 className="mt-3 text-xl font-bold">Diagnostic de Performance Immobilière</h2>
+        <p className="mt-2 text-sm text-white/80">
+          Évaluez votre niveau, découvrez votre potentiel de croissance et comparez-vous aux meilleurs
+        </p>
+        <button className="mt-4 rounded-full bg-white/20 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/30">
+          Démarrer mon diagnostic →
+        </button>
+      </div>
       <style>{`
-        @keyframes dpi-pulse {
-          0%, 100% { opacity: 0.95; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.02); }
+        @keyframes dpiGradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes dpiGlow {
+          0%, 100% { box-shadow: 0 0 15px rgba(51,117,255,0.3), 0 4px 15px rgba(0,0,0,0.1); }
+          50% { box-shadow: 0 0 30px rgba(160,85,255,0.5), 0 4px 20px rgba(0,0,0,0.15); }
         }
       `}</style>
 
