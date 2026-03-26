@@ -5,7 +5,16 @@ export function initDemoDPISnapshot(userId: string) {
   try {
     const existing = localStorage.getItem(key);
     const all = existing ? JSON.parse(existing) : {};
-    if (all[userId]) return;
+
+    const expectedIds = [
+      "intensite_commerciale", "generation_opportunites", "solidite_portefeuille",
+      "maitrise_ratios", "valorisation_economique", "pilotage_strategique",
+    ];
+    const snap = all[userId];
+    if (snap) {
+      const ids = (snap.axes ?? []).map((a: DPIAxis) => a.id);
+      if (expectedIds.every((id) => ids.includes(id))) return;
+    }
 
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
