@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, ArrowRight, TrendingUp } from "lucide-react";
+import { Download, ArrowRight, TrendingUp, Award } from "lucide-react";
 import { DPIRadar } from "@/components/dpi/dpi-radar";
 import { createClient } from "@/lib/supabase/client";
 import type { DPIScores } from "@/lib/dpi-scoring";
@@ -32,7 +32,6 @@ function DPIResultsContent() {
   const dpiId = searchParams.get("id") ?? sessionStorage.getItem("dpi_id");
 
   useEffect(() => {
-    // Try local cache first
     const cached = sessionStorage.getItem("dpi_scores");
     if (cached) {
       try {
@@ -42,7 +41,6 @@ function DPIResultsContent() {
       } catch { /* fall through */ }
     }
 
-    // Load from Supabase
     if (!dpiId) {
       router.replace("/dpi");
       return;
@@ -71,34 +69,10 @@ function DPIResultsContent() {
     if (!scores) return;
     setGeneratingPdf(true);
 
-    // Show all layers on radar for capture
-    const prevProjection = projection;
-    setProjection("potential");
-
-    // Wait for re-render
-    await new Promise((r) => setTimeout(r, 500));
-
-    // Capture radar as image
-    let radarImage: string | null = null;
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const radarElement = document.getElementById("dpi-radar-container");
-      if (radarElement) {
-        const canvas = await html2canvas(radarElement, { backgroundColor: "#ffffff", scale: 2 });
-        radarImage = canvas.toDataURL("image/png");
-      }
-    } catch {
-      // Continue without radar image
-    }
-
-    // Restore previous projection view
-    setProjection(prevProjection);
-
     const { generateDPIPDF } = await import("@/lib/dpi-pdf");
     const email = sessionStorage.getItem("dpi_email") ?? "";
-    generateDPIPDF(scores, email, radarImage);
+    generateDPIPDF(scores, email);
 
-    // Update status in Supabase
     if (dpiId) {
       const supabase = createClient();
       await supabase
@@ -166,6 +140,21 @@ function DPIResultsContent() {
         </div>
       </div>
 
+      {/* Percentile */}
+      {scores.percentileLabel && (
+        <div className="rounded-xl border border-[#3375FF]/20 bg-gradient-to-r from-[#3375FF]/5 to-[#A055FF]/5 p-5 text-center">
+          <Award className="mx-auto mb-2 h-8 w-8 text-[#3375FF]" />
+          <p className="text-lg font-bold text-[#3375FF]">
+            {scores.percentileLabel}
+          </p>
+          {scores.percentileRegion && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {scores.percentileRegion}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Radar */}
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="mb-4 flex flex-wrap gap-2">
@@ -184,13 +173,11 @@ function DPIResultsContent() {
             </button>
           ))}
         </div>
-        <div id="dpi-radar-container">
-          <DPIRadar
-            axes={scores.axes}
-            topPerformer={scores.topPerformer}
-            showProjection={projection}
-          />
-        </div>
+        <DPIRadar
+          axes={scores.axes}
+          topPerformer={scores.topPerformer}
+          showProjection={projection}
+        />
       </div>
 
       {/* CA estimation */}
@@ -250,7 +237,6 @@ function DPIResultsContent() {
         </a>
       </div>
 
-      {/* Commercial text */}
       <p className="text-center text-sm text-muted-foreground">
         Ce diagnostic est une photographie. NXT Performance vous permet de piloter votre performance en continu.
       </p>

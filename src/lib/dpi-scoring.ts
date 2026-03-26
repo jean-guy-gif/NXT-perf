@@ -17,6 +17,9 @@ export interface DPIScores {
   estimatedCAGain: { min: number; max: number };
   topPerformer: Record<string, number>;
   level: string;
+  percentile: number;
+  percentileLabel: string;
+  percentileRegion?: string;
 }
 
 export const TOP_PERFORMER: Record<string, number> = {
@@ -152,6 +155,27 @@ export function computeDPIScores(
   const caLevel = contextAnswers.ctx_ca ?? 1;
   const estimatedCAGain = computeCAGain(caLevel, globalScore, potentialScore);
 
+  const percentile = Math.min(99, Math.max(1, 100 - globalScore));
+
+  const zoneBonus: Record<number, number> = { 1: -8, 2: -4, 3: 2, 4: -2 };
+  const zone = contextAnswers.ctx_zone ?? 2;
+  const regionPercentile = Math.min(99, Math.max(1, percentile + (zoneBonus[zone] ?? 0)));
+
+  const zoneLabels: Record<number, string> = {
+    1: "en zone rurale",
+    2: "en ville moyenne",
+    3: "en grande métropole",
+    4: "en zone touristique",
+  };
+
+  let percentileLabel: string;
+  if (percentile <= 5) percentileLabel = "Vous faites partie du top 5% des professionnels de l'immobilier en France";
+  else if (percentile <= 10) percentileLabel = "Vous faites partie du top 10% des professionnels de l'immobilier en France";
+  else if (percentile <= 20) percentileLabel = "Vous faites partie du top 20% des professionnels de l'immobilier en France";
+  else percentileLabel = `Vous faites partie du top ${percentile}% des professionnels de l'immobilier en France`;
+
+  const percentileRegion = `Top ${regionPercentile}% ${zoneLabels[zone] ?? "dans votre région"}`;
+
   return {
     axes,
     globalScore,
@@ -159,5 +183,8 @@ export function computeDPIScores(
     estimatedCAGain,
     topPerformer: TOP_PERFORMER,
     level: getLevel(globalScore),
+    percentile,
+    percentileLabel,
+    percentileRegion,
   };
 }
