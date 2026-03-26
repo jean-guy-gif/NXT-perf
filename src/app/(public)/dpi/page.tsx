@@ -54,6 +54,12 @@ export default function DPILandingPage() {
         <Target className="h-12 w-12 text-white" />
       </div>
 
+      <div className="mb-4 flex justify-center">
+        <span className="rounded-full bg-[#22c55e] px-4 py-1 text-xs font-bold uppercase text-white">
+          100% GRATUIT
+        </span>
+      </div>
+
       <h1 className="mb-3 text-center text-3xl font-bold text-foreground">
         Diagnostic de Performance Immobilière
       </h1>

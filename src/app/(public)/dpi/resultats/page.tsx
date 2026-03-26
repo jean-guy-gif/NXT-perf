@@ -71,9 +71,32 @@ function DPIResultsContent() {
     if (!scores) return;
     setGeneratingPdf(true);
 
+    // Show all layers on radar for capture
+    const prevProjection = projection;
+    setProjection("potential");
+
+    // Wait for re-render
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Capture radar as image
+    let radarImage: string | null = null;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const radarElement = document.getElementById("dpi-radar-container");
+      if (radarElement) {
+        const canvas = await html2canvas(radarElement, { backgroundColor: "#ffffff", scale: 2 });
+        radarImage = canvas.toDataURL("image/png");
+      }
+    } catch {
+      // Continue without radar image
+    }
+
+    // Restore previous projection view
+    setProjection(prevProjection);
+
     const { generateDPIPDF } = await import("@/lib/dpi-pdf");
     const email = sessionStorage.getItem("dpi_email") ?? "";
-    generateDPIPDF(scores, email);
+    generateDPIPDF(scores, email, radarImage);
 
     // Update status in Supabase
     if (dpiId) {
@@ -161,11 +184,13 @@ function DPIResultsContent() {
             </button>
           ))}
         </div>
-        <DPIRadar
-          axes={scores.axes}
-          topPerformer={scores.topPerformer}
-          showProjection={projection}
-        />
+        <div id="dpi-radar-container">
+          <DPIRadar
+            axes={scores.axes}
+            topPerformer={scores.topPerformer}
+            showProjection={projection}
+          />
+        </div>
       </div>
 
       {/* CA estimation */}

@@ -79,7 +79,7 @@ export default function WelcomePage() {
         </div>
         <div>
           <p className="font-semibold">Diagnostic de Performance Immobilière</p>
-          <p className="text-sm text-white/80">Gratuit • 3 minutes • Découvrez votre score</p>
+          <p className="text-sm text-white/80">100% Gratuit • 3 minutes • Découvrez votre score</p>
         </div>
       </button>
       <style>{`
