@@ -8,7 +8,7 @@ import type { UserRole, UserCategory, ProfileType } from "@/types/user";
 import type { DbProfile } from "@/types/database";
 import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { Check, Copy, KeyRound } from "lucide-react";
+import { Check, Copy, KeyRound, Eye, EyeOff } from "lucide-react";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   conseiller: "Conseiller",
@@ -193,6 +193,12 @@ function RegisterForm() {
       return;
     }
 
+    // Supabase returns a user with empty identities if email already exists
+    if (signUpData.user && signUpData.user.identities?.length === 0) {
+      setError("Un compte avec cet email existe déjà.");
+      return;
+    }
+
     if (!signUpData.session || !signUpData.user) {
       setError("Compte créé mais session non établie. Essayez de vous connecter.");
       router.push("/login");
@@ -286,20 +292,30 @@ function RegisterForm() {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => { setPassword(e.target.value); setCopied(false); }}
-              className={inputClassName}
+              className={`${inputClassName} pr-20`}
               placeholder="Minimum 6 caractères"
               required
             />
-            {showPassword && password && (
+            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+              {showPassword && password && (
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(password); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                  title="Copier le mot de passe"
+                >
+                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => { navigator.clipboard.writeText(password); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
-                title="Copier le mot de passe"
+                onClick={() => setShowPassword((p) => !p)}
+                className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                title={showPassword ? "Masquer" : "Afficher"}
               >
-                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            )}
+            </div>
           </div>
           <button
             type="button"
