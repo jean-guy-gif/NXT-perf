@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Download, ArrowRight, TrendingUp, Award } from "lucide-react";
 import { DPIRadar } from "@/components/dpi/dpi-radar";
 import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
-import { computeDPIProjections } from "@/lib/dpi-projections";
+import { caBaseFromRange } from "@/lib/dpi-projections";
 import { createClient } from "@/lib/supabase/client";
 import type { DPIScores } from "@/lib/dpi-scoring";
 import type { DPIAxis } from "@/lib/dpi-axes";
@@ -224,6 +224,7 @@ function DPIResultsContent() {
       <DPIProjectionsCard
         currentAxes={scores.axes.map((a): DPIAxis => ({ id: a.id, label: a.label, score: a.score }))}
         currentGlobalScore={scores.globalScore}
+        caBase={caBaseFromRange()}
       />
 
       {/* Actions */}

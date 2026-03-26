@@ -130,6 +130,12 @@ interface AppState {
   agencyObjective: { annualCA: number; avgActValue: number } | null;
   directorCosts: DirectorCosts | null;
   financialData: Partial<FinancialData>;
+
+  // ── Outils NXT actifs (souscrits par l'utilisateur) ──
+  activeTools: Array<"nxt_data" | "nxt_profiling" | "nxt_training" | "nxt_finance">;
+  activateTool: (tool: "nxt_data" | "nxt_profiling" | "nxt_training" | "nxt_finance") => void;
+  deactivateTool: (tool: "nxt_data" | "nxt_profiling" | "nxt_training" | "nxt_finance") => void;
+
   setAgencyObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
   setDirectorCosts: (costs: DirectorCosts | null) => void;
   setFinancialData: (data: Partial<FinancialData>) => void;
@@ -231,6 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   agencyObjective: null,
   directorCosts: null,
   financialData: {},
+  activeTools: [],
 
   // ── View preferences ──
   toggleViewVisibility: (view) => {
@@ -253,6 +260,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFinancialData: (data) => set({ financialData: data }),
   updateFinancialField: (field, value) => set((s) => ({
     financialData: { ...s.financialData, [field]: value },
+  })),
+
+  activateTool: (tool) => set((s) => ({
+    activeTools: s.activeTools.includes(tool) ? s.activeTools : [...s.activeTools, tool],
+  })),
+  deactivateTool: (tool) => set((s) => ({
+    activeTools: s.activeTools.filter((t) => t !== tool),
   })),
 
   // ── Demo mode ──

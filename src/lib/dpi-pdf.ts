@@ -464,7 +464,12 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
       doc.setFont("helvetica", "normal");
       const toolNames = proj.tools.map((t) => t.label + (t.disponible ? "" : " (bientôt)")).join(" + ");
       doc.text(`avec ${toolNames}`, 28, y + 8);
-      y += 14;
+      if (proj.caAdditionnel.bas > 0) {
+        doc.setTextColor(34, 197, 94);
+        doc.text(`CA additionnel estimé : +${Math.round(proj.caAdditionnel.bas / 1000)}k\u20AC à +${Math.round(proj.caAdditionnel.haut / 1000)}k\u20AC`, 28, y + 13);
+        doc.setTextColor(100);
+      }
+      y += 18;
     }
     y += 2;
   }

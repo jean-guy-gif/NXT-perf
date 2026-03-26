@@ -8,11 +8,38 @@ import { TrendingUp, Lock } from "lucide-react";
 interface DPIProjectionsCardProps {
   currentAxes: DPIAxis[];
   currentGlobalScore: number;
+  caBase?: number;
+  activeTools?: string[];
 }
 
-export function DPIProjectionsCard({ currentAxes, currentGlobalScore }: DPIProjectionsCardProps) {
-  const projections = computeDPIProjections(currentAxes);
-  if (!projections.length) return null;
+export function DPIProjectionsCard({
+  currentAxes,
+  currentGlobalScore,
+  caBase,
+  activeTools = [],
+}: DPIProjectionsCardProps) {
+  const projections = computeDPIProjections(currentAxes, caBase);
+
+  const visibleProjections = projections
+    .map((proj) => ({
+      ...proj,
+      tools: proj.tools.filter((t) => !activeTools.includes(t.id)),
+    }))
+    .filter((proj) => proj.tools.length > 0);
+
+  if (visibleProjections.length === 0) {
+    return (
+      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-5 text-center">
+        <span className="text-3xl">{"\u{1F3C6}"}</span>
+        <p className="mt-2 font-semibold text-foreground">
+          Vous utilisez déjà l&apos;écosystème NXT complet
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Continuez à piloter votre performance pour maximiser votre progression.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -22,7 +49,7 @@ export function DPIProjectionsCard({ currentAxes, currentGlobalScore }: DPIProje
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {projections.map((proj) => (
+        {visibleProjections.map((proj) => (
           <div
             key={proj.palier}
             className={cn(
@@ -48,6 +75,21 @@ export function DPIProjectionsCard({ currentAxes, currentGlobalScore }: DPIProje
             <div className="mb-3 text-center">
               <span className="text-2xl font-bold text-green-500">+{proj.deltaGlobal} pts</span>
               <p className="text-xs text-muted-foreground mt-0.5">vs score actuel ({currentGlobalScore})</p>
+            </div>
+
+            {/* CA additionnel */}
+            <div className="mb-3 rounded-lg bg-background/60 px-3 py-2 text-center">
+              <p className="text-xs text-muted-foreground mb-0.5">CA additionnel estimé</p>
+              {proj.caAdditionnel.bas > 0 ? (
+                <p className="text-sm font-bold text-green-500">
+                  +{(proj.caAdditionnel.bas / 1000).toFixed(0)}k\u20AC – +{(proj.caAdditionnel.haut / 1000).toFixed(0)}k\u20AC
+                </p>
+              ) : (
+                <p className="text-sm font-bold text-muted-foreground">&lt; 5k\u20AC</p>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                ROI estimé vs {proj.tools.filter((t) => t.disponible).map((t) => t.prix).join(" + ")}
+              </p>
             </div>
 
             <div className="space-y-1.5">

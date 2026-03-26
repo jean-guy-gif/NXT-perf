@@ -169,6 +169,7 @@ function DashboardContent() {
   const { computedRatios, ratioConfigs } = useRatios();
   const isDemo = useAppStore((s) => s.isDemo);
   const { currentAxes: dpiAxes, currentGlobalScore: dpiScore } = useDPIEvolution();
+  const activeTools = useAppStore((s) => s.activeTools);
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
     "nxt-dashboard-tab",
@@ -742,7 +743,7 @@ function DashboardContent() {
               </div>
               <DPIEvolutionCard />
               {dpiAxes.length > 0 && (
-                <DPIProjectionsCard currentAxes={dpiAxes} currentGlobalScore={dpiScore} />
+                <DPIProjectionsCard currentAxes={dpiAxes} currentGlobalScore={dpiScore} activeTools={activeTools} />
               )}
             </div>
           )}
