@@ -2,7 +2,8 @@ import { jsPDF } from "jspdf";
 import type { DPIScores, DPIAxisScore } from "./dpi-scoring";
 
 function fmt(value: number): string {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
+  const str = Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return str + " EUR";
 }
 
 function scoreRGB(score: number): [number, number, number] {
@@ -35,6 +36,16 @@ const RECO: Record<string, string> = {
   pilotage_strategique: "Structurez votre suivi d'activité",
 };
 
+// Short labels for radar (avoid overflow)
+const SHORT_LABELS: Record<string, string> = {
+  intensite_commerciale: "Intensite",
+  generation_opportunites: "Opportunites",
+  solidite_portefeuille: "Portefeuille",
+  maitrise_ratios: "Ratios",
+  valorisation_economique: "Valorisation",
+  pilotage_strategique: "Pilotage",
+};
+
 // ── Draw radar polygon directly in jsPDF ──
 function drawRadar(
   doc: jsPDF,
@@ -56,7 +67,6 @@ function drawRadar(
   doc.setLineWidth(0.3);
   for (const pct of [20, 40, 60, 80, 100]) {
     const r = radius * (pct / 100);
-    // Approximate circle with polygon
     const steps = 60;
     for (let i = 0; i < steps; i++) {
       const a1 = (2 * Math.PI * i) / steps;
@@ -73,18 +83,18 @@ function drawRadar(
     doc.line(cx, cy, ex, ey);
   }
 
-  // Axis labels
-  doc.setFontSize(6.5);
+  // Axis labels (short names)
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(80);
+  doc.setTextColor(60);
   for (let i = 0; i < n; i++) {
     const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
-    const labelR = radius + 8;
+    const labelR = radius + 12;
     const lx = cx + Math.cos(angle) * labelR;
     const ly = cy + Math.sin(angle) * labelR;
     const align: "center" | "left" | "right" =
       Math.abs(Math.cos(angle)) < 0.1 ? "center" : Math.cos(angle) > 0 ? "left" : "right";
-    doc.text(axes[i].label, lx, ly + 1, { align });
+    doc.text(SHORT_LABELS[axes[i].id] ?? axes[i].label, lx, ly + 1, { align });
   }
 
   // Helper to draw a filled polygon
@@ -97,7 +107,6 @@ function drawRadar(
     // Fill
     if (fillOpacity) {
       doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
-      // Build path as triangle fan from first point
       const lines: [number, number][] = [];
       for (let i = 1; i < points.length; i++) {
         lines.push([points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]]);
@@ -112,7 +121,6 @@ function drawRadar(
     doc.setDrawColor(strokeColor[0], strokeColor[1], strokeColor[2]);
     doc.setLineWidth(lineWidth);
     if (dashed) {
-      // Draw dashed lines manually
       for (let i = 0; i < points.length; i++) {
         const next = (i + 1) % points.length;
         const [x1, y1] = points[i];
@@ -128,11 +136,10 @@ function drawRadar(
           const segLen = drawing ? dashLen : gapLen;
           const end = Math.min(drawn + segLen, len);
           if (drawing) {
-            const sx = x1 + (dx * drawn) / len;
-            const sy = y1 + (dy * drawn) / len;
-            const ex = x1 + (dx * end) / len;
-            const ey = y1 + (dy * end) / len;
-            doc.line(sx, sy, ex, ey);
+            doc.line(
+              x1 + (dx * drawn) / len, y1 + (dy * drawn) / len,
+              x1 + (dx * end) / len, y1 + (dy * end) / len
+            );
           }
           drawn = end;
           drawing = !drawing;
@@ -146,15 +153,15 @@ function drawRadar(
     }
   }
 
-  // Top Performer — grey dashed
+  // Top Performer -- grey dashed
   const topValues = axes.map((a) => topPerformer[a.id] ?? 80);
   drawPolygon(topValues, [200, 200, 200], false, [136, 136, 136], 0.5, true);
 
-  // Potential — violet dashed with fill
+  // Potential -- violet dashed with fill
   const potValues = axes.map((a) => a.potential);
   drawPolygon(potValues, [230, 210, 255], true, [160, 85, 255], 0.8, true);
 
-  // Current score — blue solid with fill
+  // Current score -- blue solid with fill
   const curValues = axes.map((a) => a.score);
   drawPolygon(curValues, [200, 220, 255], true, [51, 117, 255], 1.5, false);
 }
@@ -175,7 +182,7 @@ function drawHeader(doc: jsPDF, pw: number, h: number, text: string, fontSize: n
 function drawFooter(doc: jsPDF, pw: number, ph: number) {
   doc.setFontSize(7);
   doc.setTextColor(180);
-  doc.text("Ce diagnostic a été réalisé sur nxt-performance.com — © 2026 NXT Performance", pw / 2, ph - 8, { align: "center" });
+  doc.text("nxt-performance.com - (c) 2026 NXT Performance", pw / 2, ph - 8, { align: "center" });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -191,13 +198,13 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
   doc.setTextColor(30, 30, 46);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("Diagnostic de Performance Immobilière", pw / 2, y, { align: "center" });
+  doc.text("Diagnostic de Performance Immobiliere", pw / 2, y, { align: "center" });
   y += 8;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(120);
-  doc.text(`${new Date().toLocaleDateString("fr-FR")} — ${email}`, pw / 2, y, { align: "center" });
+  doc.text(`${new Date().toLocaleDateString("fr-FR")} - ${email}`, pw / 2, y, { align: "center" });
   y += 14;
 
   // Score circle
@@ -280,12 +287,12 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
     y += 24;
   }
 
-  // RADAR
-  const radarCY = y + 42;
-  drawRadar(doc, scores.axes, scores.topPerformer, pw / 2, radarCY, 38);
+  // RADAR (big, centered)
+  const radarCY = y + 50;
+  drawRadar(doc, scores.axes, scores.topPerformer, pw / 2, radarCY, 50);
 
   // Legend
-  y = radarCY + 44;
+  y = radarCY + 56;
   const legends: Array<{ label: string; color: [number, number, number] }> = [
     { label: "Score actuel", color: [51, 117, 255] },
     { label: "Potentiel", color: [160, 85, 255] },
@@ -300,14 +307,21 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
     doc.setFont("helvetica", "normal");
     doc.text(legends[i].label, lx + 6, y + 1);
   }
-  y += 10;
 
-  // Axes table with bars
+  drawFooter(doc, pw, ph);
+
+  // ══════════ PAGE 2 ══════════
+  doc.addPage();
+  drawHeader(doc, pw, 15, "NXT Performance - Diagnostic de Performance Immobiliere", 11);
+
+  y = 25;
+
+  // Axes detail table with bars (moved from page 1)
   doc.setTextColor(30, 30, 46);
-  doc.setFontSize(10);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Détail par axe", 20, y);
-  y += 6;
+  doc.text("Detail par axe", 20, y);
+  y += 7;
 
   doc.setFillColor(245, 245, 250);
   doc.rect(20, y - 3, pw - 40, 7, "F");
@@ -340,14 +354,7 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
     doc.text(`${axis.potential}`, 160, y + 1);
     y += 7;
   }
-
-  drawFooter(doc, pw, ph);
-
-  // ══════════ PAGE 2 ══════════
-  doc.addPage();
-  drawHeader(doc, pw, 15, "NXT Performance — Diagnostic de Performance Immobilière", 11);
-
-  y = 25;
+  y += 8;
 
   // Projections table
   doc.setTextColor(30, 30, 46);
@@ -419,7 +426,7 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
 
       doc.setTextColor(rc, gc, bc);
       doc.setFontSize(8);
-      doc.text(`${axis.score} → ${axis.potential}`, pw - 28, y + 3, { align: "right" });
+      doc.text(`${axis.score} > ${axis.potential}`, pw - 28, y + 3, { align: "right" });
 
       doc.setTextColor(100);
       doc.setFontSize(8);
@@ -440,10 +447,10 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Prêt à transformer votre performance ?", pw / 2, y + 11, { align: "center" });
+  doc.text("Pret a transformer votre performance ?", pw / 2, y + 11, { align: "center" });
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text("Créez votre compte NXT Performance", pw / 2, y + 19, { align: "center" });
+  doc.text("Creez votre compte NXT Performance", pw / 2, y + 19, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text("nxt-performance.com", pw / 2, y + 26, { align: "center" });
