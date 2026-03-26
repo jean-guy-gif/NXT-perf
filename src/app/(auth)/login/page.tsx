@@ -58,6 +58,40 @@ function LoginForm() {
     "h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring";
 
   return (
+    <>
+      {/* DPI Block */}
+      <div
+        onClick={() => router.push("/dpi")}
+        className="mb-6 cursor-pointer rounded-2xl p-6 text-center text-white"
+        style={{
+          background: "linear-gradient(135deg, #3375FF, #6B47FF, #A055FF, #3375FF)",
+          backgroundSize: "300% 300%",
+          animation: "dpiGradient 3s ease infinite, dpiGlow 2s ease-in-out infinite",
+        }}
+      >
+        <span className="inline-block rounded-full bg-[#22c55e] px-4 py-1 text-sm font-bold uppercase text-white">
+          100% GRATUIT
+        </span>
+        <h2 className="mt-3 text-xl font-bold">Diagnostic de Performance Immobilière</h2>
+        <p className="mt-2 text-sm text-white/80">
+          Évaluez votre niveau, découvrez votre potentiel de croissance et comparez-vous aux meilleurs
+        </p>
+        <button className="mt-4 rounded-full bg-white/20 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/30">
+          Démarrer mon diagnostic →
+        </button>
+      </div>
+      <style>{`
+        @keyframes dpiGradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes dpiGlow {
+          0%, 100% { box-shadow: 0 0 15px rgba(51,117,255,0.3), 0 4px 15px rgba(0,0,0,0.1); }
+          50% { box-shadow: 0 0 30px rgba(160,85,255,0.5), 0 4px 20px rgba(0,0,0,0.15); }
+        }
+      `}</style>
+
     <div className="rounded-xl border border-border bg-card p-8">
       <div className="mb-6 flex justify-center">
         <img src="/logo-icon.svg" alt="NXT Perf" className="h-12 w-12" />
@@ -155,6 +189,7 @@ function LoginForm() {
         </Link>
       </div>
     </div>
+    </>
   );
 }
 
