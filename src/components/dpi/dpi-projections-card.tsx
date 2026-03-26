@@ -82,10 +82,10 @@ export function DPIProjectionsCard({
               <p className="text-xs text-muted-foreground mb-0.5">CA additionnel estimé</p>
               {proj.caAdditionnel.bas > 0 ? (
                 <p className="text-sm font-bold text-green-500">
-                  +{(proj.caAdditionnel.bas / 1000).toFixed(0)}k\u20AC – +{(proj.caAdditionnel.haut / 1000).toFixed(0)}k\u20AC
+                  +{(proj.caAdditionnel.bas / 1000).toFixed(0)}k€ – +{(proj.caAdditionnel.haut / 1000).toFixed(0)}k€
                 </p>
               ) : (
-                <p className="text-sm font-bold text-muted-foreground">&lt; 5k\u20AC</p>
+                <p className="text-sm font-bold text-muted-foreground">&lt; 5k€</p>
               )}
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 ROI estimé vs {proj.tools.filter((t) => t.disponible).map((t) => t.prix).join(" + ")}
