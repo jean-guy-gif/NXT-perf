@@ -183,14 +183,13 @@ export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
     value: Math.max(d.realise, d.objectif),
   }));
 
-  const chartHeight = Math.max(300, data.length * (isMobile ? 36 : 50));
   const yAxisWidth = isMobile ? 70 : 130;
   const marginLeft = isMobile ? 70 : 130;
   const marginRight = isMobile ? 16 : 40;
 
   return (
-    <div className="overflow-x-hidden" style={{ width: "100%", height: `${chartHeight}px` }}>
-      <ResponsiveContainer width="100%" height={chartHeight}>
+    <div className="overflow-x-hidden" style={{ width: "100%", height: `${Math.max(400, data.length * 50)}px` }}>
+      <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} layout="vertical" barSize={isMobile ? 16 : 24} margin={{ left: marginLeft, right: marginRight, top: 4, bottom: 4 }}>
           <CartesianGrid
             strokeDasharray="3 3"

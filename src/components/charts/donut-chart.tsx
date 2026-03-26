@@ -19,11 +19,11 @@ export function DonutChart({
   data,
   centerLabel,
   centerValue,
-  height = 200,
+  height = 250,
 }: DonutChartProps) {
   return (
-    <div className="relative w-full" style={{ height: `${height}px` }}>
-      <ResponsiveContainer width="100%" height={height}>
+    <div className="relative" style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={data}
@@ -43,7 +43,7 @@ export function DonutChart({
             contentStyle={{
               backgroundColor: "var(--card, #0F1F46)",
               border: "1px solid var(--border, #1a2d5a)",
-              borderRadius: "8px",
+              borderRadius: "var(--radius-button)",
               color: "var(--foreground, white)",
               fontSize: "12px",
             }}
@@ -52,7 +52,7 @@ export function DonutChart({
         </PieChart>
       </ResponsiveContainer>
       {(centerLabel || centerValue) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
           {centerValue && (
             <span className="text-2xl font-bold text-foreground">
               {centerValue}

@@ -26,12 +26,11 @@ export function LineChart({
   data,
   xKey,
   lines,
-  height = 260,
   showGrid = false,
 }: LineChartProps) {
   return (
-    <div style={{ width: "100%", height: `${height}px` }}>
-    <ResponsiveContainer width="100%" height={height}>
+    <div style={{ width: "100%", height: "clamp(220px, 30vh, 360px)" }}>
+    <ResponsiveContainer width="100%" height="100%">
       <RechartsLineChart data={data}>
         {showGrid && (
           <CartesianGrid
@@ -44,19 +43,18 @@ export function LineChart({
           dataKey={xKey}
           axisLine={false}
           tickLine={false}
-          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 11 }}
+          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
         />
         <YAxis
           axisLine={false}
           tickLine={false}
-          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 11 }}
-          width={35}
+          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
         />
         <Tooltip
           contentStyle={{
             backgroundColor: "var(--card, #0F1F46)",
             border: "1px solid var(--border, #1a2d5a)",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-button)",
             color: "var(--foreground, white)",
             fontSize: "12px",
           }}
