@@ -9,7 +9,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { useMounted } from "@/hooks/use-mounted";
 
 interface LineChartProps {
   data: Array<Record<string, unknown>>;
@@ -30,12 +29,6 @@ export function LineChart({
   height = 260,
   showGrid = false,
 }: LineChartProps) {
-  const mounted = useMounted();
-
-  if (!mounted) {
-    return <div style={{ height: `${height}px` }} className="w-full animate-pulse rounded-lg bg-muted/30" />;
-  }
-
   return (
     <div style={{ width: "100%", height: `${height}px` }}>
       <ResponsiveContainer width="100%" height="100%">

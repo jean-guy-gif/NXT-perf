@@ -18,8 +18,7 @@ import {
 } from "lucide-react";
 import type { ContactStatut } from "@/types/results";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { LineChart } from "@/components/charts/line-chart";
-import { BarChart } from "@/components/charts/bar-chart";
+import { LineChart, BarChart } from "@/components/charts";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { formatCurrency } from "@/lib/formatters";
 import { mockTeamStats } from "@/data/mock-team";

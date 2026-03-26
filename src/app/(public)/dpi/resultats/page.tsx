@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Download, ArrowRight, TrendingUp, Award } from "lucide-react";
-import { DPIRadar } from "@/components/dpi/dpi-radar";
+import { DPIRadar } from "@/components/dpi/dpi-radar-dynamic";
 import { createClient } from "@/lib/supabase/client";
 import type { DPIScores } from "@/lib/dpi-scoring";
 import { cn } from "@/lib/utils";

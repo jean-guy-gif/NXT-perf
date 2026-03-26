@@ -12,7 +12,6 @@ import {
   Cell,
 } from "recharts";
 import type { EntityBar } from "@/hooks/use-agency-gps";
-import { useMounted } from "@/hooks/use-mounted";
 
 const STATUS_FILL = {
   ok: "#39C97E",
@@ -170,7 +169,6 @@ function CustomYTick({ x, y, payload, data, isMobile }: {
 }
 
 export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
-  const mounted = useMounted();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -189,10 +187,6 @@ export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
   const yAxisWidth = isMobile ? 70 : 130;
   const marginLeft = isMobile ? 70 : 130;
   const marginRight = isMobile ? 16 : 40;
-
-  if (!mounted) {
-    return <div style={{ height: `${chartHeight}px` }} className="w-full animate-pulse rounded-lg bg-muted/30" />;
-  }
 
   return (
     <div className="overflow-x-hidden" style={{ width: "100%", height: `${chartHeight}px` }}>

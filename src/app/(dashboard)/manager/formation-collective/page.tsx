@@ -5,7 +5,7 @@ import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { generateFormationDiagnostic } from "@/lib/formation";
 import { useAppStore } from "@/stores/app-store";
-import { BarChart } from "@/components/charts/bar-chart";
+import { BarChart } from "@/components/charts";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
 import { BookOpen, Dumbbell, ExternalLink, User } from "lucide-react";

@@ -6,7 +6,7 @@ import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
-import { BarChart } from "@/components/charts/bar-chart";
+import { BarChart } from "@/components/charts";
 import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
 import type { UserCategory } from "@/types/user";
 import type { RatioId } from "@/types/ratios";

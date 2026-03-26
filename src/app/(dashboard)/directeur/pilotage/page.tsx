@@ -19,8 +19,7 @@ import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
-import { LineChart } from "@/components/charts/line-chart";
-import { BarChart } from "@/components/charts/bar-chart";
+import { LineChart, BarChart } from "@/components/charts";
 import { NXT_COLORS } from "@/lib/constants";
 import { Layers, DollarSign } from "lucide-react";
 

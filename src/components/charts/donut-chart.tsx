@@ -7,7 +7,6 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { useMounted } from "@/hooks/use-mounted";
 
 interface DonutChartProps {
   data: Array<{ name: string; value: number; color: string }>;
@@ -22,12 +21,6 @@ export function DonutChart({
   centerValue,
   height = 200,
 }: DonutChartProps) {
-  const mounted = useMounted();
-
-  if (!mounted) {
-    return <div style={{ height: `${height}px` }} className="w-full animate-pulse rounded-lg bg-muted/30" />;
-  }
-
   return (
     <div className="relative w-full" style={{ height: `${height}px` }}>
       <ResponsiveContainer width="100%" height="100%">
