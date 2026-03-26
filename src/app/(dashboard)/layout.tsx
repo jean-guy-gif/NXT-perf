@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -25,9 +24,10 @@ export default function DashboardLayout({
   const user = useAppStore((s) => s.user);
   const setProfile = useAppStore((s) => s.setProfile);
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
-  const router = useRouter();
-  const [loading, setLoading] = useState(!isAuthenticated);
-  const [authTimeout, setAuthTimeout] = useState(false);
+
+  // hasSession: true if Supabase has a valid session (even if profile not yet loaded)
+  const [hasSession, setHasSession] = useState(isAuthenticated || isDemo);
+  const [checking, setChecking] = useState(!isAuthenticated && !isDemo);
 
   // Sidebar collapsed state — default collapsed (true) to match current UX
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -51,65 +51,63 @@ export default function DashboardLayout({
     });
   }, []);
 
-  // On mount, check Supabase session before redirecting
+  // On mount, check if Supabase has a valid session
+  // NEVER redirect to /login — only the middleware does that
   useEffect(() => {
-    if (isAuthenticated) {
-      setLoading(false);
+    if (isAuthenticated || isDemo) {
+      setHasSession(true);
+      setChecking(false);
       return;
     }
 
+    let cancelled = false;
+
     const checkSession = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        const supabase = createClient();
+        const { data: { user: authUser } } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+        if (cancelled) return;
 
-      // Retry profile fetch — trigger may still be running after signup
-      let profile = null;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        if (data) { profile = data; break; }
-        await new Promise((r) => setTimeout(r, 1000));
-      }
+        if (authUser) {
+          setHasSession(true);
+          // Try to load profile — SupabaseProvider will also try via useSupabaseProfile
+          // but we do it here too for faster initial render
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .single();
 
-      if (!profile) {
-        // User authenticated but no profile yet — stay on dashboard with minimal user
-        // Profile will be created by Supabase trigger or onboarding later
-        setLoading(false);
-        return;
-      }
-
-      setProfile(profile);
-
-      // Load org invite code for manager equipe page
-      if (profile.org_id) {
-        const { data: org } = await supabase
-          .from("organizations")
-          .select("invite_code")
-          .eq("id", profile.org_id)
-          .single();
-        if (org) {
-          setOrgInviteCode(org.invite_code);
+          if (!cancelled && profileData) {
+            setProfile(profileData);
+            // Load org invite code
+            if (profileData.org_id) {
+              const { data: org } = await supabase
+                .from("organizations")
+                .select("invite_code")
+                .eq("id", profileData.org_id)
+                .single();
+              if (org) setOrgInviteCode(org.invite_code);
+            }
+          }
+          // If no profile yet, that's OK — useSupabaseProfile will retry with fallback
         }
+        // If no authUser, just show spinner — middleware will redirect on next navigation
+      } catch {
+        // Supabase unavailable — show spinner, don't crash
       }
 
-      setLoading(false);
+      if (!cancelled) setChecking(false);
     };
 
     checkSession();
-  }, [isAuthenticated, router, setProfile, setOrgInviteCode]);
+    return () => { cancelled = true; };
+  }, [isAuthenticated, isDemo, setProfile, setOrgInviteCode]);
 
   // Auto-launch guided tour on first visit after account creation
   useEffect(() => {
-    if (!isAuthenticated || loading || !user) return;
-    // Small delay to let the dashboard render first
+    if (!isAuthenticated || checking || !user) return;
     const timer = setTimeout(() => {
       const tourRole = getTourRole(user.availableRoles, user.mainRole);
       const status = getTourStatus(tourRole);
@@ -118,34 +116,25 @@ export default function DashboardLayout({
       }
     }, 800);
     return () => clearTimeout(timer);
-  }, [isAuthenticated, loading, user]);
+  }, [isAuthenticated, checking, user]);
 
   // Tour data
   const tourRole = user ? getTourRole(user.availableRoles, user.mainRole) : "conseiller";
   const tourSteps = getTourSteps(tourRole);
 
-  // Timeout: if profile hasn't loaded after 3s, redirect to login
-  useEffect(() => {
-    if (isAuthenticated || isDemo) return;
-    const timer = setTimeout(() => setAuthTimeout(true), 3000);
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, isDemo]);
-
-  useEffect(() => {
-    if (authTimeout && !isAuthenticated && !isDemo) {
-      router.replace("/login");
-    }
-  }, [authTimeout, isAuthenticated, isDemo, router]);
-
-  if (loading || (!isAuthenticated && !authTimeout)) {
+  // Show spinner while checking session or waiting for profile
+  if (checking || (!isAuthenticated && !isDemo)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          {hasSession && (
+            <p className="text-sm text-muted-foreground">Chargement du profil...</p>
+          )}
+        </div>
       </div>
     );
   }
-
-  if (!isAuthenticated) return null;
 
   return (
     <div className={cn("flex h-screen overflow-hidden bg-background", isDemo && "pt-8")}>

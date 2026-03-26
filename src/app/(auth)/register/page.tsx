@@ -223,7 +223,8 @@ function RegisterForm() {
     };
     useAppStore.getState().setProfile(optimisticProfile);
 
-    // Always go to dashboard after signup
+    // Wait 1s for trigger to create the real profile, then redirect
+    await new Promise((r) => setTimeout(r, 1000));
     window.location.href = "/dashboard";
   };
 
