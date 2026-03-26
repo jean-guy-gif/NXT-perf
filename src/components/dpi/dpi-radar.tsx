@@ -41,8 +41,8 @@ export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) 
     : `Projection ${showProjection}`;
 
   return (
-    <div className="w-full" style={{ height: "clamp(260px, 50vw, 400px)" }}>
-    <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: "100%", height: "320px" }}>
+    <ResponsiveContainer width="100%" height={320}>
       <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
         <PolarGrid stroke="var(--color-border, #e5e7eb)" />
         <PolarAngleAxis

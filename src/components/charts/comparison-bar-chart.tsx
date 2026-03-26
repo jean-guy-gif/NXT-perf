@@ -190,7 +190,7 @@ export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
 
   return (
     <div className="overflow-x-hidden" style={{ width: "100%", height: `${chartHeight}px` }}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart data={chartData} layout="vertical" barSize={isMobile ? 16 : 24} margin={{ left: marginLeft, right: marginRight, top: 4, bottom: 4 }}>
           <CartesianGrid
             strokeDasharray="3 3"

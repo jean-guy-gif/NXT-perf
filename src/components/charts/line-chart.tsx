@@ -30,50 +30,49 @@ export function LineChart({
   showGrid = false,
 }: LineChartProps) {
   return (
-    <div style={{ width: "100%", height: `${height}px` }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <RechartsLineChart data={data}>
-          {showGrid && (
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="color-mix(in oklch, currentColor, transparent 88%)"
-              vertical={false}
-            />
-          )}
-          <XAxis
-            dataKey={xKey}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
+    <ResponsiveContainer width="100%" height={height}>
+      <RechartsLineChart data={data}>
+        {showGrid && (
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="color-mix(in oklch, currentColor, transparent 88%)"
+            vertical={false}
           />
-          <YAxis
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
+        )}
+        <XAxis
+          dataKey={xKey}
+          axisLine={false}
+          tickLine={false}
+          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 11 }}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 11 }}
+          width={35}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "var(--card, #0F1F46)",
+            border: "1px solid var(--border, #1a2d5a)",
+            borderRadius: "8px",
+            color: "var(--foreground, white)",
+            fontSize: "12px",
+          }}
+        />
+        {lines.map((line) => (
+          <Line
+            key={line.dataKey}
+            type="monotone"
+            dataKey={line.dataKey}
+            stroke={line.color}
+            name={line.name}
+            strokeWidth={2}
+            dot={{ fill: line.color, r: 3 }}
+            activeDot={{ r: 5 }}
           />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "var(--card, #0F1F46)",
-              border: "1px solid var(--border, #1a2d5a)",
-              borderRadius: "var(--radius-button)",
-              color: "var(--foreground, white)",
-              fontSize: "12px",
-            }}
-          />
-          {lines.map((line) => (
-            <Line
-              key={line.dataKey}
-              type="monotone"
-              dataKey={line.dataKey}
-              stroke={line.color}
-              name={line.name}
-              strokeWidth={2}
-              dot={{ fill: line.color, r: 3 }}
-              activeDot={{ r: 5 }}
-            />
-          ))}
-        </RechartsLineChart>
-      </ResponsiveContainer>
-    </div>
+        ))}
+      </RechartsLineChart>
+    </ResponsiveContainer>
   );
 }
