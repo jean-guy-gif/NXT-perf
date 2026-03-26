@@ -30,6 +30,7 @@ export function LineChart({
   showGrid = false,
 }: LineChartProps) {
   return (
+    <div style={{ width: "100%", height: `${height}px` }}>
     <ResponsiveContainer width="100%" height={height}>
       <RechartsLineChart data={data}>
         {showGrid && (
@@ -74,5 +75,6 @@ export function LineChart({
         ))}
       </RechartsLineChart>
     </ResponsiveContainer>
+    </div>
   );
 }
