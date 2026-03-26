@@ -34,15 +34,15 @@ const TOOL_AXIS_IMPACT: Record<string, Partial<Record<string, number>>> = {
 };
 
 const AXIS_CA_IMPACT_PER_10PTS: Record<string, number> = {
-  intensite_commerciale: 0.05,
-  generation_opportunites: 0.06,
-  solidite_portefeuille: 0.04,
-  maitrise_ratios: 0.05,
-  valorisation_economique: 0.07,
-  pilotage_strategique: 0.03,
+  intensite_commerciale: 0.03,
+  generation_opportunites: 0.04,
+  solidite_portefeuille: 0.025,
+  maitrise_ratios: 0.03,
+  valorisation_economique: 0.045,
+  pilotage_strategique: 0.02,
 };
 
-const CA_MAX_GAIN_RATIO = 0.35;
+const CA_MAX_GAIN_RATIO = 0.20;
 
 const CA_BASE_BY_RANGE: Record<string, number> = {
   moins_100k: 65000,
@@ -78,8 +78,8 @@ export function computeCAAdditionnel(
     if (!current) continue;
     const delta = projected.score - current.score;
     if (delta <= 0) continue;
-    const coeff = AXIS_CA_IMPACT_PER_10PTS[projected.id] ?? 0.05;
-    const diminishedDelta = delta > 30 ? 30 + (delta - 30) * 0.3 : delta;
+    const coeff = AXIS_CA_IMPACT_PER_10PTS[projected.id] ?? 0.02;
+    const diminishedDelta = delta > 20 ? 20 + (delta - 20) * 0.4 : delta;
     totalImpact += (diminishedDelta / 10) * coeff;
   }
   const maxGain = caBase * CA_MAX_GAIN_RATIO;
@@ -142,9 +142,16 @@ export function computeDPIProjections(currentAxes: DPIAxis[], caBase?: number): 
   const axes9m = applyToolsImpact(currentAxes, tools9m, 9);
   const score9m = Math.round(axes9m.reduce((a, b) => a + b.score, 0) / axes9m.length);
 
+  function applyMaturity(raw: CAAdditionnel, factor: number): CAAdditionnel {
+    return {
+      bas: Math.round(raw.bas * factor / 1000) * 1000,
+      haut: Math.round(raw.haut * factor / 1000) * 1000,
+    };
+  }
+
   return [
-    { palier: "3m", label: "+3 mois", tools: tools3m.map((id) => NXT_TOOLS[id]), axes: axes3m, globalScore: score3m, deltaGlobal: score3m - currentGlobal, primaryTool: NXT_TOOLS[priorityToolId], caAdditionnel: computeCAAdditionnel(ca, currentAxes, axes3m) },
-    { palier: "6m", label: "+6 mois", tools: tools6m.map((id) => NXT_TOOLS[id]), axes: axes6m, globalScore: score6m, deltaGlobal: score6m - currentGlobal, primaryTool: NXT_TOOLS["nxt_training"], caAdditionnel: computeCAAdditionnel(ca, currentAxes, axes6m) },
+    { palier: "3m", label: "+3 mois", tools: tools3m.map((id) => NXT_TOOLS[id]), axes: axes3m, globalScore: score3m, deltaGlobal: score3m - currentGlobal, primaryTool: NXT_TOOLS[priorityToolId], caAdditionnel: applyMaturity(computeCAAdditionnel(ca, currentAxes, axes3m), 0.30) },
+    { palier: "6m", label: "+6 mois", tools: tools6m.map((id) => NXT_TOOLS[id]), axes: axes6m, globalScore: score6m, deltaGlobal: score6m - currentGlobal, primaryTool: NXT_TOOLS["nxt_training"], caAdditionnel: applyMaturity(computeCAAdditionnel(ca, currentAxes, axes6m), 0.65) },
     { palier: "9m", label: "+9 mois", tools: tools9m.map((id) => NXT_TOOLS[id]), axes: axes9m, globalScore: score9m, deltaGlobal: score9m - currentGlobal, primaryTool: NXT_TOOLS["nxt_finance"], caAdditionnel: computeCAAdditionnel(ca, currentAxes, axes9m) },
   ];
 }

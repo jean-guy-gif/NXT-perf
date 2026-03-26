@@ -68,13 +68,13 @@ function DPIResultsContent() {
     loadScores();
   }, [dpiId, router]);
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (theme: "dark" | "white" = "dark") => {
     if (!scores) return;
     setGeneratingPdf(true);
 
     const { generateDPIPDF } = await import("@/lib/dpi-pdf");
     const email = sessionStorage.getItem("dpi_email") ?? "";
-    generateDPIPDF(scores, email);
+    generateDPIPDF(scores, email, theme);
 
     if (dpiId) {
       const supabase = createClient();
@@ -229,14 +229,24 @@ function DPIResultsContent() {
 
       {/* Actions */}
       <div className="space-y-3">
-        <button
-          onClick={handleDownloadPDF}
-          disabled={generatingPdf}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-        >
-          <Download className="h-5 w-5" />
-          {generatingPdf ? "Génération..." : "Télécharger mon diagnostic PDF"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => handleDownloadPDF("dark")}
+            disabled={generatingPdf}
+            className="flex flex-1 h-12 items-center justify-center gap-2 rounded-xl bg-[#0a0c1e] px-4 text-sm font-semibold text-white transition-opacity hover:opacity-80 border border-white/10 disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            PDF Dark
+          </button>
+          <button
+            onClick={() => handleDownloadPDF("white")}
+            disabled={generatingPdf}
+            className="flex flex-1 h-12 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0a0c1e] transition-opacity hover:opacity-80 border border-gray-200 disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            PDF Pro
+          </button>
+        </div>
 
         <a
           href="/register"
