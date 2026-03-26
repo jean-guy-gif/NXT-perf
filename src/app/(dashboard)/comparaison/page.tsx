@@ -7,13 +7,14 @@ import { useResults, useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { BarChart } from "@/components/charts/bar-chart";
+import { DPIComparisonView } from "@/components/dpi/dpi-comparison-view";
 import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
 import type { UserCategory } from "@/types/user";
 import type { RatioId } from "@/types/ratios";
 import type { ComputedRatio } from "@/types/ratios";
 
 type CompareMode = "advisor" | "profile";
-type TabType = "interne" | "temporel";
+type TabType = "interne" | "temporel" | "dpi";
 
 function getPerformanceIndicator(ratio: ComputedRatio) {
   const pct = ratio.percentageOfTarget;
@@ -150,6 +151,17 @@ export default function ComparaisonPage() {
           )}
         >
           Performance vs Niveau
+        </button>
+        <button
+          onClick={() => setTab("dpi")}
+          className={cn(
+            "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            tab === "dpi"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Comparaison DPI
         </button>
       </div>
 
@@ -419,6 +431,11 @@ export default function ComparaisonPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========== COMPARAISON DPI ========== */}
+      {tab === "dpi" && (
+        <DPIComparisonView />
       )}
     </div>
   );

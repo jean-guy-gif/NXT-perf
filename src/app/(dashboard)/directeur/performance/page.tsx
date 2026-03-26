@@ -11,6 +11,7 @@ import { useAppStore } from "@/stores/app-store";
 import { computeAllRatios } from "@/lib/ratios";
 import { aggregateResults } from "@/lib/aggregate-results";
 import { ProgressBar } from "@/components/charts/progress-bar";
+import { DPIAgenceView } from "@/components/dpi/dpi-team-view";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import type { RatioId, RatioConfig, ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
@@ -489,6 +490,15 @@ export default function PerformancePage() {
           )}
         </div>
       )}
+
+      {/* ── DPI Global Agence ── */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
+          <span className="text-lg">{"\u{1F3AF}"}</span>
+          DPI Global Agence
+        </h3>
+        <DPIAgenceView />
+      </div>
     </div>
   );
 }
