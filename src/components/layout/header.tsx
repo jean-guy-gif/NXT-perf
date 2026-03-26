@@ -33,6 +33,7 @@ const pageTitles: Record<string, string> = {
   "/directeur/formation-collective": "Formation Collective Agence",
   "/coach/cockpit": "Cockpit Coach",
   "/reseau/dashboard": "Tableau de bord Réseau",
+  "/admin/dpi": "Leads DPI",
 };
 
 export function Header() {
