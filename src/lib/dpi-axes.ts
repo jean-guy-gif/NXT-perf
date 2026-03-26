@@ -1,5 +1,6 @@
 import type { PeriodResults } from "@/types/results";
 import type { ComputedRatio } from "@/types/ratios";
+import { computeContextMultipliers, type DPIContextProfile } from "@/lib/dpi-context";
 
 export interface DPIAxis {
   id: string;
@@ -47,22 +48,34 @@ export function computeDPIAxes(
   results: PeriodResults,
   category: "debutant" | "confirme" | "expert",
   computedRatios: ComputedRatio[],
-  ctx?: DPIContextParams
+  ctx?: DPIContextParams,
+  contextProfile?: Partial<DPIContextProfile>
 ): DPIAxis[] {
   const ref = REF[category] ?? REF.confirme;
   const p = ctx ?? {};
 
+  const mult = contextProfile
+    ? computeContextMultipliers(contextProfile)
+    : { intensiteCommerciale: 1, generationOpportunites: 1, soliditePortefeuille: 1,
+        maitriseRatios: 1, valorisationEconomique: 1, pilotageStrategique: 1 };
+
   // AXE 1 : Intensité Commerciale
   const contacts = results.prospection.contactsTotaux;
-  const scoreIntensiteCommerciale = clamp((contacts / ref.contactsMois) * 100);
+  const scoreIntensiteCommerciale = clamp(
+    (contacts / (ref.contactsMois * mult.intensiteCommerciale)) * 100
+  );
 
   // AXE 2 : Génération d'Opportunités
   const estimations = results.vendeurs.estimationsRealisees;
-  const scoreGenerationOpportunites = clamp((estimations / ref.estimationsMois) * 100);
+  const scoreGenerationOpportunites = clamp(
+    (estimations / (ref.estimationsMois * mult.generationOpportunites)) * 100
+  );
 
-  // AXE 3 : Solidité du Portefeuille (50% stock mandats + 50% taux exclusivité)
+  // AXE 3 : Solidité du Portefeuille
   const mandatsStock = results.vendeurs.mandats.length;
-  const scoreMandatsStock = clamp((mandatsStock / ref.mandatsStock) * 100);
+  const scoreMandatsStock = clamp(
+    (mandatsStock / (ref.mandatsStock * mult.soliditePortefeuille)) * 100
+  );
   const totalMandats = results.vendeurs.mandats.length;
   const mandatsExclusifs = results.vendeurs.mandats.filter(
     (m) => m.type === "exclusif"
@@ -70,13 +83,13 @@ export function computeDPIAxes(
   const pctExclusiviteReel =
     totalMandats > 0 ? (mandatsExclusifs / totalMandats) * 100 : 0;
   const scoreExclusivite = clamp(
-    (pctExclusiviteReel / ref.pctExclusiviteObjectif) * 100
+    (pctExclusiviteReel / (ref.pctExclusiviteObjectif * mult.soliditePortefeuille)) * 100
   );
   const scoreSoliditePortefeuille = clamp(
     (scoreMandatsStock + scoreExclusivite) / 2
   );
 
-  // AXE 4 : Maîtrise des Ratios (50% global ratios + 25% plan 30j + 25% training)
+  // AXE 4 : Maîtrise des Ratios
   const scoreGlobal7Ratios =
     computedRatios.length > 0
       ? clamp(
@@ -89,17 +102,20 @@ export function computeDPIAxes(
       ? clamp(((p.plan30Done ?? 0) / (p.plan30Total ?? 1)) * 100)
       : 0;
   const nxtTrainingScore = p.hasActivePlan ? 100 : 0;
+  const adjustedRatioScore = clamp(scoreGlobal7Ratios / mult.maitriseRatios);
   const scoreMaitriseRatios = clamp(
-    scoreGlobal7Ratios * 0.5 + plan30Score * 0.25 + nxtTrainingScore * 0.25
+    adjustedRatioScore * 0.5 + plan30Score * 0.25 + nxtTrainingScore * 0.25
   );
 
   // AXE 5 : Valorisation Économique
   const actesSignes = results.ventes.actesSignes;
   const caTotal = results.ventes.chiffreAffaires;
   const caParActe = actesSignes > 0 ? caTotal / actesSignes : 0;
-  const scoreValorisationEconomique = clamp((caParActe / ref.caParActe) * 100);
+  const scoreValorisationEconomique = clamp(
+    (caParActe / (ref.caParActe * mult.valorisationEconomique)) * 100
+  );
 
-  // AXE 6 : Pilotage Stratégique (40% ratios ok + 30% objectif perso + 30% compétences)
+  // AXE 6 : Pilotage Stratégique
   const ratiosOk = computedRatios.filter((r) => r.status === "ok").length;
   const ratiosTotal = computedRatios.length;
   const scoreGPSRealise =
@@ -109,9 +125,10 @@ export function computeDPIAxes(
     p.hasActivePlan || p.nxtTrainingActive
       ? clamp(50 + plan30Score * 0.5)
       : 0;
-  const scorePilotageStrategique = clamp(
+  const rawPilotage = clamp(
     scoreGPSRealise * 0.4 + scoreGPSPersonnalise * 0.3 + scoreCompetences * 0.3
   );
+  const scorePilotageStrategique = clamp(rawPilotage / mult.pilotageStrategique);
 
   return [
     { id: "intensite_commerciale", label: "Intensité Commerciale", score: scoreIntensiteCommerciale },

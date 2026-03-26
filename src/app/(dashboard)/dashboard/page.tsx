@@ -58,6 +58,8 @@ import { RecommandationBanner } from "@/components/dashboard/recommandation-bann
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { useAllResults } from "@/hooks/use-results";
 import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
+import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
+import { useDPIEvolution } from "@/hooks/use-dpi-evolution";
 import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
@@ -166,6 +168,7 @@ function DashboardContent() {
   const ytdResults = useYTDResults();
   const { computedRatios, ratioConfigs } = useRatios();
   const isDemo = useAppStore((s) => s.isDemo);
+  const { currentAxes: dpiAxes, currentGlobalScore: dpiScore } = useDPIEvolution();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
     "nxt-dashboard-tab",
@@ -738,6 +741,9 @@ function DashboardContent() {
                 <h2 className="font-semibold text-foreground">Mon Diagnostic de Performance</h2>
               </div>
               <DPIEvolutionCard />
+              {dpiAxes.length > 0 && (
+                <DPIProjectionsCard currentAxes={dpiAxes} currentGlobalScore={dpiScore} />
+              )}
             </div>
           )}
         </>

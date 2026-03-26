@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { DPIScores, DPIAxisScore } from "./dpi-scoring";
+import { computeDPIProjections } from "./dpi-projections";
+import type { DPIAxis } from "./dpi-axes";
 
 function fmt(value: number): string {
   const str = Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
@@ -437,6 +439,35 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
     }
   }
   y += 6;
+
+  // Projections NXT
+  const dpiAxes: DPIAxis[] = scores.axes.map((a) => ({ id: a.id, label: a.label, score: a.score }));
+  const projections = computeDPIProjections(dpiAxes);
+  if (projections.length > 0 && y < ph - 80) {
+    doc.setTextColor(30, 30, 46);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Votre potentiel de progression", 20, y);
+    y += 7;
+
+    for (const proj of projections) {
+      if (y > ph - 50) break;
+      const color: [number, number, number] = proj.palier === "3m" ? [51, 117, 255] : proj.palier === "6m" ? [99, 102, 241] : [160, 85, 255];
+      doc.setFillColor(color[0], color[1], color[2]);
+      doc.rect(20, y - 2, 3, 12, "F");
+      doc.setTextColor(color[0], color[1], color[2]);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${proj.label} : ${proj.globalScore}/100 (+${proj.deltaGlobal} pts)`, 28, y + 2);
+      doc.setTextColor(100);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      const toolNames = proj.tools.map((t) => t.label + (t.disponible ? "" : " (bientôt)")).join(" + ");
+      doc.text(`avec ${toolNames}`, 28, y + 8);
+      y += 14;
+    }
+    y += 2;
+  }
 
   // CTA block
   doc.setFillColor(51, 117, 255);
