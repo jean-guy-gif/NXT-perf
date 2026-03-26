@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -80,11 +79,10 @@ const NIVEAU_TAG: Record<string, { label: string; color: string }> = {
   manager: { label: "MGR", color: "#8b5cf6" },
 };
 
-function CustomYTick({ x, y, payload, data, isMobile }: {
+function CustomYTick({ x, y, payload, data }: {
   x?: number; y?: number;
   payload?: { value: string; index: number };
   data: (EntityBar & { value: number })[];
-  isMobile?: boolean;
 }) {
   if (!payload) return null;
   const entry = data[payload.index];
@@ -94,26 +92,6 @@ function CustomYTick({ x, y, payload, data, isMobile }: {
   const isConseiller = entry.niveau === "conseiller";
   const textColor = "color-mix(in oklch, currentColor, transparent 45%)";
   const lightColor = "color-mix(in oklch, currentColor, transparent 60%)";
-  const nameMaxLen = isMobile ? 10 : 999;
-  const truncName = entry.name.length > nameMaxLen ? entry.name.slice(0, nameMaxLen) + "…" : entry.name;
-
-  if (isMobile) {
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <text
-          x={-5}
-          y={1}
-          textAnchor="end"
-          fontSize={10}
-          fontWeight={tag ? 600 : 400}
-          fill={tag ? tag.color : isConseiller ? lightColor : textColor}
-          dominantBaseline="middle"
-        >
-          {truncName}
-        </text>
-      </g>
-    );
-  }
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -169,28 +147,15 @@ function CustomYTick({ x, y, payload, data, isMobile }: {
 }
 
 export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
   const chartData = data.map(d => ({
     ...d,
     value: Math.max(d.realise, d.objectif),
   }));
 
-  const yAxisWidth = isMobile ? 70 : 130;
-  const marginLeft = isMobile ? 70 : 130;
-  const marginRight = isMobile ? 16 : 40;
-
   return (
-    <div className="overflow-x-hidden" style={{ width: "100%", height: `${Math.max(400, data.length * 50)}px` }}>
+    <div style={{ width: "100%", height: `${Math.max(400, data.length * 50)}px` }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} layout="vertical" barSize={isMobile ? 16 : 24} margin={{ left: marginLeft, right: marginRight, top: 4, bottom: 4 }}>
+        <BarChart data={chartData} layout="vertical" barSize={24} margin={{ left: 130, right: 40 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="color-mix(in oklch, currentColor, transparent 88%)"
@@ -200,15 +165,15 @@ export function ComparisonBarChart({ data }: ComparisonBarChartProps) {
             type="number"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: isMobile ? 10 : 12 }}
+            tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
           />
           <YAxis
             type="category"
             dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={<CustomYTick data={chartData} isMobile={isMobile} />}
-            width={yAxisWidth}
+            tick={<CustomYTick data={chartData} />}
+            width={130}
           />
           <Tooltip content={<CustomTooltipContent />} cursor={false} />
           <Bar dataKey="value" shape={<BarWithObjective />}>

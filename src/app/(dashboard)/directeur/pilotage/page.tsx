@@ -269,16 +269,16 @@ export default function PilotageAgencePage() {
   const gps = agencyGPS;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
       {/* ═══ 1. Header ═══ */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <Compass className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold sm:text-2xl">Pilotage Agence</h1>
-            <p className="text-xs text-muted-foreground sm:text-sm">GPS de performance agence — données mensuelles</p>
+            <h1 className="text-2xl font-bold">Pilotage Agence</h1>
+            <p className="text-sm text-muted-foreground">GPS de performance agence — données mensuelles</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

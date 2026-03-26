@@ -307,11 +307,11 @@ function DashboardContent() {
   return (
     <div className="space-y-6">
       {/* Top navigation tabs */}
-      <div className="flex overflow-x-auto scrollbar-hide border-b border-border pb-3 gap-6">
+      <div className="flex items-center gap-6 border-b border-border pb-3">
         <button
           onClick={() => setActiveTab("overview")}
           className={cn(
-            "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
+            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
             activeTab === "overview"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -323,7 +323,7 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab("favoris")}
           className={cn(
-            "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
+            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
             activeTab === "favoris"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -335,7 +335,7 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab("mois")}
           className={cn(
-            "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
+            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
             activeTab === "mois"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -347,7 +347,7 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab("suivi")}
           className={cn(
-            "relative flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
+            "relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
             activeTab === "suivi"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -402,7 +402,7 @@ function DashboardContent() {
           />
           {/* Summary stats */}
           {kpiChartConfigs[expandedKpi].data.length > 0 ? (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-3 gap-4">
               <div className="rounded-lg bg-muted/50 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Moyenne 12 mois</p>
                 <p className="mt-1 text-lg font-bold text-foreground">
