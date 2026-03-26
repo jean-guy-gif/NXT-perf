@@ -3,7 +3,7 @@ import type { DPIScores, DPIAxisScore } from "./dpi-scoring";
 
 function fmt(value: number): string {
   const str = Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return str + " EUR";
+  return str + " \u20AC";
 }
 
 function scoreRGB(score: number): [number, number, number] {
@@ -38,8 +38,8 @@ const RECO: Record<string, string> = {
 
 // Short labels for radar (avoid overflow)
 const SHORT_LABELS: Record<string, string> = {
-  intensite_commerciale: "Intensite",
-  generation_opportunites: "Opportunites",
+  intensite_commerciale: "Intensité",
+  generation_opportunites: "Opportunités",
   solidite_portefeuille: "Portefeuille",
   maitrise_ratios: "Ratios",
   valorisation_economique: "Valorisation",
@@ -198,7 +198,7 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
   doc.setTextColor(30, 30, 46);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("Diagnostic de Performance Immobiliere", pw / 2, y, { align: "center" });
+  doc.text("Diagnostic de Performance Immobilière", pw / 2, y, { align: "center" });
   y += 8;
 
   doc.setFontSize(9);
@@ -320,7 +320,7 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
   doc.setTextColor(30, 30, 46);
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Detail par axe", 20, y);
+  doc.text("Détail par axe", 20, y);
   y += 7;
 
   doc.setFillColor(245, 245, 250);
@@ -447,10 +447,10 @@ export function generateDPIPDF(scores: DPIScores, email: string): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Pret a transformer votre performance ?", pw / 2, y + 11, { align: "center" });
+  doc.text("Prêt à transformer votre performance ?", pw / 2, y + 11, { align: "center" });
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text("Creez votre compte NXT Performance", pw / 2, y + 19, { align: "center" });
+  doc.text("Créez votre compte NXT Performance", pw / 2, y + 19, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.text("nxt-performance.com", pw / 2, y + 26, { align: "center" });
