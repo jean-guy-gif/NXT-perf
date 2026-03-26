@@ -161,13 +161,13 @@ export default function ResultatsPage() {
       {/* Tab navigation */}
       {results && (
         <>
-          <div className="flex gap-1 rounded-lg bg-muted p-1">
+          <div className="flex overflow-x-auto scrollbar-hide gap-1 rounded-lg bg-muted p-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                  "shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors",
                   activeTab === tab.id
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"

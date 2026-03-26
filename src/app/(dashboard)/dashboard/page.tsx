@@ -307,11 +307,11 @@ function DashboardContent() {
   return (
     <div className="space-y-6">
       {/* Top navigation tabs */}
-      <div className="flex items-center gap-6 border-b border-border pb-3">
+      <div className="flex overflow-x-auto scrollbar-hide border-b border-border pb-3 gap-6">
         <button
           onClick={() => setActiveTab("overview")}
           className={cn(
-            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+            "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
             activeTab === "overview"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -323,7 +323,7 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab("favoris")}
           className={cn(
-            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+            "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
             activeTab === "favoris"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -335,7 +335,7 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab("mois")}
           className={cn(
-            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+            "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
             activeTab === "mois"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -347,7 +347,7 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab("suivi")}
           className={cn(
-            "relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+            "relative flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 text-sm font-medium transition-colors",
             activeTab === "suivi"
               ? "border-b-2 border-primary text-primary"
               : "text-muted-foreground hover:text-foreground"

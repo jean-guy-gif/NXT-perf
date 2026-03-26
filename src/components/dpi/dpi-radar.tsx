@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { DPIAxisScore } from "@/lib/dpi-scoring";
+import { useMounted } from "@/hooks/use-mounted";
 
 interface DPIRadarProps {
   axes: DPIAxisScore[];
@@ -18,6 +19,8 @@ interface DPIRadarProps {
 }
 
 export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) {
+  const mounted = useMounted();
+
   const data = axes.map((a) => {
     let projectionValue = a.score;
     switch (showProjection) {
@@ -39,6 +42,10 @@ export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) 
     showProjection === "current" ? "Actuel"
     : showProjection === "potential" ? "Potentiel"
     : `Projection ${showProjection}`;
+
+  if (!mounted) {
+    return <div style={{ height: "320px" }} className="w-full animate-pulse rounded-lg bg-muted/30" />;
+  }
 
   return (
     <div className="w-full" style={{ height: "clamp(260px, 50vw, 400px)" }}>

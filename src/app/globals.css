@@ -201,6 +201,15 @@ html, body {
   }
 }
 
+/* Hide scrollbar for horizontal tab scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Chart containers — prevent horizontal overflow */
 .recharts-wrapper {
   max-width: 100% !important;

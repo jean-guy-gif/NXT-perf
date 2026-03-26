@@ -103,7 +103,7 @@ export function Header() {
         {user && (
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
+              "hidden rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline-flex",
               CATEGORY_COLORS[user.category]
             )}
           >
