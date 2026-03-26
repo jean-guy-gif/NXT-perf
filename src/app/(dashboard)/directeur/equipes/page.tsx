@@ -3,7 +3,7 @@
 import { Users } from "lucide-react";
 import { useAgencyGPS } from "@/hooks/use-agency-gps";
 import { GPS_THEME_LABELS, type GPSTheme } from "@/lib/constants";
-import { ComparisonBarChart } from "@/components/charts";
+import { ComparisonBarChart } from "@/components/charts/comparison-bar-chart";
 import { cn } from "@/lib/utils";
 
 const themes: GPSTheme[] = ["estimations", "mandats", "exclusivite", "visites", "offres", "compromis", "actes", "ca_compromis", "ca_acte"];

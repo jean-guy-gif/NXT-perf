@@ -8,7 +8,7 @@ import {
   User,
 } from "lucide-react";
 import { ProgressBar } from "@/components/charts/progress-bar";
-import { BarChart } from "@/components/charts";
+import { BarChart } from "@/components/charts/bar-chart";
 import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
 import { useDirectorData } from "@/hooks/use-director-data";
 import { computeAllRatios } from "@/lib/ratios";

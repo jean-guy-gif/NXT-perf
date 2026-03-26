@@ -25,7 +25,9 @@ import {
   Check,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { DonutChart, LineChart, BarChart } from "@/components/charts";
+import { DonutChart } from "@/components/charts/donut-chart";
+import { LineChart } from "@/components/charts/line-chart";
+import { BarChart } from "@/components/charts/bar-chart";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";

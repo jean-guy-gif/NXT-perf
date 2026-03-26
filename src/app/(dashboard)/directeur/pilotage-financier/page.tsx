@@ -25,7 +25,7 @@ import {
   FINANCIAL_FIELD_LABELS,
 } from "@/lib/finance";
 import type { FinancialFieldId, HealthStatus } from "@/types/finance";
-import { DonutChart } from "@/components/charts";
+import { DonutChart } from "@/components/charts/donut-chart";
 import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 

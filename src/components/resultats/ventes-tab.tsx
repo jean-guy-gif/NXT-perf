@@ -2,7 +2,7 @@
 
 import { FileCheck, DollarSign } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { LineChart } from "@/components/charts";
+import { LineChart } from "@/components/charts/line-chart";
 import { formatCurrency } from "@/lib/formatters";
 import { mockMonthlyCA } from "@/data/mock-results";
 import { NXT_COLORS, FIELD_TOOLTIPS } from "@/lib/constants";
