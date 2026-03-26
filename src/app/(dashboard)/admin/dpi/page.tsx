@@ -18,6 +18,7 @@ interface DPIResult {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  waitlist: { label: "En attente", color: "bg-orange-500/10 text-orange-600" },
   started: { label: "Démarré", color: "bg-yellow-500/10 text-yellow-600" },
   completed: { label: "Complété", color: "bg-green-500/10 text-green-600" },
   pdf_downloaded: { label: "PDF téléchargé", color: "bg-blue-500/10 text-blue-600" },
@@ -105,6 +106,7 @@ export default function AdminDPIPage() {
       <div className="flex gap-2">
         {[
           { value: "all", label: "Tous" },
+          { value: "waitlist", label: "En attente" },
           { value: "started", label: "Démarrés" },
           { value: "completed", label: "Complétés" },
           { value: "pdf_downloaded", label: "PDF téléchargé" },
