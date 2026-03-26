@@ -161,6 +161,7 @@ interface AppState {
   /** Demo only — switches to a different mock user for testing */
   switchDemoUser: () => void;
   addUser: (user: User) => void;
+  setUsers: (users: User[]) => void;
   removeUser: (userId: string) => void;
   assignAgent: (agentId: string, managerId: string) => void;
   unassignAgent: (agentId: string) => void;
@@ -328,7 +329,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, hiddenViews: [] });
+      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, hiddenViews: [], users: [], results: [] });
     }
   },
 
@@ -420,6 +421,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { users: [...state.users, user] };
     });
   },
+
+  setUsers: (users) => set({ users }),
 
   removeUser: (userId) => {
     set((state) => ({
