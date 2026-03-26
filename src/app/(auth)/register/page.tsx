@@ -8,7 +8,7 @@ import type { UserRole, UserCategory, ProfileType } from "@/types/user";
 import type { DbProfile } from "@/types/database";
 import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { Check } from "lucide-react";
+import { Check, Copy, KeyRound } from "lucide-react";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   conseiller: "Conseiller",
@@ -64,6 +64,8 @@ function RegisterForm() {
   const [inviteCode, setInviteCode] = useState(initialCode);
   const [orgName, setOrgName] = useState("");
   const [managerMode, setManagerMode] = useState<"create" | "join">(initialCode ? "join" : "create");
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [inviteCodeStatus, setInviteCodeStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
@@ -209,19 +211,14 @@ function RegisterForm() {
       available_roles: selectedRoles,
       category,
       avatar_url: null,
-      onboarding_status: contextMode === "personal" ? "DONE" : "NOT_STARTED",
+      onboarding_status: "DONE",
       profile_type: derivedProfile,
       created_at: new Date().toISOString(),
     };
     useAppStore.getState().setProfile(optimisticProfile);
 
-    // Personal/coach accounts have onboarding=DONE → go straight to dashboard
-    // Invite accounts need onboarding to pick team
-    if (contextMode === "personal") {
-      router.push("/dashboard");
-    } else {
-      router.push("/onboarding");
-    }
+    // Always go to dashboard after signup
+    window.location.href = "/dashboard";
   };
 
   const inputClassName =
@@ -284,14 +281,40 @@ function RegisterForm() {
           <label className="mb-1.5 block text-sm font-medium text-foreground">
             Mot de passe
           </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={inputClassName}
-            placeholder="Minimum 6 caractères"
-            required
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setCopied(false); }}
+              className={inputClassName}
+              placeholder="Minimum 6 caractères"
+              required
+            />
+            {showPassword && password && (
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(password); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                title="Copier le mot de passe"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+              const rand = (n: number) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+              setPassword(`Nxt-${rand(4)}-${rand(4)}!`);
+              setShowPassword(true);
+              setCopied(false);
+            }}
+            className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
+          >
+            <KeyRound className="h-3 w-3" />
+            Générer un mot de passe sécurisé
+          </button>
         </div>
 
         <div>
