@@ -97,8 +97,8 @@ export function Header() {
   };
 
   return (
-    <header className="relative z-40 flex h-16 items-center justify-between border-b border-border bg-card/50 px-3 sm:px-6 backdrop-blur-sm">
-      <div className="flex items-center gap-4">
+    <header className="relative z-40 flex h-16 max-w-full items-center justify-between overflow-hidden border-b border-border bg-card/50 pl-14 pr-3 sm:pr-6 lg:pl-6 backdrop-blur-sm">
+      <div className="flex min-w-0 items-center gap-4">
         <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
         {user && (
           <span
@@ -112,9 +112,9 @@ export function Header() {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {availableViews.length > 1 && (
-          <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted p-0.5">
+          <div className="hidden items-center gap-0.5 rounded-full border border-border bg-muted p-0.5 sm:flex">
             {availableViews.map((view) => {
               const isVisible = visibleViews.includes(view);
               return (

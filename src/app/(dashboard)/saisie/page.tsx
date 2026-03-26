@@ -633,7 +633,7 @@ export default function SaisiePage() {
             </h2>
             <Info className="h-4 w-4 text-muted-foreground transition-colors hover:text-orange-500" />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 [&_input]:w-full">
             <div>
               <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Acheteurs chauds

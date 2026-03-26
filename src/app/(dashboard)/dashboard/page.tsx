@@ -402,7 +402,7 @@ function DashboardContent() {
           />
           {/* Summary stats */}
           {kpiChartConfigs[expandedKpi].data.length > 0 ? (
-            <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-lg bg-muted/50 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Moyenne 12 mois</p>
                 <p className="mt-1 text-lg font-bold text-foreground">

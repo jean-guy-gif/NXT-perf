@@ -78,7 +78,7 @@ export default function EquipesPage() {
       </div>
 
       {/* Chart */}
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-lg border border-border bg-card p-3 sm:p-4 overflow-x-hidden">
         <h2 className="mb-4 text-sm font-semibold">
           {GPS_THEME_LABELS[theme]} — Comparaison tous niveaux
         </h2>

@@ -193,3 +193,19 @@ html, body {
   overflow-x: hidden;
   max-width: 100vw;
 }
+
+/* Mobile touch improvements */
+@layer utilities {
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
+}
+
+/* Chart containers — prevent horizontal overflow */
+.recharts-wrapper {
+  max-width: 100% !important;
+}
+
+.recharts-surface {
+  overflow: visible;
+}

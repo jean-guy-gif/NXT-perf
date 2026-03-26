@@ -22,7 +22,7 @@ export function DonutChart({
   height = 250,
 }: DonutChartProps) {
   return (
-    <div className="relative" style={{ height }}>
+    <div className="relative w-full" style={{ height: `clamp(160px, 25vw, ${height}px)` }}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
