@@ -4,42 +4,26 @@ import { useState, useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
+import { computeDPIAxes, computeGlobalDPIScore, type DPIAxis } from "@/lib/dpi-axes";
 import { MiniRadar } from "@/components/dpi/mini-radar";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types/user";
-import type { ComputedRatio } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
-
-const RATIO_LABELS: Record<string, string> = {
-  contacts_rdv: "Prospection",
-  estimations_mandats: "Mandatement",
-  pct_mandats_exclusifs: "Exclusivité",
-  visites_offre: "Transformation",
-  offres_compromis: "Concrétisation",
-  mandats_simples_vente: "Vente simple",
-  mandats_exclusifs_vente: "Vente exclu.",
-};
 
 function computeUserDPI(
   userId: string,
   users: User[],
   allResults: PeriodResults[],
   ratioConfigs: Parameters<typeof computeAllRatios>[2]
-) {
+): { user: User; scores: DPIAxis[]; globalScore: number } | null {
   const user = users.find((u) => u.id === userId);
   if (!user) return null;
   const results = allResults.find((r) => r.userId === userId);
   if (!results) return null;
   const ratios = computeAllRatios(results, user.category, ratioConfigs);
-  const scores = ratios.map((r: ComputedRatio) => ({
-    label: RATIO_LABELS[r.ratioId] ?? r.ratioId,
-    score: Math.min(100, Math.round(r.percentageOfTarget)),
-    axisId: r.ratioId,
-  }));
-  const globalScore = scores.length > 0
-    ? Math.round(scores.reduce((a, s) => a + s.score, 0) / scores.length)
-    : 0;
-  return { user, scores, globalScore };
+  const axes = computeDPIAxes(results, user.category, ratios);
+  const globalScore = computeGlobalDPIScore(axes);
+  return { user, scores: axes, globalScore };
 }
 
 export function DPIComparisonView() {
@@ -130,7 +114,7 @@ export function DPIComparisonView() {
                 const delta = axisA.score - axisB.score;
                 const winner = delta > 0 ? "A" : delta < 0 ? "B" : "equal";
                 return (
-                  <div key={axisA.axisId} className="flex items-center gap-3">
+                  <div key={axisA.id} className="flex items-center gap-3">
                     <span className="w-28 shrink-0 text-xs text-muted-foreground truncate">{axisA.label}</span>
                     <div className="flex-1">
                       <div className="flex items-center justify-end gap-2">

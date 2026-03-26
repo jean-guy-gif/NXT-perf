@@ -2,26 +2,19 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRatios } from "@/hooks/use-ratios";
+import { useResults } from "@/hooks/use-results";
+import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/stores/app-store";
+import { computeDPIAxes, computeGlobalDPIScore, type DPIAxis } from "@/lib/dpi-axes";
 
 export interface DPISnapshot {
   userId: string;
   date: string;
-  axes: Array<{ axisId: string; label: string; score: number }>;
+  axes: DPIAxis[];
   globalScore: number;
 }
 
 const DPI_STORAGE_KEY = "nxt-dpi-snapshots";
-
-const RATIO_LABELS: Record<string, string> = {
-  contacts_rdv: "Prospection",
-  estimations_mandats: "Mandatement",
-  pct_mandats_exclusifs: "Exclusivité",
-  visites_offre: "Transformation",
-  offres_compromis: "Concrétisation",
-  mandats_simples_vente: "Vente simple",
-  mandats_exclusifs_vente: "Vente exclu.",
-};
 
 function loadSnapshots(): Record<string, DPISnapshot> {
   try {
@@ -40,8 +33,12 @@ function saveSnapshot(userId: string, snapshot: DPISnapshot) {
 
 export function useDPIEvolution() {
   const { computedRatios } = useRatios();
+  const results = useResults();
+  const { category } = useUser();
   const user = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemo);
+  const coachPlans = useAppStore((s) => s.coachPlans);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
   const [initialSnapshot, setInitialSnapshot] = useState<DPISnapshot | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -53,19 +50,35 @@ export function useDPIEvolution() {
     setInitialSnapshot(all[user.id] ?? null);
   }, [mounted, user]);
 
-  const currentAxes = useMemo(() =>
-    computedRatios.map((r) => ({
-      axisId: r.ratioId,
-      label: RATIO_LABELS[r.ratioId] ?? r.ratioId,
-      score: Math.min(100, Math.round(r.percentageOfTarget)),
-    })),
-    [computedRatios]
+  const plan30Params = useMemo(() => {
+    const activePlan = coachPlans.find(
+      (p) => p.status === "ACTIVE" || p.status === "VALIDATED"
+    );
+    if (!activePlan) return { total: 0, done: 0, hasActivePlan: false };
+    const allActions = activePlan.weeks.flatMap((w) => w.actions ?? []);
+    const total = allActions.length;
+    const done = allActions.filter((a) => a.done).length;
+    return { total, done, hasActivePlan: total > 0 };
+  }, [coachPlans]);
+
+  const hasCustomObjectif = useMemo(
+    () => !!(agencyObjective?.annualCA && agencyObjective.annualCA > 0),
+    [agencyObjective]
   );
 
-  const currentGlobalScore = useMemo(() =>
-    currentAxes.length > 0
-      ? Math.round(currentAxes.reduce((acc, a) => acc + a.score, 0) / currentAxes.length)
-      : 0,
+  const currentAxes = useMemo(() => {
+    if (!results || !computedRatios.length) return [];
+    return computeDPIAxes(results, category, computedRatios, {
+      plan30Total: plan30Params.total,
+      plan30Done: plan30Params.done,
+      hasActivePlan: plan30Params.hasActivePlan,
+      hasCustomObjectif,
+      nxtTrainingActive: plan30Params.hasActivePlan,
+    });
+  }, [results, category, computedRatios, plan30Params, hasCustomObjectif]);
+
+  const currentGlobalScore = useMemo(
+    () => computeGlobalDPIScore(currentAxes),
     [currentAxes]
   );
 
@@ -75,7 +88,7 @@ export function useDPIEvolution() {
   }, [isDemo]);
 
   function initializeSnapshot() {
-    if (!user || !computedRatios.length) return;
+    if (!user || !currentAxes.length) return;
     const snapshot: DPISnapshot = {
       userId: user.id,
       date: new Date().toISOString(),
@@ -89,9 +102,9 @@ export function useDPIEvolution() {
   const progression = useMemo(() => {
     if (!initialSnapshot) return null;
     return currentAxes.map((current) => {
-      const initial = initialSnapshot.axes.find((a) => a.axisId === current.axisId);
+      const initial = initialSnapshot.axes.find((a) => a.id === current.id);
       const delta = initial ? current.score - initial.score : 0;
-      return { axisId: current.axisId, label: current.label, initial: initial?.score ?? 0, current: current.score, delta };
+      return { axisId: current.id, label: current.label, initial: initial?.score ?? 0, current: current.score, delta };
     });
   }, [initialSnapshot, currentAxes]);
 

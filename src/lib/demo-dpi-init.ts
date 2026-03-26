@@ -1,3 +1,5 @@
+import type { DPIAxis } from "@/lib/dpi-axes";
+
 export function initDemoDPISnapshot(userId: string) {
   const key = "nxt-dpi-snapshots";
   try {
@@ -9,19 +11,20 @@ export function initDemoDPISnapshot(userId: string) {
     lastMonth.setMonth(lastMonth.getMonth() - 1);
     lastMonth.setDate(1);
 
+    const axes: DPIAxis[] = [
+      { id: "intensite_commerciale",   label: "Intensité Commerciale",     score: 50 },
+      { id: "generation_opportunites", label: "Génération d'Opportunités", score: 55 },
+      { id: "solidite_portefeuille",   label: "Solidité du Portefeuille",  score: 60 },
+      { id: "maitrise_ratios",         label: "Maîtrise des Ratios",       score: 65 },
+      { id: "valorisation_economique", label: "Valorisation Économique",   score: 45 },
+      { id: "pilotage_strategique",    label: "Pilotage Stratégique",      score: 55 },
+    ];
+
     all[userId] = {
       userId,
       date: lastMonth.toISOString(),
-      globalScore: 62,
-      axes: [
-        { axisId: "contacts_rdv", label: "Prospection", score: 55 },
-        { axisId: "estimations_mandats", label: "Mandatement", score: 70 },
-        { axisId: "pct_mandats_exclusifs", label: "Exclusivité", score: 45 },
-        { axisId: "visites_offre", label: "Transformation", score: 60 },
-        { axisId: "offres_compromis", label: "Concrétisation", score: 75 },
-        { axisId: "mandats_simples_vente", label: "Vente simple", score: 65 },
-        { axisId: "mandats_exclusifs_vente", label: "Vente exclu.", score: 60 },
-      ],
+      globalScore: 55,
+      axes,
     };
     localStorage.setItem(key, JSON.stringify(all));
   } catch {}

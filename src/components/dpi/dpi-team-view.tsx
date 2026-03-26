@@ -4,24 +4,15 @@ import { useState, useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
+import { computeDPIAxes, computeGlobalDPIScore, type DPIAxis } from "@/lib/dpi-axes";
 import { MiniRadar } from "@/components/dpi/mini-radar";
 import { cn } from "@/lib/utils";
 import type { ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
 
-const RATIO_LABELS: Record<string, string> = {
-  contacts_rdv: "Prospection",
-  estimations_mandats: "Mandatement",
-  pct_mandats_exclusifs: "Exclusivité",
-  visites_offre: "Transformation",
-  offres_compromis: "Concrétisation",
-  mandats_simples_vente: "Vente simple",
-  mandats_exclusifs_vente: "Vente exclu.",
-};
-
 interface MemberDPI {
   member: User;
-  axes: Array<{ label: string; score: number }>;
+  axes: DPIAxis[];
   globalScore: number;
   status: "ok" | "warning" | "danger";
   ratios: ComputedRatio[];
@@ -35,11 +26,10 @@ function computeMemberDPIs(
   return members.map((member) => {
     const results = allResults.find((r) => r.userId === member.id);
     const ratios = results ? computeAllRatios(results, member.category, ratioConfigs) : [];
-    const axes = ratios.map((r) => ({
-      label: RATIO_LABELS[r.ratioId] ?? r.ratioId,
-      score: Math.min(100, Math.round(r.percentageOfTarget)),
-    }));
-    const globalScore = axes.length > 0 ? Math.round(axes.reduce((a, b) => a + b.score, 0) / axes.length) : 0;
+    const axes = results
+      ? computeDPIAxes(results, member.category, ratios)
+      : [];
+    const globalScore = computeGlobalDPIScore(axes);
     const status: "ok" | "warning" | "danger" = globalScore >= 80 ? "ok" : globalScore >= 60 ? "warning" : "danger";
     return { member, axes, globalScore, status, ratios };
   });
@@ -121,26 +111,29 @@ function DPIGrid({ memberDPIs, label }: { memberDPIs: MemberDPI[]; label: string
             />
           </div>
           <div className="space-y-2">
-            {selected.ratios.map((r) => (
-              <div key={r.ratioId} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{RATIO_LABELS[r.ratioId] ?? r.ratioId}</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-24 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={cn("h-full rounded-full",
-                        r.status === "ok" ? "bg-green-500" : r.status === "warning" ? "bg-orange-400" : "bg-red-500"
-                      )}
-                      style={{ width: `${Math.min(100, r.percentageOfTarget)}%` }}
-                    />
+            {selected.axes.map((axis) => {
+              const status = axis.score >= 80 ? "ok" : axis.score >= 60 ? "warning" : "danger";
+              return (
+                <div key={axis.id} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{axis.label}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-24 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full",
+                          status === "ok" ? "bg-green-500" : status === "warning" ? "bg-orange-400" : "bg-red-500"
+                        )}
+                        style={{ width: `${axis.score}%` }}
+                      />
+                    </div>
+                    <span className={cn("text-xs font-bold w-10 text-right",
+                      status === "ok" ? "text-green-500" : status === "warning" ? "text-orange-500" : "text-red-500"
+                    )}>
+                      {axis.score}%
+                    </span>
                   </div>
-                  <span className={cn("text-xs font-bold w-10 text-right",
-                    r.status === "ok" ? "text-green-500" : r.status === "warning" ? "text-orange-500" : "text-red-500"
-                  )}>
-                    {Math.round(r.percentageOfTarget)}%
-                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
