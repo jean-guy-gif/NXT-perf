@@ -57,6 +57,8 @@ import { generateFormationDiagnostic } from "@/lib/formation";
 import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { useAllResults } from "@/hooks/use-results";
+import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
+import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
 
@@ -207,6 +209,13 @@ function DashboardContent() {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  // Init DPI demo snapshot
+  useEffect(() => {
+    if (isDemo && user?.id) {
+      initDemoDPISnapshot(user.id);
+    }
+  }, [isDemo, user?.id]);
 
   if (!user || !results) {
     return (
@@ -720,6 +729,17 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* ═══ DPI Évolution ═══ */}
+          {(user?.role === "conseiller" || isDemo) && (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-lg">{"\u{1F3AF}"}</span>
+                <h2 className="font-semibold text-foreground">Mon Diagnostic de Performance</h2>
+              </div>
+              <DPIEvolutionCard />
+            </div>
+          )}
         </>
       )}
 

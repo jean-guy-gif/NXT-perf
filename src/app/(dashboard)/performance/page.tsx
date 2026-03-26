@@ -24,9 +24,8 @@ import {
 } from "lucide-react";
 import { getHumanScore, getGlobalScore } from "@/lib/scoring";
 import { formatBenchmark } from "@/data/mock-benchmark";
-import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
-import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
 import { useAppStore } from "@/stores/app-store";
+import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
 
 const statusConfig = {
   ok: {
@@ -121,9 +120,6 @@ export default function PerformancePage() {
           </span>
         )}
       </div>
-
-      {/* DPI Evolution */}
-      <DPIEvolutionCard />
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
