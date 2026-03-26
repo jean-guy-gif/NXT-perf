@@ -27,6 +27,7 @@ export default function DashboardLayout({
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
   const router = useRouter();
   const [loading, setLoading] = useState(!isAuthenticated);
+  const [authTimeout, setAuthTimeout] = useState(false);
 
   // Sidebar collapsed state — default collapsed (true) to match current UX
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -104,10 +105,10 @@ export default function DashboardLayout({
     checkSession();
   }, [isAuthenticated, router, setProfile, setOrgInviteCode]);
 
-  // Onboarding guard: redirect to /onboarding if not done (skip in demo mode)
+  // Onboarding guard: only redirect if user explicitly started onboarding but didn't finish
   useEffect(() => {
     if (!isAuthenticated || isDemo || loading) return;
-    if (user && user.onboardingStatus && user.onboardingStatus !== "DONE") {
+    if (user && user.onboardingStatus === "NOT_STARTED") {
       router.replace("/onboarding");
     }
   }, [isAuthenticated, isDemo, loading, user, router]);
@@ -130,7 +131,20 @@ export default function DashboardLayout({
   const tourRole = user ? getTourRole(user.availableRoles, user.mainRole) : "conseiller";
   const tourSteps = getTourSteps(tourRole);
 
-  if (loading) {
+  // Timeout: if profile hasn't loaded after 3s, redirect to login
+  useEffect(() => {
+    if (isAuthenticated || isDemo) return;
+    const timer = setTimeout(() => setAuthTimeout(true), 3000);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, isDemo]);
+
+  useEffect(() => {
+    if (authTimeout && !isAuthenticated && !isDemo) {
+      router.replace("/login");
+    }
+  }, [authTimeout, isAuthenticated, isDemo, router]);
+
+  if (loading || (!isAuthenticated && !authTimeout)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

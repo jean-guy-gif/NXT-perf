@@ -372,7 +372,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         teamId: profile.team_id ?? "",
         avatarUrl: profile.avatar_url ?? undefined,
         createdAt: profile.created_at,
-        onboardingStatus: (profile.onboarding_status as OnboardingStatus) ?? "NOT_STARTED",
+        onboardingStatus: (profile.onboarding_status as OnboardingStatus) ?? "DONE",
         profileType: (profile.profile_type as ProfileType) ?? undefined,
         institutionId: profile.org_id ?? undefined,
       };
