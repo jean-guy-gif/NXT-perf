@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
@@ -24,6 +24,9 @@ import {
 } from "lucide-react";
 import { getHumanScore, getGlobalScore } from "@/lib/scoring";
 import { formatBenchmark } from "@/data/mock-benchmark";
+import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
+import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
+import { useAppStore } from "@/stores/app-store";
 
 const statusConfig = {
   ok: {
@@ -57,6 +60,13 @@ export default function PerformancePage() {
   const { computedRatios, ratioConfigs } = useRatios();
   const results = useResults();
   const [selectedRatioId, setSelectedRatioId] = useState<RatioId | null>(null);
+  const isDemo = useAppStore((s) => s.isDemo);
+
+  useEffect(() => {
+    if (isDemo && user?.id) {
+      initDemoDPISnapshot(user.id);
+    }
+  }, [isDemo, user?.id]);
 
   const globalScore = getGlobalScore(computedRatios);
 
@@ -111,6 +121,9 @@ export default function PerformancePage() {
           </span>
         )}
       </div>
+
+      {/* DPI Evolution */}
+      <DPIEvolutionCard />
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

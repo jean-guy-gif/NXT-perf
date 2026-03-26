@@ -20,6 +20,7 @@ import type { ContactStatut } from "@/types/results";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
+import { DPITeamView } from "@/components/dpi/dpi-team-view";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { formatCurrency } from "@/lib/formatters";
 import { mockTeamStats } from "@/data/mock-team";
@@ -889,6 +890,15 @@ export default function CockpitPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* DPI Équipe */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
+          <span className="text-lg">{"\u{1F3AF}"}</span>
+          DPI de l&apos;équipe
+        </h3>
+        <DPITeamView />
       </div>
     </div>
   );
