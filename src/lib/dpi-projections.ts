@@ -34,13 +34,15 @@ const TOOL_AXIS_IMPACT: Record<string, Partial<Record<string, number>>> = {
 };
 
 const AXIS_CA_IMPACT_PER_10PTS: Record<string, number> = {
-  intensite_commerciale: 0.08,
-  generation_opportunites: 0.10,
-  solidite_portefeuille: 0.07,
-  maitrise_ratios: 0.09,
-  valorisation_economique: 0.12,
-  pilotage_strategique: 0.06,
+  intensite_commerciale: 0.05,
+  generation_opportunites: 0.06,
+  solidite_portefeuille: 0.04,
+  maitrise_ratios: 0.05,
+  valorisation_economique: 0.07,
+  pilotage_strategique: 0.03,
 };
+
+const CA_MAX_GAIN_RATIO = 0.35;
 
 const CA_BASE_BY_RANGE: Record<string, number> = {
   moins_100k: 65000,
@@ -77,12 +79,14 @@ export function computeCAAdditionnel(
     const delta = projected.score - current.score;
     if (delta <= 0) continue;
     const coeff = AXIS_CA_IMPACT_PER_10PTS[projected.id] ?? 0.05;
-    totalImpact += (delta / 10) * coeff;
+    const diminishedDelta = delta > 30 ? 30 + (delta - 30) * 0.3 : delta;
+    totalImpact += (diminishedDelta / 10) * coeff;
   }
-  const caEstime = caBase * totalImpact;
+  const maxGain = caBase * CA_MAX_GAIN_RATIO;
+  const caEstime = Math.min(caBase * totalImpact, maxGain);
   return {
-    bas: Math.round(caEstime * 0.7 / 1000) * 1000,
-    haut: Math.round(caEstime * 1.3 / 1000) * 1000,
+    bas: Math.round(caEstime * 0.65 / 1000) * 1000,
+    haut: Math.round(caEstime / 1000) * 1000,
   };
 }
 

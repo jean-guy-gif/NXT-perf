@@ -3,495 +3,539 @@ import type { DPIScores, DPIAxisScore } from "./dpi-scoring";
 import { computeDPIProjections } from "./dpi-projections";
 import type { DPIAxis } from "./dpi-axes";
 
-function fmt(value: number): string {
-  const str = Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return str + " \u20AC";
-}
-
-function scoreRGB(score: number): [number, number, number] {
-  if (score < 30) return [239, 68, 68];
-  if (score < 50) return [249, 115, 22];
-  if (score < 70) return [51, 117, 255];
-  if (score < 85) return [34, 197, 94];
-  return [160, 85, 255];
-}
-
-function barRGB(score: number): [number, number, number] {
-  if (score < 30) return [239, 68, 68];
-  if (score < 50) return [249, 115, 22];
-  if (score < 70) return [51, 117, 255];
-  return [34, 197, 94];
-}
-
-function recoRGB(score: number): [number, number, number] {
-  if (score < 40) return [239, 68, 68];
-  if (score < 60) return [249, 115, 22];
-  return [34, 197, 94];
-}
-
-const RECO: Record<string, string> = {
-  intensite_commerciale: "Augmentez votre temps de prospection active",
-  generation_opportunites: "Multipliez vos sources d'estimation",
-  solidite_portefeuille: "Renforcez votre stock de mandats",
-  maitrise_ratios: "Travaillez vos taux de transformation",
-  valorisation_economique: "Négociez mieux vos honoraires",
-  pilotage_strategique: "Structurez votre suivi d'activité",
+// ── Dark NXT palette ──
+const C = {
+  bg:      [10, 12, 30] as [number, number, number],
+  card:    [18, 22, 48] as [number, number, number],
+  card2:   [24, 30, 62] as [number, number, number],
+  border:  [40, 50, 90] as [number, number, number],
+  primary: [51, 117, 255] as [number, number, number],
+  violet:  [140, 85, 255] as [number, number, number],
+  green:   [57, 201, 126] as [number, number, number],
+  orange:  [255, 164, 72] as [number, number, number],
+  red:     [239, 117, 80] as [number, number, number],
+  white:   [255, 255, 255] as [number, number, number],
+  gray:    [140, 155, 190] as [number, number, number],
+  lgray:   [190, 200, 225] as [number, number, number],
 };
 
-// Short labels for radar (avoid overflow)
-const SHORT_LABELS: Record<string, string> = {
-  intensite_commerciale: "Intensité",
-  generation_opportunites: "Opportunités",
-  solidite_portefeuille: "Portefeuille",
-  maitrise_ratios: "Ratios",
-  valorisation_economique: "Valorisation",
-  pilotage_strategique: "Pilotage",
+function scoreColor(score: number): [number, number, number] {
+  if (score >= 70) return C.green;
+  if (score >= 50) return C.orange;
+  return C.red;
+}
+
+function drawProgressBar(
+  doc: jsPDF, x: number, y: number, w: number, h: number,
+  value: number, color: [number, number, number]
+) {
+  doc.setFillColor(30, 35, 65);
+  doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
+  const filled = Math.max(h, (Math.min(value, 100) / 100) * w);
+  doc.setFillColor(...color);
+  doc.roundedRect(x, y, filled, h, h / 2, h / 2, "F");
+}
+
+const SHORT: Record<string, string> = {
+  "Intensité Commerciale":     "Intensité",
+  "Génération d'Opportunités": "Opportunités",
+  "Solidité du Portefeuille":  "Portefeuille",
+  "Maîtrise des Ratios":      "Ratios",
+  "Valorisation Économique":   "Valorisation",
+  "Pilotage Stratégique":      "Pilotage",
+  "Intensité commerciale":     "Intensité",
+  "Génération d'opportunités": "Opportunités",
+  "Solidité du portefeuille":  "Portefeuille",
+  "Maîtrise des ratios":      "Ratios",
+  "Valorisation économique":   "Valorisation",
+  "Pilotage stratégique":      "Pilotage",
 };
 
-// ── Draw radar polygon directly in jsPDF ──
-function drawRadar(
-  doc: jsPDF,
-  axes: DPIAxisScore[],
-  topPerformer: Record<string, number>,
-  cx: number,
-  cy: number,
-  radius: number
+function drawRadarDark(
+  doc: jsPDF, cx: number, cy: number, R: number,
+  axes: DPIAxisScore[]
 ) {
   const n = axes.length;
-
-  function polarToXY(index: number, value: number): [number, number] {
-    const angle = -Math.PI / 2 + (2 * Math.PI * index) / n;
-    return [cx + Math.cos(angle) * radius * (value / 100), cy + Math.sin(angle) * radius * (value / 100)];
+  function pt(idx: number, val: number) {
+    const angle = (Math.PI * 2 * idx / n) - Math.PI / 2;
+    const r = (val / 100) * R;
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)] as [number, number];
   }
 
-  // Concentric circles (20/40/60/80/100%)
-  doc.setDrawColor(220);
-  doc.setLineWidth(0.3);
-  for (const pct of [20, 40, 60, 80, 100]) {
-    const r = radius * (pct / 100);
-    const steps = 60;
-    for (let i = 0; i < steps; i++) {
-      const a1 = (2 * Math.PI * i) / steps;
-      const a2 = (2 * Math.PI * (i + 1)) / steps;
-      doc.line(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cx + Math.cos(a2) * r, cy + Math.sin(a2) * r);
+  // Grid
+  for (const level of [20, 40, 60, 80, 100]) {
+    const pts = Array.from({ length: n }, (_, i) => pt(i, level));
+    doc.setDrawColor(level === 100 ? 55 : 35, level === 100 ? 68 : 45, level === 100 ? 115 : 80);
+    doc.setLineWidth(level === 100 ? 0.4 : 0.15);
+    for (let i = 0; i < n; i++) {
+      const next = pts[(i + 1) % n];
+      doc.line(pts[i][0], pts[i][1], next[0], next[1]);
     }
   }
 
-  // Axis lines from center to edge
-  doc.setDrawColor(210);
-  doc.setLineWidth(0.3);
+  // Axis lines + labels
   for (let i = 0; i < n; i++) {
-    const [ex, ey] = polarToXY(i, 100);
-    doc.line(cx, cy, ex, ey);
+    const outer = pt(i, 100);
+    doc.setDrawColor(40, 52, 95);
+    doc.setLineWidth(0.15);
+    doc.line(cx, cy, outer[0], outer[1]);
+
+    const lp = pt(i, 122);
+    doc.setFontSize(6.5);
+    doc.setTextColor(...C.gray);
+    doc.setFont("helvetica", "normal");
+    doc.text(SHORT[axes[i].label] ?? axes[i].label, lp[0], lp[1] + 1, { align: "center" });
   }
 
-  // Axis labels (short names)
+  // Potential polygon (violet)
+  const potPts = axes.map((a, i) => pt(i, a.potential));
+  doc.setDrawColor(...C.violet);
+  doc.setLineWidth(0.8);
+  for (let i = 0; i < n; i++) {
+    const next = potPts[(i + 1) % n];
+    doc.line(potPts[i][0], potPts[i][1], next[0], next[1]);
+  }
+
+  // Fill current polygon using doc.lines
+  const actPts = axes.map((a, i) => pt(i, a.score));
+  doc.setFillColor(51, 117, 255);
+  const lines: [number, number][] = [];
+  for (let i = 1; i < actPts.length; i++) {
+    lines.push([actPts[i][0] - actPts[i - 1][0], actPts[i][1] - actPts[i - 1][1]]);
+  }
+  lines.push([actPts[0][0] - actPts[actPts.length - 1][0], actPts[0][1] - actPts[actPts.length - 1][1]]);
+  doc.setDrawColor(51, 117, 255);
+  doc.setLineWidth(0.1);
+  doc.lines(lines, actPts[0][0], actPts[0][1], [1, 1], "F");
+
+  // Current stroke
+  doc.setDrawColor(...C.primary);
+  doc.setLineWidth(1.5);
+  for (let i = 0; i < n; i++) {
+    const next = actPts[(i + 1) % n];
+    doc.line(actPts[i][0], actPts[i][1], next[0], next[1]);
+  }
+  // Vertex dots
+  for (const p of actPts) {
+    doc.setFillColor(...C.primary);
+    doc.circle(p[0], p[1], 1.8, "F");
+    doc.setDrawColor(...C.white);
+    doc.setLineWidth(0.3);
+    doc.circle(p[0], p[1], 2.2, "S");
+  }
+}
+
+function drawGradientBar(doc: jsPDF, x: number, y: number, w: number, h: number) {
+  for (let i = 0; i < w; i++) {
+    const t = i / w;
+    doc.setFillColor(
+      Math.round(51 + (140 - 51) * t),
+      Math.round(117 + (85 - 117) * t),
+      255
+    );
+    doc.rect(x + i, y, 1.1, h, "F");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+function buildPage1(doc: jsPDF, scores: DPIScores, email: string): void {
+  const W = 210, H = 297;
+
+  // Background
+  doc.setFillColor(...C.bg);
+  doc.rect(0, 0, W, H, "F");
+
+  // Header gradient
+  drawGradientBar(doc, 0, 0, W, 28);
+
+  // Logo
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("NXT", 14, 13);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(60);
-  for (let i = 0; i < n; i++) {
-    const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
-    const labelR = radius + 12;
-    const lx = cx + Math.cos(angle) * labelR;
-    const ly = cy + Math.sin(angle) * labelR;
-    const align: "center" | "left" | "right" =
-      Math.abs(Math.cos(angle)) < 0.1 ? "center" : Math.cos(angle) > 0 ? "left" : "right";
-    doc.text(SHORT_LABELS[axes[i].id] ?? axes[i].label, lx, ly + 1, { align });
-  }
+  doc.setTextColor(200, 220, 255);
+  doc.text("Performance", 14, 19);
 
-  // Helper to draw a filled polygon
-  function drawPolygon(values: number[], fillColor: [number, number, number], fillOpacity: boolean, strokeColor: [number, number, number], lineWidth: number, dashed: boolean) {
-    const points: [number, number][] = [];
-    for (let i = 0; i < n; i++) {
-      points.push(polarToXY(i, values[i]));
-    }
-
-    // Fill
-    if (fillOpacity) {
-      doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
-      const lines: [number, number][] = [];
-      for (let i = 1; i < points.length; i++) {
-        lines.push([points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]]);
-      }
-      lines.push([points[0][0] - points[points.length - 1][0], points[0][1] - points[points.length - 1][1]]);
-      doc.setLineWidth(0.1);
-      doc.setDrawColor(fillColor[0], fillColor[1], fillColor[2]);
-      doc.lines(lines, points[0][0], points[0][1], [1, 1], "F");
-    }
-
-    // Stroke
-    doc.setDrawColor(strokeColor[0], strokeColor[1], strokeColor[2]);
-    doc.setLineWidth(lineWidth);
-    if (dashed) {
-      for (let i = 0; i < points.length; i++) {
-        const next = (i + 1) % points.length;
-        const [x1, y1] = points[i];
-        const [x2, y2] = points[next];
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        const dashLen = 2;
-        const gapLen = 2;
-        let drawn = 0;
-        let drawing = true;
-        while (drawn < len) {
-          const segLen = drawing ? dashLen : gapLen;
-          const end = Math.min(drawn + segLen, len);
-          if (drawing) {
-            doc.line(
-              x1 + (dx * drawn) / len, y1 + (dy * drawn) / len,
-              x1 + (dx * end) / len, y1 + (dy * end) / len
-            );
-          }
-          drawn = end;
-          drawing = !drawing;
-        }
-      }
-    } else {
-      for (let i = 0; i < points.length; i++) {
-        const next = (i + 1) % points.length;
-        doc.line(points[i][0], points[i][1], points[next][0], points[next][1]);
-      }
-    }
-  }
-
-  // Top Performer -- grey dashed
-  const topValues = axes.map((a) => topPerformer[a.id] ?? 80);
-  drawPolygon(topValues, [200, 200, 200], false, [136, 136, 136], 0.5, true);
-
-  // Potential -- violet dashed with fill
-  const potValues = axes.map((a) => a.potential);
-  drawPolygon(potValues, [230, 210, 255], true, [160, 85, 255], 0.8, true);
-
-  // Current score -- blue solid with fill
-  const curValues = axes.map((a) => a.score);
-  drawPolygon(curValues, [200, 220, 255], true, [51, 117, 255], 1.5, false);
-}
-
-// ── Header bar helper ──
-function drawHeader(doc: jsPDF, pw: number, h: number, text: string, fontSize: number) {
-  doc.setFillColor(51, 117, 255);
-  doc.rect(0, 0, pw, h, "F");
-  doc.setFillColor(160, 85, 255);
-  doc.rect(pw * 0.6, 0, pw * 0.4, h, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(fontSize);
+  // Title
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text(text, pw / 2, h * 0.62, { align: "center" });
+  doc.setTextColor(...C.white);
+  doc.text("Diagnostic de Performance Immobilière", W / 2, 13, { align: "center" });
+
+  // Email + date
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(200, 215, 255);
+  doc.text(email, W - 14, 13, { align: "right" });
+  doc.text(new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }), W - 14, 19, { align: "right" });
+
+  // ── 3 Score badges ──
+  const badgeY = 52;
+
+  // Score Actuel
+  const sc = scoreColor(scores.globalScore);
+  doc.setFillColor(...sc);
+  doc.circle(52, badgeY, 20, "F");
+  doc.setFillColor(...C.card);
+  doc.circle(52, badgeY, 16, "F");
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...sc);
+  doc.text(String(scores.globalScore), 52, badgeY + 3, { align: "center" });
+  doc.setFontSize(6);
+  doc.setTextColor(...C.gray);
+  doc.text("/100", 52, badgeY + 9, { align: "center" });
+  doc.setFontSize(7);
+  doc.setTextColor(...sc);
+  doc.text("Score Actuel", 52, badgeY + 18, { align: "center" });
+  doc.setFontSize(6);
+  doc.setTextColor(...C.gray);
+  doc.text(scores.level, 52, badgeY + 23, { align: "center" });
+
+  // Potentiel
+  doc.setFillColor(...C.violet);
+  doc.circle(W / 2, badgeY, 20, "F");
+  doc.setFillColor(...C.card);
+  doc.circle(W / 2, badgeY, 16, "F");
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.violet);
+  doc.text(String(scores.potentialScore), W / 2, badgeY + 3, { align: "center" });
+  doc.setFontSize(6);
+  doc.setTextColor(...C.gray);
+  doc.text("/100", W / 2, badgeY + 9, { align: "center" });
+  doc.setFontSize(7);
+  doc.setTextColor(...C.violet);
+  doc.text("Potentiel", W / 2, badgeY + 18, { align: "center" });
+  const delta = scores.potentialScore - scores.globalScore;
+  doc.setFontSize(6);
+  doc.setTextColor(...C.green);
+  doc.text(`+${delta > 0 ? delta : 0} pts`, W / 2, badgeY + 23, { align: "center" });
+
+  // Top %
+  const topPct = scores.topPercentage ?? Math.min(99, Math.max(1, 100 - scores.globalScore));
+  doc.setFillColor(...C.orange);
+  doc.circle(158, badgeY, 20, "F");
+  doc.setFillColor(...C.card);
+  doc.circle(158, badgeY, 16, "F");
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.orange);
+  doc.text(`${topPct}%`, 158, badgeY + 2, { align: "center" });
+  doc.setFontSize(6);
+  doc.setTextColor(...C.gray);
+  doc.text("Top France", 158, badgeY + 8, { align: "center" });
+  doc.setFontSize(7);
+  doc.setTextColor(...C.orange);
+  doc.text("Classement", 158, badgeY + 18, { align: "center" });
+
+  // Separator
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.3);
+  doc.line(14, 82, W - 14, 82);
+
+  // ── Radar ──
+  drawRadarDark(doc, W / 2, 142, 48, scores.axes);
+
+  // Legend
+  const legY = 198;
+  const legItems: Array<{ color: [number, number, number]; label: string }> = [
+    { color: C.primary, label: "Score actuel" },
+    { color: C.violet, label: "Potentiel" },
+  ];
+  legItems.forEach((item, i) => {
+    const lx = 60 + i * 50;
+    doc.setFillColor(...item.color);
+    doc.circle(lx, legY, 2, "F");
+    doc.setTextColor(...C.gray);
+    doc.setFontSize(7);
+    doc.text(item.label, lx + 5, legY + 1);
+  });
+
+  // ── CA estimation box ──
+  if (scores.estimatedCAGain.max > 0) {
+    const caY = 208;
+    doc.setFillColor(...C.card);
+    doc.roundedRect(14, caY, W - 28, 22, 3, 3, "F");
+    doc.setFillColor(...C.green);
+    doc.roundedRect(14, caY, 4, 22, 2, 2, "F");
+    doc.rect(16, caY, 2, 22, "F");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.white);
+    doc.text("Estimation CA additionnel", 24, caY + 8);
+    doc.setFontSize(12);
+    doc.setTextColor(...C.green);
+    const caMin = Math.round(scores.estimatedCAGain.min).toLocaleString("fr-FR");
+    const caMax = Math.round(scores.estimatedCAGain.max).toLocaleString("fr-FR");
+    doc.text(`${caMin} \u20AC — ${caMax} \u20AC`, 24, caY + 17);
+  }
+
+  // Percentile
+  if (scores.percentileLabel) {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.primary);
+    doc.text(scores.percentileLabel, W / 2, 240, { align: "center" });
+    if (scores.percentileRegion) {
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...C.gray);
+      doc.text(scores.percentileRegion, W / 2, 246, { align: "center" });
+    }
+  }
+
+  // Footer
+  doc.setFillColor(8, 10, 25);
+  doc.rect(0, H - 18, W, 18, "F");
+  drawGradientBar(doc, 0, H - 18, W, 0.8);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("nxt-performance.com", W / 2, H - 8, { align: "center" });
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(50, 60, 100);
+  doc.text("© 2026 NXT Performance — Document confidentiel", W / 2, H - 3, { align: "center" });
 }
 
-// ── Footer helper ──
-function drawFooter(doc: jsPDF, pw: number, ph: number) {
+// ══════════════════════════════════════════════════════════════
+function buildPage2(doc: jsPDF, scores: DPIScores): void {
+  const W = 210, H = 297;
+
+  doc.setFillColor(...C.bg);
+  doc.rect(0, 0, W, H, "F");
+
+  // Mini header
+  doc.setFillColor(...C.card);
+  doc.rect(0, 0, W, 14, "F");
   doc.setFontSize(7);
-  doc.setTextColor(180);
-  doc.text("nxt-performance.com - (c) 2026 NXT Performance", pw / 2, ph - 8, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.gray);
+  doc.text("NXT Performance — Analyse détaillée", 14, 9);
+  doc.text("2 / 2", W - 14, 9, { align: "right" });
+
+  let y = 22;
+
+  // ── SECTION 1 : 6 Axes ──
+  doc.setFillColor(...C.primary);
+  doc.roundedRect(14, y, 3, 8, 1, 1, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("Vos 6 axes de performance", 21, y + 6);
+  y += 12;
+
+  const sortedAxes = [...scores.axes].sort((a, b) => a.score - b.score);
+  for (let idx = 0; idx < sortedAxes.length; idx++) {
+    const axis = sortedAxes[idx];
+    const color = scoreColor(axis.score);
+    if (idx % 2 === 0) {
+      doc.setFillColor(16, 20, 45);
+      doc.roundedRect(14, y - 2, W - 28, 14, 2, 2, "F");
+    }
+    // Score badge
+    doc.setFillColor(...color);
+    doc.roundedRect(17, y, 18, 8, 2, 2, "F");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.bg);
+    doc.text(String(axis.score), 26, y + 5.5, { align: "center" });
+    // Label
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.white);
+    doc.text(axis.label, 39, y + 5.5);
+    // Progress bar
+    drawProgressBar(doc, 105, y + 1.5, 58, 5, axis.score, color);
+    // Delta
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...color);
+    doc.text(`+${axis.potential - axis.score}`, 167, y + 5.5);
+    // Performance label
+    const perfLabel = axis.score >= 70 ? "Solide" : axis.score >= 50 ? "À renforcer" : "Prioritaire";
+    doc.setFontSize(5.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.gray);
+    doc.text(perfLabel, W - 16, y + 5.5, { align: "right" });
+    y += 14;
+  }
+  y += 4;
+
+  // Separator
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.3);
+  doc.line(14, y, W - 14, y);
+  y += 6;
+
+  // ── SECTION 2 : 3 Paliers ──
+  doc.setFillColor(...C.violet);
+  doc.roundedRect(14, y, 3, 8, 1, 1, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("Votre plan de progression", 21, y + 6);
+  y += 12;
+
+  const dpiAxes: DPIAxis[] = scores.axes.map((a) => ({ id: a.id, label: a.label, score: a.score }));
+  const projections = computeDPIProjections(dpiAxes, scores.caBase ?? 175000);
+  const cardW = (W - 28 - 6) / 3;
+  const cardH = 48;
+  const palierColors: [number, number, number][] = [C.primary, [99, 102, 241], C.violet];
+
+  for (let i = 0; i < projections.length; i++) {
+    const proj = projections[i];
+    const cx = 14 + i * (cardW + 3);
+    const pc = palierColors[i];
+
+    doc.setFillColor(...C.card2);
+    doc.roundedRect(cx, y, cardW, cardH, 3, 3, "F");
+    doc.setFillColor(...pc);
+    doc.roundedRect(cx, y, cardW, 4, 2, 2, "F");
+    doc.rect(cx, y + 2, cardW, 2, "F");
+
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...pc);
+    doc.text(proj.label, cx + cardW / 2, y + 10, { align: "center" });
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.white);
+    doc.text(String(proj.globalScore), cx + cardW / 2, y + 22, { align: "center" });
+    doc.setFontSize(7);
+    doc.setTextColor(...C.gray);
+    doc.text("/100", cx + cardW / 2 + 10, y + 22);
+
+    doc.setFontSize(8);
+    doc.setTextColor(...C.green);
+    doc.text(`+${proj.deltaGlobal} pts`, cx + cardW / 2, y + 30, { align: "center" });
+
+    const toolsText = proj.tools.filter((t) => t.disponible).map((t) => t.label.replace("NXT ", "")).join(" + ");
+    doc.setFontSize(5.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.gray);
+    doc.text(toolsText, cx + cardW / 2, y + 37, { align: "center" });
+
+    if (proj.caAdditionnel.haut > 1000) {
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...C.green);
+      doc.text(`+${(proj.caAdditionnel.bas / 1000).toFixed(0)}k–${(proj.caAdditionnel.haut / 1000).toFixed(0)}k\u20AC`, cx + cardW / 2, y + 44, { align: "center" });
+    }
+  }
+  y += cardH + 6;
+
+  // Separator
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.3);
+  doc.line(14, y, W - 14, y);
+  y += 6;
+
+  // ── SECTION 3 : 3 Leviers prioritaires ──
+  doc.setFillColor(...C.green);
+  doc.roundedRect(14, y, 3, 8, 1, 1, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("Vos 3 leviers prioritaires", 21, y + 6);
+  y += 12;
+
+  const ADVICE: Record<string, string> = {
+    pilotage_strategique: "Structurez votre suivi avec objectifs clairs et tableau de bord",
+    intensite_commerciale: "Consacrez 6h/semaine à la prospection et diversifiez vos sources",
+    generation_opportunites: "Multipliez vos RDV estimation et optimisez la transformation",
+    solidite_portefeuille: "Augmentez votre taux d'exclusivité et consolidez votre stock",
+    maitrise_ratios: "Travaillez vos ratios clés avec des exercices ciblés et réguliers",
+    valorisation_economique: "Valorisez votre prestation et défendez vos honoraires",
+  };
+
+  const TOOL: Record<string, { label: string; color: [number, number, number] }> = {
+    pilotage_strategique: { label: "NXT Data", color: C.primary },
+    intensite_commerciale: { label: "NXT Training", color: C.green },
+    generation_opportunites: { label: "NXT Profiling", color: C.violet },
+    solidite_portefeuille: { label: "NXT Profiling", color: C.violet },
+    maitrise_ratios: { label: "NXT Training", color: C.green },
+    valorisation_economique: { label: "NXT Training", color: C.green },
+  };
+
+  const top3 = sortedAxes.slice(0, 3);
+  for (let i = 0; i < top3.length; i++) {
+    const axis = top3[i];
+    const color = scoreColor(axis.score);
+    const tool = TOOL[axis.id];
+
+    doc.setFillColor(...color);
+    doc.circle(20, y + 4, 4, "F");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.bg);
+    doc.text(String(i + 1), 20, y + 5, { align: "center" });
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...color);
+    doc.text(axis.label, 28, y + 2);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.gray);
+    doc.text(`${axis.score} → ${axis.potential} pts`, 28, y + 7);
+    doc.setFontSize(6);
+    doc.setTextColor(...C.lgray);
+    doc.text(ADVICE[axis.id] ?? "", 28, y + 12, { maxWidth: 115 });
+
+    if (tool) {
+      doc.setFillColor(...tool.color);
+      doc.roundedRect(W - 46, y - 1, 32, 8, 2, 2, "F");
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...C.white);
+      doc.text(tool.label, W - 30, y + 4, { align: "center" });
+    }
+    y += 18;
+  }
+
+  // ── CTA ──
+  const ctaY = H - 48;
+  drawGradientBar(doc, 14, ctaY, W - 28, 36);
+  doc.setDrawColor(80, 140, 255);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(14, ctaY, W - 28, 36, 4, 4, "S");
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("Prêt à transformer votre performance ?", W / 2, ctaY + 10, { align: "center" });
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(200, 220, 255);
+  doc.text("Pilotez vos vrais chiffres chaque mois — données réelles, alertes, projections", W / 2, ctaY + 17, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.white);
+  doc.text("Créer mon compte — nxt-performance.com", W / 2, ctaY + 27, { align: "center" });
+
+  // Footer
+  doc.setFillColor(8, 10, 25);
+  doc.rect(0, H - 10, W, 10, "F");
+  doc.setFontSize(6);
+  doc.setTextColor(50, 60, 100);
+  doc.text("© 2026 NXT Performance — Document confidentiel", W / 2, H - 3, { align: "center" });
 }
 
 // ══════════════════════════════════════════════════════════════
 export function generateDPIPDF(scores: DPIScores, email: string): void {
-  const doc = new jsPDF();
-  const pw = doc.internal.pageSize.getWidth();
-  const ph = doc.internal.pageSize.getHeight();
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  // ══════════ PAGE 1 ══════════
-  drawHeader(doc, pw, 25, "NXT Performance", 18);
-
-  let y = 35;
-  doc.setTextColor(30, 30, 46);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("Diagnostic de Performance Immobilière", pw / 2, y, { align: "center" });
-  y += 8;
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(120);
-  doc.text(`${new Date().toLocaleDateString("fr-FR")} - ${email}`, pw / 2, y, { align: "center" });
-  y += 14;
-
-  // Score circle
-  const circleX = pw / 4;
-  const circleY = y + 18;
-  const circleR = 18;
-  const [sr, sg, sb] = scoreRGB(scores.globalScore);
-  doc.setFillColor(sr, sg, sb);
-  doc.circle(circleX, circleY, circleR, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(28);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${scores.globalScore}`, circleX, circleY + 4, { align: "center" });
-  doc.setFontSize(9);
-  doc.text("/100", circleX, circleY + 10, { align: "center" });
-
-  doc.setTextColor(sr, sg, sb);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(scores.level, circleX + circleR + 8, circleY - 2);
-  doc.setTextColor(100);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Score actuel", circleX + circleR + 8, circleY + 6);
-
-  // Potential circle
-  const potX = pw * 0.65;
-  const potR = 14;
-  doc.setFillColor(160, 85, 255);
-  doc.circle(potX, circleY, potR, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${scores.potentialScore}`, potX, circleY + 3, { align: "center" });
-  doc.setFontSize(7);
-  doc.text("/100", potX, circleY + 8, { align: "center" });
-
-  doc.setTextColor(160, 85, 255);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(`+${scores.potentialScore - scores.globalScore} pts`, potX + potR + 6, circleY);
-  doc.setTextColor(100);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("Potentiel", potX + potR + 6, circleY + 6);
-
-  y = circleY + circleR + 8;
-
-  // Percentile
-  if (scores.percentileLabel) {
-    doc.setTextColor(51, 117, 255);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(scores.percentileLabel, pw / 2, y, { align: "center" });
-    y += 5;
-    if (scores.percentileRegion) {
-      doc.setTextColor(120);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(scores.percentileRegion, pw / 2, y, { align: "center" });
-      y += 4;
-    }
-    y += 4;
-  }
-
-  // CA estimation box
-  if (scores.estimatedCAGain.max > 0) {
-    doc.setFillColor(238, 242, 255);
-    doc.roundedRect(20, y, pw - 40, 18, 3, 3, "F");
-    doc.setDrawColor(51, 117, 255);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(20, y, pw - 40, 18, 3, 3, "S");
-    doc.setTextColor(30, 30, 46);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("Estimation CA additionnel", 26, y + 7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(80);
-    doc.text(`Entre ${fmt(scores.estimatedCAGain.min)} et ${fmt(scores.estimatedCAGain.max)}`, 26, y + 13);
-    y += 24;
-  }
-
-  // RADAR (big, centered)
-  const radarCY = y + 50;
-  drawRadar(doc, scores.axes, scores.topPerformer, pw / 2, radarCY, 50);
-
-  // Legend
-  y = radarCY + 56;
-  const legends: Array<{ label: string; color: [number, number, number] }> = [
-    { label: "Score actuel", color: [51, 117, 255] },
-    { label: "Potentiel", color: [160, 85, 255] },
-    { label: "Top Performer", color: [136, 136, 136] },
-  ];
-  doc.setFontSize(7);
-  for (let i = 0; i < legends.length; i++) {
-    const lx = 45 + i * 48;
-    doc.setFillColor(legends[i].color[0], legends[i].color[1], legends[i].color[2]);
-    doc.rect(lx, y - 2, 4, 4, "F");
-    doc.setTextColor(80);
-    doc.setFont("helvetica", "normal");
-    doc.text(legends[i].label, lx + 6, y + 1);
-  }
-
-  drawFooter(doc, pw, ph);
-
-  // ══════════ PAGE 2 ══════════
+  buildPage1(doc, scores, email);
   doc.addPage();
-  drawHeader(doc, pw, 15, "NXT Performance - Diagnostic de Performance Immobiliere", 11);
+  buildPage2(doc, scores);
 
-  y = 25;
-
-  // Axes detail table with bars (moved from page 1)
-  doc.setTextColor(30, 30, 46);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Détail par axe", 20, y);
-  y += 7;
-
-  doc.setFillColor(245, 245, 250);
-  doc.rect(20, y - 3, pw - 40, 7, "F");
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(100);
-  doc.text("Axe", 22, y + 1);
-  doc.text("Score", 128, y + 1);
-  doc.text("Potentiel", 155, y + 1);
-  y += 7;
-
-  for (const axis of scores.axes) {
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(50);
-    doc.setFontSize(7);
-    doc.text(axis.label, 22, y + 1);
-
-    const bx = 82; const bw = 40; const bh = 3.5;
-    doc.setFillColor(230, 230, 235);
-    doc.roundedRect(bx, y - 1.5, bw, bh, 1, 1, "F");
-    const fw = Math.max(1, (axis.score / 100) * bw);
-    const [br, bg, bb] = barRGB(axis.score);
-    doc.setFillColor(br, bg, bb);
-    doc.roundedRect(bx, y - 1.5, fw, bh, 1, 1, "F");
-
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(br, bg, bb);
-    doc.text(`${axis.score}`, 132, y + 1);
-    doc.setTextColor(160, 85, 255);
-    doc.text(`${axis.potential}`, 160, y + 1);
-    y += 7;
-  }
-  y += 8;
-
-  // Projections table
-  doc.setTextColor(30, 30, 46);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Projections de progression", 20, y);
-  y += 7;
-
-  doc.setFillColor(245, 245, 250);
-  doc.rect(20, y - 3, pw - 40, 7, "F");
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(100);
-  doc.text("Axe", 22, y + 1);
-  doc.text("Actuel", 92, y + 1);
-  doc.text("+3 mois", 112, y + 1);
-  doc.text("+6 mois", 132, y + 1);
-  doc.text("+9 mois", 152, y + 1);
-  doc.text("Potentiel", 172, y + 1);
-  y += 7;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  for (let i = 0; i < scores.axes.length; i++) {
-    const axis = scores.axes[i];
-    if (i % 2 === 1) {
-      doc.setFillColor(250, 250, 252);
-      doc.rect(20, y - 3, pw - 40, 7, "F");
-    }
-    doc.setTextColor(50);
-    doc.text(axis.label, 22, y + 1);
-    doc.setTextColor(51, 117, 255);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${axis.score}`, 95, y + 1);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(80);
-    doc.text(`${axis.projection3m}`, 115, y + 1);
-    doc.text(`${axis.projection6m}`, 135, y + 1);
-    doc.text(`${axis.projection9m}`, 155, y + 1);
-    doc.setTextColor(160, 85, 255);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${axis.potential}`, 175, y + 1);
-    doc.setFont("helvetica", "normal");
-    y += 7;
-  }
-  y += 8;
-
-  // Recommendations
-  const recoAxes = [...scores.axes].sort((a, b) => a.score - b.score).slice(0, 3);
-  if (recoAxes.length > 0) {
-    doc.setTextColor(30, 30, 46);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Vos leviers de progression", 20, y);
-    y += 8;
-
-    for (const axis of recoAxes) {
-      const [rc, gc, bc] = recoRGB(axis.score);
-
-      doc.setFillColor(250, 250, 252);
-      doc.roundedRect(20, y - 3, pw - 40, 18, 2, 2, "F");
-      doc.setFillColor(rc, gc, bc);
-      doc.rect(20, y - 3, 3, 18, "F");
-
-      doc.setTextColor(30, 30, 46);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text(axis.label, 28, y + 3);
-
-      doc.setTextColor(rc, gc, bc);
-      doc.setFontSize(8);
-      doc.text(`${axis.score} > ${axis.potential}`, pw - 28, y + 3, { align: "right" });
-
-      doc.setTextColor(100);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text(RECO[axis.id] ?? "", 28, y + 10);
-
-      y += 22;
-    }
-  }
-  y += 6;
-
-  // Projections NXT
-  const dpiAxes: DPIAxis[] = scores.axes.map((a) => ({ id: a.id, label: a.label, score: a.score }));
-  const projections = computeDPIProjections(dpiAxes);
-  if (projections.length > 0 && y < ph - 80) {
-    doc.setTextColor(30, 30, 46);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Votre potentiel de progression", 20, y);
-    y += 7;
-
-    for (const proj of projections) {
-      if (y > ph - 50) break;
-      const color: [number, number, number] = proj.palier === "3m" ? [51, 117, 255] : proj.palier === "6m" ? [99, 102, 241] : [160, 85, 255];
-      doc.setFillColor(color[0], color[1], color[2]);
-      doc.rect(20, y - 2, 3, 12, "F");
-      doc.setTextColor(color[0], color[1], color[2]);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${proj.label} : ${proj.globalScore}/100 (+${proj.deltaGlobal} pts)`, 28, y + 2);
-      doc.setTextColor(100);
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      const toolNames = proj.tools.map((t) => t.label + (t.disponible ? "" : " (bientôt)")).join(" + ");
-      doc.text(`avec ${toolNames}`, 28, y + 8);
-      if (proj.caAdditionnel.bas > 0) {
-        doc.setTextColor(34, 197, 94);
-        doc.text(`CA additionnel estimé : +${Math.round(proj.caAdditionnel.bas / 1000)}k\u20AC à +${Math.round(proj.caAdditionnel.haut / 1000)}k\u20AC`, 28, y + 13);
-        doc.setTextColor(100);
-      }
-      y += 18;
-    }
-    y += 2;
-  }
-
-  // CTA block
-  doc.setFillColor(51, 117, 255);
-  doc.roundedRect(20, y, pw - 40, 30, 4, 4, "F");
-  doc.setFillColor(160, 85, 255);
-  doc.roundedRect(pw * 0.55, y, pw * 0.45 - 20, 30, 0, 4, "F");
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("Prêt à transformer votre performance ?", pw / 2, y + 11, { align: "center" });
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Créez votre compte NXT Performance", pw / 2, y + 19, { align: "center" });
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("nxt-performance.com", pw / 2, y + 26, { align: "center" });
-
-  drawFooter(doc, pw, ph);
-
-  doc.save("DPI-NXT-Performance.pdf");
+  const name = scores.lastName ?? email.split("@")[0] ?? "diagnostic";
+  const date = new Date().toISOString().slice(0, 10);
+  doc.save(`NXT-Diagnostic-${name}-${date}.pdf`);
 }

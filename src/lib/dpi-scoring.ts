@@ -20,6 +20,15 @@ export interface DPIScores {
   percentile: number;
   percentileLabel: string;
   percentileRegion?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  categoryLabel?: string;
+  topPercentage?: number;
+  topPercentageZone?: string;
+  caAdditionnel?: { bas: number; haut: number };
+  caBase?: number;
+  caRange?: string;
 }
 
 export const TOP_PERFORMER: Record<string, number> = {
