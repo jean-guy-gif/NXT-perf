@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff, RefreshCw, Check } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Eye, EyeOff, RefreshCw, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { generateSecurePassword, getPasswordStrength } from "@/lib/password-utils";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword]         = useState("");
   const [confirm, setConfirm]           = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -14,9 +15,31 @@ export default function ResetPasswordPage() {
   const [error, setError]               = useState("");
   const [loading, setLoading]           = useState(false);
   const [done, setDone]                 = useState(false);
-  const router = useRouter();
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const router      = useRouter();
+  const searchParams = useSearchParams();
 
   const strength = getPasswordStrength(password);
+
+  // ── Étape 1 : échanger le code PKCE contre une session ──
+  useEffect(() => {
+    const code = searchParams.get("code");
+
+    if (!code) {
+      setSessionError("Lien invalide ou expiré.");
+      return;
+    }
+
+    const supabase = createClient();
+    supabase.auth.exchangeCodeForSession(code).then(({ error: exchError }) => {
+      if (exchError) {
+        setSessionError("Lien invalide ou expiré. Merci de refaire une demande.");
+      } else {
+        setSessionReady(true);
+      }
+    });
+  }, [searchParams]);
 
   const handleSuggest = () => {
     const pwd = generateSecurePassword();
@@ -59,18 +82,10 @@ export default function ResetPasswordPage() {
   const inputClass =
     "h-10 w-full rounded-lg border border-input bg-background px-3 pr-10 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring";
 
-  const strengthBarClass = {
-    red:   "bg-red-500",
-    amber: "bg-amber-500",
-    green: "bg-green-500",
-  }[strength.color];
+  const strengthBarClass = { red: "bg-red-500", amber: "bg-amber-500", green: "bg-green-500" }[strength.color];
+  const strengthTextClass = { red: "text-red-500", amber: "text-amber-500", green: "text-green-600" }[strength.color];
 
-  const strengthTextClass = {
-    red:   "text-red-500",
-    amber: "text-amber-500",
-    green: "text-green-600",
-  }[strength.color];
-
+  // ── Écran succès ──
   if (done) {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center">
@@ -85,6 +100,38 @@ export default function ResetPasswordPage() {
     );
   }
 
+  // ── Écran erreur de session ──
+  if (sessionError) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <div className="mb-6 flex justify-center">
+          <img src="/logo-icon.svg" alt="NXT Perf" className="h-12 w-12" />
+        </div>
+        <h1 className="mb-2 text-xl font-bold text-foreground">Lien expiré</h1>
+        <p className="mb-6 text-sm text-muted-foreground">{sessionError}</p>
+        <Link
+          href="/forgot-password"
+          className="inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Nouvelle demande
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Chargement pendant l'échange de code ──
+  if (!sessionReady) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <div className="mb-4 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">Vérification du lien…</p>
+      </div>
+    );
+  }
+
+  // ── Formulaire principal ──
   return (
     <div className="rounded-xl border border-border bg-card p-8">
       <div className="mb-6 flex justify-center">
@@ -96,7 +143,6 @@ export default function ResetPasswordPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <label className="text-sm font-medium text-foreground">Mot de passe</label>
@@ -188,5 +234,13 @@ export default function ResetPasswordPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
