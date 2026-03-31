@@ -5,7 +5,7 @@ import {
   Mic, MicOff, X, Volume2, VolumeX, CheckCircle,
   Loader2, Upload, Sparkles, RotateCcw, Send, Square
 } from "lucide-react";
-import { extractFromText, extractFromImage, speak, stopSpeaking, type ExtractedFields } from "@/lib/saisie-ai-client";
+import { extractFromText, extractFromImage, extractFromDocument, speak, stopSpeaking, type ExtractedFields } from "@/lib/saisie-ai-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -204,26 +204,87 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
   // ── Import fichier ────────────────────────────────────────────────────────
   const handleFileImport = async (file: File) => {
     setScreen("analyzing");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const isImage = file.type.startsWith("image/");
+    const isPDF = ext === "pdf" || file.type === "application/pdf";
+    const isExcel = ["xls","xlsx","xlsm","ods","csv"].includes(ext);
+    const isWord = ["doc","docx","odt","txt"].includes(ext);
+
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = (e.target?.result as string).split(",")[1];
-        const mediaType = file.type as "image/jpeg" | "image/png" | "image/webp";
-        try {
-          const result = await extractFromImage(base64, mediaType);
-          setExtracted(result.extracted);
-          setConfirmed(result.extracted);
-          setImportDesc(result.description || "Document analysé");
-          setScreen("confirmation");
-          say(`J'ai analysé votre document. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
-        } catch {
-          say("Impossible de lire ce fichier.");
-          setScreen("idle");
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64 = (e.target?.result as string).split(",")[1];
+          const mediaType = file.type as "image/jpeg"|"image/png"|"image/webp";
+          try {
+            const result = await extractFromImage(base64, mediaType);
+            setExtracted(result.extracted); setConfirmed(result.extracted);
+            setImportDesc(result.description || "Image analysée");
+            setScreen("confirmation");
+            say(`J'ai analysé votre image. ${result.description || ""} Vérifiez et corrigez.`);
+          } catch { say("Impossible de lire cette image."); setScreen("idle"); }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      if (isPDF) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64 = (e.target?.result as string).split(",")[1];
+          try {
+            const result = await extractFromImage(base64, "application/pdf" as "image/jpeg");
+            setExtracted(result.extracted); setConfirmed(result.extracted);
+            setImportDesc(result.description || "PDF analysé");
+            setScreen("confirmation");
+            say(`J'ai analysé votre PDF. ${result.description || ""} Vérifiez et corrigez.`);
+          } catch { say("Impossible de lire ce PDF."); setScreen("idle"); }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      if (isExcel) {
+        const XLSX = await import("xlsx");
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+        const csvParts: string[] = [];
+        workbook.SheetNames.forEach((name) => {
+          const sheet = workbook.Sheets[name];
+          const csv = XLSX.utils.sheet_to_csv(sheet);
+          if (csv.trim()) csvParts.push(`[Feuille: ${name}]\n${csv}`);
+        });
+        const result = await extractFromDocument(csvParts.join("\n\n"), file.name);
+        setExtracted(result.extracted); setConfirmed(result.extracted);
+        setImportDesc(result.description || "Excel analysé");
+        setScreen("confirmation");
+        say(`J'ai analysé votre fichier. ${result.description || ""} Vérifiez et corrigez.`);
+        return;
+      }
+
+      if (isWord) {
+        let text = "";
+        if (ext === "docx") {
+          const mammoth = await import("mammoth");
+          const arrayBuffer = await file.arrayBuffer();
+          const { value } = await mammoth.extractRawText({ arrayBuffer });
+          text = value;
+        } else {
+          text = await file.text();
         }
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      say("Impossible de lire ce fichier.");
+        const result = await extractFromDocument(text, file.name);
+        setExtracted(result.extracted); setConfirmed(result.extracted);
+        setImportDesc(result.description || "Document analysé");
+        setScreen("confirmation");
+        say(`J'ai analysé votre document. ${result.description || ""} Vérifiez et corrigez.`);
+        return;
+      }
+
+      say("Format non pris en charge. Utilisez image, PDF, Excel ou Word.");
+      setScreen("idle");
+    } catch (err) {
+      console.error("handleFileImport error:", err);
+      say("Erreur lors de l'analyse. Réessayez.");
       setScreen("idle");
     }
   };
@@ -288,7 +349,7 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
         <span className="text-[10px] text-primary/60">Image · PDF · Excel · Word</span>
       </button>
       <input ref={fileInputRef} type="file"
-        accept="image/*,.pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.txt"
+        accept="image/*,.pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.txt,.odt,.ods"
         className="hidden"
         onChange={(e) => e.target.files?.[0] && handleFileImport(e.target.files[0])} />
     </div>

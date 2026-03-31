@@ -176,7 +176,7 @@ export default function SaisiePage() {
         contactsEntrants,
         contactsTotaux,
         rdvEstimation,
-        informationsVente: infoVentes.map((iv, i) => ({
+        informationsVente: (infoVentes ?? []).map((iv, i) => ({
           id: `iv-${i}`,
           nom: iv.nom,
           commentaire: iv.commentaire,
@@ -187,7 +187,7 @@ export default function SaisiePage() {
         rdvEstimation,
         estimationsRealisees,
         mandatsSignes,
-        mandats: mandats.map((m, i) => ({
+        mandats: (mandats ?? []).map((m, i) => ({
           id: `m-${i}`,
           nomVendeur: m.nomVendeur,
           type: m.type,
@@ -197,7 +197,7 @@ export default function SaisiePage() {
         baissePrix,
       },
       acheteurs: {
-        acheteursChauds: acheteursChauds.map((ac, i) => ({
+        acheteursChauds: (acheteursChauds ?? []).map((ac, i) => ({
           id: `ac-${i}`,
           nom: ac.nom,
           commentaire: ac.commentaire,
@@ -441,12 +441,12 @@ export default function SaisiePage() {
               />
             </div>
           </div>
-          {infoVentes.length > 0 && (
+          {(infoVentes ?? []).length > 0 && (
             <div className="mt-4 space-y-3">
               <p className="text-sm font-medium text-foreground">
-                Détail des informations de vente ({infoVentes.length})
+                Détail des informations de vente ({(infoVentes ?? []).length})
               </p>
-              {infoVentes.map((iv, idx) => (
+              {(infoVentes ?? []).map((iv, idx) => (
                 <div
                   key={idx}
                   className="grid grid-cols-1 gap-3 rounded-lg border border-border/50 bg-muted/30 p-3 sm:grid-cols-2"
@@ -588,12 +588,12 @@ export default function SaisiePage() {
               />
             </div>
           </div>
-          {mandats.length > 0 && (
+          {(mandats ?? []).length > 0 && (
             <div className="mt-4 space-y-3">
               <p className="text-sm font-medium text-foreground">
-                Détail des mandats ({mandats.length})
+                Détail des mandats ({(mandats ?? []).length})
               </p>
-              {mandats.map((m, idx) => (
+              {(mandats ?? []).map((m, idx) => (
                 <div
                   key={idx}
                   className="flex flex-col gap-3 rounded-lg border border-border/50 bg-muted/30 p-3 sm:flex-row sm:items-center"
@@ -762,12 +762,12 @@ export default function SaisiePage() {
               />
             </div>
           </div>
-          {acheteursChauds.length > 0 && (
+          {(acheteursChauds ?? []).length > 0 && (
             <div className="mt-4 space-y-3">
               <p className="text-sm font-medium text-foreground">
-                Détail acheteurs chauds ({acheteursChauds.length})
+                Détail acheteurs chauds ({(acheteursChauds ?? []).length})
               </p>
-              {acheteursChauds.map((ac, idx) => (
+              {(acheteursChauds ?? []).map((ac, idx) => (
                 <div
                   key={idx}
                   className="grid grid-cols-1 gap-3 rounded-lg border border-border/50 bg-muted/30 p-3 sm:grid-cols-2"
