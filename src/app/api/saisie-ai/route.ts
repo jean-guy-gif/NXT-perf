@@ -61,7 +61,10 @@ Réponds UNIQUEMENT en JSON valide avec cette structure :
 
 Si l'agent n'a rien mentionné de pertinent, extracted sera vide.
 La followUpQuestion doit être la question la plus utile pour compléter le tableau de bord.
-Priorise : contacts, estimations, mandats, compromis, CA.`;
+Priorise : contacts, estimations, mandats, compromis, CA.
+
+IMPORTANT : Si le texte contient un tableau avec plusieurs lignes de données, SOMME les valeurs par colonne.
+Mapping colonnes : "Contacts" → contactsTotaux/contactsEntrants, "RDV" → rdvEstimation, "Estimations" → estimationsRealisees, "Mandats" → mandatsSignes, "Visites" → nombreVisites, "Offres" → offresRecues, "Compromis" → compromisSignes, "CA"/"CA (€)" → chiffreAffaires, "Actes" → actesSignes.`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -93,27 +96,36 @@ Priorise : contacts, estimations, mandats, compromis, CA.`;
     const imageMediaType = body.imageMediaType as string || "image/jpeg";
     const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
 
-Analyse cette image qui peut être :
-- Une capture d'écran de CRM (Apimo, Hektor, AC3, Netty, Périclès)
-- Un rapport d'activité hebdomadaire ou mensuel
-- Un tableau Excel ou Google Sheets d'activité commerciale
-- Des notes manuscrites d'un agent immobilier
-- Un récapitulatif de performance
+Analyse cette image. Elle peut être une capture d'écran de CRM, un rapport d'activité, un tableau Excel/Google Sheets, des notes manuscrites, ou un récapitulatif.
 
-Lis TOUTES les données visibles et associe-les aux indicateurs suivants :
+INSTRUCTIONS :
+1. Si l'image contient un TABLEAU avec PLUSIEURS LIGNES, SOMME les valeurs de chaque colonne pour obtenir les totaux.
+2. Voici le mapping des colonnes vers nos champs :
+   - "Contacts" ou "Contacts entrants" → contactsEntrants ET contactsTotaux
+   - "RDV" ou "RDV estimation" → rdvEstimation
+   - "Estimations" → estimationsRealisees
+   - "Mandats" ou "Mandats signés" → mandatsSignes
+   - "Visites" → nombreVisites
+   - "Offres" → offresRecues
+   - "Compromis" → compromisSignes
+   - "CA" ou "CA (€)" → chiffreAffaires
+   - "Actes" → actesSignes
+   - "Suivi" ou "RDV suivi" → rdvSuivi
+   - "Requalification" → requalification
+   - "Baisses de prix" → baissePrix
+   - "Acheteurs chauds" → acheteursChaudsCount
+   - "Acheteurs sortis visite" → acheteursSortisVisite
+3. Si les lignes sont catégorisées par Type (Prospection, Vendeurs, Acheteurs, Ventes), IGNORE la catégorie et somme TOUT.
+4. N'invente PAS de valeurs. Si tu ne vois pas une donnée, ne l'inclus pas.
+
+Champs attendus :
 ${Object.entries(SAISIE_FIELDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
-
-IMPORTANT :
-- Cherche chaque indicateur partout dans l'image, même si libellés différemment
-- "Prise de contact" = contacts entrants, "Mandats rentrés" = mandats signés, etc.
-- En cas de doute sur une valeur, inclus-la quand même avec confidence faible
-- N'invente PAS de valeurs — si tu ne vois pas la donnée, ne l'inclus pas
 
 Réponds UNIQUEMENT en JSON :
 {
   "extracted": { "nomDuChamp": valeurNumerique },
-  "description": "Description en 1 phrase de ce que montre l'image (type de document + période si visible)",
-  "unrecognized": ["libellés trouvés dans l'image que tu n'as pas pu mapper"],
+  "description": "Description en 1 phrase (type de document + période si visible)",
+  "unrecognized": ["libellés visibles non mappés"],
   "confidence": 0.0 à 1.0
 }`;
 
@@ -187,26 +199,40 @@ Réponds avec uniquement le texte du message, sans JSON.`;
     const textContent = body.textContent as string || "";
     const fileName = body.fileName as string || "document";
 
-    const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
+    const prompt = `Tu es NXT Assistant, spécialiste en analyse de tableaux d'activité immobilière.
 
 Voici le contenu extrait du fichier "${fileName}" :
 
 ${textContent.slice(0, 8000)}
 
-Ce document peut être un tableau d'activité, un rapport CRM, un fichier Excel ou un document Word.
+INSTRUCTIONS :
+1. Ce document contient probablement PLUSIEURS LIGNES de données. Tu dois SOMMER les valeurs de chaque colonne pour obtenir les totaux.
+2. Les colonnes peuvent s'appeler différemment. Voici le mapping :
+   - "Contacts" ou "Contacts entrants" ou "Prise de contact" → additionner pour contactsTotaux ET contactsEntrants
+   - "RDV" ou "RDV estimation" ou "Rendez-vous" → rdvEstimation
+   - "Estimations" ou "Estim" → estimationsRealisees
+   - "Mandats" ou "Mandats signés" ou "Mandats rentrés" → mandatsSignes
+   - "Visites" ou "Nb visites" → nombreVisites
+   - "Offres" ou "Offres reçues" → offresRecues
+   - "Compromis" ou "Compromis signés" → compromisSignes
+   - "CA" ou "CA (€)" ou "Chiffre d'affaires" → chiffreAffaires
+   - "Actes" ou "Actes signés" → actesSignes
+   - "Suivi" ou "RDV suivi" → rdvSuivi
+   - "Requalification" → requalification
+   - "Baisse" ou "Baisses de prix" → baissePrix
+   - "Acheteurs chauds" → acheteursChaudsCount
+   - "Acheteurs sortis visite" → acheteursSortisVisite
+3. Les lignes peuvent être catégorisées par "Type" (Prospection, Vendeurs, Acheteurs, Ventes). IGNORE la catégorie — somme TOUTES les lignes ensemble par colonne.
+4. Ignore les valeurs 0 ou vides dans la somme.
+5. N'invente PAS de valeurs — si une colonne n'existe pas, ne l'inclus pas.
 
-Lis TOUTES les données et associe-les aux indicateurs suivants :
+Champs attendus :
 ${Object.entries(SAISIE_FIELDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
-
-IMPORTANT :
-- Cherche chaque indicateur même si libellés différemment
-- "Prise de contact" = contacts entrants, "Mandats rentrés" = mandats signés, etc.
-- N'invente PAS de valeurs — si absent, ne l'inclus pas
 
 Réponds UNIQUEMENT en JSON :
 {
-  "extracted": { "nomDuChamp": valeurNumerique },
-  "description": "Description en 1 phrase du document et de la période si visible",
+  "extracted": { "nomDuChamp": valeurNumérique },
+  "description": "Description en 1 phrase (type de document + période si visible)",
   "confidence": 0.0 à 1.0
 }`;
 
