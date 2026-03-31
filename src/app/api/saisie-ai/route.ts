@@ -78,16 +78,29 @@ Priorise : contacts, estimations, mandats, compromis, CA.`;
   }
 
   if (action === "extract_image") {
-    const prompt = `Tu es NXT Assistant. Analyse cette image qui peut être un tableau de bord immobilier,
-un rapport d'activité, une capture d'écran de CRM (Apimo, Hektor, AC3, Netty) ou un tableau Excel/Google Sheets.
+    const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
 
-Extrait tous les chiffres d'activité commerciale immobilière que tu peux lire :
+Analyse cette image qui peut être :
+- Une capture d'écran de CRM (Apimo, Hektor, AC3, Netty, Périclès)
+- Un rapport d'activité hebdomadaire ou mensuel
+- Un tableau Excel ou Google Sheets d'activité commerciale
+- Des notes manuscrites d'un agent immobilier
+- Un récapitulatif de performance
+
+Lis TOUTES les données visibles et associe-les aux indicateurs suivants :
 ${Object.entries(SAISIE_FIELDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+
+IMPORTANT :
+- Cherche chaque indicateur partout dans l'image, même si libellés différemment
+- "Prise de contact" = contacts entrants, "Mandats rentrés" = mandats signés, etc.
+- En cas de doute sur une valeur, inclus-la quand même avec confidence faible
+- N'invente PAS de valeurs — si tu ne vois pas la donnée, ne l'inclus pas
 
 Réponds UNIQUEMENT en JSON :
 {
   "extracted": { "nomDuChamp": valeurNumerique },
-  "description": "Description courte de ce que montre l'image",
+  "description": "Description en 1 phrase de ce que montre l'image (type de document + période si visible)",
+  "unrecognized": ["libellés trouvés dans l'image que tu n'as pas pu mapper"],
   "confidence": 0.0 à 1.0
 }`;
 
