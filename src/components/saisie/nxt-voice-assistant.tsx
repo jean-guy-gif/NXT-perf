@@ -2,24 +2,29 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Mic, MicOff, X, Volume2, VolumeX, CheckCircle, Loader2,
-  Upload, Sparkles, RotateCcw, ChevronRight, Send
+  Mic, MicOff, X, Volume2, VolumeX, CheckCircle,
+  Loader2, Upload, Sparkles, RotateCcw, Send, Square
 } from "lucide-react";
-import { extractFromText, extractFromImage, extractFromDocument, speak, stopSpeaking, type ExtractedFields } from "@/lib/saisie-ai-client";
+import { extractFromText, extractFromImage, speak, stopSpeaking, type ExtractedFields } from "@/lib/saisie-ai-client";
 
-type AssistantScreen = "chat" | "import_preview" | "confirmation" | "done";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Message {
-  role: "ai" | "user";
-  text: string;
-  extracted?: ExtractedFields;
+type AssistantScreen = "idle" | "recording" | "analyzing" | "missing" | "confirmation" | "done";
+
+export interface MandatDetail   { nomVendeur: string; type: "simple" | "exclusif"; }
+export interface InfoVenteDetail { nom: string; commentaire: string; }
+export interface AcheteurDetail  { nom: string; commentaire: string; }
+
+export interface StructuredDetails {
+  mandats:     MandatDetail[];
+  infoVentes:  InfoVenteDetail[];
+  acheteurs:   AcheteurDetail[];
 }
 
 interface NxtVoiceAssistantProps {
   isOpen: boolean;
   onClose: () => void;
-  onFieldsExtracted: (fields: ExtractedFields) => void;
-  currentFields?: Partial<ExtractedFields>;
+  onFieldsExtracted: (fields: ExtractedFields, details?: StructuredDetails) => void;
   isMandatory?: boolean;
 }
 
@@ -42,440 +47,389 @@ const FIELD_LABELS: Record<keyof ExtractedFields, string> = {
 };
 
 const SECTIONS = [
-  { title: "Prospection",          fields: ["contactsEntrants", "contactsTotaux", "rdvEstimation"] },
-  { title: "Estimations & Mandats", fields: ["estimationsRealisees", "mandatsSignes", "rdvSuivi", "requalification", "baissePrix"] },
-  { title: "Acheteurs & Visites",  fields: ["acheteursChaudsCount", "acheteursSortisVisite", "nombreVisites", "offresRecues", "compromisSignes"] },
-  { title: "Ventes & CA",          fields: ["actesSignes", "chiffreAffaires"] },
+  { title: "Prospection",           fields: ["contactsEntrants","contactsTotaux","rdvEstimation"] },
+  { title: "Estimations & Mandats", fields: ["estimationsRealisees","mandatsSignes","rdvSuivi","requalification","baissePrix"] },
+  { title: "Acheteurs & Visites",   fields: ["acheteursChaudsCount","acheteursSortisVisite","nombreVisites","offresRecues","compromisSignes"] },
+  { title: "Ventes & CA",           fields: ["actesSignes","chiffreAffaires"] },
 ] as const;
 
-const GREETING = "Raconte-moi ton activité et donne-moi tes chiffres — contacts, estimations, mandats, visites, compromis, CA — pour que je puisse t'aider dans ta performance.";
+// ─── Composant ────────────────────────────────────────────────────────────────
 
-export function NxtVoiceAssistant({
-  isOpen,
-  onClose,
-  onFieldsExtracted,
-  isMandatory = false,
-}: NxtVoiceAssistantProps) {
-  const [screen, setScreen]             = useState<AssistantScreen>("chat");
-  const [messages, setMessages]         = useState<Message[]>([]);
-  const [allExtracted, setAllExtracted] = useState<ExtractedFields>({});
-  const [confirmed, setConfirmed]       = useState<ExtractedFields>({});
-  const [importDesc, setImportDesc]     = useState("");
-  const [isRecording, setIsRecording]   = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSpeaking, setIsSpeaking]     = useState(false);
-  const [voiceMuted, setVoiceMuted]     = useState(false);
-  const [transcript, setTranscript]     = useState("");
-  const [textInput, setTextInput]       = useState("");
-  const [correctionText, setCorrectionText]       = useState("");
-  const [correctionRecording, setCorrectionRecording] = useState(false);
+export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandatory = false }: NxtVoiceAssistantProps) {
+
+  const [screen, setScreen]           = useState<AssistantScreen>("idle");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [fullTranscript, setFullTranscript] = useState("");
+  const [extracted, setExtracted]     = useState<ExtractedFields>({});
+  const [confirmed, setConfirmed]     = useState<ExtractedFields>({});
+  const [details, setDetails]         = useState<StructuredDetails>({ mandats: [], infoVentes: [], acheteurs: [] });
+  const [missingMsg, setMissingMsg]   = useState("");
+  const [voiceMuted, setVoiceMuted]   = useState(false);
+  const [isSpeaking, setIsSpeaking]   = useState(false);
+  const [importDesc, setImportDesc]   = useState("");
+  const [textInput, setTextInput]     = useState("");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const fileInputRef   = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef    = useRef<any>(null);
+  const isRecordingRef    = useRef(false);
+  const accumulatedRef    = useRef("");
+  const fileInputRef      = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  useEffect(() => { scrollToBottom(); }, [messages, transcript]);
+  // suppress unused vars
+  void fullTranscript;
+  void MicOff;
 
-  const sayMessage = useCallback((text: string, extracted?: ExtractedFields) => {
-    setMessages(prev => [...prev, { role: "ai", text, extracted }]);
-    if (!voiceMuted) {
-      setIsSpeaking(true);
-      speak(text, () => setIsSpeaking(false));
-    }
+  const say = useCallback((text: string) => {
+    if (!voiceMuted) { setIsSpeaking(true); speak(text, () => setIsSpeaking(false)); }
   }, [voiceMuted]);
 
-  // Reset + message d'accueil à l'ouverture
+  // ── Reset à l'ouverture ────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    setScreen("chat");
-    setMessages([]);
-    setAllExtracted({});
+    setScreen("idle");
+    setLiveTranscript("");
+    setFullTranscript("");
+    setExtracted({});
     setConfirmed({});
+    setDetails({ mandats: [], infoVentes: [], acheteurs: [] });
+    setMissingMsg("");
     setTextInput("");
-    setTranscript("");
-    setIsRecording(false);
-    setIsProcessing(false);
-    // Message d'accueil immédiat (sans appel API)
-    setTimeout(() => {
-      setMessages([{ role: "ai", text: GREETING }]);
-      if (!voiceMuted) {
-        setIsSpeaking(true);
-        speak(GREETING, () => setIsSpeaking(false));
-      }
-    }, 300);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    accumulatedRef.current = "";
+    isRecordingRef.current = false;
   }, [isOpen]);
 
-  // ── Traitement d'un message utilisateur ──────────────────────────────────
-  const handleUserMessage = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-    setMessages(prev => [...prev, { role: "user", text }]);
-    setIsProcessing(true);
-
-    try {
-      const result = await extractFromText(text, allExtracted);
-      const newExtracted = { ...allExtracted, ...result.extracted };
-      setAllExtracted(newExtracted);
-
-      // Calculer les champs manquants importants
-      const important = ["contactsTotaux", "estimationsRealisees", "mandatsSignes", "compromisSignes", "chiffreAffaires"] as (keyof ExtractedFields)[];
-      const missing = important.filter(f => newExtracted[f] === undefined);
-
-      let responseText = result.followUpQuestion || "";
-
-      if (!responseText) {
-        if (missing.length > 0) {
-          const missingLabels = missing.slice(0, 3).map(f => FIELD_LABELS[f]).join(", ");
-          responseText = `Merci ! Il me manque encore quelques éléments : ${missingLabels}. Tu peux me les donner ?`;
-        } else {
-          responseText = "J'ai tous les éléments. Veux-tu vérifier et valider tes chiffres ?";
-        }
-      }
-
-      sayMessage(responseText, Object.keys(result.extracted).length > 0 ? result.extracted : undefined);
-
-      // Si on a suffisamment de données, proposer la confirmation
-      const filledCount = Object.keys(newExtracted).length;
-      if (filledCount >= 5 && missing.length === 0) {
-        setTimeout(() => {
-          setConfirmed(newExtracted);
-          setScreen("confirmation");
-        }, 1500);
-      }
-    } catch {
-      sayMessage("Je n'ai pas bien compris. Peux-tu reformuler ?");
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [allExtracted, sayMessage]);
-
-  // ── Enregistrement vocal ─────────────────────────────────────────────────
-  const startRecording = useCallback((onResult: (t: string) => void) => {
-    stopSpeaking();
-    setIsSpeaking(false);
+  // ── Enregistrement continu ────────────────────────────────────────────────
+  const startRecording = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) { sayMessage("Reconnaissance vocale non disponible. Utilisez Chrome ou Edge."); return; }
-    const r = new SR();
-    r.lang = "fr-FR";
-    r.continuous = false;
-    r.interimResults = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    r.onresult = (e: any) => {
-      const res = e.results[e.results.length - 1];
-      setTranscript(res[0].transcript);
-      if (res.isFinal) { setTranscript(""); onResult(res[0].transcript); }
-    };
-    r.onend = () => { setIsRecording(false); setCorrectionRecording(false); };
-    r.onerror = () => { setIsRecording(false); setCorrectionRecording(false); };
-    recognitionRef.current = r;
-    r.start();
-    setIsRecording(true);
-  }, [sayMessage]);
+    if (!SR) { say("Reconnaissance vocale non disponible. Utilisez Chrome ou Edge."); return; }
 
-  const stopRecording = () => {
-    recognitionRef.current?.stop();
-    setIsRecording(false);
-    setCorrectionRecording(false);
+    stopSpeaking();
+    setIsSpeaking(false);
+    accumulatedRef.current = "";
+    setLiveTranscript("");
+    setFullTranscript("");
+    isRecordingRef.current = true;
+    setScreen("recording");
+
+    const startRec = () => {
+      if (!isRecordingRef.current) return;
+      const r = new SR();
+      r.lang = "fr-FR";
+      r.continuous = true;
+      r.interimResults = true;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      r.onresult = (e: any) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            accumulatedRef.current += (accumulatedRef.current ? " " : "") + t.trim();
+          } else {
+            interim = t;
+          }
+        }
+        setLiveTranscript(accumulatedRef.current + (interim ? " " + interim : ""));
+      };
+      r.onend = () => {
+        if (isRecordingRef.current) { setTimeout(startRec, 200); }
+      };
+      r.onerror = () => {
+        if (isRecordingRef.current) { setTimeout(startRec, 500); }
+      };
+      recognitionRef.current = r;
+      r.start();
+    };
+
+    startRec();
   };
 
-  // ── Import fichier (image, PDF, Excel, Word, CSV, texte) ──────────────
-  const handleFileImport = async (file: File) => {
-    setIsProcessing(true);
-    const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    const isImage = file.type.startsWith("image/");
-    const isPDF = ext === "pdf" || file.type === "application/pdf";
-    const isExcel = ["xls", "xlsx", "xlsm", "ods", "csv"].includes(ext);
-    const isWord = ["doc", "docx", "odt", "txt"].includes(ext);
+  const stopAndAnalyze = async () => {
+    isRecordingRef.current = false;
+    recognitionRef.current?.stop();
+    const text = accumulatedRef.current || textInput;
+    if (!text.trim()) { setScreen("idle"); return; }
+    setFullTranscript(text);
+    setLiveTranscript("");
+    setScreen("analyzing");
+    await analyzeText(text);
+  };
 
+  // ── Analyse ───────────────────────────────────────────────────────────────
+  const analyzeText = async (text: string) => {
     try {
-      if (isImage) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const base64 = (e.target?.result as string).split(",")[1];
-          const mediaType = file.type as "image/jpeg" | "image/png" | "image/webp";
-          try {
-            const result = await extractFromImage(base64, mediaType);
-            setAllExtracted(prev => ({ ...prev, ...result.extracted }));
-            setConfirmed(result.extracted);
-            setImportDesc(result.description || "Image analysée");
-            setScreen("import_preview");
-            sayMessage(`J'ai analysé votre image. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
-          } catch {
-            sayMessage("Je n'ai pas pu lire cette image. Essayez avec une image plus nette.");
-          } finally {
-            setIsProcessing(false);
-          }
-        };
-        reader.readAsDataURL(file);
-        return;
+      const result = await extractFromText(text, {});
+      const ext = result.extracted;
+      setExtracted(ext);
+      setConfirmed(ext);
+
+      const nbMandats    = ext.mandatsSignes     || 0;
+      const nbAcheteurs  = ext.acheteursChaudsCount || 0;
+      const nbInfoVentes = ext.rdvEstimation     || 0;
+
+      const initDetails: StructuredDetails = {
+        mandats:    Array.from({ length: nbMandats },    () => ({ nomVendeur: "", type: "simple" as const })),
+        acheteurs:  Array.from({ length: nbAcheteurs },  () => ({ nom: "", commentaire: "" })),
+        infoVentes: Array.from({ length: nbInfoVentes }, () => ({ nom: "", commentaire: "" })),
+      };
+      setDetails(initDetails);
+
+      const important: (keyof ExtractedFields)[] = ["contactsTotaux", "estimationsRealisees", "mandatsSignes", "compromisSignes", "chiffreAffaires"];
+      const missing = important.filter(f => ext[f] === undefined);
+      const needDetails = nbMandats > 0 || nbAcheteurs > 0;
+
+      let msg = "";
+      if (missing.length > 0) {
+        msg += `Il me manque : ${missing.map(f => FIELD_LABELS[f]).join(", ")}.`;
+      }
+      if (needDetails) {
+        msg += (msg ? " " : "") + `Pour aller plus loin, j'ai besoin des détails sur tes ${nbMandats > 0 ? `${nbMandats} mandats` : ""}${nbMandats > 0 && nbAcheteurs > 0 ? " et tes " : ""}${nbAcheteurs > 0 ? `${nbAcheteurs} acheteurs chauds` : ""}.`;
       }
 
-      if (isPDF) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const base64 = (e.target?.result as string).split(",")[1];
-          try {
-            const result = await extractFromImage(base64, "application/pdf" as "image/jpeg");
-            setAllExtracted(prev => ({ ...prev, ...result.extracted }));
-            setConfirmed(result.extracted);
-            setImportDesc(result.description || "PDF analysé");
-            setScreen("import_preview");
-            sayMessage(`J'ai analysé votre PDF. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
-          } catch {
-            sayMessage("Je n'ai pas pu lire ce PDF. Essayez de l'exporter en image si le problème persiste.");
-          } finally {
-            setIsProcessing(false);
-          }
-        };
-        reader.readAsDataURL(file);
-        return;
+      if (msg) {
+        setMissingMsg(msg);
+        say(msg);
+        setScreen("missing");
+      } else {
+        setScreen("confirmation");
+        say("J'ai tout ce qu'il me faut. Vérifie et valide tes chiffres.");
       }
-
-      if (isExcel) {
-        const XLSX = await import("xlsx");
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        const csvParts: string[] = [];
-        workbook.SheetNames.forEach((name) => {
-          const sheet = workbook.Sheets[name];
-          const csv = XLSX.utils.sheet_to_csv(sheet);
-          if (csv.trim()) csvParts.push(`[Feuille: ${name}]\n${csv}`);
-        });
-        const textContent = csvParts.join("\n\n");
-        const result = await extractFromDocument(textContent, file.name);
-        setAllExtracted(prev => ({ ...prev, ...result.extracted }));
-        setConfirmed(result.extracted);
-        setImportDesc(result.description || "Fichier Excel analysé");
-        setScreen("import_preview");
-        sayMessage(`J'ai analysé votre fichier Excel. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
-        setIsProcessing(false);
-        return;
-      }
-
-      if (isWord) {
-        if (ext === "docx") {
-          const mammoth = await import("mammoth");
-          const arrayBuffer = await file.arrayBuffer();
-          const { value: text } = await mammoth.extractRawText({ arrayBuffer });
-          const result = await extractFromDocument(text, file.name);
-          setAllExtracted(prev => ({ ...prev, ...result.extracted }));
-          setConfirmed(result.extracted);
-          setImportDesc(result.description || "Document Word analysé");
-          setScreen("import_preview");
-          sayMessage(`J'ai analysé votre document Word. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
-        } else {
-          const text = await file.text();
-          const result = await extractFromDocument(text, file.name);
-          setAllExtracted(prev => ({ ...prev, ...result.extracted }));
-          setConfirmed(result.extracted);
-          setImportDesc(result.description || "Document analysé");
-          setScreen("import_preview");
-          sayMessage(`J'ai analysé votre document. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
-        }
-        setIsProcessing(false);
-        return;
-      }
-
-      sayMessage("Ce format de fichier n'est pas pris en charge. Utilisez une image, un PDF, Excel ou Word.");
-      setIsProcessing(false);
-    } catch (err) {
-      console.error("File import error:", err);
-      sayMessage("Une erreur est survenue lors de l'analyse. Réessayez.");
-      setIsProcessing(false);
+    } catch {
+      say("Une erreur est survenue. Réessaie.");
+      setScreen("idle");
     }
   };
 
-  // ── Correction IA sur l'écran de confirmation ────────────────────────────
-  const handleCorrectionSubmit = async (text: string) => {
-    if (!text.trim()) return;
-    setIsProcessing(true);
+  // ── Import fichier ────────────────────────────────────────────────────────
+  const handleFileImport = async (file: File) => {
+    setScreen("analyzing");
     try {
-      const result = await extractFromText(text, confirmed);
-      setConfirmed(prev => ({ ...prev, ...result.extracted }));
-      if (Object.keys(result.extracted).length > 0) {
-        const names = Object.keys(result.extracted).map(k => FIELD_LABELS[k as keyof ExtractedFields]).join(", ");
-        sayMessage(`Mis à jour : ${names}.`);
-      } else {
-        sayMessage("Je n'ai pas compris. Modifiez directement les chiffres.");
-      }
-    } finally {
-      setCorrectionText("");
-      setIsProcessing(false);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = (e.target?.result as string).split(",")[1];
+        const mediaType = file.type as "image/jpeg" | "image/png" | "image/webp";
+        try {
+          const result = await extractFromImage(base64, mediaType);
+          setExtracted(result.extracted);
+          setConfirmed(result.extracted);
+          setImportDesc(result.description || "Document analysé");
+          setScreen("confirmation");
+          say(`J'ai analysé votre document. ${result.description || ""} Vérifiez et corrigez si nécessaire.`);
+        } catch {
+          say("Impossible de lire ce fichier.");
+          setScreen("idle");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      say("Impossible de lire ce fichier.");
+      setScreen("idle");
     }
   };
 
   const handleConfirm = () => {
-    onFieldsExtracted(confirmed);
+    onFieldsExtracted(confirmed, details);
     setScreen("done");
-    sayMessage("Parfait ! Vos données ont été appliquées. Pensez à sauvegarder.");
+    say("Parfait. Vos données ont été appliquées. Pensez à sauvegarder.");
     setTimeout(() => { if (!isMandatory) onClose(); }, 2500);
   };
 
   if (!isOpen) return null;
 
-  const btnPrimary = "flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors";
+  const btnPrimary = "flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors";
+  const btnSecondary = "flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors";
 
-  // ── Écran done ────────────────────────────────────────────────────────────
-  const renderDone = () => (
-    <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10">
-        <CheckCircle className="h-7 w-7 text-green-500" />
+  // ── Écran idle ─────────────────────────────────────────────────────────────
+  const renderIdle = () => (
+    <div className="flex flex-col items-center justify-center gap-6 p-8">
+      <p className="text-center text-sm text-muted-foreground px-4">
+        Raconte-moi ton activité et donne-moi tes chiffres. Parle librement — je t'écouterai jusqu'à ce que tu aies tout dit.
+      </p>
+      <button
+        onClick={startRecording}
+        className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:bg-primary/90 transition-all hover:scale-105"
+      >
+        <Mic className="h-8 w-8" />
+      </button>
+      <p className="text-xs text-muted-foreground">Appuyez pour commencer</p>
+
+      <div className="flex items-center gap-3 w-full">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">ou</span>
+        <div className="h-px flex-1 bg-border" />
       </div>
-      <h2 className="text-lg font-bold text-foreground">Données appliquées</h2>
-      <p className="text-sm text-muted-foreground">Pensez à sauvegarder votre saisie.</p>
+
+      <div className="flex gap-2 w-full">
+        <input
+          type="text"
+          value={textInput}
+          onChange={(e) => setTextInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && textInput.trim()) { accumulatedRef.current = textInput; stopAndAnalyze(); } }}
+          placeholder="Ou tapez directement vos chiffres…"
+          className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        {textInput.trim() && (
+          <button
+            onClick={() => { accumulatedRef.current = textInput; stopAndAnalyze(); }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        className="flex w-full flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 py-3 text-primary hover:bg-primary/10 transition-all"
+      >
+        <Upload className="h-5 w-5" />
+        <span className="text-xs font-medium">Importer un document</span>
+        <span className="text-[10px] text-primary/60">Image · PDF · Excel · Word</span>
+      </button>
+      <input ref={fileInputRef} type="file"
+        accept="image/*,.pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.txt"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleFileImport(e.target.files[0])} />
     </div>
   );
 
-  // ── Écran chat ────────────────────────────────────────────────────────────
-  const renderChat = () => (
+  // ── Écran enregistrement ───────────────────────────────────────────────────
+  const renderRecording = () => (
+    <div className="flex flex-col items-center justify-center gap-6 p-6 h-full">
+      <div className="flex items-center gap-2">
+        <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-sm font-medium text-foreground">En écoute…</span>
+      </div>
+
+      <div className="w-full flex-1 rounded-xl border border-border bg-muted/30 p-4 overflow-y-auto min-h-[120px] max-h-[200px]">
+        {liveTranscript
+          ? <p className="text-sm text-foreground leading-relaxed">{liveTranscript}</p>
+          : <p className="text-sm text-muted-foreground italic">Parlez… le texte apparaît ici en temps réel.</p>
+        }
+      </div>
+
+      <p className="text-xs text-muted-foreground text-center">
+        Vous pouvez faire des pauses — l'enregistrement continue jusqu'à ce que vous appuyiez sur Terminer.
+      </p>
+
+      <button
+        onClick={stopAndAnalyze}
+        className="flex items-center gap-2 rounded-xl bg-red-500 px-6 py-3 text-sm font-semibold text-white hover:bg-red-600 transition-colors shadow-lg"
+      >
+        <Square className="h-4 w-4 fill-current" />
+        Terminer et analyser
+      </button>
+    </div>
+  );
+
+  // ── Écran analyse ──────────────────────────────────────────────────────────
+  const renderAnalyzing = () => (
+    <div className="flex flex-col items-center justify-center gap-4 p-8">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <p className="text-sm font-medium text-foreground">Analyse en cours…</p>
+      <p className="text-xs text-muted-foreground">Je lis tes chiffres et identifie les informations manquantes.</p>
+    </div>
+  );
+
+  // ── Écran manques + détails ────────────────────────────────────────────────
+  const renderMissing = () => (
     <div className="flex flex-col h-full min-h-0">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-              msg.role === "user"
-                ? "bg-primary text-primary-foreground rounded-br-sm"
-                : "bg-muted text-foreground rounded-bl-sm"
-            }`}>
-              <p>{msg.text}</p>
-              {msg.extracted && Object.keys(msg.extracted).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {Object.entries(msg.extracted).map(([k, v]) => (
-                    <span key={k} className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs text-green-600">
-                      ✓ {FIELD_LABELS[k as keyof ExtractedFields] || k} : {k === "chiffreAffaires" ? `${Number(v).toLocaleString("fr-FR")}€` : String(v)}
-                    </span>
+      <div className="px-4 pt-4 pb-2 shrink-0">
+        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
+          <p className="text-sm text-amber-700 dark:text-amber-400">{missingMsg}</p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
+        {details.mandats.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Détails mandats</p>
+            {details.mandats.map((m, i) => (
+              <div key={i} className="mb-2 rounded-xl border border-border bg-background p-3 space-y-2">
+                <p className="text-xs font-medium text-foreground">Mandat {i + 1}</p>
+                <input
+                  type="text"
+                  placeholder="Nom du vendeur"
+                  value={m.nomVendeur}
+                  onChange={(e) => {
+                    const next = [...details.mandats];
+                    next[i] = { ...next[i], nomVendeur: e.target.value };
+                    setDetails(d => ({ ...d, mandats: next }));
+                  }}
+                  className="w-full rounded-lg border border-input bg-muted px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+                <div className="flex gap-2">
+                  {(["simple", "exclusif"] as const).map((t) => (
+                    <button key={t}
+                      onClick={() => {
+                        const next = [...details.mandats];
+                        next[i] = { ...next[i], type: t };
+                        setDetails(d => ({ ...d, mandats: next }));
+                      }}
+                      className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${
+                        m.type === t ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >{t.charAt(0).toUpperCase() + t.slice(1)}</button>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {transcript && (
-          <div className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary/20 px-4 py-2.5 text-sm text-primary italic">
-              {transcript}…
-            </div>
-          </div>
-        )}
-
-        {isProcessing && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-3">
-              <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
               </div>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Résumé des extractions */}
-      {Object.keys(allExtracted).length > 0 && (
-        <div className="mx-4 mb-2 rounded-xl border border-green-500/20 bg-green-500/5 px-3 py-2">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs font-medium text-green-600">{Object.keys(allExtracted).length} champ{Object.keys(allExtracted).length > 1 ? "s" : ""} collecté{Object.keys(allExtracted).length > 1 ? "s" : ""}</p>
-            <button
-              onClick={() => { setConfirmed(allExtracted); setScreen("confirmation"); }}
-              className="text-xs text-primary hover:underline font-medium"
-            >
-              Vérifier et valider →
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(allExtracted).map(([k, v]) => (
-              <span key={k} className="text-xs rounded-full bg-green-500/10 text-green-700 px-2 py-0.5">
-                {FIELD_LABELS[k as keyof ExtractedFields] || k} : {k === "chiffreAffaires" ? `${Number(v).toLocaleString("fr-FR")}€` : String(v)}
-              </span>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Zone de saisie */}
-      <div className="px-4 pb-4 space-y-3">
-        {/* Input texte */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && textInput.trim()) { handleUserMessage(textInput); setTextInput(""); } }}
-            placeholder="Ou tapez votre réponse…"
-            className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-          />
-          {textInput.trim() && (
-            <button
-              onClick={() => { handleUserMessage(textInput); setTextInput(""); }}
-              disabled={isProcessing}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {details.acheteurs.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Acheteurs chauds</p>
+            {details.acheteurs.map((a, i) => (
+              <div key={i} className="mb-2 rounded-xl border border-border bg-background p-3 space-y-2">
+                <p className="text-xs font-medium text-foreground">Acheteur {i + 1}</p>
+                <input
+                  type="text"
+                  placeholder="Nom de l'acheteur"
+                  value={a.nom}
+                  onChange={(e) => {
+                    const next = [...details.acheteurs];
+                    next[i] = { ...next[i], nom: e.target.value };
+                    setDetails(d => ({ ...d, acheteurs: next }));
+                  }}
+                  className="w-full rounded-lg border border-input bg-muted px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+                <input
+                  type="text"
+                  placeholder="Commentaire (optionnel)"
+                  value={a.commentaire}
+                  onChange={(e) => {
+                    const next = [...details.acheteurs];
+                    next[i] = { ...next[i], commentaire: e.target.value };
+                    setDetails(d => ({ ...d, acheteurs: next }));
+                  }}
+                  className="w-full rounded-lg border border-input bg-muted px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-        {/* Contrôles */}
-        <div className="flex items-center justify-between gap-3">
-          {/* Import */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessing}
-            className="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
-          >
-            <Upload className="h-4 w-4" />
-            <span className="text-[10px] font-medium">Importer</span>
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*,.pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.txt,.odt,.ods" className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFileImport(e.target.files[0])} />
-
-          {/* Micro */}
-          <button
-            onClick={() => isRecording ? stopRecording() : startRecording((t) => handleUserMessage(t))}
-            disabled={isProcessing}
-            className={`flex h-14 w-14 items-center justify-center rounded-full transition-all shadow-lg ${
-              isRecording ? "bg-red-500 text-white scale-110 animate-pulse shadow-red-500/30"
-                          : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20"
-            } disabled:opacity-50`}
-          >
-            {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" />
-              : isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </button>
-
-          {/* Valider */}
-          {Object.keys(allExtracted).length > 0 ? (
-            <button
-              onClick={() => { setConfirmed(allExtracted); setScreen("confirmation"); }}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors shadow-lg shadow-green-500/20"
-              title="Vérifier et valider"
-            >
-              <CheckCircle className="h-4 w-4" />
-            </button>
-          ) : <div className="h-10 w-10" />}
-        </div>
-
-        <p className="text-center text-xs text-muted-foreground">
-          {isRecording ? "Parlez… cliquez pour arrêter" : "🎙️ Parlez · ⌨️ Tapez · 📎 Image · PDF · Excel · Word"}
-        </p>
+      <div className="px-4 pb-4 flex gap-2 shrink-0">
+        <button onClick={() => setScreen("confirmation")} className={btnSecondary + " flex-1"}>
+          Passer
+        </button>
+        <button onClick={() => setScreen("confirmation")} className={btnPrimary + " flex-1"}>
+          <CheckCircle className="h-4 w-4" />
+          Continuer
+        </button>
       </div>
     </div>
   );
 
-  // ── Écran confirmation ────────────────────────────────────────────────────
-  const renderConfirmation = (isImport = false) => (
+  // ── Écran confirmation ─────────────────────────────────────────────────────
+  const renderConfirmation = () => (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-4 py-3 border-b border-border shrink-0">
         <p className="text-sm font-semibold text-foreground">
-          {isImport ? `📎 ${importDesc}` : "Vérification de vos données"}
+          {importDesc ? `📎 ${importDesc}` : "Vérification de vos données"}
         </p>
         <p className="text-xs text-muted-foreground">Modifiez si nécessaire avant de valider</p>
       </div>
@@ -489,8 +443,7 @@ export function NxtVoiceAssistant({
                 <div key={f} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
                   <span className="text-xs text-foreground flex-1 mr-2">{FIELD_LABELS[f as keyof ExtractedFields]}</span>
                   <input
-                    type="number"
-                    min={0}
+                    type="number" min={0}
                     value={confirmed[f as keyof ExtractedFields] ?? ""}
                     onChange={(e) => {
                       const val = e.target.value === "" ? undefined : Number(e.target.value);
@@ -511,31 +464,11 @@ export function NxtVoiceAssistant({
         ))}
       </div>
 
-      {/* Correction IA */}
-      <div className="px-4 py-2 border-t border-border shrink-0">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={correctionText}
-            onChange={(e) => setCorrectionText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleCorrectionSubmit(correctionText); }}
-            placeholder="Corriger avec l'IA : ex. « les compromis c'est 3 »"
-            className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            onClick={() => correctionRecording ? stopRecording() : startRecording((t) => { setCorrectionText(t); handleCorrectionSubmit(t); })}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${correctionRecording ? "bg-red-500 text-white" : "border border-border bg-background text-muted-foreground hover:bg-muted"}`}
-          >
-            {correctionRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-
       <div className="px-4 pb-4 flex gap-2 shrink-0">
         <button
-          onClick={() => { setScreen("chat"); }}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted transition-colors"
-          title="Retour à la conversation"
+          onClick={() => { setScreen("idle"); setImportDesc(""); }}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted"
+          title="Recommencer"
         >
           <RotateCcw className="h-4 w-4" />
         </button>
@@ -544,6 +477,17 @@ export function NxtVoiceAssistant({
           Confirmer et appliquer
         </button>
       </div>
+    </div>
+  );
+
+  // ── Écran done ─────────────────────────────────────────────────────────────
+  const renderDone = () => (
+    <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10">
+        <CheckCircle className="h-7 w-7 text-green-500" />
+      </div>
+      <h2 className="text-lg font-bold text-foreground">Données appliquées</h2>
+      <p className="text-sm text-muted-foreground">Pensez à sauvegarder votre saisie.</p>
     </div>
   );
 
@@ -560,7 +504,10 @@ export function NxtVoiceAssistant({
             <div>
               <p className="text-sm font-semibold text-foreground">NXT Assistant</p>
               <p className="text-xs text-muted-foreground">
-                {isProcessing ? "Analyse…" : isSpeaking ? "En train de parler…" : isRecording ? "En écoute…" : "Prêt"}
+                {screen === "recording" ? "🔴 En écoute…"
+                  : screen === "analyzing" ? "Analyse…"
+                  : isSpeaking ? "En train de parler…"
+                  : "Prêt"}
               </p>
             </div>
           </div>
@@ -570,7 +517,8 @@ export function NxtVoiceAssistant({
               {voiceMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
             {!isMandatory && (
-              <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -578,10 +526,12 @@ export function NxtVoiceAssistant({
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          {screen === "chat"          && renderChat()}
-          {screen === "import_preview" && renderConfirmation(true)}
-          {screen === "confirmation"  && renderConfirmation(false)}
-          {screen === "done"          && renderDone()}
+          {screen === "idle"         && renderIdle()}
+          {screen === "recording"    && renderRecording()}
+          {screen === "analyzing"    && renderAnalyzing()}
+          {screen === "missing"      && renderMissing()}
+          {screen === "confirmation" && renderConfirmation()}
+          {screen === "done"         && renderDone()}
         </div>
       </div>
     </div>

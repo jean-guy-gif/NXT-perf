@@ -26,6 +26,7 @@ import {
   Mic,
 } from "lucide-react";
 import { NxtVoiceAssistant } from "@/components/saisie/nxt-voice-assistant";
+import type { StructuredDetails } from "@/components/saisie/nxt-voice-assistant";
 import type { ExtractedFields } from "@/lib/saisie-ai-client";
 
 type PeriodType = "day" | "week" | "month";
@@ -230,7 +231,7 @@ export default function SaisiePage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleFieldsExtracted = (fields: ExtractedFields) => {
+  const handleFieldsExtracted = (fields: ExtractedFields, details?: StructuredDetails) => {
     if (fields.contactsEntrants !== undefined) setContactsEntrants(fields.contactsEntrants);
     if (fields.contactsTotaux !== undefined) setContactsTotaux(fields.contactsTotaux);
     if (fields.rdvEstimation !== undefined) setRdvEstimation(fields.rdvEstimation);
@@ -246,6 +247,16 @@ export default function SaisiePage() {
     if (fields.compromisSignes !== undefined) setCompromisSignes(fields.compromisSignes);
     if (fields.actesSignes !== undefined) setActesSignes(fields.actesSignes);
     if (fields.chiffreAffaires !== undefined) setChiffreAffaires(fields.chiffreAffaires);
+
+    // Appliquer les détails structurés si fournis
+    if (details?.mandats && details.mandats.length > 0) {
+      setMandats(details.mandats);
+      setMandatsSignes(details.mandats.length);
+    }
+    if (details?.acheteurs && details.acheteurs.length > 0) {
+      setAcheteursChauds(details.acheteurs);
+      setAcheteursChaudsCount(details.acheteurs.length);
+    }
   };
 
   const periodDisplay = () => {
@@ -883,23 +894,6 @@ export default function SaisiePage() {
         isOpen={showVoiceAssistant}
         onClose={() => setShowVoiceAssistant(false)}
         onFieldsExtracted={handleFieldsExtracted}
-        currentFields={{
-          contactsEntrants,
-          contactsTotaux,
-          rdvEstimation,
-          estimationsRealisees,
-          mandatsSignes,
-          rdvSuivi,
-          requalification,
-          baissePrix,
-          acheteursChaudsCount,
-          acheteursSortisVisite,
-          nombreVisites,
-          offresRecues,
-          compromisSignes,
-          actesSignes,
-          chiffreAffaires,
-        }}
       />
     </div>
   );
