@@ -34,7 +34,8 @@ export function NxtVoiceAssistant({
   const [allExtracted, setAllExtracted] = useState<ExtractedFields>({});
   const [isDragging, setIsDragging] = useState(false);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,9 +97,9 @@ export function NxtVoiceAssistant({
 
   // Initialisation Web Speech API
   const startRecording = useCallback(() => {
-    const SpeechRecognitionAPI =
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SpeechRecognitionAPI = w.SpeechRecognition || w.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
       addAIMessage("La reconnaissance vocale n'est pas disponible sur votre navigateur. Utilisez Chrome ou Edge.");
@@ -114,7 +115,8 @@ export function NxtVoiceAssistant({
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
-    recognition.onresult = (event) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
       const result = event.results[event.results.length - 1];
       const text = result[0].transcript;
       setTranscript(text);
