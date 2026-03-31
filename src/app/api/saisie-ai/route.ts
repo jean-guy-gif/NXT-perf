@@ -21,7 +21,10 @@ const SAISIE_FIELDS = {
 };
 
 export async function POST(request: NextRequest) {
+  try {
   const { action, text, currentFields, imageBase64, imageMediaType } = await request.json();
+
+  console.log("[saisie-ai] action:", action, "| key present:", !!ANTHROPIC_API_KEY);
 
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "API key not configured" }, { status: 500 });
@@ -170,4 +173,9 @@ Réponds avec uniquement le texte du message, sans JSON.`;
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[saisie-ai] Unhandled error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
