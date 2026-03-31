@@ -2,19 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSystemPrompt, type VocalSection, SECTION_ORDER } from "@/lib/vocal-prompts";
 
-// Whisper via Groq (gratuit, ~5h/jour)
-const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-});
-
-// Claude via OpenRouter
-const openrouter = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-});
-
 export async function POST(req: NextRequest) {
+  // Instanciation dans le handler pour éviter le crash au build (clés absentes)
+  const groq = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY || "",
+    baseURL: "https://api.groq.com/openai/v1",
+  });
+
+  const openrouter = new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY || "",
+    baseURL: "https://openrouter.ai/api/v1",
+  });
   try {
     const formData = await req.formData();
     const audioBlob = formData.get("audio") as Blob | null;
