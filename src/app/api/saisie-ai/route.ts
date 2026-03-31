@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const SAISIE_FIELDS = {
   contactsEntrants: "contacts entrants (personnes qui ont appelé ou écrit)",
@@ -20,26 +20,83 @@ const SAISIE_FIELDS = {
   chiffreAffaires: "chiffre d'affaires (en euros, honoraires encaissés ou à encaisser)",
 };
 
+// ── Helper : appel OpenRouter ─────────────────────────────────────────────────
+async function callOpenRouter(
+  prompt: string,
+  maxTokens = 1024,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  imageContent?: { base64: string; mediaType: string }
+): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let messages: any[];
+
+  if (imageContent) {
+    messages = [{
+      role: "user",
+      content: [
+        { type: "image_url", image_url: { url: `data:${imageContent.mediaType};base64,${imageContent.base64}` } },
+        { type: "text", text: prompt },
+      ],
+    }];
+  } else {
+    messages = [{ role: "user", content: prompt }];
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+      "HTTP-Referer": "https://nxt-perf.vercel.app",
+      "X-Title": "NXT Performance",
+    },
+    body: JSON.stringify({
+      model: imageContent ? "google/gemini-flash-1.5" : "google/gemini-flash-1.5",
+      max_tokens: maxTokens,
+      messages,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data?.error) {
+    const errMsg = data?.error?.message || data?.error || response.statusText;
+    console.error("[saisie-ai] OpenRouter error:", JSON.stringify(errMsg).slice(0, 500));
+    throw new Error(typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg));
+  }
+
+  return data?.choices?.[0]?.message?.content || "{}";
+}
+
+// ── Helper : parse JSON depuis la réponse LLM ────────────────────────────────
+function parseJsonResponse(raw: string): Record<string, unknown> {
+  const clean = raw.replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
+
+// ── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-  let body: Record<string, unknown> = {};
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-  const action = body.action as string;
+    let body: Record<string, unknown> = {};
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const action = body.action as string;
 
-  console.log("[saisie-ai] action:", action, "| key present:", !!ANTHROPIC_API_KEY);
+    console.log("[saisie-ai] action:", action, "| key present:", !!OPENROUTER_API_KEY);
 
-  if (!ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-  }
+    if (!OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: "OPENROUTER_API_KEY not configured" }, { status: 500 });
+    }
 
-  if (action === "extract") {
-    const text = body.text as string || "";
-    const currentFields = body.currentFields as Record<string, unknown> || {};
-    const prompt = `Tu es NXT Assistant, un assistant commercial pour agents immobiliers.
+    // ── extract (voix / texte) ────────────────────────────────────────────────
+    if (action === "extract") {
+      const text = body.text as string || "";
+      const currentFields = body.currentFields as Record<string, unknown> || {};
+
+      const prompt = `Tu es NXT Assistant, un assistant commercial pour agents immobiliers.
 
 L'agent vient de dire : "${text}"
 
@@ -51,217 +108,130 @@ ${JSON.stringify(currentFields)}
 
 Réponds UNIQUEMENT en JSON valide avec cette structure :
 {
-  "extracted": { // champs extraits et leurs valeurs numériques
-    "nomDuChamp": valeurNumerique
-  },
+  "extracted": { "nomDuChamp": valeurNumerique },
   "missingImportant": ["liste des champs importants non mentionnés"],
-  "followUpQuestion": "Une seule question naturelle et concise pour obtenir les infos manquantes les plus importantes. Commence directement par la question, sans formule de politesse. Sois bref et direct.",
+  "followUpQuestion": "Question concise pour les infos manquantes. Directe, sans politesse.",
   "confidence": 0.0 à 1.0
 }
 
-Si l'agent n'a rien mentionné de pertinent, extracted sera vide.
-La followUpQuestion doit être la question la plus utile pour compléter le tableau de bord.
-Priorise : contacts, estimations, mandats, compromis, CA.
+Si le texte contient un tableau multi-lignes, SOMME les valeurs par colonne.
+Mapping : "Contacts" → contactsTotaux/contactsEntrants, "RDV" → rdvEstimation, "Estimations" → estimationsRealisees, "Mandats" → mandatsSignes, "Visites" → nombreVisites, "Offres" → offresRecues, "Compromis" → compromisSignes, "CA"/"CA (€)" → chiffreAffaires, "Actes" → actesSignes.
+Priorise : contacts, estimations, mandats, compromis, CA.`;
 
-IMPORTANT : Si le texte contient un tableau avec plusieurs lignes de données, SOMME les valeurs par colonne.
-Mapping colonnes : "Contacts" → contactsTotaux/contactsEntrants, "RDV" → rdvEstimation, "Estimations" → estimationsRealisees, "Mandats" → mandatsSignes, "Visites" → nombreVisites, "Offres" → offresRecues, "Compromis" → compromisSignes, "CA"/"CA (€)" → chiffreAffaires, "Actes" → actesSignes.`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    const data = await response.json();
-    const content = data.content[0]?.text || "{}";
-
-    try {
-      const clean = content.replace(/```json|```/g, "").trim();
-      return NextResponse.json(JSON.parse(clean));
-    } catch {
-      return NextResponse.json({ extracted: {}, missingImportant: [], followUpQuestion: "Pouvez-vous me donner vos chiffres principaux de la semaine ?", confidence: 0 });
+      try {
+        const raw = await callOpenRouter(prompt);
+        const parsed = parseJsonResponse(raw);
+        return NextResponse.json(parsed);
+      } catch {
+        return NextResponse.json({
+          extracted: {},
+          missingImportant: [],
+          followUpQuestion: "Pouvez-vous me donner vos chiffres principaux ?",
+          confidence: 0,
+        });
+      }
     }
-  }
 
-  if (action === "extract_image") {
-    const imageBase64 = body.imageBase64 as string || "";
-    const imageMediaType = body.imageMediaType as string || "image/jpeg";
-    const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
+    // ── extract_image ─────────────────────────────────────────────────────────
+    if (action === "extract_image") {
+      const imageBase64 = body.imageBase64 as string || "";
+      const imageMediaType = body.imageMediaType as string || "image/jpeg";
 
-Analyse cette image. Elle peut être une capture d'écran de CRM, un rapport d'activité, un tableau Excel/Google Sheets, des notes manuscrites, ou un récapitulatif.
+      const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
+
+Analyse cette image (capture CRM, rapport d'activité, tableau Excel, notes manuscrites…).
 
 INSTRUCTIONS :
-1. Si l'image contient un TABLEAU avec PLUSIEURS LIGNES, SOMME les valeurs de chaque colonne pour obtenir les totaux.
-2. Voici le mapping des colonnes vers nos champs :
-   - "Contacts" ou "Contacts entrants" → contactsEntrants ET contactsTotaux
-   - "RDV" ou "RDV estimation" → rdvEstimation
-   - "Estimations" → estimationsRealisees
-   - "Mandats" ou "Mandats signés" → mandatsSignes
-   - "Visites" → nombreVisites
-   - "Offres" → offresRecues
-   - "Compromis" → compromisSignes
-   - "CA" ou "CA (€)" → chiffreAffaires
-   - "Actes" → actesSignes
-   - "Suivi" ou "RDV suivi" → rdvSuivi
-   - "Requalification" → requalification
-   - "Baisses de prix" → baissePrix
-   - "Acheteurs chauds" → acheteursChaudsCount
-   - "Acheteurs sortis visite" → acheteursSortisVisite
-3. Si les lignes sont catégorisées par Type (Prospection, Vendeurs, Acheteurs, Ventes), IGNORE la catégorie et somme TOUT.
-4. N'invente PAS de valeurs. Si tu ne vois pas une donnée, ne l'inclus pas.
-
-Champs attendus :
-${Object.entries(SAISIE_FIELDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+1. Si TABLEAU multi-lignes → SOMME les valeurs par colonne.
+2. Mapping colonnes :
+   "Contacts" → contactsEntrants + contactsTotaux, "RDV" → rdvEstimation,
+   "Estimations" → estimationsRealisees, "Mandats" → mandatsSignes,
+   "Visites" → nombreVisites, "Offres" → offresRecues,
+   "Compromis" → compromisSignes, "CA"/"CA (€)" → chiffreAffaires,
+   "Actes" → actesSignes, "Suivi" → rdvSuivi, "Requalification" → requalification,
+   "Baisses de prix" → baissePrix, "Acheteurs chauds" → acheteursChaudsCount,
+   "Acheteurs sortis visite" → acheteursSortisVisite.
+3. Si lignes catégorisées par Type → IGNORE la catégorie, somme TOUT.
+4. N'invente PAS de valeurs.
 
 Réponds UNIQUEMENT en JSON :
 {
   "extracted": { "nomDuChamp": valeurNumerique },
-  "description": "Description en 1 phrase (type de document + période si visible)",
-  "unrecognized": ["libellés visibles non mappés"],
+  "description": "Description en 1 phrase",
   "confidence": 0.0 à 1.0
 }`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        messages: [{
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: imageMediaType || "image/jpeg", data: imageBase64 },
-            },
-            { type: "text", text: prompt },
-          ],
-        }],
-      }),
-    });
-
-    const data = await response.json();
-    const content = data.content[0]?.text || "{}";
-
-    try {
-      const clean = content.replace(/```json|```/g, "").trim();
-      return NextResponse.json(JSON.parse(clean));
-    } catch {
-      return NextResponse.json({ extracted: {}, description: "Impossible de lire l'image", confidence: 0 });
+      try {
+        const raw = await callOpenRouter(prompt, 1024, { base64: imageBase64, mediaType: imageMediaType });
+        const parsed = parseJsonResponse(raw);
+        return NextResponse.json(parsed);
+      } catch {
+        return NextResponse.json({ extracted: {}, description: "Impossible de lire l'image", confidence: 0 });
+      }
     }
-  }
 
-  if (action === "greet") {
-    const currentFields = body.currentFields as Record<string, unknown> || {};
-    const today = new Date();
-    const dayOfWeek = today.toLocaleDateString("fr-FR", { weekday: "long" });
-    const isMandatory = currentFields?.isMandatory || false;
+    // ── greet ─────────────────────────────────────────────────────────────────
+    if (action === "greet") {
+      const currentFields = body.currentFields as Record<string, unknown> || {};
+      const today = new Date();
+      const dayOfWeek = today.toLocaleDateString("fr-FR", { weekday: "long" });
+      const isMandatory = currentFields?.isMandatory || false;
 
-    const prompt = `Tu es NXT Assistant, un assistant vocal commercial pour agents immobiliers.
+      const prompt = `Tu es NXT Assistant pour agents immobiliers.
+Message d'accueil court (2 phrases max) en ce ${dayOfWeek}.
+${isMandatory ? "La saisie est OBLIGATOIRE." : "L'agent ouvre l'assistant volontairement."}
+Chaleureux, professionnel, direct. Demande ses chiffres récents.
+Réponds avec le texte uniquement.`;
 
-Génère un message d'accueil très court (2 phrases max) pour un agent immobilier en ce ${dayOfWeek}.
-${isMandatory ? "La saisie hebdomadaire est OBLIGATOIRE - l'agent doit saisir avant d'accéder au dashboard." : "L'agent ouvre l'assistant volontairement."}
+      try {
+        const raw = await callOpenRouter(prompt, 150);
+        return NextResponse.json({ message: raw.trim() || "Bonjour ! Parlez-moi de votre semaine." });
+      } catch {
+        return NextResponse.json({ message: "Bonjour ! Parlez-moi de votre semaine." });
+      }
+    }
 
-Sois chaleureux, professionnel, direct. Demande-lui de parler de son activité récente.
-Réponds avec uniquement le texte du message, sans JSON.`;
+    // ── extract_document (Excel, Word, CSV…) ──────────────────────────────────
+    if (action === "extract_document") {
+      const textContent = body.textContent as string || "";
+      const fileName = body.fileName as string || "document";
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 150,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+      const prompt = `Tu es NXT Assistant, spécialiste en analyse de tableaux d'activité immobilière.
 
-    const data = await response.json();
-    return NextResponse.json({ message: data.content[0]?.text || "Bonjour ! Parlez-moi de votre semaine." });
-  }
-
-  if (action === "extract_document") {
-    const textContent = body.textContent as string || "";
-    const fileName = body.fileName as string || "document";
-
-    const prompt = `Tu es NXT Assistant, spécialiste en analyse de tableaux d'activité immobilière.
-
-Voici le contenu extrait du fichier "${fileName}" :
+Fichier "${fileName}" — contenu :
 
 ${textContent.slice(0, 8000)}
 
 INSTRUCTIONS :
-1. Ce document contient probablement PLUSIEURS LIGNES de données. Tu dois SOMMER les valeurs de chaque colonne pour obtenir les totaux.
-2. Les colonnes peuvent s'appeler différemment. Voici le mapping :
-   - "Contacts" ou "Contacts entrants" ou "Prise de contact" → additionner pour contactsTotaux ET contactsEntrants
-   - "RDV" ou "RDV estimation" ou "Rendez-vous" → rdvEstimation
-   - "Estimations" ou "Estim" → estimationsRealisees
-   - "Mandats" ou "Mandats signés" ou "Mandats rentrés" → mandatsSignes
-   - "Visites" ou "Nb visites" → nombreVisites
-   - "Offres" ou "Offres reçues" → offresRecues
-   - "Compromis" ou "Compromis signés" → compromisSignes
-   - "CA" ou "CA (€)" ou "Chiffre d'affaires" → chiffreAffaires
-   - "Actes" ou "Actes signés" → actesSignes
-   - "Suivi" ou "RDV suivi" → rdvSuivi
-   - "Requalification" → requalification
-   - "Baisse" ou "Baisses de prix" → baissePrix
-   - "Acheteurs chauds" → acheteursChaudsCount
-   - "Acheteurs sortis visite" → acheteursSortisVisite
-3. Les lignes peuvent être catégorisées par "Type" (Prospection, Vendeurs, Acheteurs, Ventes). IGNORE la catégorie — somme TOUTES les lignes ensemble par colonne.
-4. Ignore les valeurs 0 ou vides dans la somme.
-5. N'invente PAS de valeurs — si une colonne n'existe pas, ne l'inclus pas.
-
-Champs attendus :
-${Object.entries(SAISIE_FIELDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+1. SOMME les valeurs de chaque colonne sur TOUTES les lignes.
+2. Mapping colonnes :
+   "Contacts" → contactsTotaux + contactsEntrants, "RDV" → rdvEstimation,
+   "Estimations" → estimationsRealisees, "Mandats" → mandatsSignes,
+   "Visites" → nombreVisites, "Offres" → offresRecues,
+   "Compromis" → compromisSignes, "CA"/"CA (€)" → chiffreAffaires,
+   "Actes" → actesSignes, "Suivi" → rdvSuivi, "Requalification" → requalification,
+   "Baisses de prix" → baissePrix, "Acheteurs chauds" → acheteursChaudsCount.
+3. Si lignes catégorisées par Type → IGNORE la catégorie, somme TOUT.
+4. N'invente PAS de valeurs.
 
 Réponds UNIQUEMENT en JSON :
 {
-  "extracted": { "nomDuChamp": valeurNumérique },
-  "description": "Description en 1 phrase (type de document + période si visible)",
+  "extracted": { "nomDuChamp": valeurNumerique },
+  "description": "Description en 1 phrase (type + période si visible)",
   "confidence": 0.0 à 1.0
 }`;
 
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY!,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-
-      const data = await response.json();
-      const content = data.content[0]?.text || "{}";
-      const clean = content.replace(/```json|```/g, "").trim();
-      return NextResponse.json(JSON.parse(clean));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return NextResponse.json({ error: msg }, { status: 500 });
+      try {
+        const raw = await callOpenRouter(prompt);
+        const parsed = parseJsonResponse(raw);
+        return NextResponse.json(parsed);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return NextResponse.json({ extracted: {}, description: `Erreur : ${msg}`, confidence: 0 });
+      }
     }
-  }
 
-  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[saisie-ai] Unhandled error:", msg);
