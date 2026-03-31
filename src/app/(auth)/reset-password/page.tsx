@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, RefreshCw, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -17,29 +17,20 @@ function ResetPasswordForm() {
   const [done, setDone]                 = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionError, setSessionError] = useState("");
-  const router      = useRouter();
-  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const strength = getPasswordStrength(password);
 
-  // ── Étape 1 : échanger le code PKCE contre une session ──
   useEffect(() => {
-    const code = searchParams.get("code");
-
-    if (!code) {
-      setSessionError("Lien invalide ou expiré.");
-      return;
-    }
-
     const supabase = createClient();
-    supabase.auth.exchangeCodeForSession(code).then(({ error: exchError }) => {
-      if (exchError) {
-        setSessionError("Lien invalide ou expiré. Merci de refaire une demande.");
-      } else {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
         setSessionReady(true);
+      } else {
+        setSessionError("Session expirée ou invalide. Merci de refaire une demande.");
       }
     });
-  }, [searchParams]);
+  }, []);
 
   const handleSuggest = () => {
     const pwd = generateSecurePassword();
