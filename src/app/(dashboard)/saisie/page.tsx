@@ -11,6 +11,7 @@ import type { SaisieSection } from "@/lib/formation";
 import type { PeriodResults } from "@/types/results";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
+import { VocalButton } from "@/components/vocal/VocalButton";
 import {
   CalendarDays,
   ChevronLeft,
@@ -23,7 +24,10 @@ import {
   DollarSign,
   Info,
   HelpCircle,
+  Mic,
 } from "lucide-react";
+import { NxtVoiceAssistant } from "@/components/saisie/nxt-voice-assistant";
+import type { ExtractedFields } from "@/lib/saisie-ai-client";
 
 type PeriodType = "day" | "week" | "month";
 
@@ -48,6 +52,7 @@ export default function SaisiePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
   const { saveResult } = useSupabaseResults();
   const user = useAppStore((s) => s.user);
   const previousResults = useResults();
@@ -156,6 +161,49 @@ export default function SaisiePage() {
     };
   };
 
+  const handleVocalComplete = (data: Partial<PeriodResults>) => {
+    const ts = Date.now();
+    if (data.prospection) {
+      setContactsEntrants(data.prospection.contactsEntrants || 0);
+      setContactsTotaux(data.prospection.contactsTotaux || 0);
+      setRdvEstimation(data.prospection.rdvEstimation || 0);
+      const ivs = (data.prospection.informationsVente || []).map((iv, i) => ({
+        nom: iv.nom || "",
+        commentaire: iv.commentaire || "",
+      }));
+      setInfoVentes(ivs);
+      setInfoVenteCount(ivs.length);
+    }
+    if (data.vendeurs) {
+      setEstimationsRealisees(data.vendeurs.estimationsRealisees || 0);
+      const vocalMandats = (data.vendeurs.mandats || []).map((m) => ({
+        nomVendeur: m.nomVendeur || "",
+        type: (m.type === "exclusif" ? "exclusif" : "simple") as "simple" | "exclusif",
+      }));
+      setMandats(vocalMandats);
+      setMandatsSignes(vocalMandats.length);
+      setRdvSuivi(data.vendeurs.rdvSuivi || 0);
+      setRequalification(data.vendeurs.requalificationSimpleExclusif || 0);
+      setBaissePrix(data.vendeurs.baissePrix || 0);
+    }
+    if (data.acheteurs) {
+      const acs = (data.acheteurs.acheteursChauds || []).map((ac) => ({
+        nom: ac.nom || "",
+        commentaire: ac.commentaire || "",
+      }));
+      setAcheteursChauds(acs);
+      setAcheteursChaudsCount(acs.length);
+      setAcheteursSortisVisite(data.acheteurs.acheteursSortisVisite || 0);
+      setNombreVisites(data.acheteurs.nombreVisites || 0);
+      setOffresRecues(data.acheteurs.offresRecues || 0);
+      setCompromisSignes(data.acheteurs.compromisSignes || 0);
+    }
+    if (data.ventes) {
+      setActesSignes(data.ventes.actesSignes || 0);
+      setChiffreAffaires(data.ventes.chiffreAffaires || 0);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -226,6 +274,24 @@ export default function SaisiePage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const handleFieldsExtracted = (fields: ExtractedFields) => {
+    if (fields.contactsEntrants !== undefined) setContactsEntrants(fields.contactsEntrants);
+    if (fields.contactsTotaux !== undefined) setContactsTotaux(fields.contactsTotaux);
+    if (fields.rdvEstimation !== undefined) setRdvEstimation(fields.rdvEstimation);
+    if (fields.estimationsRealisees !== undefined) setEstimationsRealisees(fields.estimationsRealisees);
+    if (fields.mandatsSignes !== undefined) updateMandatsSignes(fields.mandatsSignes);
+    if (fields.rdvSuivi !== undefined) setRdvSuivi(fields.rdvSuivi);
+    if (fields.requalification !== undefined) setRequalification(fields.requalification);
+    if (fields.baissePrix !== undefined) setBaissePrix(fields.baissePrix);
+    if (fields.acheteursChaudsCount !== undefined) updateAcheteursChaudsCount(fields.acheteursChaudsCount);
+    if (fields.acheteursSortisVisite !== undefined) setAcheteursSortisVisite(fields.acheteursSortisVisite);
+    if (fields.nombreVisites !== undefined) setNombreVisites(fields.nombreVisites);
+    if (fields.offresRecues !== undefined) setOffresRecues(fields.offresRecues);
+    if (fields.compromisSignes !== undefined) setCompromisSignes(fields.compromisSignes);
+    if (fields.actesSignes !== undefined) setActesSignes(fields.actesSignes);
+    if (fields.chiffreAffaires !== undefined) setChiffreAffaires(fields.chiffreAffaires);
+  };
+
   const periodDisplay = () => {
     if (periodType === "day") {
       return selectedDate.toLocaleDateString("fr-FR", {
@@ -253,7 +319,19 @@ export default function SaisiePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Ma Saisie</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">Ma Saisie</h1>
+          <VocalButton onComplete={handleVocalComplete} />
+          <button
+            type="button"
+            onClick={() => setShowVoiceAssistant(true)}
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+          >
+            <Mic className="h-4 w-4" />
+            <span className="hidden sm:inline">NXT Assistant</span>
+            <span className="sm:hidden">🎙️</span>
+          </button>
+        </div>
         {saved && (
           <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-4 py-2 text-sm font-medium text-green-500">
             <CheckCircle className="h-4 w-4" />
@@ -844,6 +922,29 @@ export default function SaisiePage() {
         place="top"
         className="!max-w-xs !rounded-lg !bg-popover !px-3 !py-2 !text-xs !text-popover-foreground !shadow-lg !border !border-border"
         opacity={1}
+      />
+
+      <NxtVoiceAssistant
+        isOpen={showVoiceAssistant}
+        onClose={() => setShowVoiceAssistant(false)}
+        onFieldsExtracted={handleFieldsExtracted}
+        currentFields={{
+          contactsEntrants,
+          contactsTotaux,
+          rdvEstimation,
+          estimationsRealisees,
+          mandatsSignes,
+          rdvSuivi,
+          requalification,
+          baissePrix,
+          acheteursChaudsCount,
+          acheteursSortisVisite,
+          nombreVisites,
+          offresRecues,
+          compromisSignes,
+          actesSignes,
+          chiffreAffaires,
+        }}
       />
     </div>
   );
