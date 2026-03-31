@@ -8,7 +8,8 @@ import type { UserRole, UserCategory, ProfileType } from "@/types/user";
 import type { DbProfile } from "@/types/database";
 import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { Check, Copy, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Check, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { generateSecurePassword, getPasswordStrength } from "@/lib/password-utils";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   conseiller: "Conseiller",
@@ -65,7 +66,7 @@ function RegisterForm() {
   const [orgName, setOrgName] = useState("");
   const [managerMode, setManagerMode] = useState<"create" | "join">(initialCode ? "join" : "create");
   const [showPassword, setShowPassword] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const strength = getPasswordStrength(password);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [inviteCodeStatus, setInviteCodeStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
@@ -285,53 +286,61 @@ function RegisterForm() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">
-            Mot de passe
-          </label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">Mot de passe</label>
+            <button
+              type="button"
+              onClick={() => {
+                const pwd = generateSecurePassword();
+                setPassword(pwd);
+                setShowPassword(true);
+              }}
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Suggérer un mot de passe
+            </button>
+          </div>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => { setPassword(e.target.value); setCopied(false); }}
-              className={`${inputClassName} pr-20`}
-              placeholder="Minimum 6 caractères"
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 pr-10 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Minimum 8 caractères"
               required
             />
-            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-              {showPassword && password && (
-                <button
-                  type="button"
-                  onClick={() => { navigator.clipboard.writeText(password); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                  className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
-                  title="Copier le mot de passe"
-                >
-                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowPassword((p) => !p)}
-                className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
-                title={showPassword ? "Masquer" : "Afficher"}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-              const rand = (n: number) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-              setPassword(`Nxt-${rand(4)}-${rand(4)}!`);
-              setShowPassword(true);
-              setCopied(false);
-            }}
-            className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
-          >
-            <KeyRound className="h-3 w-3" />
-            Générer un mot de passe sécurisé
-          </button>
+          {password.length > 0 && (
+            <div className="mt-2">
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      i <= strength.score
+                        ? strength.color === "red"   ? "bg-red-500"
+                        : strength.color === "amber" ? "bg-amber-500"
+                        : "bg-green-500"
+                        : "bg-border"
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className={`mt-1 text-xs ${
+                strength.color === "red"   ? "text-red-500"   :
+                strength.color === "amber" ? "text-amber-500" : "text-green-600"
+              }`}>{strength.label}</p>
+            </div>
+          )}
         </div>
 
         <div>
