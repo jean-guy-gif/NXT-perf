@@ -20,24 +20,45 @@ export async function extractFromText(
   text: string,
   currentFields: Partial<ExtractedFields>
 ): Promise<{ extracted: ExtractedFields; followUpQuestion: string; missingImportant: string[]; confidence: number }> {
-  const res = await fetch("/api/saisie-ai", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "extract", text, currentFields }),
-  });
-  return res.json();
+  try {
+    const res = await fetch("/api/saisie-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "extract", text, currentFields }),
+    });
+    const data = await res.json();
+    return {
+      extracted: data.extracted ?? {},
+      followUpQuestion: data.followUpQuestion ?? "",
+      missingImportant: data.missingImportant ?? [],
+      confidence: data.confidence ?? 0,
+    };
+  } catch (err) {
+    console.error("[saisie-ai-client] extractFromText error:", err);
+    return { extracted: {}, followUpQuestion: "", missingImportant: [], confidence: 0 };
+  }
 }
 
 export async function extractFromImage(
   imageBase64: string,
   imageMediaType: string
 ): Promise<{ extracted: ExtractedFields; description: string; confidence: number }> {
-  const res = await fetch("/api/saisie-ai", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "extract_image", imageBase64, imageMediaType }),
-  });
-  return res.json();
+  try {
+    const res = await fetch("/api/saisie-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "extract_image", imageBase64, imageMediaType }),
+    });
+    const data = await res.json();
+    return {
+      extracted: data.extracted ?? {},
+      description: data.description ?? "",
+      confidence: data.confidence ?? 0,
+    };
+  } catch (err) {
+    console.error("[saisie-ai-client] extractFromImage error:", err);
+    return { extracted: {}, description: "", confidence: 0 };
+  }
 }
 
 export async function getGreeting(isMandatory: boolean): Promise<string> {
@@ -123,12 +144,22 @@ export async function extractFromDocument(
   textContent: string,
   fileName: string
 ): Promise<{ extracted: ExtractedFields; description: string; confidence: number }> {
-  const res = await fetch("/api/saisie-ai", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "extract_document", textContent, fileName }),
-  });
-  return res.json();
+  try {
+    const res = await fetch("/api/saisie-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "extract_document", textContent, fileName }),
+    });
+    const data = await res.json();
+    return {
+      extracted: data.extracted ?? {},
+      description: data.description ?? "",
+      confidence: data.confidence ?? 0,
+    };
+  } catch (err) {
+    console.error("[saisie-ai-client] extractFromDocument error:", err);
+    return { extracted: {}, description: "", confidence: 0 };
+  }
 }
 
 export function stopSpeaking(): void {

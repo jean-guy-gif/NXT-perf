@@ -160,7 +160,7 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
   const analyzeText = async (text: string) => {
     try {
       const result = await extractFromText(text, {});
-      const ext = result.extracted;
+      const ext = result?.extracted ?? {};
       setExtracted(ext);
       setConfirmed(ext);
 
@@ -218,10 +218,11 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
           const mediaType = file.type as "image/jpeg"|"image/png"|"image/webp";
           try {
             const result = await extractFromImage(base64, mediaType);
-            setExtracted(result.extracted); setConfirmed(result.extracted);
-            setImportDesc(result.description || "Image analysée");
+            const ext = result?.extracted ?? {};
+            setExtracted(ext); setConfirmed(ext);
+            setImportDesc(result?.description || "Image analysée");
             setScreen("confirmation");
-            say(`J'ai analysé votre image. ${result.description || ""} Vérifiez et corrigez.`);
+            say(`J'ai analysé votre image. ${result?.description || ""} Vérifiez et corrigez.`);
           } catch { say("Impossible de lire cette image."); setScreen("idle"); }
         };
         reader.readAsDataURL(file);
@@ -234,10 +235,11 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
           const base64 = (e.target?.result as string).split(",")[1];
           try {
             const result = await extractFromImage(base64, "application/pdf" as "image/jpeg");
-            setExtracted(result.extracted); setConfirmed(result.extracted);
-            setImportDesc(result.description || "PDF analysé");
+            const ext = result?.extracted ?? {};
+            setExtracted(ext); setConfirmed(ext);
+            setImportDesc(result?.description || "PDF analysé");
             setScreen("confirmation");
-            say(`J'ai analysé votre PDF. ${result.description || ""} Vérifiez et corrigez.`);
+            say(`J'ai analysé votre PDF. ${result?.description || ""} Vérifiez et corrigez.`);
           } catch { say("Impossible de lire ce PDF."); setScreen("idle"); }
         };
         reader.readAsDataURL(file);
@@ -255,10 +257,11 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
           if (csv.trim()) csvParts.push(`[Feuille: ${name}]\n${csv}`);
         });
         const result = await extractFromDocument(csvParts.join("\n\n"), file.name);
-        setExtracted(result.extracted); setConfirmed(result.extracted);
-        setImportDesc(result.description || "Excel analysé");
+        const excelExt = result?.extracted ?? {};
+        setExtracted(excelExt); setConfirmed(excelExt);
+        setImportDesc(result?.description || "Excel analysé");
         setScreen("confirmation");
-        say(`J'ai analysé votre fichier. ${result.description || ""} Vérifiez et corrigez.`);
+        say(`J'ai analysé votre fichier. ${result?.description || ""} Vérifiez et corrigez.`);
         return;
       }
 
@@ -273,10 +276,11 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
           text = await file.text();
         }
         const result = await extractFromDocument(text, file.name);
-        setExtracted(result.extracted); setConfirmed(result.extracted);
-        setImportDesc(result.description || "Document analysé");
+        const docExt = result?.extracted ?? {};
+        setExtracted(docExt); setConfirmed(docExt);
+        setImportDesc(result?.description || "Document analysé");
         setScreen("confirmation");
-        say(`J'ai analysé votre document. ${result.description || ""} Vérifiez et corrigez.`);
+        say(`J'ai analysé votre document. ${result?.description || ""} Vérifiez et corrigez.`);
         return;
       }
 
