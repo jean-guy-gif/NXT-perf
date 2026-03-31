@@ -52,29 +52,71 @@ export async function getGreeting(isMandatory: boolean): Promise<string> {
 
 // Synthèse vocale — sélectionne la meilleure voix française disponible
 export function speak(text: string, onEnd?: () => void): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    onEnd?.();
+    return;
+  }
 
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "fr-FR";
-  utterance.rate = 0.95;
-  utterance.pitch = 1.0;
 
+  const doSpeak = () => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "fr-FR";
+    utterance.rate = 0.88;
+    utterance.pitch = 1.05;
+    utterance.volume = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const frVoices = voices.filter(v =>
+      v.lang === "fr-FR" || v.lang === "fr" || v.lang.startsWith("fr-")
+    );
+
+    // Ordre de préférence strict — du plus naturel au moins naturel
+    const PREFERRED = [
+      "Google français",
+      "Google French",
+      "fr-FR-Neural2-C",
+      "fr-FR-Neural2-A",
+      "Amélie",
+      "Thomas",
+      "Microsoft Paul Online (Natural)",
+      "Microsoft Hortense Online (Natural)",
+      "fr-FR-DeniseNeural",
+      "fr-FR-HenriNeural",
+      "Microsoft Julie Online",
+      "Microsoft Hortense",
+    ];
+
+    let selected: SpeechSynthesisVoice | undefined;
+    for (const name of PREFERRED) {
+      selected = frVoices.find(v => v.name === name || v.name.includes(name));
+      if (selected) break;
+    }
+
+    // Fallback : première voix FR disponible
+    if (!selected) selected = frVoices[0];
+    // Fallback final : n'importe quelle voix
+    if (!selected && voices.length > 0) selected = voices[0];
+
+    if (selected) utterance.voice = selected;
+    if (onEnd) utterance.onend = onEnd;
+    utterance.onerror = () => onEnd?.();
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Les voix peuvent ne pas être chargées immédiatement
   const voices = window.speechSynthesis.getVoices();
-  const frVoices = voices.filter(v => v.lang.startsWith("fr"));
-
-  const preferred = frVoices.find(v =>
-    v.name.includes("Neural") ||
-    v.name.includes("Google") ||
-    v.name.includes("Amélie") ||
-    v.name.includes("Microsoft Hortense") ||
-    v.name.includes("Microsoft Julie")
-  ) || frVoices[0];
-
-  if (preferred) utterance.voice = preferred;
-  if (onEnd) utterance.onend = onEnd;
-
-  window.speechSynthesis.speak(utterance);
+  if (voices.length > 0) {
+    doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      doSpeak();
+    };
+    // Timeout de sécurité si onvoiceschanged ne se déclenche pas
+    setTimeout(doSpeak, 500);
+  }
 }
 
 export function stopSpeaking(): void {

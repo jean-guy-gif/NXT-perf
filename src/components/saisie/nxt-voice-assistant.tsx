@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, VolumeX, CheckCircle, Loader2, FileImage, Sparkles } from "lucide-react";
+import { Mic, MicOff, X, Volume2, VolumeX, CheckCircle, Loader2, Upload, Sparkles } from "lucide-react";
 import { extractFromText, extractFromImage, getGreeting, speak, stopSpeaking, type ExtractedFields } from "@/lib/saisie-ai-client";
 
 interface Message {
@@ -319,12 +319,14 @@ export function NxtVoiceAssistant({
           <div className="flex items-center justify-center gap-3">
             {/* Import image */}
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="Importer une image ou capture d'écran"
-            >
-              <FileImage className="h-4 w-4" />
-            </button>
+  onClick={() => fileInputRef.current?.click()}
+  disabled={isProcessing}
+  className="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
+  title="Importer un tableau, une capture CRM ou une photo"
+>
+  <Upload className="h-5 w-5" />
+  <span className="text-[10px] font-medium">Importer</span>
+</button>
             <input
               ref={fileInputRef}
               type="file"
@@ -369,7 +371,7 @@ export function NxtVoiceAssistant({
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            {isRecording ? "Parlez... Cliquez pour arrêter" : "Cliquez sur le micro pour parler"}
+            {isRecording ? "Parlez… Cliquez pour arrêter" : "🎙️ Parlez · 📎 Importez · ✓ Appliquez"}
           </p>
         </div>
       </div>

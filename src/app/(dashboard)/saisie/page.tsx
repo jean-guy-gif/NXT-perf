@@ -11,7 +11,6 @@ import type { SaisieSection } from "@/lib/formation";
 import type { PeriodResults } from "@/types/results";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
-import { VocalButton } from "@/components/vocal/VocalButton";
 import {
   CalendarDays,
   ChevronLeft,
@@ -161,49 +160,6 @@ export default function SaisiePage() {
     };
   };
 
-  const handleVocalComplete = (data: Partial<PeriodResults>) => {
-    const ts = Date.now();
-    if (data.prospection) {
-      setContactsEntrants(data.prospection.contactsEntrants || 0);
-      setContactsTotaux(data.prospection.contactsTotaux || 0);
-      setRdvEstimation(data.prospection.rdvEstimation || 0);
-      const ivs = (data.prospection.informationsVente || []).map((iv, i) => ({
-        nom: iv.nom || "",
-        commentaire: iv.commentaire || "",
-      }));
-      setInfoVentes(ivs);
-      setInfoVenteCount(ivs.length);
-    }
-    if (data.vendeurs) {
-      setEstimationsRealisees(data.vendeurs.estimationsRealisees || 0);
-      const vocalMandats = (data.vendeurs.mandats || []).map((m) => ({
-        nomVendeur: m.nomVendeur || "",
-        type: (m.type === "exclusif" ? "exclusif" : "simple") as "simple" | "exclusif",
-      }));
-      setMandats(vocalMandats);
-      setMandatsSignes(vocalMandats.length);
-      setRdvSuivi(data.vendeurs.rdvSuivi || 0);
-      setRequalification(data.vendeurs.requalificationSimpleExclusif || 0);
-      setBaissePrix(data.vendeurs.baissePrix || 0);
-    }
-    if (data.acheteurs) {
-      const acs = (data.acheteurs.acheteursChauds || []).map((ac) => ({
-        nom: ac.nom || "",
-        commentaire: ac.commentaire || "",
-      }));
-      setAcheteursChauds(acs);
-      setAcheteursChaudsCount(acs.length);
-      setAcheteursSortisVisite(data.acheteurs.acheteursSortisVisite || 0);
-      setNombreVisites(data.acheteurs.nombreVisites || 0);
-      setOffresRecues(data.acheteurs.offresRecues || 0);
-      setCompromisSignes(data.acheteurs.compromisSignes || 0);
-    }
-    if (data.ventes) {
-      setActesSignes(data.ventes.actesSignes || 0);
-      setChiffreAffaires(data.ventes.chiffreAffaires || 0);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -321,7 +277,6 @@ export default function SaisiePage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-foreground">Ma Saisie</h1>
-          <VocalButton onComplete={handleVocalComplete} />
           <button
             type="button"
             onClick={() => setShowVoiceAssistant(true)}
