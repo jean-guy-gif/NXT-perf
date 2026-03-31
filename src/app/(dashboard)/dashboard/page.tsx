@@ -48,6 +48,9 @@ const emptyMonthlyData: Array<{ month: string; value: number }> = [];
 const emptyCAData: Array<{ month: string; ca: number }> = [];
 const emptyActivityData: Array<{ day: string; contacts: number; visites: number }> = [];
 import { useAppStore } from "@/stores/app-store";
+import { useSaisieGate } from "@/hooks/use-saisie-gate";
+import { SaisieGate } from "@/components/dashboard/saisie-gate";
+import { VocalButton } from "@/components/vocal/VocalButton";
 import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
@@ -170,6 +173,7 @@ function DashboardContent() {
   const isDemo = useAppStore((s) => s.isDemo);
   const { currentAxes: dpiAxes, currentGlobalScore: dpiScore } = useDPIEvolution();
   const activeTools = useAppStore((s) => s.activeTools);
+  const { gateRequired, isLoading: gateLoading, dismissGate } = useSaisieGate();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
     "nxt-dashboard-tab",
@@ -319,8 +323,12 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {!gateLoading && gateRequired && (
+        <SaisieGate gateType={gateRequired} onDismiss={dismissGate} />
+      )}
       {/* Top navigation tabs */}
-      <div className="flex items-center gap-6 border-b border-border pb-3">
+      <div className="flex items-center border-b border-border pb-3">
+        <div className="flex items-center gap-6">
         <button
           onClick={() => setActiveTab("overview")}
           className={cn(
@@ -374,6 +382,8 @@ function DashboardContent() {
             </span>
           )}
         </button>
+        </div>
+        <VocalButton className="ml-auto" />
       </div>
 
       {/* ========== RECOMMANDATION BANNER ========== */}
