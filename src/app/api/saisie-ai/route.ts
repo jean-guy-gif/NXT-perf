@@ -51,7 +51,7 @@ async function callOpenRouter(
       "X-Title": "NXT Performance",
     },
     body: JSON.stringify({
-      model: imageContent ? "google/gemini-flash-1.5" : "google/gemini-flash-1.5",
+      model: imageContent ? "google/gemini-2.0-flash-001" : "google/gemini-2.0-flash-001",
       max_tokens: maxTokens,
       messages,
     }),
