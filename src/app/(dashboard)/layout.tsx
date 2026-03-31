@@ -22,8 +22,19 @@ export default function DashboardLayout({
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const isDemo = useAppStore((s) => s.isDemo);
   const user = useAppStore((s) => s.user);
+  const enterDemo = useAppStore((s) => s.enterDemo);
   const setProfile = useAppStore((s) => s.setProfile);
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
+
+  // Re-hydrate demo mode from cookie if store was lost (page reload on Vercel)
+  useEffect(() => {
+    if (!isDemo && !isAuthenticated && typeof document !== "undefined") {
+      const hasDemoCookie = document.cookie.split(";").some(c => c.trim().startsWith("nxt-demo-mode=true"));
+      if (hasDemoCookie) {
+        enterDemo();
+      }
+    }
+  }, [isDemo, isAuthenticated, enterDemo]);
 
   // hasSession: true if Supabase has a valid session (even if profile not yet loaded)
   const [hasSession, setHasSession] = useState(isAuthenticated || isDemo);
