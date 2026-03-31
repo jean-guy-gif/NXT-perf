@@ -27,9 +27,10 @@ export async function extractFromText(
       body: JSON.stringify({ action: "extract", text, currentFields }),
     });
     const data = await res.json();
+    if (data.error) console.error("[saisie-ai] extract error:", data.error);
     return {
       extracted: data.extracted ?? {},
-      followUpQuestion: data.followUpQuestion ?? "",
+      followUpQuestion: data.followUpQuestion ?? (data.error ? `Erreur : ${data.error}` : ""),
       missingImportant: data.missingImportant ?? [],
       confidence: data.confidence ?? 0,
     };
@@ -50,9 +51,10 @@ export async function extractFromImage(
       body: JSON.stringify({ action: "extract_image", imageBase64, imageMediaType }),
     });
     const data = await res.json();
+    if (data.error) console.error("[saisie-ai] extract_image error:", data.error);
     return {
       extracted: data.extracted ?? {},
-      description: data.description ?? "",
+      description: data.description ?? (data.error ? `Erreur : ${data.error}` : ""),
       confidence: data.confidence ?? 0,
     };
   } catch (err) {
@@ -151,9 +153,10 @@ export async function extractFromDocument(
       body: JSON.stringify({ action: "extract_document", textContent, fileName }),
     });
     const data = await res.json();
+    if (data.error) console.error("[saisie-ai] extract_document error:", data.error);
     return {
       extracted: data.extracted ?? {},
-      description: data.description ?? "",
+      description: data.description ?? (data.error ? `Erreur : ${data.error}` : ""),
       confidence: data.confidence ?? 0,
     };
   } catch (err) {

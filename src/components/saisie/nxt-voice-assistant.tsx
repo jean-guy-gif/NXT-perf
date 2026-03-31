@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Mic, MicOff, X, Volume2, VolumeX, CheckCircle,
-  Loader2, Upload, Sparkles, RotateCcw, Send, Square
+  Loader2, Upload, Sparkles, RotateCcw, Send, Square, AlertCircle
 } from "lucide-react";
 import { extractFromText, extractFromImage, extractFromDocument, speak, stopSpeaking, type ExtractedFields } from "@/lib/saisie-ai-client";
 
@@ -64,20 +64,25 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
   const [confirmed, setConfirmed]     = useState<ExtractedFields>({});
   const [details, setDetails]         = useState<StructuredDetails>({ mandats: [], infoVentes: [], acheteurs: [] });
   const [missingMsg, setMissingMsg]   = useState("");
+  const [followUpQ, setFollowUpQ]     = useState("");
   const [voiceMuted, setVoiceMuted]   = useState(false);
   const [isSpeaking, setIsSpeaking]   = useState(false);
   const [importDesc, setImportDesc]   = useState("");
   const [textInput, setTextInput]     = useState("");
+  const [micError, setMicError]       = useState("");
+  const [followUpText, setFollowUpText] = useState("");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef    = useRef<any>(null);
   const isRecordingRef    = useRef(false);
   const accumulatedRef    = useRef("");
   const fileInputRef      = useRef<HTMLInputElement>(null);
+  const retryCountRef     = useRef(0);
 
   // suppress unused vars
   void fullTranscript;
   void MicOff;
+  void followUpQ;
 
   const say = useCallback((text: string) => {
     if (!voiceMuted) { setIsSpeaking(true); speak(text, () => setIsSpeaking(false)); }
@@ -93,23 +98,43 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
     setConfirmed({});
     setDetails({ mandats: [], infoVentes: [], acheteurs: [] });
     setMissingMsg("");
+    setFollowUpQ("");
     setTextInput("");
+    setMicError("");
+    setFollowUpText("");
     accumulatedRef.current = "";
     isRecordingRef.current = false;
+    retryCountRef.current = 0;
   }, [isOpen]);
 
+  // ── Cleanup recognition on unmount ─────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      isRecordingRef.current = false;
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
   // ── Enregistrement continu ────────────────────────────────────────────────
-  const startRecording = () => {
+  const startRecording = (keepAccumulated = false) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) { say("Reconnaissance vocale non disponible. Utilisez Chrome ou Edge."); return; }
+    if (!SR) {
+      setMicError("Reconnaissance vocale non disponible. Utilisez Chrome ou Edge.");
+      say("Reconnaissance vocale non disponible. Utilisez Chrome ou Edge.");
+      return;
+    }
 
     stopSpeaking();
     setIsSpeaking(false);
-    accumulatedRef.current = "";
-    setLiveTranscript("");
-    setFullTranscript("");
+    setMicError("");
+    if (!keepAccumulated) {
+      accumulatedRef.current = "";
+      setLiveTranscript("");
+      setFullTranscript("");
+    }
+    retryCountRef.current = 0;
     isRecordingRef.current = true;
     setScreen("recording");
 
@@ -121,6 +146,7 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
       r.interimResults = true;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       r.onresult = (e: any) => {
+        retryCountRef.current = 0; // Reset on successful result
         let interim = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript;
@@ -133,13 +159,41 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
         setLiveTranscript(accumulatedRef.current + (interim ? " " + interim : ""));
       };
       r.onend = () => {
-        if (isRecordingRef.current) { setTimeout(startRec, 200); }
+        if (isRecordingRef.current) {
+          retryCountRef.current++;
+          if (retryCountRef.current > 10) {
+            // Too many silent restarts — likely a browser issue
+            setMicError("Le micro semble inactif. Vérifiez les permissions de votre navigateur.");
+            isRecordingRef.current = false;
+            setScreen("idle");
+            return;
+          }
+          setTimeout(startRec, 200);
+        }
       };
-      r.onerror = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      r.onerror = (e: any) => {
+        const errorType = e?.error || "unknown";
+        if (errorType === "not-allowed" || errorType === "permission-denied") {
+          setMicError("Accès au microphone refusé. Autorisez le micro dans les paramètres de votre navigateur.");
+          isRecordingRef.current = false;
+          setScreen("idle");
+          return;
+        }
+        if (errorType === "no-speech") {
+          // No speech detected — just restart silently
+          if (isRecordingRef.current) { setTimeout(startRec, 300); }
+          return;
+        }
         if (isRecordingRef.current) { setTimeout(startRec, 500); }
       };
       recognitionRef.current = r;
-      r.start();
+      try {
+        r.start();
+      } catch {
+        // Already started or browser error
+        setTimeout(startRec, 500);
+      }
     };
 
     startRec();
@@ -153,42 +207,56 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
     setFullTranscript(text);
     setLiveTranscript("");
     setScreen("analyzing");
-    await analyzeText(text);
+    await analyzeText(text, extracted);
   };
 
-  // ── Analyse ───────────────────────────────────────────────────────────────
-  const analyzeText = async (text: string) => {
+  // ── Analyse (avec fusion des résultats précédents) ────────────────────────
+  const analyzeText = async (text: string, previousFields: ExtractedFields) => {
     try {
-      const result = await extractFromText(text, {});
-      const ext = result?.extracted ?? {};
-      setExtracted(ext);
-      setConfirmed(ext);
+      const result = await extractFromText(text, previousFields);
+      const newExt = result?.extracted ?? {};
 
-      const nbMandats    = ext.mandatsSignes     || 0;
-      const nbAcheteurs  = ext.acheteursChaudsCount || 0;
-      const nbInfoVentes = ext.rdvEstimation     || 0;
+      // Fusionner : les nouvelles valeurs complètent les anciennes
+      const merged: ExtractedFields = { ...previousFields };
+      for (const [key, value] of Object.entries(newExt)) {
+        if (value !== undefined && value !== null) {
+          (merged as Record<string, number>)[key] = value as number;
+        }
+      }
 
-      const initDetails: StructuredDetails = {
-        mandats:    Array.from({ length: nbMandats },    () => ({ nomVendeur: "", type: "simple" as const })),
-        acheteurs:  Array.from({ length: nbAcheteurs },  () => ({ nom: "", commentaire: "" })),
-        infoVentes: Array.from({ length: nbInfoVentes }, () => ({ nom: "", commentaire: "" })),
-      };
-      setDetails(initDetails);
+      setExtracted(merged);
+      setConfirmed(merged);
+
+      const nbMandats    = merged.mandatsSignes     || 0;
+      const nbAcheteurs  = merged.acheteursChaudsCount || 0;
+      const nbInfoVentes = merged.rdvEstimation     || 0;
+
+      // Ne recréer les détails que si le nombre a changé
+      setDetails(prev => ({
+        mandats:    prev.mandats.length === nbMandats ? prev.mandats : Array.from({ length: nbMandats }, (_, i) => prev.mandats[i] || { nomVendeur: "", type: "simple" as const }),
+        acheteurs:  prev.acheteurs.length === nbAcheteurs ? prev.acheteurs : Array.from({ length: nbAcheteurs }, (_, i) => prev.acheteurs[i] || { nom: "", commentaire: "" }),
+        infoVentes: prev.infoVentes.length === nbInfoVentes ? prev.infoVentes : Array.from({ length: nbInfoVentes }, (_, i) => prev.infoVentes[i] || { nom: "", commentaire: "" }),
+      }));
 
       const important: (keyof ExtractedFields)[] = ["contactsTotaux", "estimationsRealisees", "mandatsSignes", "compromisSignes", "chiffreAffaires"];
-      const missing = important.filter(f => ext[f] === undefined);
+      const missing = important.filter(f => merged[f] === undefined);
       const needDetails = nbMandats > 0 || nbAcheteurs > 0;
+      const aiQuestion = result?.followUpQuestion || "";
 
-      let msg = "";
-      if (missing.length > 0) {
-        msg += `Il me manque : ${missing.map(f => FIELD_LABELS[f]).join(", ")}.`;
-      }
-      if (needDetails) {
-        msg += (msg ? " " : "") + `Pour aller plus loin, j'ai besoin des détails sur tes ${nbMandats > 0 ? `${nbMandats} mandats` : ""}${nbMandats > 0 && nbAcheteurs > 0 ? " et tes " : ""}${nbAcheteurs > 0 ? `${nbAcheteurs} acheteurs chauds` : ""}.`;
-      }
+      if (missing.length > 0 || needDetails) {
+        // Utiliser la question IA si disponible, sinon construire un message
+        let msg = "";
+        if (aiQuestion) {
+          msg = aiQuestion;
+        } else if (missing.length > 0) {
+          msg = `Il me manque : ${missing.map(f => FIELD_LABELS[f]).join(", ")}.`;
+        }
+        if (needDetails) {
+          msg += (msg ? " " : "") + `J'ai aussi besoin des détails sur tes ${nbMandats > 0 ? `${nbMandats} mandats` : ""}${nbMandats > 0 && nbAcheteurs > 0 ? " et tes " : ""}${nbAcheteurs > 0 ? `${nbAcheteurs} acheteurs chauds` : ""}.`;
+        }
 
-      if (msg) {
         setMissingMsg(msg);
+        setFollowUpQ(aiQuestion);
         say(msg);
         setScreen("missing");
       } else {
@@ -199,6 +267,24 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
       say("Une erreur est survenue. Réessaie.");
       setScreen("idle");
     }
+  };
+
+  // ── Répondre vocalement à la question de suivi ────────────────────────────
+  const startFollowUpRecording = () => {
+    stopSpeaking();
+    setIsSpeaking(false);
+    accumulatedRef.current = "";
+    setLiveTranscript("");
+    setFollowUpText("");
+    startRecording(false);
+  };
+
+  const submitFollowUpText = async () => {
+    const text = followUpText.trim();
+    if (!text) return;
+    setFollowUpText("");
+    setScreen("analyzing");
+    await analyzeText(text, extracted);
   };
 
   // ── Import fichier ────────────────────────────────────────────────────────
@@ -308,11 +394,19 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
   // ── Écran idle ─────────────────────────────────────────────────────────────
   const renderIdle = () => (
     <div className="flex flex-col items-center justify-center gap-6 p-8">
+      {micError && (
+        <div className="w-full rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
+          <p className="text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {micError}
+          </p>
+        </div>
+      )}
       <p className="text-center text-sm text-muted-foreground px-4">
         Raconte-moi ton activité et donne-moi tes chiffres. Parle librement — je t'écouterai jusqu'à ce que tu aies tout dit.
       </p>
       <button
-        onClick={startRecording}
+        onClick={() => startRecording()}
         className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:bg-primary/90 transition-all hover:scale-105"
       >
         <Mic className="h-8 w-8" />
@@ -404,6 +498,49 @@ export function NxtVoiceAssistant({ isOpen, onClose, onFieldsExtracted, isMandat
         <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
           <p className="text-sm text-amber-700 dark:text-amber-400">{missingMsg}</p>
         </div>
+      </div>
+
+      {/* Zone de réponse vocale / texte pour compléter les données manquantes */}
+      <div className="px-4 py-3 shrink-0 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Répondre</p>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={startFollowUpRecording}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+            title="Répondre vocalement"
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+          <input
+            type="text"
+            value={followUpText}
+            onChange={(e) => setFollowUpText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && followUpText.trim()) submitFollowUpText(); }}
+            placeholder="Ou tapez votre réponse ici…"
+            className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          {followUpText.trim() && (
+            <button
+              onClick={submitFollowUpText}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Résumé des champs déjà remplis */}
+        {Object.keys(extracted).length > 0 && (
+          <div className="rounded-lg bg-green-500/5 border border-green-500/20 px-3 py-2">
+            <p className="text-xs text-green-700 dark:text-green-400 font-medium mb-1">Déjà capturé :</p>
+            <p className="text-xs text-green-600 dark:text-green-500">
+              {Object.entries(extracted)
+                .filter(([, v]) => v !== undefined)
+                .map(([k, v]) => `${FIELD_LABELS[k as keyof ExtractedFields] || k}: ${v}`)
+                .join(" · ")}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
