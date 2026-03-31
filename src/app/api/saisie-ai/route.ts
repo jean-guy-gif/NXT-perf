@@ -22,7 +22,13 @@ const SAISIE_FIELDS = {
 
 export async function POST(request: NextRequest) {
   try {
-  const { action, text, currentFields, imageBase64, imageMediaType } = await request.json();
+  let body: Record<string, unknown> = {};
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const action = body.action as string;
 
   console.log("[saisie-ai] action:", action, "| key present:", !!ANTHROPIC_API_KEY);
 
@@ -31,6 +37,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "extract") {
+    const text = body.text as string || "";
+    const currentFields = body.currentFields as Record<string, unknown> || {};
     const prompt = `Tu es NXT Assistant, un assistant commercial pour agents immobiliers.
 
 L'agent vient de dire : "${text}"
@@ -81,6 +89,8 @@ Priorise : contacts, estimations, mandats, compromis, CA.`;
   }
 
   if (action === "extract_image") {
+    const imageBase64 = body.imageBase64 as string || "";
+    const imageMediaType = body.imageMediaType as string || "image/jpeg";
     const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
 
 Analyse cette image qui peut être :
@@ -142,6 +152,7 @@ Réponds UNIQUEMENT en JSON :
   }
 
   if (action === "greet") {
+    const currentFields = body.currentFields as Record<string, unknown> || {};
     const today = new Date();
     const dayOfWeek = today.toLocaleDateString("fr-FR", { weekday: "long" });
     const isMandatory = currentFields?.isMandatory || false;
@@ -170,6 +181,58 @@ Réponds avec uniquement le texte du message, sans JSON.`;
 
     const data = await response.json();
     return NextResponse.json({ message: data.content[0]?.text || "Bonjour ! Parlez-moi de votre semaine." });
+  }
+
+  if (action === "extract_document") {
+    const textContent = body.textContent as string || "";
+    const fileName = body.fileName as string || "document";
+
+    const prompt = `Tu es NXT Assistant, spécialiste en analyse de documents immobiliers.
+
+Voici le contenu extrait du fichier "${fileName}" :
+
+${textContent.slice(0, 8000)}
+
+Ce document peut être un tableau d'activité, un rapport CRM, un fichier Excel ou un document Word.
+
+Lis TOUTES les données et associe-les aux indicateurs suivants :
+${Object.entries(SAISIE_FIELDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+
+IMPORTANT :
+- Cherche chaque indicateur même si libellés différemment
+- "Prise de contact" = contacts entrants, "Mandats rentrés" = mandats signés, etc.
+- N'invente PAS de valeurs — si absent, ne l'inclus pas
+
+Réponds UNIQUEMENT en JSON :
+{
+  "extracted": { "nomDuChamp": valeurNumerique },
+  "description": "Description en 1 phrase du document et de la période si visible",
+  "confidence": 0.0 à 1.0
+}`;
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY!,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      const data = await response.json();
+      const content = data.content[0]?.text || "{}";
+      const clean = content.replace(/```json|```/g, "").trim();
+      return NextResponse.json(JSON.parse(clean));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

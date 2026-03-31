@@ -119,6 +119,18 @@ export function speak(text: string, onEnd?: () => void): void {
   }
 }
 
+export async function extractFromDocument(
+  textContent: string,
+  fileName: string
+): Promise<{ extracted: ExtractedFields; description: string; confidence: number }> {
+  const res = await fetch("/api/saisie-ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "extract_document", textContent, fileName }),
+  });
+  return res.json();
+}
+
 export function stopSpeaking(): void {
   if (typeof window !== "undefined" && window.speechSynthesis) {
     window.speechSynthesis.cancel();
