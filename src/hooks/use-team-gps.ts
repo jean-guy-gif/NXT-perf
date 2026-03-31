@@ -14,9 +14,9 @@ import type { UserCategory } from "@/types/user";
 function aggregateTeamResults(results: PeriodResults[]): PeriodResults | null {
   if (results.length === 0) return null;
 
-  const allMandats = results.flatMap((r) => r.vendeurs.mandats);
-  const allInfosVente = results.flatMap((r) => r.prospection.informationsVente);
-  const allAcheteursChauds = results.flatMap((r) => r.acheteurs.acheteursChauds);
+  const allMandats = results.flatMap((r) => r?.vendeurs?.mandats ?? []);
+  const allInfosVente = results.flatMap((r) => r?.prospection?.informationsVente ?? []);
+  const allAcheteursChauds = results.flatMap((r) => r?.acheteurs?.acheteursChauds ?? []);
 
   return {
     id: "team-aggregate",
@@ -25,32 +25,32 @@ function aggregateTeamResults(results: PeriodResults[]): PeriodResults | null {
     periodStart: results[0].periodStart,
     periodEnd: results[0].periodEnd,
     prospection: {
-      contactsEntrants: results.reduce((s, r) => s + r.prospection.contactsEntrants, 0),
-      contactsTotaux: results.reduce((s, r) => s + r.prospection.contactsTotaux, 0),
-      rdvEstimation: results.reduce((s, r) => s + r.prospection.rdvEstimation, 0),
+      contactsEntrants: results.reduce((s, r) => s + (r?.prospection?.contactsEntrants ?? 0), 0),
+      contactsTotaux: results.reduce((s, r) => s + (r?.prospection?.contactsTotaux ?? 0), 0),
+      rdvEstimation: results.reduce((s, r) => s + (r?.prospection?.rdvEstimation ?? 0), 0),
       informationsVente: allInfosVente,
     },
     vendeurs: {
-      rdvEstimation: results.reduce((s, r) => s + r.vendeurs.rdvEstimation, 0),
-      estimationsRealisees: results.reduce((s, r) => s + r.vendeurs.estimationsRealisees, 0),
-      mandatsSignes: results.reduce((s, r) => s + r.vendeurs.mandatsSignes, 0),
+      rdvEstimation: results.reduce((s, r) => s + (r?.vendeurs?.rdvEstimation ?? 0), 0),
+      estimationsRealisees: results.reduce((s, r) => s + (r?.vendeurs?.estimationsRealisees ?? 0), 0),
+      mandatsSignes: results.reduce((s, r) => s + (r?.vendeurs?.mandatsSignes ?? 0), 0),
       mandats: allMandats,
-      rdvSuivi: results.reduce((s, r) => s + r.vendeurs.rdvSuivi, 0),
-      requalificationSimpleExclusif: results.reduce((s, r) => s + r.vendeurs.requalificationSimpleExclusif, 0),
-      baissePrix: results.reduce((s, r) => s + r.vendeurs.baissePrix, 0),
+      rdvSuivi: results.reduce((s, r) => s + (r?.vendeurs?.rdvSuivi ?? 0), 0),
+      requalificationSimpleExclusif: results.reduce((s, r) => s + (r?.vendeurs?.requalificationSimpleExclusif ?? 0), 0),
+      baissePrix: results.reduce((s, r) => s + (r?.vendeurs?.baissePrix ?? 0), 0),
     },
     acheteurs: {
       acheteursChauds: allAcheteursChauds,
-      acheteursSortisVisite: results.reduce((s, r) => s + r.acheteurs.acheteursSortisVisite, 0),
-      nombreVisites: results.reduce((s, r) => s + r.acheteurs.nombreVisites, 0),
-      offresRecues: results.reduce((s, r) => s + r.acheteurs.offresRecues, 0),
-      compromisSignes: results.reduce((s, r) => s + r.acheteurs.compromisSignes, 0),
+      acheteursSortisVisite: results.reduce((s, r) => s + (r?.acheteurs?.acheteursSortisVisite ?? 0), 0),
+      nombreVisites: results.reduce((s, r) => s + (r?.acheteurs?.nombreVisites ?? 0), 0),
+      offresRecues: results.reduce((s, r) => s + (r?.acheteurs?.offresRecues ?? 0), 0),
+      compromisSignes: results.reduce((s, r) => s + (r?.acheteurs?.compromisSignes ?? 0), 0),
     },
     ventes: {
-      actesSignes: results.reduce((s, r) => s + r.ventes.actesSignes, 0),
-      chiffreAffaires: results.reduce((s, r) => s + r.ventes.chiffreAffaires, 0),
+      actesSignes: results.reduce((s, r) => s + (r?.ventes?.actesSignes ?? 0), 0),
+      chiffreAffaires: results.reduce((s, r) => s + (r?.ventes?.chiffreAffaires ?? 0), 0),
       delaiMoyenVente: results.length > 0
-        ? Math.round(results.reduce((s, r) => s + r.ventes.delaiMoyenVente, 0) / results.length)
+        ? Math.round(results.reduce((s, r) => s + (r?.ventes?.delaiMoyenVente ?? 0), 0) / results.length)
         : 0,
     },
     createdAt: results[0].createdAt,
@@ -107,7 +107,7 @@ export function useTeamGPS() {
 
   // Team CA
   const teamCA = useMemo(
-    () => teamResults.reduce((s, r) => s + r.ventes.chiffreAffaires, 0),
+    () => teamResults.reduce((s, r) => s + (r?.ventes?.chiffreAffaires ?? 0), 0),
     [teamResults]
   );
 

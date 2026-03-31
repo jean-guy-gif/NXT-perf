@@ -239,8 +239,8 @@ function getUserTeamLabel(user: User, allUsers: User[]): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildVolumeRow(user: User, r: PeriodResults, fields: Set<ExportFieldId>, allUsers: User[]): Record<string, any> {
-  const exclusifs = r.vendeurs.mandats.filter((m) => m.type === "exclusif").length;
-  const simples = r.vendeurs.mandats.filter((m) => m.type === "simple").length;
+  const exclusifs = (r?.vendeurs?.mandats ?? []).filter((m) => m.type === "exclusif").length;
+  const simples = (r?.vendeurs?.mandats ?? []).filter((m) => m.type === "simple").length;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const row: Record<string, any> = {};
 
@@ -248,25 +248,25 @@ function buildVolumeRow(user: User, r: PeriodResults, fields: Set<ExportFieldId>
   if (has(fields, "categorie")) row["Catégorie"] = CATEGORY_LABELS[user.category] ?? user.category;
   if (has(fields, "equipe")) row["Équipe"] = getUserTeamLabel(user, allUsers);
   if (has(fields, "periode")) row["Période"] = r.periodStart.slice(0, 7);
-  if (has(fields, "contacts_entrants")) row["Contacts entrants"] = r.prospection.contactsEntrants;
-  if (has(fields, "contacts_totaux")) row["Contacts totaux"] = r.prospection.contactsTotaux;
-  if (has(fields, "rdv_estimation")) row["RDV Estimation"] = r.prospection.rdvEstimation;
-  if (has(fields, "estimations")) row["Estimations"] = r.vendeurs.estimationsRealisees;
-  if (has(fields, "mandats_signes")) row["Mandats signés"] = r.vendeurs.mandatsSignes;
+  if (has(fields, "contacts_entrants")) row["Contacts entrants"] = r?.prospection?.contactsEntrants ?? 0;
+  if (has(fields, "contacts_totaux")) row["Contacts totaux"] = r?.prospection?.contactsTotaux ?? 0;
+  if (has(fields, "rdv_estimation")) row["RDV Estimation"] = r?.prospection?.rdvEstimation ?? 0;
+  if (has(fields, "estimations")) row["Estimations"] = r?.vendeurs?.estimationsRealisees ?? 0;
+  if (has(fields, "mandats_signes")) row["Mandats signés"] = r?.vendeurs?.mandatsSignes ?? 0;
   if (has(fields, "mandats_exclusifs")) row["Mandats exclusifs"] = exclusifs;
   if (has(fields, "mandats_simples")) row["Mandats simples"] = simples;
-  if (has(fields, "rdv_suivi")) row["RDV Suivi"] = r.vendeurs.rdvSuivi;
-  if (has(fields, "requalifications")) row["Requalifications"] = r.vendeurs.requalificationSimpleExclusif;
-  if (has(fields, "baisses_prix")) row["Baisses de prix"] = r.vendeurs.baissePrix;
-  if (has(fields, "acheteurs_chauds")) row["Acheteurs chauds"] = r.acheteurs.acheteursChauds.length;
-  if (has(fields, "acheteurs_sortis_visite")) row["Acheteurs sortis visite"] = r.acheteurs.acheteursSortisVisite;
-  if (has(fields, "visites")) row["Visites"] = r.acheteurs.nombreVisites;
-  if (has(fields, "offres")) row["Offres"] = r.acheteurs.offresRecues;
-  if (has(fields, "compromis")) row["Compromis"] = r.acheteurs.compromisSignes;
-  if (has(fields, "actes")) row["Actes"] = r.ventes.actesSignes;
-  if (has(fields, "chiffre_affaires")) row["Chiffre d'affaires"] = r.ventes.chiffreAffaires;
+  if (has(fields, "rdv_suivi")) row["RDV Suivi"] = r?.vendeurs?.rdvSuivi ?? 0;
+  if (has(fields, "requalifications")) row["Requalifications"] = r?.vendeurs?.requalificationSimpleExclusif ?? 0;
+  if (has(fields, "baisses_prix")) row["Baisses de prix"] = r?.vendeurs?.baissePrix ?? 0;
+  if (has(fields, "acheteurs_chauds")) row["Acheteurs chauds"] = (r?.acheteurs?.acheteursChauds ?? []).length;
+  if (has(fields, "acheteurs_sortis_visite")) row["Acheteurs sortis visite"] = r?.acheteurs?.acheteursSortisVisite ?? 0;
+  if (has(fields, "visites")) row["Visites"] = r?.acheteurs?.nombreVisites ?? 0;
+  if (has(fields, "offres")) row["Offres"] = r?.acheteurs?.offresRecues ?? 0;
+  if (has(fields, "compromis")) row["Compromis"] = r?.acheteurs?.compromisSignes ?? 0;
+  if (has(fields, "actes")) row["Actes"] = r?.ventes?.actesSignes ?? 0;
+  if (has(fields, "chiffre_affaires")) row["Chiffre d'affaires"] = r?.ventes?.chiffreAffaires ?? 0;
   if (has(fields, "pct_exclusivite")) {
-    const total = r.vendeurs.mandats.length;
+    const total = (r?.vendeurs?.mandats ?? []).length;
     row["% Exclusivité"] = total > 0 ? Math.round((exclusifs / total) * 100) : 0;
   }
 
@@ -316,15 +316,15 @@ function buildSynthèseRow(user: User, userResults: PeriodResults[], ratioConfig
   let visites = 0, offres = 0, compromis = 0, actes = 0, ca = 0;
 
   for (const r of userResults) {
-    contacts += r.prospection.contactsTotaux;
-    estimations += r.vendeurs.estimationsRealisees;
-    mandats += r.vendeurs.mandatsSignes;
-    exclusifs += r.vendeurs.mandats.filter((m) => m.type === "exclusif").length;
-    visites += r.acheteurs.nombreVisites;
-    offres += r.acheteurs.offresRecues;
-    compromis += r.acheteurs.compromisSignes;
-    actes += r.ventes.actesSignes;
-    ca += r.ventes.chiffreAffaires;
+    contacts += r?.prospection?.contactsTotaux ?? 0;
+    estimations += r?.vendeurs?.estimationsRealisees ?? 0;
+    mandats += r?.vendeurs?.mandatsSignes ?? 0;
+    exclusifs += (r?.vendeurs?.mandats ?? []).filter((m) => m.type === "exclusif").length;
+    visites += r?.acheteurs?.nombreVisites ?? 0;
+    offres += r?.acheteurs?.offresRecues ?? 0;
+    compromis += r?.acheteurs?.compromisSignes ?? 0;
+    actes += r?.ventes?.actesSignes ?? 0;
+    ca += r?.ventes?.chiffreAffaires ?? 0;
   }
 
   const latest = [...userResults].sort((a, b) => b.periodStart.localeCompare(a.periodStart))[0];

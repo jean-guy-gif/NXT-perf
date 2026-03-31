@@ -479,7 +479,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...r,
               prospection: {
                 ...r.prospection,
-                informationsVente: r.prospection.informationsVente.map((i) =>
+                informationsVente: (r.prospection?.informationsVente ?? []).map((i) =>
                   i.id === itemId ? { ...i, statut } : i
                 ),
               },
@@ -497,7 +497,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...r,
               acheteurs: {
                 ...r.acheteurs,
-                acheteursChauds: r.acheteurs.acheteursChauds.map((i) =>
+                acheteursChauds: (r.acheteurs?.acheteursChauds ?? []).map((i) =>
                   i.id === itemId ? { ...i, statut } : i
                 ),
               },
@@ -515,7 +515,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...r,
               prospection: {
                 ...r.prospection,
-                informationsVente: r.prospection.informationsVente.map((i) =>
+                informationsVente: (r.prospection?.informationsVente ?? []).map((i) =>
                   i.id === itemId ? { ...i, profiled: true } : i
                 ),
               },
@@ -533,7 +533,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...r,
               acheteurs: {
                 ...r.acheteurs,
-                acheteursChauds: r.acheteurs.acheteursChauds.map((i) =>
+                acheteursChauds: (r.acheteurs?.acheteursChauds ?? []).map((i) =>
                   i.id === itemId ? { ...i, profiled: true } : i
                 ),
               },
@@ -551,7 +551,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...r,
               vendeurs: {
                 ...r.vendeurs,
-                mandats: r.vendeurs.mandats.map((m) =>
+                mandats: (r.vendeurs?.mandats ?? []).map((m) =>
                   m.id === itemId ? { ...m, profiled: true } : m
                 ),
               },
