@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, FileUp, PenLine, Sparkles, ArrowLeft } from "lucide-react";
+import { Mic, FileUp, PenLine, Sparkles, ArrowLeft, Upload, Loader2 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { ImportConfirmation } from "@/components/saisie/import-confirmation";
 import { VoiceConversation } from "@/components/saisie/voice-conversation";
-import type { ExtractedFields, ExtractedArrays, MandatDetail, AcheteurDetail, InfoVenteDetail } from "@/lib/saisie-ai-client";
+import { extractFromDocument, extractFromImage } from "@/lib/saisie-ai-client";
+import type { ExtractedFields, ExtractedArrays, ExtractionResult, MandatDetail, AcheteurDetail, InfoVenteDetail } from "@/lib/saisie-ai-client";
 
 // ─── Personas ────────────────────────────────────────────────────────────────
 
@@ -145,15 +146,14 @@ function parseOffresCompromis(raw: string): { offres: number; compromis: number 
 
 interface MondayGateProps {
   onDismiss: () => void;
-  onStartImport: () => void;
   onSaisieDone: () => void;
 }
 
-type Screen = "welcome" | "mode" | "manual" | "voice" | "confirmation";
+type Screen = "welcome" | "mode" | "manual" | "voice" | "import" | "confirmation";
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
-export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGateProps) {
+export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
   const user = useAppStore((s) => s.user);
   const [screen, setScreen] = useState<Screen>("welcome");
 
@@ -170,6 +170,13 @@ export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGat
     mandats: [], informationsVente: [], acheteursChauds: [],
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmDesc, setConfirmDesc] = useState("");
+  const [confirmUncertain, setConfirmUncertain] = useState<string[]>([]);
+  const [confirmUnmapped, setConfirmUnmapped] = useState<string[]>([]);
+
+  // Import state
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const firstName = user?.firstName || "Conseiller";
   const personaId: PersonaId | null = null;
@@ -285,6 +292,82 @@ export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGat
     setScreen("manual");
   };
 
+  // ── Import handler ──────────────────────────────────────────────────────
+
+  const applyExtractionResult = (result: ExtractionResult) => {
+    setExtractedFields(result.extracted);
+    setExtractedArrays(result.arrays);
+    setConfirmDesc(result.description);
+    setConfirmUncertain(result.uncertain);
+    setConfirmUnmapped(result.unmapped);
+    setIsImporting(false);
+    setScreen("confirmation");
+  };
+
+  const handleFileImport = async (file: File) => {
+    setIsImporting(true);
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const isImage = file.type.startsWith("image/");
+    const isPDF = ext === "pdf" || file.type === "application/pdf";
+    const isExcel = ["xls", "xlsx", "xlsm", "ods", "csv"].includes(ext);
+    const isWord = ["doc", "docx", "odt", "txt"].includes(ext);
+
+    try {
+      if (isImage || isPDF) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64 = (e.target?.result as string).split(",")[1];
+          const mediaType = isPDF ? "application/pdf" : file.type;
+          try {
+            const result = await extractFromImage(base64, mediaType);
+            applyExtractionResult(result);
+          } catch {
+            setIsImporting(false);
+            setScreen("import");
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      if (isExcel) {
+        const XLSX = await import("xlsx");
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+        const csvParts: string[] = [];
+        workbook.SheetNames.forEach((name) => {
+          const sheet = workbook.Sheets[name];
+          const csv = XLSX.utils.sheet_to_csv(sheet);
+          if (csv.trim()) csvParts.push(`[Feuille: ${name}]\n${csv}`);
+        });
+        const result = await extractFromDocument(csvParts.join("\n\n"), file.name);
+        applyExtractionResult(result);
+        return;
+      }
+
+      if (isWord) {
+        let text = "";
+        if (ext === "docx") {
+          const mammoth = await import("mammoth");
+          const arrayBuffer = await file.arrayBuffer();
+          const { value } = await mammoth.extractRawText({ arrayBuffer });
+          text = value;
+        } else {
+          text = await file.text();
+        }
+        const result = await extractFromDocument(text, file.name);
+        applyExtractionResult(result);
+        return;
+      }
+
+      // Unsupported format
+      setIsImporting(false);
+    } catch (err) {
+      console.error("handleFileImport error:", err);
+      setIsImporting(false);
+    }
+  };
+
   // ── Screens ────────────────────────────────────────────────────────────────
 
   const fullscreen = "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background";
@@ -352,7 +435,7 @@ export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGat
             </button>
 
             <button
-              onClick={onStartImport}
+              onClick={() => setScreen("import")}
               className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
@@ -478,7 +561,62 @@ export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGat
     );
   }
 
-  // ── Écran 5 : Confirmation ───────────────────────────────────────────────
+  // ── Écran 5 : Import de fichier ─────────────────────────────────────────
+  if (screen === "import") {
+    return (
+      <div className={fullscreen}>
+        <div className={gradient} />
+        <div className="relative z-10 flex max-w-md flex-col items-center gap-8 px-6 text-center">
+          {isImporting ? (
+            <>
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-lg font-medium text-foreground">Analyse en cours…</p>
+              <p className="text-sm text-muted-foreground">Extraction des données de votre fichier</p>
+            </>
+          ) : (
+            <>
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                <Upload className="h-8 w-8 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-foreground">Importer un fichier</h2>
+                <p className="text-sm text-muted-foreground">
+                  Excel, CSV, PDF, Word, ou photo d&apos;un tableau
+                </p>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full max-w-xs flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 py-8 text-primary hover:bg-primary/10 transition-all cursor-pointer"
+              >
+                <FileUp className="h-8 w-8" />
+                <span className="text-sm font-semibold">Choisir un fichier</span>
+                <span className="text-xs text-primary/60">Image · PDF · Excel · Word</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.txt,.ods"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileImport(file);
+                }}
+              />
+              <button
+                onClick={() => setScreen("mode")}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Retour
+              </button>
+              {passBtn}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran 6 : Confirmation ───────────────────────────────────────────────
   if (screen === "confirmation") {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col bg-background">
@@ -486,9 +624,9 @@ export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGat
           <ImportConfirmation
             extracted={extractedFields}
             arrays={extractedArrays}
-            uncertain={[]}
-            unmapped={[]}
-            description="Saisie manuelle — Vérifiez et enregistrez"
+            uncertain={confirmUncertain}
+            unmapped={confirmUnmapped}
+            description={confirmDesc || "Vérifiez et enregistrez"}
             onConfirm={handleConfirm}
             onReset={handleReset}
             isSaving={isSaving}
