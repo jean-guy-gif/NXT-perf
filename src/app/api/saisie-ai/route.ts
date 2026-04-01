@@ -163,6 +163,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── extract (conversation vocale / texte) ──────────────────────────────────
+    if (action === "extract") {
+      const text = (body.text as string) || "";
+      const currentFields = (body.currentFields as Record<string, unknown>) || {};
+      const targetFields = (body.targetFields as string[]) || [];
+
+      const prompt = `${SYSTEM_PROMPT}
+
+L'agent immobilier vient de dire : "${text}"
+
+Champs déjà remplis (ne pas écraser sauf correction explicite) :
+${JSON.stringify(currentFields)}
+
+${targetFields.length > 0 ? `Champs recherchés en priorité pour ce bloc : ${targetFields.join(", ")}` : ""}
+
+Extrais UNIQUEMENT les données mentionnées dans cette réponse.
+Réponds UNIQUEMENT en JSON valide selon le format spécifié.`;
+
+      try {
+        const raw = await callOpenRouter(prompt, 1024);
+        const parsed = parseJsonResponse(raw);
+        return NextResponse.json(parsed);
+      } catch {
+        return NextResponse.json({
+          extracted: {},
+          arrays: {},
+          uncertain: [],
+          unmapped: [],
+          description: "",
+          confidence: 0,
+        });
+      }
+    }
+
     // ── extract_document (Excel, CSV, Word → texte) ──────────────────────────
     if (action === "extract_document") {
       const textContent = (body.textContent as string) || "";

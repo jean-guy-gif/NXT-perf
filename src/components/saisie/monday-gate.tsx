@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, FileUp, PenLine, Sparkles, ArrowLeft } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { ImportConfirmation } from "@/components/saisie/import-confirmation";
+import { VoiceConversation } from "@/components/saisie/voice-conversation";
 import type { ExtractedFields, ExtractedArrays, MandatDetail, AcheteurDetail, InfoVenteDetail } from "@/lib/saisie-ai-client";
 
 // ─── Personas ────────────────────────────────────────────────────────────────
@@ -144,16 +145,15 @@ function parseOffresCompromis(raw: string): { offres: number; compromis: number 
 
 interface MondayGateProps {
   onDismiss: () => void;
-  onStartVoice: () => void;
   onStartImport: () => void;
   onSaisieDone: () => void;
 }
 
-type Screen = "welcome" | "mode" | "manual" | "confirmation";
+type Screen = "welcome" | "mode" | "manual" | "voice" | "confirmation";
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
-export function MondayGate({ onDismiss, onStartVoice, onStartImport, onSaisieDone }: MondayGateProps) {
+export function MondayGate({ onDismiss, onStartImport, onSaisieDone }: MondayGateProps) {
   const user = useAppStore((s) => s.user);
   const [screen, setScreen] = useState<Screen>("welcome");
 
@@ -339,7 +339,7 @@ export function MondayGate({ onDismiss, onStartVoice, onStartImport, onSaisieDon
           </h2>
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
             <button
-              onClick={onStartVoice}
+              onClick={() => setScreen("voice")}
               className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
@@ -464,7 +464,21 @@ export function MondayGate({ onDismiss, onStartVoice, onStartImport, onSaisieDon
     );
   }
 
-  // ── Écran 4 : Confirmation ───────────────────────────────────────────────
+  // ── Écran 4 : Conversation guidée (voix/texte) ─────────────────────────
+  if (screen === "voice") {
+    return (
+      <VoiceConversation
+        onDismiss={onDismiss}
+        onComplete={(voiceFields, voiceArrays) => {
+          setExtractedFields(voiceFields);
+          setExtractedArrays(voiceArrays);
+          setScreen("confirmation");
+        }}
+      />
+    );
+  }
+
+  // ── Écran 5 : Confirmation ───────────────────────────────────────────────
   if (screen === "confirmation") {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col bg-background">

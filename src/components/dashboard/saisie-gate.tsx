@@ -15,10 +15,6 @@ export function SaisieGate({ onDismiss, onSaisieDone }: SaisieGateProps) {
   return (
     <MondayGate
       onDismiss={onDismiss}
-      onStartVoice={() => {
-        onDismiss();
-        router.push("/saisie?mode=voice");
-      }}
       onStartImport={() => {
         onDismiss();
         router.push("/saisie?mode=import");

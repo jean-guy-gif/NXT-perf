@@ -100,6 +100,29 @@ function normalizeResult(data: Record<string, unknown>): ExtractionResult {
 
 // ── API Calls ────────────────────────────────────────────────────────────────
 
+export async function extractFromConversation(
+  text: string,
+  currentFields: Partial<ExtractedFields>,
+  targetFields: string[],
+): Promise<ExtractionResult> {
+  try {
+    const res = await fetch("/api/saisie-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "extract", text, currentFields, targetFields }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      console.error("[saisie-ai] extract error:", data.error);
+      return { ...EMPTY_RESULT, description: `Erreur : ${data.error}` };
+    }
+    return normalizeResult(data);
+  } catch (err) {
+    console.error("[saisie-ai-client] extractFromConversation error:", err);
+    return EMPTY_RESULT;
+  }
+}
+
 export async function extractFromDocument(
   textContent: string,
   fileName: string,
