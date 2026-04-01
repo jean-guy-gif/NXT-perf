@@ -33,32 +33,8 @@ export function useSaisieGate(): SaisieGateState {
   const profile = useAppStore((s) => s.profile);
 
   const check = useCallback(async () => {
-    // Pas de gate en mode démo
-    if (isDemo || !user?.id) {
-      setIsLoading(false);
-      return;
-    }
-
-    // Seuls conseiller et manager voient le gate
-    const role = user.mainRole;
-    if (role !== "conseiller" && role !== "manager") {
-      setIsLoading(false);
-      return;
-    }
-
-    // Gate uniquement le lundi
-    if (!isTodayMonday()) {
-      setIsLoading(false);
-      return;
-    }
-
-    const thisMonday = getCurrentMonday();
-
-    // Vérifier le flag last_voice_saisie_date sur le profil
-    const lastDate = profile?.last_voice_saisie_date ?? null;
-    if (lastDate === thisMonday) {
-      // Déjà vu cette semaine
-      setIsLoading(false);
+    // TEMP: forcé pour tests — bypass démo, rôle, jour, flag
+    if (!user?.id) {
       return;
     }
 
