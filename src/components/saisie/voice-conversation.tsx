@@ -41,8 +41,7 @@ interface SpeechRecognition extends EventTarget {
 
 function normalizeTranscript(text: string): string {
   return text
-    .replace(/\bun\b/gi, "1")
-    .replace(/\bune\b/gi, "1")
+    .replace(/\bune?\b/gi, "1")
     .replace(/\bdeux\b/gi, "2")
     .replace(/\btrois\b/gi, "3")
     .replace(/\bquatre\b/gi, "4")
@@ -189,7 +188,8 @@ const BLOCKS: Block[] = [
         condition: (f) => (f.acheteursChaudsCount ?? 0) > 0,
         parseMode: "acheteurs_detail",
       },
-      { field: "acheteursSortisVisite", question: "Combien d'acheteurs distincts en visite, et combien de visites au total ?", parseMode: "number" },
+      { field: "acheteursSortisVisite", question: "Combien d'acheteurs distincts as-tu sortis en visite ?", parseMode: "number" },
+      { field: "nombreVisites", question: "Et combien de visites au total ?", parseMode: "number" },
       { field: "offresRecues", question: "Des offres reçues ?", parseMode: "number" },
       { field: "compromisSignes", question: "Des compromis signés ?", parseMode: "number" },
     ],
@@ -383,7 +383,7 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
         else interim = t;
       }
       setLiveTranscript(finalTranscript + (interim ? " " + interim : ""));
-      silenceTimerRef.current = setTimeout(() => recognition.stop(), 10000);
+      silenceTimerRef.current = setTimeout(() => recognition.stop(), 5000);
     };
     recognition.onend = () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -402,7 +402,7 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
       setMicState("idle"); setLiveTranscript("");
     };
     recognitionRef.current = recognition;
-    silenceTimerRef.current = setTimeout(() => recognition.stop(), 10000);
+    silenceTimerRef.current = setTimeout(() => recognition.stop(), 5000);
     try { recognition.start(); } catch { setMicState("idle"); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

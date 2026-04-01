@@ -178,7 +178,13 @@ ${JSON.stringify(currentFields)}
 
 ${targetFields.length > 0 ? `Champs recherchés en priorité pour ce bloc : ${targetFields.join(", ")}` : ""}
 
-Extrais UNIQUEMENT les données mentionnées dans cette réponse.
+Extrais TOUTES les valeurs numériques et qualitatives mentionnées dans cette réponse, même si elles ne correspondent pas directement à la question posée. Ne pas attendre une question de relance si la valeur est déjà dans la réponse.
+Exemples :
+- "3 mandats signés deux exclusivités" → mandatsSignes=3, mandats=[{type:"exclusif"},{type:"exclusif"},{type:"simple"}]
+- "un acte pour 12000€" → actesSignes=1 ET chiffreAffaires=12000
+- "85 contacts dont 17 entrants" → contactsTotaux=85 ET contactsEntrants=17
+- "6 estimations 3 mandats" → estimationsRealisees=6 ET mandatsSignes=3
+
 Si l'utilisateur donne uniquement un nombre sans contexte (ex: "5", "12"), associe-le au premier champ manquant de la liste des champs recherchés ci-dessus.
 Si l'utilisateur dit "non", "rien", "aucun", "zéro" ou "0", mets 0 pour les champs numériques concernés.
 Réponds UNIQUEMENT en JSON valide selon le format spécifié.`;
