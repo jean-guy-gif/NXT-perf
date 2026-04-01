@@ -37,68 +37,87 @@ interface SpeechRecognition extends EventTarget {
   abort(): void;
 }
 
+// ── Transcript normalizer (STT outputs words for small numbers) ──────────────
+
+function normalizeTranscript(text: string): string {
+  return text
+    .replace(/\bun\b/gi, "1")
+    .replace(/\bune\b/gi, "1")
+    .replace(/\bdeux\b/gi, "2")
+    .replace(/\btrois\b/gi, "3")
+    .replace(/\bquatre\b/gi, "4")
+    .replace(/\bcinq\b/gi, "5")
+    .replace(/\bsix\b/gi, "6")
+    .replace(/\bsept\b/gi, "7")
+    .replace(/\bhuit\b/gi, "8")
+    .replace(/\bneuf\b/gi, "9")
+    .replace(/\bdix\b/gi, "10")
+    .replace(/\bonze\b/gi, "11")
+    .replace(/\bdouze\b/gi, "12")
+    .replace(/\btreize\b/gi, "13")
+    .replace(/\bquatorze\b/gi, "14")
+    .replace(/\bquinze\b/gi, "15")
+    .replace(/\bseize\b/gi, "16")
+    .replace(/\bvingt\b/gi, "20")
+    .replace(/\btrente\b/gi, "30")
+    .replace(/\bzéro\b/gi, "0")
+    .replace(/\baucune?\b/gi, "0")
+    .replace(/\bpas de\b/gi, "0")
+    .replace(/\brien\b/gi, "0");
+}
+
 // ── Direct parsers for relance responses (no LLM) ───────────────────────────
 
-const ZERO_WORDS = new Set(["zéro", "zero", "aucun", "aucune", "non", "rien", "pas", "0"]);
+const ZERO_RE = /^(0|non|rien|pas|aucune?|zéro|zero)$/i;
 
 function parseNumberDirect(text: string): number {
-  const lower = text.trim().toLowerCase();
-  if (ZERO_WORDS.has(lower)) return 0;
-  // "une douzaine" → 12, "une dizaine" → 10
-  if (/douzaine/i.test(lower)) return 12;
-  if (/dizaine/i.test(lower)) return 10;
-  if (/quinzaine/i.test(lower)) return 15;
-  if (/vingtaine/i.test(lower)) return 20;
-  // French number words
-  const wordMap: Record<string, number> = {
-    un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5,
-    six: 6, sept: 7, huit: 8, neuf: 9, dix: 10,
-    onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15,
-    seize: 16, vingt: 20, trente: 30,
-  };
-  for (const [word, val] of Object.entries(wordMap)) {
-    if (lower === word || lower.startsWith(word + " ")) return val;
-  }
-  const match = lower.match(/[\d]+[\s.,]*[\d]*/);
+  const normalized = normalizeTranscript(text.trim());
+  if (ZERO_RE.test(normalized.trim())) return 0;
+  if (/douzaine/i.test(normalized)) return 12;
+  if (/dizaine/i.test(normalized)) return 10;
+  if (/quinzaine/i.test(normalized)) return 15;
+  if (/vingtaine/i.test(normalized)) return 20;
+  // Extract first number found anywhere in the text
+  const match = normalized.match(/\d[\d\s.,]*/);
   if (match) return parseFloat(match[0].replace(/[\s.]/g, "").replace(",", "."));
   return 0;
 }
 
 function parseMandatsDetail(text: string): MandatDetail[] {
-  const lower = text.trim().toLowerCase();
-  if (ZERO_WORDS.has(lower)) return [];
-  const parts = text.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+  if (ZERO_RE.test(text.trim())) return [];
+  const parts = text.split(/[,;]|\bet\b/i).map(s => s.trim()).filter(Boolean);
   return parts.map(part => {
-    const isExclusif = /exclusi|ME\b|MEx\b/i.test(part);
-    const nom = part.replace(/\b(exclusi\w*|simple|MS|ME|MEx)\b/gi, "").trim();
-    return { nomVendeur: nom, type: isExclusif ? "exclusif" as const : "simple" as const };
-  });
+    const isExclusif = /exclusi|exclu\b|ex\b|ME\b|MEx\b/i.test(part);
+    const isSimple = /simple|sim\b|MS\b/i.test(part);
+    const nom = part.replace(/\b(exclusi\w*|exclu|ex|simple|sim|MS|ME|MEx)\b/gi, "").trim();
+    return { nomVendeur: nom, type: (isExclusif ? "exclusif" : isSimple ? "simple" : "simple") as "simple" | "exclusif" };
+  }).filter(m => m.nomVendeur);
 }
 
 function parseInfosVenteDetail(text: string): InfoVenteDetail[] {
-  const lower = text.trim().toLowerCase();
-  if (ZERO_WORDS.has(lower)) return [];
-  return text.split(/[,;]+/).map(s => {
+  if (ZERO_RE.test(text.trim())) return [];
+  return text.split(/[,;]|\bet\b/i).map(s => {
     const trimmed = s.trim();
+    if (!trimmed) return null;
     const spaceIdx = trimmed.indexOf(" ");
     if (spaceIdx > 0) {
-      return { nom: trimmed.slice(0, spaceIdx), commentaire: trimmed.slice(spaceIdx + 1) };
+      return { nom: trimmed.slice(0, spaceIdx), commentaire: trimmed.slice(spaceIdx + 1).trim() };
     }
     return { nom: trimmed, commentaire: "" };
-  }).filter(v => v.nom);
+  }).filter((v): v is InfoVenteDetail => v !== null && v.nom.length > 0);
 }
 
 function parseAcheteursDetail(text: string): AcheteurDetail[] {
-  const lower = text.trim().toLowerCase();
-  if (ZERO_WORDS.has(lower)) return [];
-  return text.split(/[,;]+/).map(s => {
+  if (ZERO_RE.test(text.trim())) return [];
+  return text.split(/[,;]|\bet\b/i).map(s => {
     const trimmed = s.trim();
+    if (!trimmed) return null;
     const spaceIdx = trimmed.indexOf(" ");
     if (spaceIdx > 0) {
-      return { nom: trimmed.slice(0, spaceIdx), commentaire: trimmed.slice(spaceIdx + 1) };
+      return { nom: trimmed.slice(0, spaceIdx), commentaire: trimmed.slice(spaceIdx + 1).trim() };
     }
     return { nom: trimmed, commentaire: "" };
-  }).filter(v => v.nom);
+  }).filter((v): v is AcheteurDetail => v !== null && v.nom.length > 0);
 }
 
 // ── Block definitions (17 champs complets) ───────────────────────────────────
@@ -134,7 +153,7 @@ const BLOCKS: Block[] = [
       { field: "rdvEstimation", question: "Tu as décroché des RDV estimation ?", parseMode: "number" },
       {
         field: "infosVente_detail",
-        question: "Des infos de vente à noter — projets vendeurs pas encore en RDV ? Donne-moi les noms et le contexte.",
+        question: "Cite-moi les noms et un mot sur chaque projet vendeur. Exemple : Brun retraite en juin, Leroy succession",
         parseMode: "infos_vente_detail",
       },
     ],
@@ -148,7 +167,7 @@ const BLOCKS: Block[] = [
     relances: [
       {
         field: "mandats_detail",
-        question: "Donne-moi les noms et le type pour chaque mandat (ex: Dupont exclusif, Martin simple).",
+        question: "Donne-moi les noms et le type de chaque mandat, dans l'ordre. Exemple : Dupont exclusif, Martin simple",
         condition: (f) => (f.mandatsSignes ?? 0) > 0,
         parseMode: "mandats_detail",
       },
@@ -166,7 +185,7 @@ const BLOCKS: Block[] = [
     relances: [
       {
         field: "acheteurs_detail",
-        question: "Donne-moi les noms et leur projet.",
+        question: "Cite-moi les noms et leur projet. Exemple : Martin cherche T3 Lyon, Garcia veut une maison",
         condition: (f) => (f.acheteursChaudsCount ?? 0) > 0,
         parseMode: "acheteurs_detail",
       },
@@ -368,7 +387,8 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
     };
     recognition.onend = () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      const text = finalTranscript.trim();
+      const raw = finalTranscript.trim();
+      const text = normalizeTranscript(raw);
       if (text) { setMicState("processing"); setLiveTranscript(""); processUserInput(text); }
       else { setMicState("idle"); setLiveTranscript(""); }
     };

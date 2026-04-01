@@ -179,6 +179,8 @@ ${JSON.stringify(currentFields)}
 ${targetFields.length > 0 ? `Champs recherchés en priorité pour ce bloc : ${targetFields.join(", ")}` : ""}
 
 Extrais UNIQUEMENT les données mentionnées dans cette réponse.
+Si l'utilisateur donne uniquement un nombre sans contexte (ex: "5", "12"), associe-le au premier champ manquant de la liste des champs recherchés ci-dessus.
+Si l'utilisateur dit "non", "rien", "aucun", "zéro" ou "0", mets 0 pour les champs numériques concernés.
 Réponds UNIQUEMENT en JSON valide selon le format spécifié.`;
 
       try {
