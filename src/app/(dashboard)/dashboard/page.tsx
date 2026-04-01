@@ -321,11 +321,15 @@ function DashboardContent() {
       ? Math.round(((ventes.actesSignes / currentDay) * daysInMonth) * 10) / 10
       : 0;
 
+  // MondayGate fullscreen — rendu AVANT le dashboard, bloque tout le reste
+  if (!gateLoading && gateRequired) {
+    return (
+      <SaisieGate gateType={gateRequired} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {!gateLoading && gateRequired && (
-        <SaisieGate gateType={gateRequired} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />
-      )}
       {/* Top navigation tabs */}
       <div className="flex items-center border-b border-border pb-3">
         <div className="flex items-center gap-6">
