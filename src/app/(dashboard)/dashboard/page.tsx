@@ -173,7 +173,7 @@ function DashboardContent() {
   const isDemo = useAppStore((s) => s.isDemo);
   const { currentAxes: dpiAxes, currentGlobalScore: dpiScore } = useDPIEvolution();
   const activeTools = useAppStore((s) => s.activeTools);
-  const { gateRequired, isLoading: gateLoading, dismissGate } = useSaisieGate();
+  const { gateRequired, isLoading: gateLoading, dismissGate, markSaisieDone } = useSaisieGate();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
     "nxt-dashboard-tab",
@@ -324,7 +324,7 @@ function DashboardContent() {
   return (
     <div className="space-y-6">
       {!gateLoading && gateRequired && (
-        <SaisieGate gateType={gateRequired} onDismiss={dismissGate} />
+        <SaisieGate gateType={gateRequired} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />
       )}
       {/* Top navigation tabs */}
       <div className="flex items-center border-b border-border pb-3">

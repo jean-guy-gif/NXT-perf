@@ -6,9 +6,10 @@ import { MondayGate } from "@/components/saisie/monday-gate";
 interface SaisieGateProps {
   gateType: "monday";
   onDismiss: () => void;
+  onSaisieDone: () => void;
 }
 
-export function SaisieGate({ onDismiss }: SaisieGateProps) {
+export function SaisieGate({ onDismiss, onSaisieDone }: SaisieGateProps) {
   const router = useRouter();
 
   return (
@@ -22,10 +23,7 @@ export function SaisieGate({ onDismiss }: SaisieGateProps) {
         onDismiss();
         router.push("/saisie?mode=import");
       }}
-      onStartManual={() => {
-        onDismiss();
-        router.push("/saisie?mode=manual");
-      }}
+      onSaisieDone={onSaisieDone}
     />
   );
 }
