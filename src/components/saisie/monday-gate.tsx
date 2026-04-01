@@ -66,7 +66,7 @@ export function MondayGate({ onDismiss, onStartVoice, onStartImport, onStartManu
   if (!showModeSelect) {
     // ── Écran 1 : Bienvenue ────────────────────────────────────────────────
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background">
         {/* Subtle gradient background */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
 
@@ -109,7 +109,7 @@ export function MondayGate({ onDismiss, onStartVoice, onStartImport, onStartManu
 
   // ── Écran 2 : Sélection du mode ──────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
 
       <div className="relative z-10 flex max-w-lg flex-col items-center gap-10 px-6 text-center">

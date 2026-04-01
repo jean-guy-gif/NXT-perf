@@ -1,0 +1,195 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - text: Mode démo — Les données ne sont pas sauvegardées.
+      - link "Créer un compte" [ref=e4] [cursor=pointer]:
+        - /url: /register
+    - generic [ref=e5]:
+      - complementary [ref=e6]:
+        - navigation [ref=e7]:
+          - link "NXT Perf" [ref=e8] [cursor=pointer]:
+            - /url: /dashboard
+            - img "NXT Perf" [ref=e9]
+          - generic [ref=e12]:
+            - link "Tableau de bord" [ref=e13] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e14]
+              - generic: Tableau de bord
+            - link "Mes Résultats" [ref=e19] [cursor=pointer]:
+              - /url: /resultats
+              - img [ref=e21]
+              - generic: Mes Résultats
+            - link "Ma Performance" [ref=e23] [cursor=pointer]:
+              - /url: /performance
+              - img [ref=e24]
+              - generic: Ma Performance
+            - link "Comparaison" [ref=e27] [cursor=pointer]:
+              - /url: /comparaison
+              - img [ref=e28]
+              - generic: Comparaison
+            - link "Ma Saisie" [ref=e33] [cursor=pointer]:
+              - /url: /saisie
+              - img [ref=e34]
+              - generic: Ma Saisie
+            - link "Ma Formation" [ref=e37] [cursor=pointer]:
+              - /url: /formation
+              - img [ref=e38]
+              - generic: Ma Formation
+            - link "Mes Objectifs" [ref=e41] [cursor=pointer]:
+              - /url: /objectifs
+              - img [ref=e42]
+              - generic: Mes Objectifs
+          - generic [ref=e48]:
+            - link "Cockpit" [ref=e49] [cursor=pointer]:
+              - /url: /manager/cockpit
+              - img [ref=e50]
+              - generic: Cockpit
+            - link "GPS Équipe" [ref=e52] [cursor=pointer]:
+              - /url: /manager/gps
+              - img [ref=e53]
+              - generic: GPS Équipe
+            - link "Équipe" [ref=e57] [cursor=pointer]:
+              - /url: /manager/equipe
+              - img [ref=e58]
+              - generic: Équipe
+            - link "Classement" [ref=e63] [cursor=pointer]:
+              - /url: /manager/classement
+              - img [ref=e64]
+              - generic: Classement
+            - link "Formation Collective" [ref=e70] [cursor=pointer]:
+              - /url: /manager/formation-collective
+              - img [ref=e71]
+              - generic: Formation Collective
+          - generic [ref=e75]:
+            - link "Pilotage Agence" [ref=e76] [cursor=pointer]:
+              - /url: /directeur/pilotage
+              - img [ref=e77]
+              - generic: Pilotage Agence
+            - link "GPS Directeur" [ref=e80] [cursor=pointer]:
+              - /url: /directeur/gps
+              - img [ref=e81]
+              - generic: GPS Directeur
+            - link "Équipes" [ref=e83] [cursor=pointer]:
+              - /url: /directeur/equipes
+              - img [ref=e84]
+              - generic: Équipes
+            - link "Performance" [ref=e89] [cursor=pointer]:
+              - /url: /directeur/performance
+              - img [ref=e90]
+              - generic: Performance
+            - link "Pilotage financier" [ref=e93] [cursor=pointer]:
+              - /url: /directeur/pilotage-financier
+              - img [ref=e94]
+              - generic: Pilotage financier
+            - link "Formation Collective" [ref=e97] [cursor=pointer]:
+              - /url: /directeur/formation-collective
+              - img [ref=e98]
+              - generic: Formation Collective
+            - link "Leads DPI" [ref=e100] [cursor=pointer]:
+              - /url: /admin/dpi
+              - img [ref=e101]
+              - generic: Leads DPI
+          - link "Tableau de bord" [ref=e108] [cursor=pointer]:
+            - /url: /coach/dashboard
+            - img [ref=e109]
+            - generic: Tableau de bord
+          - link "Tableau de bord" [ref=e114] [cursor=pointer]:
+            - /url: /reseau/dashboard
+            - img [ref=e115]
+            - generic: Tableau de bord
+          - link "Paramètres" [ref=e120] [cursor=pointer]:
+            - /url: /parametres
+            - img [ref=e121]
+            - generic: Paramètres
+      - button "Déplier la barre" [ref=e124]:
+        - img [ref=e125]
+    - generic [ref=e128]:
+      - banner [ref=e129]:
+        - generic [ref=e130]:
+          - heading "Mes Résultats" [level=1] [ref=e131]
+          - generic [ref=e132]: Expert
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - button "Conseiller" [ref=e135]
+            - button "Manager" [ref=e136]
+            - button "Agence" [ref=e137]
+            - button "Coach" [ref=e138]
+            - button "Réseau" [ref=e139]
+          - button "Importer" [ref=e140]:
+            - img [ref=e141]
+            - text: Importer
+          - button "Exporter" [ref=e144]:
+            - img [ref=e145]
+            - text: Exporter
+          - button [ref=e148]:
+            - img [ref=e149]
+          - button "Ajouter un conseiller" [ref=e155]:
+            - img [ref=e156]
+          - button "1" [ref=e158]:
+            - img [ref=e159]
+            - generic [ref=e162]: "1"
+          - button "JO" [ref=e163]
+          - button "Se déconnecter" [ref=e164]:
+            - img [ref=e165]
+      - main [ref=e168]:
+        - generic [ref=e169]:
+          - heading "Mes Résultats" [level=1] [ref=e170]
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - button "Semaine" [ref=e173]
+              - button "Mois" [ref=e174]
+              - button "Année" [ref=e175]
+            - generic [ref=e176]:
+              - button [ref=e177]:
+                - img [ref=e178]
+              - generic [ref=e180]:
+                - img [ref=e181]
+                - generic [ref=e183]: avril 2026
+              - button [disabled] [ref=e184]:
+                - img [ref=e185]
+          - generic [ref=e187]:
+            - button "Prospection" [ref=e188]
+            - button "Vendeurs" [ref=e189]
+            - button "Acheteurs" [ref=e190]
+            - button "Ventes" [ref=e191]
+          - generic [ref=e192]:
+            - generic [ref=e193]:
+              - generic [ref=e194]:
+                - img [ref=e197]
+                - generic [ref=e201]:
+                  - paragraph [ref=e202]:
+                    - text: Contacts entrants
+                    - img [ref=e203]
+                  - paragraph [ref=e206]: "38"
+              - generic [ref=e207]:
+                - img [ref=e210]
+                - generic [ref=e212]:
+                  - paragraph [ref=e213]:
+                    - text: Contacts totaux
+                    - img [ref=e214]
+                  - paragraph [ref=e217]: "55"
+              - generic [ref=e218]:
+                - img [ref=e221]
+                - generic [ref=e224]:
+                  - paragraph [ref=e225]:
+                    - text: RDV Estimation
+                    - img [ref=e226]
+                  - paragraph [ref=e229]: "5"
+              - generic [ref=e230]:
+                - img [ref=e233]
+                - generic [ref=e235]:
+                  - paragraph [ref=e236]:
+                    - text: Infos de vente
+                    - img [ref=e237]
+                  - paragraph [ref=e240]: "3"
+            - generic [ref=e241]:
+              - heading "Informations de vente obtenues (1)" [level=4] [ref=e242]
+              - generic [ref=e246]:
+                - generic [ref=e247]:
+                  - paragraph [ref=e248]: SCI Horizon
+                  - paragraph [ref=e249]: Lot commercial centre-ville
+                - button "Supprimer" [ref=e250]:
+                  - img [ref=e251]
+  - button "Open Next.js Dev Tools" [ref=e259] [cursor=pointer]:
+    - img [ref=e260]
+  - alert [ref=e263]

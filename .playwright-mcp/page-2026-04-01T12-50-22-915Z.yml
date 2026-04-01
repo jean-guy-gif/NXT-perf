@@ -1,0 +1,30 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4] [cursor=pointer]:
+      - generic [ref=e5]: 100% GRATUIT
+      - heading "Diagnostic de Performance Immobilière" [level=2] [ref=e6]
+      - paragraph [ref=e7]: Évaluez votre niveau, découvrez votre potentiel de croissance et comparez-vous aux meilleurs
+      - button "Démarrer mon diagnostic →" [ref=e8]
+    - generic [ref=e9]:
+      - img "NXT Perf" [ref=e11]
+      - heading "Connexion" [level=1] [ref=e12]
+      - paragraph [ref=e13]: Accédez à votre tableau de bord
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: Email
+          - textbox "jean@start-academy.fr" [ref=e17]
+        - generic [ref=e18]:
+          - generic [ref=e19]: Mot de passe
+          - generic [ref=e20]:
+            - textbox [ref=e21]
+            - button "Afficher" [ref=e22]:
+              - img [ref=e23]
+        - button "Se connecter" [ref=e26]
+      - generic [ref=e29]: ou
+      - button "Tester en démo" [ref=e31]
+      - generic [ref=e32]:
+        - link "Mot de passe oublié ?" [ref=e33] [cursor=pointer]:
+          - /url: /forgot-password
+        - link "Créer un compte" [ref=e34] [cursor=pointer]:
+          - /url: /register
+  - alert [ref=e35]

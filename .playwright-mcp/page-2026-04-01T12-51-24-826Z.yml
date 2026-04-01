@@ -1,0 +1,467 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e41] [cursor=pointer]:
+    - img [ref=e42]
+  - alert [ref=e35]
+  - generic [ref=e45]:
+    - generic [ref=e46]:
+      - text: Mode démo — Les données ne sont pas sauvegardées.
+      - link "Créer un compte" [ref=e47] [cursor=pointer]:
+        - /url: /register
+    - generic [ref=e48]:
+      - complementary [ref=e49]:
+        - navigation [ref=e50]:
+          - link "NXT Perf" [ref=e51] [cursor=pointer]:
+            - /url: /dashboard
+            - img "NXT Perf" [ref=e52]
+          - generic [ref=e55]:
+            - link "Tableau de bord" [ref=e56] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e58]
+              - generic: Tableau de bord
+            - link "Mes Résultats" [ref=e63] [cursor=pointer]:
+              - /url: /resultats
+              - img [ref=e64]
+              - generic: Mes Résultats
+            - link "Ma Performance" [ref=e66] [cursor=pointer]:
+              - /url: /performance
+              - img [ref=e67]
+              - generic: Ma Performance
+            - link "Comparaison" [ref=e70] [cursor=pointer]:
+              - /url: /comparaison
+              - img [ref=e71]
+              - generic: Comparaison
+            - link "Ma Saisie" [ref=e76] [cursor=pointer]:
+              - /url: /saisie
+              - img [ref=e77]
+              - generic: Ma Saisie
+            - link "Ma Formation" [ref=e80] [cursor=pointer]:
+              - /url: /formation
+              - img [ref=e81]
+              - generic: Ma Formation
+            - link "Mes Objectifs" [ref=e84] [cursor=pointer]:
+              - /url: /objectifs
+              - img [ref=e85]
+              - generic: Mes Objectifs
+          - generic [ref=e91]:
+            - link "Cockpit" [ref=e92] [cursor=pointer]:
+              - /url: /manager/cockpit
+              - img [ref=e93]
+              - generic: Cockpit
+            - link "GPS Équipe" [ref=e95] [cursor=pointer]:
+              - /url: /manager/gps
+              - img [ref=e96]
+              - generic: GPS Équipe
+            - link "Équipe" [ref=e100] [cursor=pointer]:
+              - /url: /manager/equipe
+              - img [ref=e101]
+              - generic: Équipe
+            - link "Classement" [ref=e106] [cursor=pointer]:
+              - /url: /manager/classement
+              - img [ref=e107]
+              - generic: Classement
+            - link "Formation Collective" [ref=e113] [cursor=pointer]:
+              - /url: /manager/formation-collective
+              - img [ref=e114]
+              - generic: Formation Collective
+          - generic [ref=e118]:
+            - link "Pilotage Agence" [ref=e119] [cursor=pointer]:
+              - /url: /directeur/pilotage
+              - img [ref=e120]
+              - generic: Pilotage Agence
+            - link "GPS Directeur" [ref=e123] [cursor=pointer]:
+              - /url: /directeur/gps
+              - img [ref=e124]
+              - generic: GPS Directeur
+            - link "Équipes" [ref=e126] [cursor=pointer]:
+              - /url: /directeur/equipes
+              - img [ref=e127]
+              - generic: Équipes
+            - link "Performance" [ref=e132] [cursor=pointer]:
+              - /url: /directeur/performance
+              - img [ref=e133]
+              - generic: Performance
+            - link "Pilotage financier" [ref=e136] [cursor=pointer]:
+              - /url: /directeur/pilotage-financier
+              - img [ref=e137]
+              - generic: Pilotage financier
+            - link "Formation Collective" [ref=e140] [cursor=pointer]:
+              - /url: /directeur/formation-collective
+              - img [ref=e141]
+              - generic: Formation Collective
+            - link "Leads DPI" [ref=e143] [cursor=pointer]:
+              - /url: /admin/dpi
+              - img [ref=e144]
+              - generic: Leads DPI
+          - link "Tableau de bord" [ref=e151] [cursor=pointer]:
+            - /url: /coach/dashboard
+            - img [ref=e152]
+            - generic: Tableau de bord
+          - link "Tableau de bord" [ref=e157] [cursor=pointer]:
+            - /url: /reseau/dashboard
+            - img [ref=e158]
+            - generic: Tableau de bord
+          - link "Paramètres" [ref=e163] [cursor=pointer]:
+            - /url: /parametres
+            - img [ref=e164]
+            - generic: Paramètres
+      - button "Déplier la barre" [ref=e167]:
+        - img [ref=e168]
+    - generic [ref=e171]:
+      - banner [ref=e172]:
+        - generic [ref=e173]:
+          - heading "Tableau de bord" [level=1] [ref=e174]
+          - generic [ref=e175]: Expert
+        - generic [ref=e176]:
+          - generic [ref=e177]:
+            - button "Conseiller" [ref=e178]
+            - button "Manager" [ref=e179]
+            - button "Agence" [ref=e180]
+            - button "Coach" [ref=e181]
+            - button "Réseau" [ref=e182]
+          - button "Importer" [ref=e183]:
+            - img [ref=e184]
+            - text: Importer
+          - button "Exporter" [ref=e187]:
+            - img [ref=e188]
+            - text: Exporter
+          - button [ref=e191]:
+            - img [ref=e192]
+          - button "Ajouter un conseiller" [ref=e198]:
+            - img [ref=e199]
+          - button "1" [ref=e201]:
+            - img [ref=e202]
+            - generic [ref=e205]: "1"
+          - button "JO" [ref=e206]
+          - button "Se déconnecter" [ref=e207]:
+            - img [ref=e208]
+      - main [ref=e211]:
+        - generic [ref=e212]:
+          - generic [ref=e213]:
+            - generic [ref=e214]:
+              - button "Vue d'ensemble" [ref=e215]:
+                - img [ref=e216]
+                - text: Vue d'ensemble
+              - button "Favoris" [ref=e219]:
+                - img [ref=e220]
+                - text: Favoris
+              - button "Ce mois" [ref=e222]:
+                - img [ref=e223]
+                - text: Ce mois
+              - button "Suivi contacts 4" [ref=e226]:
+                - img [ref=e227]
+                - text: Suivi contacts
+                - generic [ref=e230]: "4"
+            - button "Bilan vocal" [ref=e231]:
+              - img [ref=e232]
+              - text: Bilan vocal
+          - generic [ref=e236]:
+            - img [ref=e237]
+            - generic [ref=e239]:
+              - paragraph [ref=e240]: Vos contacts ne se transforment pas assez en RDV
+              - generic [ref=e241]:
+                - img [ref=e242]
+                - paragraph [ref=e244]: Relancez vos prospects non contactés et qualifiez mieux vos leads entrants
+              - link "Voir la formation" [ref=e245] [cursor=pointer]:
+                - /url: /formation
+                - text: Voir la formation
+                - img [ref=e246]
+          - paragraph [ref=e248]: Cumul depuis le 1er janvier 2026
+          - generic [ref=e249]:
+            - generic [ref=e250]:
+              - generic [ref=e251]:
+                - img [ref=e253]
+                - generic [ref=e257]:
+                  - generic [ref=e258]:
+                    - img [ref=e259]
+                    - text: +12.5%
+                  - button "Voir la progression" [ref=e262]:
+                    - img [ref=e263]
+              - generic [ref=e268]:
+                - paragraph [ref=e269]: Estimations réalisées
+                - paragraph [ref=e270]: "9"
+            - generic [ref=e271]:
+              - generic [ref=e272]:
+                - img [ref=e274]
+                - generic [ref=e278]:
+                  - generic [ref=e279]:
+                    - img [ref=e280]
+                    - text: +8.3%
+                  - button "Voir la progression" [ref=e283]:
+                    - img [ref=e284]
+              - generic [ref=e289]:
+                - paragraph [ref=e290]: Mandats signés
+                - paragraph [ref=e291]: "7"
+            - generic [ref=e292]:
+              - generic [ref=e293]:
+                - img [ref=e295]
+                - generic [ref=e300]:
+                  - generic [ref=e301]:
+                    - img [ref=e302]
+                    - text: +4.5%
+                  - button "Voir la progression" [ref=e305]:
+                    - img [ref=e306]
+              - generic [ref=e311]:
+                - paragraph [ref=e312]: Compromis signés
+                - paragraph [ref=e313]: "4"
+            - generic [ref=e314]:
+              - generic [ref=e315]:
+                - img [ref=e317]
+                - generic [ref=e319]:
+                  - generic [ref=e320]:
+                    - img [ref=e321]
+                    - text: +15.2%
+                  - button "Voir la progression" [ref=e324]:
+                    - img [ref=e325]
+              - generic [ref=e330]:
+                - paragraph [ref=e331]: Chiffre d'affaires
+                - paragraph [ref=e332]: 54 000 €
+          - generic [ref=e333]:
+            - generic [ref=e334]:
+              - generic [ref=e335]:
+                - generic [ref=e336]:
+                  - heading "Répartition des mandats" [level=3] [ref=e337]
+                  - generic [ref=e338]:
+                    - application [ref=e341]
+                    - generic [ref=e342]:
+                      - generic [ref=e343]: "7"
+                      - generic [ref=e344]: Mandats
+                  - generic [ref=e345]:
+                    - generic [ref=e348]: "Exclusifs: 5"
+                    - generic [ref=e351]: "Simples: 2"
+                - generic [ref=e352]:
+                  - generic [ref=e354]:
+                    - img [ref=e356]
+                    - generic [ref=e358]:
+                      - paragraph [ref=e359]: CA Cumulé
+                      - paragraph [ref=e360]: 54 000 €
+                    - generic [ref=e361]: +4,5%
+                  - generic [ref=e363]:
+                    - img [ref=e365]
+                    - generic [ref=e369]:
+                      - paragraph [ref=e370]: Taux d'exclusivité
+                      - paragraph [ref=e371]: 71%
+              - generic [ref=e375]:
+                - heading "Évolution du CA" [level=3] [ref=e376]
+                - application [ref=e380]:
+                  - generic [ref=e395]:
+                    - generic [ref=e396]:
+                      - generic [ref=e398]: Sep
+                      - generic [ref=e400]: Oct
+                      - generic [ref=e402]: Nov
+                      - generic [ref=e404]: Déc
+                      - generic [ref=e406]: Jan
+                      - generic [ref=e408]: Fév
+                    - generic [ref=e409]:
+                      - generic [ref=e411]: "0"
+                      - generic [ref=e413]: "4000"
+                      - generic [ref=e415]: "8000"
+                      - generic [ref=e417]: "12000"
+                      - generic [ref=e419]: "16000"
+            - generic [ref=e420]:
+              - generic [ref=e421]:
+                - generic [ref=e422]:
+                  - generic [ref=e423]: JO
+                  - generic [ref=e424]:
+                    - heading "Jean-Guy Ourmières" [level=3] [ref=e425]
+                    - paragraph [ref=e426]: "Dernière activité : aujourd'hui"
+                - generic [ref=e427]: Expert
+                - generic [ref=e428]:
+                  - generic [ref=e429]:
+                    - paragraph [ref=e430]: CA cumulé
+                    - paragraph [ref=e431]: 54 000 €
+                  - generic [ref=e432]:
+                    - paragraph [ref=e433]: Objectif annuel
+                    - paragraph [ref=e434]: 120 000 €
+              - generic [ref=e435]:
+                - heading "Activité hebdomadaire" [level=3] [ref=e436]
+                - application [ref=e440]:
+                  - generic [ref=e459]:
+                    - generic [ref=e460]:
+                      - generic [ref=e462]: Lun
+                      - generic [ref=e464]: Mar
+                      - generic [ref=e466]: Mer
+                      - generic [ref=e468]: Jeu
+                      - generic [ref=e470]: Ven
+                    - generic [ref=e471]:
+                      - generic [ref=e473]: "0"
+                      - generic [ref=e475]: "3"
+                      - generic [ref=e477]: "6"
+                      - generic [ref=e479]: "9"
+                      - generic [ref=e481]: "12"
+                - generic [ref=e482]:
+                  - generic [ref=e485]: Contacts
+                  - generic [ref=e488]: Visites
+              - generic [ref=e489]:
+                - heading "Performance globale" [level=3] [ref=e490]
+                - generic [ref=e491]:
+                  - generic [ref=e492]: 117%
+                  - paragraph [ref=e493]: de vos objectifs
+                - generic [ref=e497]:
+                  - generic [ref=e498]:
+                    - generic [ref=e499]: Contacts → RDV Estimation
+                    - generic [ref=e500]: 91%
+                  - generic [ref=e501]:
+                    - generic [ref=e502]: Estimations → Mandats
+                    - generic [ref=e503]: 120%
+                  - generic [ref=e504]:
+                    - generic [ref=e505]: "% Mandats Exclusifs"
+                    - generic [ref=e506]: 107%
+                  - generic [ref=e507]:
+                    - generic [ref=e508]: Visites → Offre
+                    - generic [ref=e509]: 150%
+          - generic [ref=e510]:
+            - generic [ref=e511]:
+              - generic [ref=e512]: 🎯
+              - heading "Mon Diagnostic de Performance" [level=2] [ref=e513]
+            - generic [ref=e514]:
+              - generic [ref=e516]:
+                - generic [ref=e517]: 😊
+                - generic [ref=e518]:
+                  - paragraph [ref=e519]: Bilan du mois — En progression
+                  - paragraph [ref=e520]: "Score global : 74/100 (+19 pts vs référence)"
+                  - paragraph [ref=e521]: Référence prise le 01/03/2026
+              - generic [ref=e522]:
+                - generic [ref=e523]:
+                  - paragraph [ref=e524]: DPI Référence
+                  - img [ref=e526]:
+                    - generic [ref=e536]: Intensi…
+                    - generic [ref=e537]: Générat…
+                    - generic [ref=e538]: Solidit…
+                    - generic [ref=e539]: Maîtris…
+                    - generic [ref=e540]: Valoris…
+                    - generic [ref=e541]: Pilotag…
+                  - paragraph [ref=e542]:
+                    - text: "Score :"
+                    - generic [ref=e543]: 55/100
+                - generic [ref=e544]:
+                  - paragraph [ref=e545]: DPI Actuel
+                  - img [ref=e547]:
+                    - generic [ref=e557]: Intensi…
+                    - generic [ref=e558]: Générat…
+                    - generic [ref=e559]: Solidit…
+                    - generic [ref=e560]: Maîtris…
+                    - generic [ref=e561]: Valoris…
+                    - generic [ref=e562]: Pilotag…
+                  - paragraph [ref=e563]:
+                    - text: "Score :"
+                    - generic [ref=e564]: 74/100
+              - generic [ref=e565]:
+                - paragraph [ref=e566]: Progression par axe
+                - generic [ref=e567]:
+                  - generic [ref=e568]:
+                    - generic [ref=e569]: Intensité Commerciale
+                    - generic [ref=e570]:
+                      - generic [ref=e571]: 50% → 69%
+                      - generic [ref=e572]:
+                        - img [ref=e573]
+                        - text: "+19"
+                  - generic [ref=e576]:
+                    - generic [ref=e577]: Génération d'Opportunités
+                    - generic [ref=e578]:
+                      - generic [ref=e579]: 55% → 50%
+                      - generic [ref=e580]:
+                        - img [ref=e581]
+                        - text: "-5"
+                  - generic [ref=e584]:
+                    - generic [ref=e585]: Solidité du Portefeuille
+                    - generic [ref=e586]:
+                      - generic [ref=e587]: 60% → 61%
+                      - generic [ref=e588]:
+                        - img [ref=e589]
+                        - text: "+1"
+                  - generic [ref=e592]:
+                    - generic [ref=e593]: Maîtrise des Ratios
+                    - generic [ref=e594]:
+                      - generic [ref=e595]: 65% → 81%
+                      - generic [ref=e596]:
+                        - img [ref=e597]
+                        - text: "+16"
+                  - generic [ref=e600]:
+                    - generic [ref=e601]: Valorisation Économique
+                    - generic [ref=e602]:
+                      - generic [ref=e603]: 45% → 100%
+                      - generic [ref=e604]:
+                        - img [ref=e605]
+                        - text: "+55"
+                  - generic [ref=e608]:
+                    - generic [ref=e609]: Pilotage Stratégique
+                    - generic [ref=e610]:
+                      - generic [ref=e611]: 55% → 83%
+                      - generic [ref=e612]:
+                        - img [ref=e613]
+                        - text: "+28"
+            - generic [ref=e616]:
+              - generic [ref=e617]:
+                - img [ref=e618]
+                - heading "Votre potentiel de progression" [level=3] [ref=e621]
+              - generic [ref=e622]:
+                - generic [ref=e623]:
+                  - generic [ref=e624]:
+                    - generic [ref=e625]: +3 mois
+                    - generic [ref=e626]: 86/100
+                  - generic [ref=e627]:
+                    - generic [ref=e628]: +12 pts
+                    - paragraph [ref=e629]: vs score actuel (74)
+                  - generic [ref=e630]:
+                    - paragraph [ref=e631]: CA additionnel estimé
+                    - paragraph [ref=e632]: +7k€ – +11k€
+                    - paragraph [ref=e633]: ROI estimé vs pay-per-use + 9€/mois
+                  - generic [ref=e634]:
+                    - generic [ref=e635]:
+                      - generic [ref=e637]: NXT Profiling
+                      - generic [ref=e638]: pay-per-use
+                    - generic [ref=e639]:
+                      - generic [ref=e641]: NXT Data
+                      - generic [ref=e642]: 9€/mois
+                  - paragraph [ref=e643]: "Axe le + impacté : Génération d'Opportunités (+18 pts)"
+                - generic [ref=e644]:
+                  - generic [ref=e645]:
+                    - generic [ref=e646]: +6 mois
+                    - generic [ref=e647]: 95/100
+                  - generic [ref=e648]:
+                    - generic [ref=e649]: +21 pts
+                    - paragraph [ref=e650]: vs score actuel (74)
+                  - generic [ref=e651]:
+                    - paragraph [ref=e652]: CA additionnel estimé
+                    - paragraph [ref=e653]: +15k€ – +23k€
+                    - paragraph [ref=e654]: ROI estimé vs pay-per-use + 9€/mois + +10€/mois
+                  - generic [ref=e655]:
+                    - generic [ref=e656]:
+                      - generic [ref=e658]: NXT Profiling
+                      - generic [ref=e659]: pay-per-use
+                    - generic [ref=e660]:
+                      - generic [ref=e662]: NXT Data
+                      - generic [ref=e663]: 9€/mois
+                    - generic [ref=e664]:
+                      - generic [ref=e666]: NXT Training
+                      - generic [ref=e667]: +10€/mois
+                  - paragraph [ref=e668]: "Axe le + impacté : Intensité Commerciale (+30 pts)"
+                - generic [ref=e669]:
+                  - generic [ref=e670]:
+                    - generic [ref=e671]: +9 mois
+                    - generic [ref=e672]: 95/100
+                  - generic [ref=e673]:
+                    - generic [ref=e674]: +21 pts
+                    - paragraph [ref=e675]: vs score actuel (74)
+                  - generic [ref=e676]:
+                    - paragraph [ref=e677]: CA additionnel estimé
+                    - paragraph [ref=e678]: +23k€ – +35k€
+                    - paragraph [ref=e679]: ROI estimé vs 9€/mois + pay-per-use + +10€/mois
+                  - generic [ref=e680]:
+                    - generic [ref=e681]:
+                      - generic [ref=e683]: NXT Data
+                      - generic [ref=e684]: 9€/mois
+                    - generic [ref=e685]:
+                      - generic [ref=e687]: NXT Profiling
+                      - generic [ref=e688]: pay-per-use
+                    - generic [ref=e689]:
+                      - generic [ref=e691]: NXT Training
+                      - generic [ref=e692]: +10€/mois
+                    - generic [ref=e693]:
+                      - generic [ref=e694]:
+                        - img [ref=e695]
+                        - generic [ref=e698]: NXT Finance
+                        - generic [ref=e699]: Bientôt
+                      - generic [ref=e700]: +10€/mois
+                  - paragraph [ref=e701]: "Axe le + impacté : Intensité Commerciale (+30 pts)"
+  - generic [ref=e702]: "3"
