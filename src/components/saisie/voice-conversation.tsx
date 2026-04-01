@@ -76,21 +76,35 @@ function parseNumberDirect(text: string): number {
   if (/dizaine/i.test(normalized)) return 10;
   if (/quinzaine/i.test(normalized)) return 15;
   if (/vingtaine/i.test(normalized)) return 20;
-  // Extract first number found anywhere in the text
-  const match = normalized.match(/\d[\d\s.,]*/);
-  if (match) return parseFloat(match[0].replace(/[\s.]/g, "").replace(",", "."));
+  // Extract ONLY the first integer found (strict: no concatenation)
+  const match = normalized.match(/\d+/);
+  if (match) return parseInt(match[0], 10);
   return 0;
 }
 
 function parseMandatsDetail(text: string): MandatDetail[] {
   if (ZERO_RE.test(text.trim())) return [];
-  const parts = text.split(/[,;]|\bet\b/i).map(s => s.trim()).filter(Boolean);
-  return parts.map(part => {
-    const isExclusif = /exclusi|exclu\b|ex\b|ME\b|MEx\b/i.test(part);
-    const isSimple = /simple|sim\b|MS\b/i.test(part);
-    const nom = part.replace(/\b(exclusi\w*|exclu|ex|simple|sim|MS|ME|MEx)\b/gi, "").trim();
-    return { nomVendeur: nom, type: (isExclusif ? "exclusif" : isSimple ? "simple" : "simple") as "simple" | "exclusif" };
-  }).filter(m => m.nomVendeur);
+  // Split on comma or semicolon only (not "et" — too risky with names like "Beltrand")
+  const parts = text.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+  // Further split each part on " et " (with spaces) to catch "Léo simple et Beltrand exclusif"
+  const segments: string[] = [];
+  for (const part of parts) {
+    const subParts = part.split(/\s+et\s+/i);
+    segments.push(...subParts.map(s => s.trim()).filter(Boolean));
+  }
+  return segments.map(segment => {
+    const words = segment.split(/\s+/);
+    // Last word determines type, everything else is the name
+    const lastWord = words[words.length - 1]?.toLowerCase() || "";
+    const isExclusif = /^(exclusi\w*|exclu|ex|me|mex)$/i.test(lastWord);
+    const isSimple = /^(simple|sim|ms)$/i.test(lastWord);
+    if (isExclusif || isSimple) {
+      const nom = words.slice(0, -1).join(" ").trim();
+      return { nomVendeur: nom, type: isExclusif ? "exclusif" as const : "simple" as const };
+    }
+    // No type keyword found → default to simple, entire segment is the name
+    return { nomVendeur: segment, type: "simple" as const };
+  }).filter(m => m.nomVendeur.length > 0);
 }
 
 function parseInfosVenteDetail(text: string): InfoVenteDetail[] {
@@ -500,7 +514,10 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
           break;
         }
         case "mandats_detail": {
-          const details = parseMandatsDetail(text);
+          let details = parseMandatsDetail(text);
+          // Truncate to declared mandatsSignes count
+          const declaredCount = currentFields.mandatsSignes ?? details.length;
+          if (details.length > declaredCount) details = details.slice(0, declaredCount);
           currentArrays = { ...currentArrays, mandats: [...currentArrays.mandats, ...details] };
           break;
         }

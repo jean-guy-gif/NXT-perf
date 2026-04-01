@@ -42,7 +42,7 @@ Numériques :
 - rdvSuivi (number) — RDV de suivi vendeurs
 - requalificationSimpleExclusif (number) — requalifications simple→exclusif
 - baissePrix (number) — baisses de prix obtenues
-- acheteursChaudsCount (number) — nombre d'acheteurs chauds
+- acheteursChaudsCount (number) — nombre d'acheteurs chauds (entier, prendre UNIQUEMENT le premier nombre mentionné)
 - acheteursSortisVisite (number) — acheteurs distincts sortis en visite
 - nombreVisites (number) — nombre total de visites
 - offresRecues (number) — offres reçues
