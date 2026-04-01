@@ -16,7 +16,6 @@ const pageTitles: Record<string, string> = {
   "/resultats": "Mes Résultats",
   "/performance": "Ma Performance",
   "/comparaison": "Comparaison",
-  "/saisie": "Ma Saisie",
   "/formation": "Ma Formation",
   "/objectifs": "Mes Objectifs",
   "/manager/cockpit": "Cockpit Manager",

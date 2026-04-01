@@ -22,6 +22,14 @@ function getCurrentMonday(): string {
 }
 
 function isTodayMonday(): boolean {
+  // DEV ONLY: forcer le gate avec ?gate=1 dans l'URL
+  if (
+    process.env.NODE_ENV === "development" &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("gate") === "1"
+  ) {
+    return true;
+  }
   return new Date().getDay() === 1;
 }
 
@@ -33,8 +41,31 @@ export function useSaisieGate(): SaisieGateState {
   const profile = useAppStore((s) => s.profile);
 
   const check = useCallback(async () => {
-    // TEMP: forcé pour tests — bypass démo, rôle, jour, flag
-    if (!user?.id) {
+    // Pas de gate en mode démo
+    if (isDemo || !user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Seuls conseiller et manager voient le gate
+    const role = user.mainRole;
+    if (role !== "conseiller" && role !== "manager") {
+      setIsLoading(false);
+      return;
+    }
+
+    // Gate uniquement le lundi (ou ?gate=1 en dev)
+    if (!isTodayMonday()) {
+      setIsLoading(false);
+      return;
+    }
+
+    const thisMonday = getCurrentMonday();
+
+    // Vérifier le flag last_voice_saisie_date sur le profil
+    const lastDate = profile?.last_voice_saisie_date ?? null;
+    if (lastDate === thisMonday) {
+      setIsLoading(false);
       return;
     }
 

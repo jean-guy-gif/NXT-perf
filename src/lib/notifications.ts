@@ -85,7 +85,7 @@ function computeConseillerNotifications(
       detail: days
         ? `Dernière saisie il y a ${formatDays(days)}`
         : "Aucune saisie enregistrée",
-      link: "/saisie",
+      link: "/dashboard",
     });
   }
 

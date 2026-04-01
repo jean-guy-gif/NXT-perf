@@ -57,9 +57,9 @@ const conseillerSteps: TourStep[] = [
     description: "Cette visite rapide te présente les principales fonctionnalités de ton espace conseiller. Tu peux la passer à tout moment.",
   },
   {
-    target: '[href="/saisie"]',
+    target: '[href="/dashboard"]',
     title: "Ta saisie d'activité",
-    description: "Ici, tu saisis ton activité pour alimenter tes indicateurs : contacts, estimations, mandats, visites, offres, compromis et actes.",
+    description: "Chaque lundi, un bilan rapide te permet de saisir ton activité : contacts, estimations, mandats, visites, offres, compromis et actes.",
   },
   {
     target: '[href="/dashboard"]',
