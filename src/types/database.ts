@@ -29,6 +29,7 @@ export interface DbProfile {
   avatar_url: string | null;
   onboarding_status: string | null;
   profile_type: string | null;
+  last_voice_saisie_date: string | null;
   created_at: string;
 }
 

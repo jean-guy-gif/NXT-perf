@@ -220,6 +220,7 @@ function RegisterForm() {
       avatar_url: null,
       onboarding_status: "DONE",
       profile_type: derivedProfile,
+      last_voice_saisie_date: null,
       created_at: new Date().toISOString(),
     };
     useAppStore.getState().setProfile(optimisticProfile);

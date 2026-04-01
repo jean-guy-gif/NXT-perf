@@ -1,8 +1,31 @@
-// Placeholder — sera remplacé par MondayGate (PRD Phase 1)
+"use client";
+
+import { useRouter } from "next/navigation";
+import { MondayGate } from "@/components/saisie/monday-gate";
+
 interface SaisieGateProps {
-  gateType: "weekly" | "monthly";
+  gateType: "monday";
   onDismiss: () => void;
 }
+
 export function SaisieGate({ onDismiss }: SaisieGateProps) {
-  return null;
+  const router = useRouter();
+
+  return (
+    <MondayGate
+      onDismiss={onDismiss}
+      onStartVoice={() => {
+        onDismiss();
+        router.push("/saisie?mode=voice");
+      }}
+      onStartImport={() => {
+        onDismiss();
+        router.push("/saisie?mode=import");
+      }}
+      onStartManual={() => {
+        onDismiss();
+        router.push("/saisie?mode=manual");
+      }}
+    />
+  );
 }
