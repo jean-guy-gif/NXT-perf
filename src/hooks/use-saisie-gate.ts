@@ -33,7 +33,7 @@ export function useSaisieGate(): SaisieGateState {
   const profile = useAppStore((s) => s.profile);
 
   const check = useCallback(async () => {
-    // Pas de gate en mode démo, hors lundi, ou rôles non concernés
+    // Pas de gate en mode démo
     if (isDemo || !user?.id) {
       setIsLoading(false);
       return;
