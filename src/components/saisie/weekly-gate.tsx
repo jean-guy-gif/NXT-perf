@@ -6,6 +6,9 @@ import { useAppStore } from "@/stores/app-store";
 import { ImportConfirmation } from "@/components/saisie/import-confirmation";
 import { VoiceConversation } from "@/components/saisie/voice-conversation";
 import { extractFromDocument, extractFromImage } from "@/lib/saisie-ai-client";
+import { convertExtractedToPeriodResults } from "@/lib/weekly-gate";
+import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
+import { parseCountField, parseMandatsText, parseDetailsText, capitalizeFirst } from "@/lib/saisie-parser";
 import type { ExtractedFields, ExtractedArrays, ExtractionResult, MandatDetail, AcheteurDetail, InfoVenteDetail } from "@/lib/saisie-ai-client";
 
 // ─── Personas ────────────────────────────────────────────────────────────────
@@ -40,129 +43,56 @@ const PERSONA_GREETINGS: Record<PersonaId, PersonaGreeting> = {
   },
 };
 
-const DEFAULT_GREETING: PersonaGreeting = {
-  line1: (name) => `Bonne semaine, ${name} 👊`,
-  line2: "Prends 2 minutes pour faire le point sur ta semaine. C'est le moment.",
+const CONTEXT_GREETINGS: Record<string, PersonaGreeting> = {
+  demo: {
+    line1: (name) => `Bienvenue, ${name} 👋`,
+    line2: "Découvre la saisie hebdomadaire. 2 minutes pour faire le point.",
+  },
+  friday_required: {
+    line1: (name) => `Bonne fin de semaine, ${name} 👊`,
+    line2: "Prends 2 minutes pour faire le bilan de ta semaine. C'est le moment.",
+  },
+  monday_catchup: {
+    line1: (name) => `${name}, ta saisie t'attend`,
+    line2: "Tu n'as pas complété vendredi. Prends 2 minutes pour rattraper.",
+  },
 };
 
-// ─── Questions ───────────────────────────────────────────────────────────────
+const DEFAULT_GREETING: PersonaGreeting = {
+  line1: (name) => `Bonne semaine, ${name} 👊`,
+  line2: "Prends 2 minutes pour faire le point sur ta semaine.",
+};
 
-type QuestionType = "number" | "text";
-
-interface Question {
-  section: string;
-  label: string;
-  field: string;
-  type: QuestionType;
-}
-
-const QUESTIONS: Question[] = [
-  // Prospection
-  { section: "Prospection", label: "Combien de contacts as-tu eus au total cette semaine ?", field: "contactsTotaux", type: "number" },
-  { section: "Prospection", label: "Parmi eux, combien étaient des contacts entrants (portails, vitrine) ?", field: "contactsEntrants", type: "number" },
-  { section: "Prospection", label: "Combien de RDV estimation as-tu décrochés ?", field: "rdvEstimation", type: "number" },
-  { section: "Prospection", label: "As-tu des infos de vente à noter ? (nom + contexte, ou 0 si aucune)", field: "informationsVente", type: "text" },
-  // Vendeurs
-  { section: "Vendeurs", label: "Combien d'estimations as-tu réalisées ?", field: "estimationsRealisees", type: "number" },
-  { section: "Vendeurs", label: "Combien de mandats as-tu signés ? (précise : X exclusifs, Y simples)", field: "mandats", type: "text" },
-  { section: "Vendeurs", label: "Combien de RDV de suivi vendeur as-tu faits ?", field: "rdvSuivi", type: "number" },
-  { section: "Vendeurs", label: "Combien de requalifications simple → exclusif ?", field: "requalificationSimpleExclusif", type: "number" },
-  { section: "Vendeurs", label: "Combien de baisses de prix acceptées ?", field: "baissePrix", type: "number" },
-  // Acheteurs
-  { section: "Acheteurs", label: "As-tu de nouveaux acheteurs chauds ? (nom + projet, ou 0)", field: "acheteursChauds", type: "text" },
-  { section: "Acheteurs", label: "Combien d'acheteurs distincts as-tu sortis en visite ?", field: "acheteursSortisVisite", type: "number" },
-  { section: "Acheteurs", label: "Combien de visites au total ?", field: "nombreVisites", type: "number" },
-  { section: "Acheteurs", label: "Combien d'offres reçues ? Combien de compromis signés ?", field: "offres_compromis", type: "text" },
-  // Ventes
-  { section: "Ventes", label: "Combien d'actes signés chez le notaire ?", field: "actesSignes", type: "number" },
-  { section: "Ventes", label: "Quel chiffre d'affaires sur ces actes ? (en € — tape 0 si aucun acte)", field: "chiffreAffaires", type: "number" },
-];
-
-// ─── Parsers for text fields ─────────────────────────────────────────────────
-
-function parseInfosVente(raw: string): InfoVenteDetail[] {
-  if (!raw || raw === "0" || raw.toLowerCase() === "aucune") return [];
-  return raw.split(",").map((s) => {
-    const trimmed = s.trim();
-    const parts = trimmed.split(/\s+/);
-    const nom = parts[0] || trimmed;
-    const commentaire = parts.slice(1).join(" ");
-    return { nom, commentaire };
-  }).filter((v) => v.nom);
-}
-
-function parseMandats(raw: string): { count: number; mandats: MandatDetail[] } {
-  if (!raw || raw === "0") return { count: 0, mandats: [] };
-  const mandats: MandatDetail[] = [];
-  let total = 0;
-
-  // Try to parse patterns like "2 exclusifs, 1 simple" or "3" or "1 ME 2 MS"
-  const excMatch = raw.match(/(\d+)\s*(?:exclus|exclu|ME|MEx)/i);
-  const simpMatch = raw.match(/(\d+)\s*(?:simple|MS|M\.\s*Simple)/i);
-
-  if (excMatch) {
-    const n = parseInt(excMatch[1]);
-    total += n;
-    for (let i = 0; i < n; i++) mandats.push({ nomVendeur: "", type: "exclusif" });
-  }
-  if (simpMatch) {
-    const n = parseInt(simpMatch[1]);
-    total += n;
-    for (let i = 0; i < n; i++) mandats.push({ nomVendeur: "", type: "simple" });
-  }
-
-  // If no pattern matched, try to parse as a plain number
-  if (total === 0) {
-    const num = parseInt(raw);
-    if (!isNaN(num) && num > 0) {
-      total = num;
-      for (let i = 0; i < num; i++) mandats.push({ nomVendeur: "", type: "simple" });
-    }
-  }
-
-  return { count: total, mandats };
-}
-
-function parseAcheteursChauds(raw: string): AcheteurDetail[] {
-  if (!raw || raw === "0" || raw.toLowerCase() === "aucun") return [];
-  return raw.split(",").map((s) => {
-    const trimmed = s.trim();
-    const parts = trimmed.split(/\s+/);
-    const nom = parts[0] || trimmed;
-    const commentaire = parts.slice(1).join(" ");
-    return { nom, commentaire };
-  }).filter((v) => v.nom);
-}
-
-function parseOffresCompromis(raw: string): { offres: number; compromis: number } {
-  if (!raw || raw === "0") return { offres: 0, compromis: 0 };
-  const numbers = raw.match(/\d+/g)?.map(Number) || [];
-  if (numbers.length >= 2) return { offres: numbers[0], compromis: numbers[1] };
-  if (numbers.length === 1) return { offres: numbers[0], compromis: 0 };
-  return { offres: 0, compromis: 0 };
-}
+// Questions are imported from SAISIE_STEPS (shared source of truth with voice mode)
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
-interface MondayGateProps {
+interface WeeklyGateProps {
   onDismiss: () => void;
   onSaisieDone: () => void;
+  /** Persist validated data → Supabase + store */
+  saveResult: (result: import("@/types/results").PeriodResults) => Promise<unknown>;
+  /** Optional context label for the welcome screen */
+  context?: "demo" | "friday_required" | "monday_catchup" | "none";
 }
 
 type Screen = "welcome" | "mode" | "manual" | "voice" | "import" | "confirmation";
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
-export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
+export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: WeeklyGateProps) {
   const user = useAppStore((s) => s.user);
   const [screen, setScreen] = useState<Screen>("welcome");
 
-  // Manual flow state
-  const [questionIdx, setQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState<string[]>(Array(QUESTIONS.length).fill(""));
+  // Manual flow state — uses SAISIE_STEPS as source of truth
+  const [stepIdx, setStepIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [slideDir, setSlideDir] = useState<"right" | "left">("right");
   const [animating, setAnimating] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track fields for conditional steps
+  const manualFieldsRef = useRef<ExtractedFields>({});
 
   // Confirmation state
   const [extractedFields, setExtractedFields] = useState<ExtractedFields>({});
@@ -180,17 +110,18 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
 
   const firstName = user?.firstName || "Conseiller";
   const personaId: PersonaId | null = null;
-  const greeting = personaId ? PERSONA_GREETINGS[personaId] : DEFAULT_GREETING;
+  const contextGreeting = context ? CONTEXT_GREETINGS[context] : undefined;
+  const greeting = personaId ? PERSONA_GREETINGS[personaId] : (contextGreeting ?? DEFAULT_GREETING);
 
-  // Focus input on question change
+  // Focus input on step change
   useEffect(() => {
     if (screen === "manual") {
       const timer = setTimeout(() => inputRef.current?.focus(), 80);
       return () => clearTimeout(timer);
     }
-  }, [screen, questionIdx]);
+  }, [screen, stepIdx]);
 
-  // ── Build extracted data from answers ──────────────────────────────────────
+  // ── Build extracted data from answers (aligned with SAISIE_STEPS) ─────────
 
   const buildExtractedData = useCallback(() => {
     const fields: ExtractedFields = {};
@@ -198,28 +129,18 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
     let infosArr: InfoVenteDetail[] = [];
     let acheteursArr: AcheteurDetail[] = [];
 
-    for (let i = 0; i < QUESTIONS.length; i++) {
-      const q = QUESTIONS[i];
-      const raw = answers[i];
+    for (const step of SAISIE_STEPS) {
+      const raw = answers[step.id] ?? "";
 
-      if (q.type === "number") {
-        const val = raw === "" ? 0 : Number(raw);
-        if (!isNaN(val)) {
-          (fields as Record<string, number>)[q.field] = val;
-        }
-      } else if (q.field === "informationsVente") {
-        infosArr = parseInfosVente(raw);
-      } else if (q.field === "mandats") {
-        const { count, mandats } = parseMandats(raw);
-        fields.mandatsSignes = count;
-        mandatsArr = mandats;
-      } else if (q.field === "acheteursChauds") {
-        acheteursArr = parseAcheteursChauds(raw);
-        fields.acheteursChaudsCount = acheteursArr.length;
-      } else if (q.field === "offres_compromis") {
-        const { offres, compromis } = parseOffresCompromis(raw);
-        fields.offresRecues = offres;
-        fields.compromisSignes = compromis;
+      if (step.inputMode === "count" || step.inputMode === "money") {
+        const val = raw === "" ? 0 : (parseCountField(raw) ?? 0);
+        (fields as Record<string, number>)[step.field] = val;
+      } else if (step.inputMode === "detail_mandats") {
+        mandatsArr = parseMandatsText(raw).map(m => ({ nomVendeur: capitalizeFirst(m.nomVendeur), type: m.type }));
+      } else if (step.inputMode === "detail_infos") {
+        infosArr = parseDetailsText(raw).map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }));
+      } else if (step.inputMode === "detail_acheteurs") {
+        acheteursArr = parseDetailsText(raw).map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }));
       }
     }
 
@@ -229,16 +150,50 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
     };
   }, [answers]);
 
+  // ── Get the current applicable step ────────────────────────────────────────
+
+  const currentStep = stepIdx < SAISIE_STEPS.length ? SAISIE_STEPS[stepIdx] : null;
+  const applicableSteps = SAISIE_STEPS.filter(s => !s.condition || s.condition(manualFieldsRef.current));
+  const applicableIdx = currentStep ? applicableSteps.indexOf(currentStep) : -1;
+  const totalApplicable = applicableSteps.length;
+
   // ── Navigation ─────────────────────────────────────────────────────────────
 
-  const goNext = () => {
-    if (animating) return;
+  const processAndAdvance = () => {
+    if (animating || !currentStep) return;
 
-    if (questionIdx >= QUESTIONS.length - 1) {
-      // Last question → confirmation
+    const raw = answers[currentStep.id] ?? "";
+    setDetailError("");
+
+    // Parse count/money → store in ref for condition evaluation
+    if (currentStep.inputMode === "count" || currentStep.inputMode === "money") {
+      const val = raw === "" ? 0 : (parseCountField(raw) ?? 0);
+      (manualFieldsRef.current as Record<string, number>)[currentStep.field] = val;
+    }
+
+    // Validate detail fields — reject non-exploitable input
+    if (currentStep.inputMode === "detail_mandats" || currentStep.inputMode === "detail_infos" || currentStep.inputMode === "detail_acheteurs") {
+      const trimmed = raw.trim();
+      if (trimmed && trimmed !== "0" && trimmed.toLowerCase() !== "aucun" && trimmed.toLowerCase() !== "rien") {
+        const isJustNumber = /^\d+$/.test(trimmed);
+        const isJustYes = /^(oui|ok|ouais|non)$/i.test(trimmed);
+        const isTooShort = trimmed.length > 0 && trimmed.length < 3 && !isJustNumber;
+        if (isJustNumber || isJustYes || isTooShort) {
+          setDetailError("Indique un nom + contexte, ou laisse vide.");
+          return;
+        }
+      }
+    }
+
+    // Find next applicable step
+    const nextIdx = getNextApplicableStep(stepIdx + 1, manualFieldsRef.current);
+
+    if (nextIdx >= SAISIE_STEPS.length) {
+      // Done → confirmation
       const { fields, arrays } = buildExtractedData();
       setExtractedFields(fields);
       setExtractedArrays(arrays);
+      setConfirmDesc("Saisie manuelle");
       setScreen("confirmation");
       return;
     }
@@ -246,17 +201,27 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
     setSlideDir("right");
     setAnimating(true);
     setTimeout(() => {
-      setQuestionIdx((i) => i + 1);
+      setStepIdx(nextIdx);
       setAnimating(false);
     }, 200);
   };
 
   const goPrev = () => {
-    if (animating || questionIdx <= 0) return;
+    if (animating || stepIdx <= 0) return;
+    // Find previous applicable step
+    let prevIdx = stepIdx - 1;
+    while (prevIdx >= 0) {
+      const s = SAISIE_STEPS[prevIdx];
+      if (!s.condition || s.condition(manualFieldsRef.current)) break;
+      prevIdx--;
+    }
+    if (prevIdx < 0) return;
+
+    setDetailError("");
     setSlideDir("left");
     setAnimating(true);
     setTimeout(() => {
-      setQuestionIdx((i) => i - 1);
+      setStepIdx(prevIdx);
       setAnimating(false);
     }, 200);
   };
@@ -264,31 +229,30 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      goNext();
+      processAndAdvance();
     }
   };
 
   const updateAnswer = (value: string) => {
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[questionIdx] = value;
-      return next;
-    });
+    if (!currentStep) return;
+    if (detailError) setDetailError("");
+    setAnswers((prev) => ({ ...prev, [currentStep.id]: value }));
   };
 
   const handleConfirm = async (fields: ExtractedFields, arrays: ExtractedArrays) => {
+    if (!user?.id) return;
     setIsSaving(true);
-    // TODO Phase 3+: persist to Supabase period_results
-    void fields;
-    void arrays;
-    await new Promise((r) => setTimeout(r, 500));
+    const periodResult = convertExtractedToPeriodResults(user.id, fields, arrays);
+    await saveResult(periodResult);
     setIsSaving(false);
     onSaisieDone();
   };
 
   const handleReset = () => {
-    setAnswers(Array(QUESTIONS.length).fill(""));
-    setQuestionIdx(0);
+    setAnswers({});
+    manualFieldsRef.current = {};
+    setStepIdx(0);
+    setDetailError("");
     setScreen("manual");
   };
 
@@ -435,6 +399,7 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
             </button>
 
             <button
+              type="button"
               onClick={() => setScreen("import")}
               className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
             >
@@ -467,9 +432,9 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
   }
 
   // ── Écran 3 : Saisie manuelle question par question ──────────────────────
-  if (screen === "manual") {
-    const q = QUESTIONS[questionIdx];
-    const progress = ((questionIdx + 1) / QUESTIONS.length) * 100;
+  if (screen === "manual" && currentStep) {
+    const progress = totalApplicable > 0 ? ((applicableIdx + 1) / totalApplicable) * 100 : 0;
+    const isDetail = currentStep.inputMode === "detail_mandats" || currentStep.inputMode === "detail_infos" || currentStep.inputMode === "detail_acheteurs";
 
     return (
       <div className={fullscreen}>
@@ -478,8 +443,9 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
         <div className="relative z-10 flex w-full max-w-lg flex-col items-center px-6" style={{ minHeight: 400 }}>
           {/* Top bar : back + progress */}
           <div className="flex w-full items-center gap-3 mb-8">
-            {questionIdx > 0 ? (
+            {stepIdx > 0 ? (
               <button
+                type="button"
                 onClick={goPrev}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
@@ -497,13 +463,13 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
               </div>
             </div>
             <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">
-              {questionIdx + 1} / {QUESTIONS.length}
+              {applicableIdx + 1} / {totalApplicable}
             </span>
           </div>
 
           {/* Section label */}
           <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-4">
-            {q.section}
+            {currentStep.section}
           </p>
 
           {/* Question with slide animation */}
@@ -517,24 +483,32 @@ export function MondayGate({ onDismiss, onSaisieDone }: MondayGateProps) {
             }`}
           >
             <h2 className="text-2xl font-medium text-foreground leading-snug mb-10">
-              {q.label}
+              {currentStep.prompt}
             </h2>
 
             <input
               ref={inputRef}
-              type={q.type === "number" ? "number" : "text"}
-              min={q.type === "number" ? 0 : undefined}
-              inputMode={q.type === "number" ? "numeric" : "text"}
-              value={answers[questionIdx]}
+              type={currentStep.keyboardMode === "numeric" ? "number" : "text"}
+              min={currentStep.keyboardMode === "numeric" ? 0 : undefined}
+              inputMode={currentStep.keyboardMode}
+              value={answers[currentStep.id] ?? ""}
               onChange={(e) => updateAnswer(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={q.type === "number" ? "0" : "Tape ta réponse…"}
+              placeholder={currentStep.placeholder}
               autoFocus
-              className="w-full max-w-xs mx-auto block rounded-xl border border-input bg-card px-5 py-4 text-center text-2xl font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/40"
+              className={`w-full ${isDetail ? "max-w-md" : "max-w-xs"} mx-auto block rounded-xl border border-input bg-card px-5 py-4 ${isDetail ? "text-left text-base" : "text-center text-2xl font-semibold"} text-foreground outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/40`}
             />
 
+            {detailError && (
+              <p className="mt-2 text-xs text-amber-500">{detailError}</p>
+            )}
+
+            {currentStep.exampleHint && !detailError && (
+              <p className="mt-3 text-xs text-muted-foreground/60">{currentStep.exampleHint}</p>
+            )}
+
             <p className="mt-4 text-xs text-muted-foreground">
-              Appuie sur Entrée pour continuer
+              {isDetail ? "Entrée pour valider · Vide = aucun" : "Entrée pour continuer"}
             </p>
           </div>
 

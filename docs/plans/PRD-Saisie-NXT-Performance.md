@@ -294,16 +294,20 @@ Après la conversation vocale, le conseiller arrive sur un **écran de confirmat
 
 ### 5.2 Logique de persistance
 
+> **Mise à jour avril 2026 — Règle d'écrasement (remplace la règle de cumul initiale)**
+
 À la validation :
-- Les valeurs numériques sont **additionnées** aux valeurs existantes du mois en cours (`periodType: "month"`, `periodStart: premier du mois en cours`)
+- La saisie validée **remplace intégralement** l'entrée existante du mois en cours (`periodType: "month"`, `periodStart: premier du mois en cours`)
 - Si aucune entrée n'existe pour ce mois, une nouvelle entrée est créée
-- Le flag `draft: true` est retiré
+- Si une entrée existe déjà (re-saisie sur la même période), elle est **écrasée**, pas additionnée
 - Le flag `lastVoiceSaisieDate` est mis à jour (empêche le déclenchement lundi prochain)
 
-**Règle de cumul :**
-- `contactsTotaux += valeur saisie cette semaine`
-- `mandatsSignes += valeur saisie` MAIS les entrées dans le tableau `mandats[]` sont **appendées**, pas remplacées
-- Idem pour `informationsVente[]` et `acheteursChauds[]`
+**Règle d'unicité :**
+- Clé logique : `(userId, periodType, periodStart)`
+- Supabase : `upsert` avec `onConflict: "user_id,period_type,period_start"` → écrasement
+- Store Zustand : `addResults()` déduplicaté par la même clé logique → écrasement côté client
+
+**Conséquence :** chaque validation produit un snapshot complet du mois. L'utilisateur saisit ses totaux cumulés du mois en cours, pas un delta hebdomadaire. Une re-validation corrige les données, elle ne les double pas.
 
 ---
 

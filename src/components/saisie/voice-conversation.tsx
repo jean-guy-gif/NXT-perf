@@ -2,292 +2,59 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, MessageCircle, Mic, Volume2, VolumeX, Keyboard } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
-import { extractFromConversation } from "@/lib/saisie-ai-client";
-import type { ExtractedFields, ExtractedArrays, MandatDetail, InfoVenteDetail, AcheteurDetail } from "@/lib/saisie-ai-client";
+import { parseCountField, parseNumericResponse, parseMandatsText, parseDetailsText, normalize, capitalizeFirst } from "@/lib/saisie-parser";
+import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
+import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
 
 // ── Web Speech API types ─────────────────────────────────────────────────────
 
-interface SpeechRecognitionResult {
-  readonly isFinal: boolean;
-  readonly length: number;
-  0: { readonly transcript: string; readonly confidence: number };
-}
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  [index: number]: SpeechRecognitionResult;
-}
-interface SpeechRecognitionEvent extends Event {
-  readonly resultIndex: number;
-  readonly results: SpeechRecognitionResultList;
-}
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-}
+interface SpeechRecognitionResult { readonly isFinal: boolean; readonly length: number; 0: { readonly transcript: string; readonly confidence: number }; }
+interface SpeechRecognitionResultList { readonly length: number; [index: number]: SpeechRecognitionResult; }
+interface SpeechRecognitionEvent extends Event { readonly resultIndex: number; readonly results: SpeechRecognitionResultList; }
+interface SpeechRecognitionErrorEvent extends Event { readonly error: string; }
 interface SpeechRecognition extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
+  lang: string; continuous: boolean; interimResults: boolean;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onend: (() => void) | null;
   onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
+  start(): void; stop(): void; abort(): void;
 }
 
-// ── Transcript normalizer (STT outputs words for small numbers) ──────────────
+// ── Chat message ─────────────────────────────────────────────────────────────
 
-function normalizeTranscript(text: string): string {
-  return text
-    .replace(/\bune?\b/gi, "1")
-    .replace(/\bdeux\b/gi, "2")
-    .replace(/\btrois\b/gi, "3")
-    .replace(/\bquatre\b/gi, "4")
-    .replace(/\bcinq\b/gi, "5")
-    .replace(/\bsix\b/gi, "6")
-    .replace(/\bsept\b/gi, "7")
-    .replace(/\bhuit\b/gi, "8")
-    .replace(/\bneuf\b/gi, "9")
-    .replace(/\bdix\b/gi, "10")
-    .replace(/\bonze\b/gi, "11")
-    .replace(/\bdouze\b/gi, "12")
-    .replace(/\btreize\b/gi, "13")
-    .replace(/\bquatorze\b/gi, "14")
-    .replace(/\bquinze\b/gi, "15")
-    .replace(/\bseize\b/gi, "16")
-    .replace(/\bvingt\b/gi, "20")
-    .replace(/\btrente\b/gi, "30")
-    .replace(/\bzéro\b/gi, "0")
-    .replace(/\baucune?\b/gi, "0")
-    .replace(/\bpas de\b/gi, "0")
-    .replace(/\brien\b/gi, "0");
-}
+interface ChatMessage { role: "assistant" | "user"; text: string; }
 
-// ── Direct parsers for relance responses (no LLM) ───────────────────────────
-
-const ZERO_RE = /^(0|non|rien|pas|aucune?|zéro|zero)$/i;
-
-function parseNumberDirect(text: string): number {
-  const normalized = normalizeTranscript(text.trim());
-  if (ZERO_RE.test(normalized.trim())) return 0;
-  if (/douzaine/i.test(normalized)) return 12;
-  if (/dizaine/i.test(normalized)) return 10;
-  if (/quinzaine/i.test(normalized)) return 15;
-  if (/vingtaine/i.test(normalized)) return 20;
-  // Extract ONLY the first integer found (strict: no concatenation)
-  const match = normalized.match(/\d+/);
-  if (match) return parseInt(match[0], 10);
-  return 0;
-}
-
-function parseMandatsDetail(text: string): MandatDetail[] {
-  if (ZERO_RE.test(text.trim())) return [];
-  // Split on comma or semicolon only (not "et" — too risky with names like "Beltrand")
-  const parts = text.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-  // Further split each part on " et " (with spaces) to catch "Léo simple et Beltrand exclusif"
-  const segments: string[] = [];
-  for (const part of parts) {
-    const subParts = part.split(/\s+et\s+/i);
-    segments.push(...subParts.map(s => s.trim()).filter(Boolean));
-  }
-  return segments.map(segment => {
-    const words = segment.split(/\s+/);
-    // Last word determines type, everything else is the name
-    const lastWord = words[words.length - 1]?.toLowerCase() || "";
-    const isExclusif = /^(exclusi\w*|exclu|ex|me|mex)$/i.test(lastWord);
-    const isSimple = /^(simple|sim|ms)$/i.test(lastWord);
-    if (isExclusif || isSimple) {
-      const nom = words.slice(0, -1).join(" ").trim();
-      return { nomVendeur: nom, type: isExclusif ? "exclusif" as const : "simple" as const };
-    }
-    // No type keyword found → default to simple, entire segment is the name
-    return { nomVendeur: segment, type: "simple" as const };
-  }).filter(m => m.nomVendeur.length > 0);
-}
-
-function parseInfosVenteDetail(text: string): InfoVenteDetail[] {
-  if (ZERO_RE.test(text.trim())) return [];
-  return text.split(/[,;]|\bet\b/i).map(s => {
-    const trimmed = s.trim();
-    if (!trimmed) return null;
-    const spaceIdx = trimmed.indexOf(" ");
-    if (spaceIdx > 0) {
-      return { nom: trimmed.slice(0, spaceIdx), commentaire: trimmed.slice(spaceIdx + 1).trim() };
-    }
-    return { nom: trimmed, commentaire: "" };
-  }).filter((v): v is InfoVenteDetail => v !== null && v.nom.length > 0);
-}
-
-function parseAcheteursDetail(text: string): AcheteurDetail[] {
-  if (ZERO_RE.test(text.trim())) return [];
-  return text.split(/[,;]|\bet\b/i).map(s => {
-    const trimmed = s.trim();
-    if (!trimmed) return null;
-    const spaceIdx = trimmed.indexOf(" ");
-    if (spaceIdx > 0) {
-      return { nom: trimmed.slice(0, spaceIdx), commentaire: trimmed.slice(spaceIdx + 1).trim() };
-    }
-    return { nom: trimmed, commentaire: "" };
-  }).filter((v): v is AcheteurDetail => v !== null && v.nom.length > 0);
-}
-
-// ── Block definitions (17 champs complets) ───────────────────────────────────
-
-type BlockId = "prospection" | "vendeurs" | "acheteurs" | "ventes";
-
-interface Relance {
-  field: string;
-  question: string;
-  /** Only ask if condition returns true (default: always ask) */
-  condition?: (fields: ExtractedFields, arrays: ExtractedArrays) => boolean;
-  /** "number" = parse as number, "mandats_detail" etc. = parse as structured array */
-  parseMode: "number" | "text" | "mandats_detail" | "infos_vente_detail" | "acheteurs_detail";
-}
-
-interface Block {
-  id: BlockId;
-  label: string;
-  amorce: (firstName: string) => string;
-  targetFields: string[];
-  relances: Relance[];
-}
-
-const BLOCKS: Block[] = [
-  {
-    id: "prospection",
-    label: "Prospection",
-    amorce: (name) =>
-      `${name}, on démarre. Cette semaine en prospection : tu as eu combien de contacts au total, et combien venaient de tes portails ou vitrine ?`,
-    targetFields: ["contactsTotaux", "contactsEntrants", "rdvEstimation"],
-    relances: [
-      { field: "contactsEntrants", question: "Et parmi eux, combien étaient entrants (portails, vitrine) ?", parseMode: "number" },
-      { field: "rdvEstimation", question: "Tu as décroché des RDV estimation ?", parseMode: "number" },
-      {
-        field: "infosVente_detail",
-        question: "Cite-moi les noms et un mot sur chaque projet vendeur. Exemple : Brun retraite en juin, Leroy succession",
-        parseMode: "infos_vente_detail",
-      },
-    ],
-  },
-  {
-    id: "vendeurs",
-    label: "Vendeurs",
-    amorce: () =>
-      "Côté vendeurs. Combien d'estimations réalisées, et tu as signé des mandats ? Donne-moi le nombre et le type (exclusif/simple).",
-    targetFields: ["estimationsRealisees", "mandatsSignes", "rdvSuivi", "requalificationSimpleExclusif", "baissePrix"],
-    relances: [
-      {
-        field: "mandats_detail",
-        question: "Donne-moi les noms et le type de chaque mandat, dans l'ordre. Exemple : Dupont exclusif, Martin simple",
-        condition: (f) => (f.mandatsSignes ?? 0) > 0,
-        parseMode: "mandats_detail",
-      },
-      { field: "rdvSuivi", question: "Des RDV de suivi avec des vendeurs en cours ?", parseMode: "number" },
-      { field: "requalificationSimpleExclusif", question: "Une requalification simple → exclusif ?", parseMode: "number" },
-      { field: "baissePrix", question: "Une baisse de prix acceptée ?", parseMode: "number" },
-    ],
-  },
-  {
-    id: "acheteurs",
-    label: "Acheteurs",
-    amorce: () =>
-      "Les acheteurs. De nouveaux acheteurs chauds cette semaine ? Et combien de visites ?",
-    targetFields: ["acheteursChaudsCount", "acheteursSortisVisite", "nombreVisites", "offresRecues", "compromisSignes"],
-    relances: [
-      {
-        field: "acheteurs_detail",
-        question: "Cite-moi les noms et leur projet. Exemple : Martin cherche T3 Lyon, Garcia veut une maison",
-        condition: (f) => (f.acheteursChaudsCount ?? 0) > 0,
-        parseMode: "acheteurs_detail",
-      },
-      { field: "acheteursSortisVisite", question: "Combien d'acheteurs distincts as-tu sortis en visite ?", parseMode: "number" },
-      { field: "nombreVisites", question: "Et combien de visites au total ?", parseMode: "number" },
-      { field: "offresRecues", question: "Des offres reçues ?", parseMode: "number" },
-      { field: "compromisSignes", question: "Des compromis signés ?", parseMode: "number" },
-    ],
-  },
-  {
-    id: "ventes",
-    label: "Ventes",
-    amorce: () => "Pour finir, les ventes. Des actes signés cette semaine ?",
-    targetFields: ["actesSignes", "chiffreAffaires", "delaiMoyenVente"],
-    relances: [
-      {
-        field: "chiffreAffaires",
-        question: "Quel CA sur ces actes ?",
-        condition: (f) => (f.actesSignes ?? 0) > 0,
-        parseMode: "number",
-      },
-      {
-        field: "delaiMoyenVente",
-        question: "Délai moyen entre compromis et acte sur ces ventes ? (en jours, 0 si tu ne sais pas)",
-        condition: (f) => (f.actesSignes ?? 0) > 0,
-        parseMode: "number",
-      },
-    ],
-  },
-];
-
-const BLOCK_ORDER: BlockId[] = ["prospection", "vendeurs", "acheteurs", "ventes"];
-
-// ── Chat message type ────────────────────────────────────────────────────────
-
-interface ChatMessage {
-  role: "assistant" | "user";
-  text: string;
-}
-
-// ── Draft helpers ────────────────────────────────────────────────────────────
-
-function getSundayExpiry(): string {
-  const d = new Date();
-  const day = d.getDay() || 7;
-  const sunday = new Date(d);
-  sunday.setDate(d.getDate() + (7 - day));
-  sunday.setHours(23, 59, 59, 0);
-  return sunday.toISOString();
-}
-
-function getMonthStart(): string {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
-}
-
-// ── TTS helpers ──────────────────────────────────────────────────────────────
+// ── TTS ──────────────────────────────────────────────────────────────────────
 
 function speakTTS(text: string, onEnd?: () => void): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
+  if (typeof window === "undefined" || !window.speechSynthesis) { console.log("[VOICE] TTS_SKIP: no speechSynthesis"); onEnd?.(); return; }
   window.speechSynthesis.cancel();
+  console.log("[VOICE] TTS_START:", text.slice(0, 60));
   const doSpeak = () => {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "fr-FR"; u.rate = 0.92; u.pitch = 1.05;
+    const u = new SpeechSynthesisUtterance(text); u.lang = "fr-FR"; u.rate = 0.92; u.pitch = 1.05;
     const voices = window.speechSynthesis.getVoices();
     const fr = voices.filter(v => v.lang === "fr-FR" || v.lang.startsWith("fr-"));
-    const PREF = ["Google français","Google French","Amélie","Thomas","Microsoft Paul Online","Microsoft Hortense Online","fr-FR-DeniseNeural","fr-FR-HenriNeural"];
+    const PREF = ["Google français","Google French","Amélie","Thomas","Microsoft Paul Online","Microsoft Hortense Online"];
     let sel: SpeechSynthesisVoice | undefined;
     for (const n of PREF) { sel = fr.find(v => v.name.includes(n)); if (sel) break; }
     if (!sel) sel = fr[0]; if (!sel && voices.length) sel = voices[0];
     if (sel) u.voice = sel;
-    u.onend = () => onEnd?.(); u.onerror = () => onEnd?.();
+    u.onend = () => { console.log("[VOICE] TTS_END:", text.slice(0, 40)); onEnd?.(); };
+    u.onerror = (ev) => { console.log("[VOICE] TTS_ERROR:", ev); onEnd?.(); };
     window.speechSynthesis.speak(u);
   };
-  if (window.speechSynthesis.getVoices().length > 0) { doSpeak(); }
+  if (window.speechSynthesis.getVoices().length > 0) doSpeak();
   else { window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; doSpeak(); }; setTimeout(doSpeak, 500); }
 }
+function stopSpeaking(): void { if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel(); }
 
-function stopSpeaking(): void {
-  if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
-}
+// ── STT ──────────────────────────────────────────────────────────────────────
 
-// ── STT helpers ──────────────────────────────────────────────────────────────
-
-function getSpeechRecognition(): (new () => SpeechRecognition) | null {
+function getSR(): (new () => SpeechRecognition) | null {
   if (typeof window === "undefined") return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const w = window as any;
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+  const w = window as any; return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -303,16 +70,12 @@ type MicState = "idle" | "listening" | "processing";
 
 export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationProps) {
   const user = useAppStore((s) => s.user);
-  const isDemo = useAppStore((s) => s.isDemo);
   const firstName = user?.firstName || "Conseiller";
 
   // Voice mode
-  const sttAvailable = typeof window !== "undefined" && !!getSpeechRecognition();
+  const sttAvailable = typeof window !== "undefined" && !!getSR();
   const [voiceMode, setVoiceMode] = useState(sttAvailable);
-  const [muted, setMuted] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("nxt-voice-muted") === "true";
-    return false;
-  });
+  const [muted, setMuted] = useState(() => typeof window !== "undefined" ? localStorage.getItem("nxt-voice-muted") === "true" : false);
   const [micState, setMicState] = useState<MicState>("idle");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -320,331 +83,253 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Conversation state
+  // Conversation
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [blockIdx, setBlockIdx] = useState(0);
+  const [stepIdx, setStepIdx] = useState(-1);
   const [inputText, setInputText] = useState("");
-  const [isExtracting, setIsExtracting] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const [awaitingRelance, setAwaitingRelance] = useState(false);
+  const [awaitingDetailConfirm, setAwaitingDetailConfirm] = useState(false);
 
-  // REFS for latest values (avoids stale closures)
+  // Refs for closure safety — THE critical fix
   const fieldsRef = useRef<ExtractedFields>({});
   const arraysRef = useRef<ExtractedArrays>({ mandats: [], informationsVente: [], acheteursChauds: [] });
-  const blockIdxRef = useRef(0);
-  const askedRelancesRef = useRef<Set<string>>(new Set());
-  const currentRelanceFieldRef = useRef<Relance | null>(null);
+  const stepIdxRef = useRef(-1);
+  const isDoneRef = useRef(false);
+  const awaitingRelanceRef = useRef(false);
+  const voiceModeRef = useRef(sttAvailable);
+  const mutedRef = useRef(false);
   const initRef = useRef(false);
-
-  // State mirrors (for rendering)
-  const [fields, setFields] = useState<ExtractedFields>({});
-  const [arrays, setArrays] = useState<ExtractedArrays>({ mandats: [], informationsVente: [], acheteursChauds: [] });
-
-  // Draft
-  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
-  const [draftData, setDraftData] = useState<{
-    fields: ExtractedFields; arrays: ExtractedArrays; lastBlock: BlockId;
-  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Sync helpers ────────────────────────────────────────────────────────
-  const updateFields = useCallback((next: ExtractedFields) => {
-    fieldsRef.current = next;
-    setFields(next);
-  }, []);
+  // Keep refs in sync
+  useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
-  const updateArrays = useCallback((next: ExtractedArrays) => {
-    arraysRef.current = next;
-    setArrays(next);
-  }, []);
+  // ── Helpers ─────────────────────────────────────────────────────────────
+  const toggleMute = () => { setMuted(p => { const n = !p; localStorage.setItem("nxt-voice-muted", String(n)); if (n) stopSpeaking(); return n; }); };
+  const addMsg = (role: "assistant" | "user", text: string) => setMessages(p => [...p, { role, text }]);
 
-  const toggleMute = () => {
-    setMuted((prev) => {
-      const next = !prev;
-      localStorage.setItem("nxt-voice-muted", String(next));
-      if (next) stopSpeaking();
-      return next;
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, liveTranscript]);
+  useEffect(() => { if (!voiceMode) inputRef.current?.focus(); }, [messages, voiceMode]);
+  useEffect(() => () => { stopSpeaking(); recognitionRef.current?.abort(); if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current); }, []);
+
+  // getNextApplicableStep imported from saisie-steps.ts
+
+  // ── Ask a step (reads from refs, not stale state) ──────────────────────
+  const askStep = (idx: number) => {
+    console.log("[VOICE] ASK_STEP:", idx, idx < SAISIE_STEPS.length ? SAISIE_STEPS[idx].id : "DONE");
+    if (idx >= SAISIE_STEPS.length) {
+      const t = "C'est tout ! Vérifie tes données et enregistre.";
+      addMsg("assistant", t);
+      setIsDone(true); isDoneRef.current = true;
+      doSpeak(t);
+      return;
+    }
+    const step = SAISIE_STEPS[idx];
+    setStepIdx(idx); stepIdxRef.current = idx;
+    setAwaitingRelance(false); awaitingRelanceRef.current = false;
+    addMsg("assistant", step.prompt);
+    doSpeak(step.prompt);
+  };
+
+  // ── TTS wrapper that uses refs (no stale closure) ──────────────────────
+  const doSpeak = (text: string) => {
+    if (mutedRef.current || !voiceModeRef.current) {
+      console.log("[VOICE] TTS_MUTED_OR_TEXT_MODE, skipping speak");
+      return;
+    }
+    setIsSpeaking(true);
+    speakTTS(text, () => {
+      console.log("[VOICE] TTS_CALLBACK → starting mic");
+      setIsSpeaking(false);
+      if (voiceModeRef.current) doStartListening();
     });
   };
 
-  // ── Auto-scroll ──────────────────────────────────────────────────────────
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, liveTranscript]);
-  useEffect(() => { if (!isExtracting && !voiceMode) inputRef.current?.focus(); }, [isExtracting, messages, voiceMode]);
-  useEffect(() => { return () => { stopSpeaking(); recognitionRef.current?.abort(); if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current); }; }, []);
+  // ── STT (reads processInput from ref) ──────────────────────────────────
+  const doStartListening = () => {
+    const SR = getSR();
+    if (!SR) { console.log("[VOICE] MIC_NO_SR"); return; }
+    stopSpeaking(); setIsSpeaking(false);
+    setMicState("listening"); setLiveTranscript("");
+    console.log("[VOICE] MIC_START");
 
-  // ── TTS ──────────────────────────────────────────────────────────────────
-  const speakText = useCallback((text: string) => {
-    if (muted || !voiceMode) return;
-    setIsSpeaking(true);
-    speakTTS(text, () => { setIsSpeaking(false); if (voiceMode) startListening(); });
-  }, [muted, voiceMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    const rec = new SR(); rec.lang = "fr-FR"; rec.continuous = false; rec.interimResults = true;
+    let finalText = "";
+    const startTime = Date.now();
 
-  // ── STT ──────────────────────────────────────────────────────────────────
-  const startListening = useCallback(() => {
-    const SR = getSpeechRecognition();
-    if (!SR) return;
-    stopSpeaking(); setIsSpeaking(false); setMicState("listening"); setLiveTranscript("");
-    const recognition = new SR();
-    recognition.lang = "fr-FR"; recognition.continuous = false; recognition.interimResults = true;
-    let finalTranscript = "";
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onresult = (e: SpeechRecognitionEvent) => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalTranscript += (finalTranscript ? " " : "") + t.trim();
+        if (e.results[i].isFinal) finalText += (finalText ? " " : "") + t.trim();
         else interim = t;
       }
-      setLiveTranscript(finalTranscript + (interim ? " " + interim : ""));
-      silenceTimerRef.current = setTimeout(() => recognition.stop(), 5000);
+      setLiveTranscript(finalText + (interim ? " " + interim : ""));
+      silenceTimerRef.current = setTimeout(() => { console.log("[VOICE] MIC_SILENCE_TIMEOUT"); rec.stop(); }, 6000);
     };
-    recognition.onend = () => {
+
+    rec.onend = () => {
+      const duration = Date.now() - startTime;
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      const raw = finalTranscript.trim();
-      const text = normalizeTranscript(raw);
-      if (text) { setMicState("processing"); setLiveTranscript(""); processUserInput(text); }
-      else { setMicState("idle"); setLiveTranscript(""); }
+      const t = finalText.trim();
+      console.log("[VOICE] MIC_END duration:", duration, "ms, text:", JSON.stringify(t));
+      if (t) {
+        setMicState("processing"); setLiveTranscript("");
+        doProcessInput(t);
+      } else {
+        console.log("[VOICE] MIC_EMPTY → idle");
+        setMicState("idle"); setLiveTranscript("");
+      }
     };
-    recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
+
+    rec.onerror = (e: SpeechRecognitionErrorEvent) => {
+      console.log("[VOICE] MIC_ERROR:", e.error);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (e.error === "not-allowed" || e.error === "permission-denied") {
-        setVoiceMode(false); setMicState("idle"); setLiveTranscript("");
-        setMessages(prev => [...prev, { role: "assistant", text: "Micro non disponible, passage en mode texte." }]);
+        setVoiceMode(false); voiceModeRef.current = false;
+        setMicState("idle"); setLiveTranscript("");
+        addMsg("assistant", "Micro non disponible, passage en mode texte.");
         return;
       }
       setMicState("idle"); setLiveTranscript("");
     };
-    recognitionRef.current = recognition;
-    silenceTimerRef.current = setTimeout(() => recognition.stop(), 5000);
-    try { recognition.start(); } catch { setMicState("idle"); }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const stopListening = () => { if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current); recognitionRef.current?.stop(); };
+    recognitionRef.current = rec;
+    silenceTimerRef.current = setTimeout(() => { console.log("[VOICE] MIC_INITIAL_TIMEOUT"); rec.stop(); }, 8000);
+    try { rec.start(); } catch (err) { console.log("[VOICE] MIC_START_ERROR:", err); setMicState("idle"); }
+  };
 
-  // ── Start a block ────────────────────────────────────────────────────────
-  const startBlock = useCallback((idx: number) => {
-    if (idx >= BLOCKS.length) {
-      const t = "C'est tout ! Je récapitule. Vérifie et enregistre.";
-      setMessages(prev => [...prev, { role: "assistant", text: t }]);
-      setIsDone(true);
-      speakText(t);
+  const stopListening = () => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    recognitionRef.current?.stop();
+  };
+
+  // ── Process input (reads ALL from refs — no stale closures) ────────────
+  const doProcessInput = (text: string) => {
+    const currentIdx = stepIdxRef.current;
+    const done = isDoneRef.current;
+    const relance = awaitingRelanceRef.current;
+
+    console.log("[VOICE] PROCESS_INPUT:", JSON.stringify(text), "stepIdx:", currentIdx, "done:", done, "relance:", relance);
+
+    if (!text || done) { setMicState("idle"); return; }
+    addMsg("user", text);
+    setInputText("");
+
+    const step = SAISIE_STEPS[currentIdx];
+    if (!step) {
+      console.log("[VOICE] NO_STEP at index:", currentIdx, "→ idle");
+      setMicState("idle");
       return;
     }
-    const block = BLOCKS[idx];
-    const text = block.amorce(firstName);
-    setBlockIdx(idx);
-    blockIdxRef.current = idx;
-    askedRelancesRef.current = new Set();
-    currentRelanceFieldRef.current = null;
-    setMessages(prev => [...prev, { role: "assistant", text }]);
-    speakText(text);
-  }, [firstName, speakText]);
 
-  // ── Draft ────────────────────────────────────────────────────────────────
+    // ── Count / money fields ─────────────────────────────────────────
+    if (step.inputMode === "count" || step.inputMode === "money") {
+      const norm = normalize(text);
+      const fullResult = parseNumericResponse(text);
+      const parsed = parseCountField(text);
+      console.log("[VOICE] STT_RAW:", JSON.stringify(text));
+      console.log("[VOICE] STT_NORMALIZED:", JSON.stringify(norm));
+      console.log("[VOICE] PARSE_DECISION:", fullResult.decision, "type:", fullResult.type, fullResult.type === "number" ? "value:" + fullResult.value : "");
+      console.log("[VOICE] PARSED_COUNT:", parsed, "field:", step.field);
+
+      if (parsed === null) {
+        if (!relance) {
+          console.log("[VOICE] RELANCE for", step.field);
+          setAwaitingRelance(true); awaitingRelanceRef.current = true;
+          const q = "Combien ?";
+          addMsg("assistant", q);
+          doSpeak(q);
+          setMicState("idle");
+          return;
+        }
+        console.log("[VOICE] SECOND_FAIL → default 0 for", step.field);
+        (fieldsRef.current as Record<string, number>)[step.field] = 0;
+      } else {
+        (fieldsRef.current as Record<string, number>)[step.field] = parsed;
+      }
+
+      setAwaitingRelance(false); awaitingRelanceRef.current = false;
+      setMicState("idle");
+      const next = getNextApplicableStep(currentIdx + 1, fieldsRef.current);
+      console.log("[VOICE] NEXT_STEP:", next, next < SAISIE_STEPS.length ? SAISIE_STEPS[next].id : "DONE");
+      askStep(next);
+      return;
+    }
+
+    // ── Detail fields — parse + wait for user to confirm ──────────
+    let parsedCount = 0;
+    let expectedCount = 0;
+
+    if (step.inputMode === "detail_mandats") {
+      const mandats = parseMandatsText(text);
+      expectedCount = fieldsRef.current.mandatsSignes ?? 0;
+      parsedCount = mandats.length;
+      arraysRef.current = { ...arraysRef.current, mandats: [...arraysRef.current.mandats, ...mandats.map(m => ({ ...m, nomVendeur: capitalizeFirst(m.nomVendeur) }))] };
+      console.log("[VOICE] MANDATS_PARSED:", parsedCount, "expected:", expectedCount);
+    } else if (step.inputMode === "detail_infos") {
+      const infos = parseDetailsText(text);
+      expectedCount = (fieldsRef.current as Record<string, number>)["infosVenteCount"] ?? 0;
+      parsedCount = infos.length;
+      arraysRef.current = { ...arraysRef.current, informationsVente: [...arraysRef.current.informationsVente, ...infos.map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }))] };
+      console.log("[VOICE] INFOS_PARSED:", parsedCount, "expected:", expectedCount);
+    } else if (step.inputMode === "detail_acheteurs") {
+      const acheteurs = parseDetailsText(text);
+      expectedCount = fieldsRef.current.acheteursChaudsCount ?? 0;
+      parsedCount = acheteurs.length;
+      arraysRef.current = { ...arraysRef.current, acheteursChauds: [...arraysRef.current.acheteursChauds, ...acheteurs.map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }))] };
+      console.log("[VOICE] ACHETEURS_PARSED:", parsedCount, "expected:", expectedCount);
+    }
+
+    // Coherence check: if count mismatch, notify user
+    if (expectedCount > 0 && parsedCount < expectedCount) {
+      addMsg("assistant", `J'ai noté ${parsedCount} élément${parsedCount > 1 ? "s" : ""} sur ${expectedCount} annoncé${expectedCount > 1 ? "s" : ""}. Tu pourras compléter dans le résumé.`);
+    }
+
+    // Don't auto-advance on detail fields — wait for user to click "Suivant"
+    setAwaitingDetailConfirm(true);
+    setMicState("idle");
+    console.log("[VOICE] DETAIL_AWAITING_CONFIRM");
+  };
+
+  // ── Init ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    if (isDemo || !user?.id) { startBlock(0); return; }
-    const checkDraft = async () => {
-      const supabase = createClient();
-      const { data } = await supabase.from("voice_drafts").select("*")
-        .eq("user_id", user.id).gt("expires_at", new Date().toISOString())
-        .order("updated_at", { ascending: false }).limit(1);
-      if (data && data.length > 0) {
-        const draft = data[0];
-        const pd = draft.partial_data as { fields?: ExtractedFields; arrays?: ExtractedArrays } | null;
-        if (pd && draft.last_block) {
-          setDraftData({ fields: pd.fields || {}, arrays: pd.arrays || { mandats: [], informationsVente: [], acheteursChauds: [] }, lastBlock: draft.last_block as BlockId });
-          setShowDraftPrompt(true);
-          return;
-        }
-      }
-      startBlock(0);
-    };
-    checkDraft();
+    console.log("[VOICE] INIT");
+    const greeting = `${firstName}, on fait le point.`;
+    addMsg("assistant", greeting);
+    doSpeak(greeting);
+    setTimeout(() => {
+      const first = getNextApplicableStep(0, fieldsRef.current);
+      askStep(first);
+    }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const resumeDraft = () => {
-    if (!draftData) return;
-    updateFields(draftData.fields); updateArrays(draftData.arrays);
-    setShowDraftPrompt(false);
-    const nextIdx = BLOCK_ORDER.indexOf(draftData.lastBlock) + 1;
-    const t = `On reprend où tu t'étais arrêté — j'ai déjà tes données de ${BLOCK_ORDER.slice(0, nextIdx).join(", ")}.`;
-    setMessages([{ role: "assistant", text: t }]);
-    speakText(t);
-    setTimeout(() => startBlock(nextIdx), 500);
+  // ── Text mode handlers ─────────────────────────────────────────────────
+  const confirmDetailAndAdvance = () => {
+    setAwaitingDetailConfirm(false);
+    const currentIdx = stepIdxRef.current;
+    const next = getNextApplicableStep(currentIdx + 1, fieldsRef.current);
+    console.log("[VOICE] DETAIL_CONFIRMED → NEXT_STEP:", next, next < SAISIE_STEPS.length ? SAISIE_STEPS[next].id : "DONE");
+    askStep(next);
   };
 
-  const restartFresh = () => { setShowDraftPrompt(false); setDraftData(null); startBlock(0); };
-
-  const saveDraft = useCallback(async (cf: ExtractedFields, ca: ExtractedArrays, lb: BlockId) => {
-    if (isDemo || !user?.id) return;
-    const supabase = createClient();
-    await supabase.from("voice_drafts").delete().eq("user_id", user.id);
-    await supabase.from("voice_drafts").insert({
-      user_id: user.id, period_start: getMonthStart(),
-      partial_data: { fields: cf, arrays: ca }, last_block: lb, expires_at: getSundayExpiry(),
-    });
-  }, [isDemo, user?.id]);
-
-  // ── Process user input ─────────────────────────────────────────────────
-  const processUserInput = useCallback(async (text: string) => {
-    if (!text) { setMicState("idle"); return; }
-
-    setMessages(prev => [...prev, { role: "user", text }]);
-    setInputText("");
-    setIsExtracting(true);
-
-    const idx = blockIdxRef.current;
-    const block = BLOCKS[idx];
-    let currentFields = { ...fieldsRef.current };
-    let currentArrays = { ...arraysRef.current };
-
-    // ── CORRECTION 1: Direct parse if responding to a relance ────────────
-    const relance = currentRelanceFieldRef.current;
-    if (relance) {
-      currentRelanceFieldRef.current = null;
-
-      switch (relance.parseMode) {
-        case "number": {
-          const val = parseNumberDirect(text);
-          (currentFields as Record<string, number>)[relance.field] = val;
-          break;
-        }
-        case "mandats_detail": {
-          let details = parseMandatsDetail(text);
-          // Truncate to declared mandatsSignes count
-          const declaredCount = currentFields.mandatsSignes ?? details.length;
-          if (details.length > declaredCount) details = details.slice(0, declaredCount);
-          currentArrays = { ...currentArrays, mandats: [...currentArrays.mandats, ...details] };
-          break;
-        }
-        case "infos_vente_detail": {
-          const details = parseInfosVenteDetail(text);
-          currentArrays = { ...currentArrays, informationsVente: [...currentArrays.informationsVente, ...details] };
-          break;
-        }
-        case "acheteurs_detail": {
-          const details = parseAcheteursDetail(text);
-          currentArrays = { ...currentArrays, acheteursChauds: [...currentArrays.acheteursChauds, ...details] };
-          break;
-        }
-        case "text":
-        default:
-          break;
-      }
-
-      updateFields(currentFields);
-      updateArrays(currentArrays);
-
-      // Check for more relances in this block
-      const asked = askedRelancesRef.current;
-      const nextRelance = block.relances.find(r => {
-        if (asked.has(r.field)) return false;
-        if (r.parseMode === "number") {
-          const v = (currentFields as Record<string, number | undefined>)[r.field];
-          if (v !== undefined) return false;
-        }
-        return !r.condition || r.condition(currentFields, currentArrays);
-      });
-
-      if (nextRelance) {
-        asked.add(nextRelance.field);
-        currentRelanceFieldRef.current = nextRelance;
-        setMessages(prev => [...prev, { role: "assistant", text: nextRelance.question }]);
-        setIsExtracting(false);
-        setMicState("idle");
-        speakText(nextRelance.question);
-        return;
-      }
-
-      // Block complete
-      await saveDraft(currentFields, currentArrays, block.id);
-      setIsExtracting(false);
-      setMicState("idle");
-      startBlock(idx + 1);
-      return;
-    }
-
-    // ── Normal LLM extraction (first response to amorce) ─────────────────
-    const result = await extractFromConversation(text, currentFields, block.targetFields);
-
-    // Merge
-    for (const [key, value] of Object.entries(result.extracted)) {
-      if (value !== undefined && value !== null) {
-        (currentFields as Record<string, number>)[key] = value as number;
-      }
-    }
-    currentArrays = {
-      mandats: [...currentArrays.mandats, ...result.arrays.mandats],
-      informationsVente: [...currentArrays.informationsVente, ...result.arrays.informationsVente],
-      acheteursChauds: [...currentArrays.acheteursChauds, ...result.arrays.acheteursChauds],
-    };
-    updateFields(currentFields);
-    updateArrays(currentArrays);
-
-    // Check for relances
-    const asked = askedRelancesRef.current;
-    const nextRelance = block.relances.find(r => {
-      if (asked.has(r.field)) return false;
-      // For number fields, skip if already filled
-      if (r.parseMode === "number") {
-        const v = (currentFields as Record<string, number | undefined>)[r.field];
-        if (v !== undefined) return false;
-      }
-      // For detail fields, skip if arrays already have data
-      if (r.parseMode === "mandats_detail" && currentArrays.mandats.length > 0) return false;
-      if (r.parseMode === "infos_vente_detail" && currentArrays.informationsVente.length > 0) return false;
-      if (r.parseMode === "acheteurs_detail" && currentArrays.acheteursChauds.length > 0) return false;
-      return !r.condition || r.condition(currentFields, currentArrays);
-    });
-
-    if (nextRelance) {
-      asked.add(nextRelance.field);
-      currentRelanceFieldRef.current = nextRelance;
-      setMessages(prev => [...prev, { role: "assistant", text: nextRelance.question }]);
-      setIsExtracting(false);
-      setMicState("idle");
-      speakText(nextRelance.question);
-      return;
-    }
-
-    // Block complete
-    await saveDraft(currentFields, currentArrays, block.id);
-    setIsExtracting(false);
-    setMicState("idle");
-    startBlock(idx + 1);
-  }, [updateFields, updateArrays, saveDraft, startBlock, speakText]);
-
-  // ── Text mode handlers ───────────────────────────────────────────────────
-  const handleSend = () => { const t = inputText.trim(); if (!t || isExtracting || isDone) return; processUserInput(t); };
+  const handleSend = () => { const t = inputText.trim(); if (!t || isDone) return; doProcessInput(t); };
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } };
   const handleFinish = () => { stopSpeaking(); onComplete(fieldsRef.current, arraysRef.current); };
 
-  // ── Draft prompt ─────────────────────────────────────────────────────────
-  if (showDraftPrompt) {
-    return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
-        <div className="relative z-10 flex max-w-md flex-col items-center gap-6 px-6 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10"><MessageCircle className="h-7 w-7 text-primary" /></div>
-          <h2 className="text-xl font-bold text-foreground">Tu avais commencé une saisie</h2>
-          <p className="text-sm text-muted-foreground">On reprend là où tu t&apos;étais arrêté ?</p>
-          <div className="flex gap-3 w-full">
-            <button onClick={restartFresh} className="flex-1 rounded-xl border border-border px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors">Recommencer</button>
-            <button onClick={resumeDraft} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">Reprendre</button>
-          </div>
-          <button onClick={onDismiss} className="text-xs text-muted-foreground transition-colors hover:text-muted-foreground/70" style={{ fontSize: 12 }}>Passer pour l&apos;instant</button>
-        </div>
-      </div>
-    );
-  }
+  // ── Progress ────────────────────────────────────────────────────────────
+  const currentStep = stepIdx >= 0 && stepIdx < SAISIE_STEPS.length ? SAISIE_STEPS[stepIdx] : null;
+  const progressPct = stepIdx >= 0 ? Math.round(((stepIdx + 1) / SAISIE_STEPS.length) * 100) : 0;
 
-  // ── Main chat UI ─────────────────────────────────────────────────────────
-  const currentBlock = blockIdx < BLOCKS.length ? BLOCKS[blockIdx] : null;
-
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-background">
       {/* Header */}
@@ -654,23 +339,23 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
           <div>
             <p className="text-sm font-semibold text-foreground">NXT Assistant</p>
             <p className="text-xs text-muted-foreground">
-              {isDone ? "Terminé" : isSpeaking ? "En train de parler…" : micState === "listening" ? "En écoute…"
-                : currentBlock ? `${currentBlock.label} — ${blockIdx + 1} / ${BLOCKS.length}` : "Prêt"}
+              {isDone ? "Terminé" : isSpeaking ? "Parle…" : micState === "listening" ? "Écoute…"
+                : currentStep ? `${currentStep.section} — ${stepIdx + 1}/${SAISIE_STEPS.length}` : "Prêt"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {sttAvailable && (
             <div className="flex items-center rounded-lg border border-border overflow-hidden">
-              <button onClick={() => setVoiceMode(true)} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}><Mic className="h-3 w-3" />Voix</button>
-              <button onClick={() => { setVoiceMode(false); stopListening(); stopSpeaking(); }} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${!voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}><Keyboard className="h-3 w-3" />Texte</button>
+              <button type="button" onClick={() => { setVoiceMode(true); voiceModeRef.current = true; }} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}><Mic className="h-3 w-3" />Voix</button>
+              <button type="button" onClick={() => { setVoiceMode(false); voiceModeRef.current = false; stopListening(); stopSpeaking(); }} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${!voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}><Keyboard className="h-3 w-3" />Texte</button>
             </div>
           )}
-          <button onClick={toggleMute} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button type="button" onClick={toggleMute} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
             {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
-          <div className="flex gap-1 ml-1">
-            {BLOCKS.map((b, i) => (<div key={b.id} className={`h-1.5 w-6 rounded-full transition-colors ${i < blockIdx ? "bg-primary" : i === blockIdx ? "bg-primary/50" : "bg-muted"}`} />))}
+          <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progressPct}%` }} />
           </div>
         </div>
       </div>
@@ -683,37 +368,73 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
           </div>
         ))}
         {micState === "listening" && liveTranscript && (
-          <div className="flex justify-end"><div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-primary/30 text-primary-foreground/70 rounded-br-md italic">{liveTranscript}</div></div>
+          <div className="flex justify-end"><div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm bg-primary/30 text-primary-foreground/70 rounded-br-md italic">{liveTranscript}</div></div>
         )}
-        {(isExtracting || micState === "processing") && (
-          <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl bg-muted px-4 py-2.5 rounded-bl-md"><Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Analyse…</span></div></div>
+        {micState === "processing" && (
+          <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl bg-muted px-4 py-2.5 rounded-bl-md"><Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Traitement…</span></div></div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
+      {/* Input */}
       <div className="px-4 pb-4 pt-2 border-t border-border shrink-0">
-        {isDone ? (
+        {awaitingDetailConfirm ? (
           <div className="flex flex-col items-center gap-3">
-            <button onClick={handleFinish} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">Terminer et voir le résumé</button>
-            <button onClick={onDismiss} className="text-xs text-muted-foreground transition-colors hover:text-muted-foreground/70" style={{ fontSize: 12 }}>Passer pour l&apos;instant</button>
+            <button type="button" onClick={confirmDetailAndAdvance} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+              Suivant
+            </button>
+            <p className="text-xs text-muted-foreground">Vérifie ta réponse puis clique Suivant</p>
+          </div>
+        ) : isDone ? (
+          <div className="flex flex-col items-center gap-3">
+            <button type="button" onClick={handleFinish} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">Terminer et voir le résumé</button>
+            <button type="button" onClick={onDismiss} className="text-xs text-muted-foreground" style={{ fontSize: 12 }}>Passer pour l&apos;instant</button>
           </div>
         ) : voiceMode ? (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3 py-2">
             {micState === "listening" ? (
-              <><button onClick={stopListening} className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-white shadow-xl shadow-red-500/30 animate-pulse transition-all hover:bg-red-600"><Mic className="h-7 w-7" /></button><p className="text-xs text-muted-foreground">En écoute… appuie pour terminer</p></>
+              <>
+                {/* Listening: large red pulsing button with ring animation */}
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: "1.5s" }} />
+                  <button type="button" onClick={stopListening} className="relative flex h-20 w-20 items-center justify-center rounded-full bg-red-500 text-white shadow-2xl shadow-red-500/40 transition-all hover:bg-red-600 active:scale-95 z-10">
+                    <Mic className="h-8 w-8" />
+                  </button>
+                </div>
+                <p className="text-sm font-medium text-red-400 animate-pulse">En écoute…</p>
+              </>
             ) : micState === "processing" ? (
-              <><div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div><p className="text-xs text-muted-foreground">Analyse en cours…</p></>
+              <>
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted border-2 border-primary/30">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Traitement…</p>
+              </>
+            ) : isSpeaking ? (
+              <>
+                {/* TTS speaking: show pulsing sound indicator */}
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse" />
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-muted border-2 border-primary/30">
+                    <Volume2 className="h-8 w-8 text-primary animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-primary/70">L&apos;assistant parle…</p>
+              </>
             ) : (
-              <><button onClick={startListening} disabled={isExtracting || isSpeaking} className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"><Mic className="h-7 w-7" /></button><p className="text-xs text-muted-foreground">{isSpeaking ? "L'assistant parle…" : "Appuie pour parler"}</p></>
+              <>
+                {/* Idle: ready to listen */}
+                <button type="button" onClick={doStartListening} className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:scale-105 active:scale-95">
+                  <Mic className="h-8 w-8" />
+                </button>
+                <p className="text-sm font-medium text-muted-foreground">Appuie pour parler</p>
+              </>
             )}
           </div>
         ) : (
           <div className="flex gap-2">
-            <input ref={inputRef} type="text" value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={handleKeyDown} disabled={isExtracting} placeholder="Tape ta réponse…" autoFocus className="flex-1 rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50" />
-            <button onClick={handleSend} disabled={isExtracting || !inputText.trim()} className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
-              {isExtracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </button>
+            <input ref={inputRef} type="text" value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Tape ta réponse…" autoFocus className="flex-1 rounded-xl border border-input bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" />
+            <button type="button" onClick={handleSend} disabled={!inputText.trim()} className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"><Send className="h-4 w-4" /></button>
           </div>
         )}
       </div>

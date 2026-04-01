@@ -48,8 +48,8 @@ const emptyMonthlyData: Array<{ month: string; value: number }> = [];
 const emptyCAData: Array<{ month: string; ca: number }> = [];
 const emptyActivityData: Array<{ day: string; contacts: number; visites: number }> = [];
 import { useAppStore } from "@/stores/app-store";
-import { useSaisieGate } from "@/hooks/use-saisie-gate";
-import { SaisieGate } from "@/components/dashboard/saisie-gate";
+import { useWeeklyGate } from "@/hooks/use-weekly-gate";
+import { WeeklyGateWrapper } from "@/components/dashboard/weekly-gate-wrapper";
 import { VocalButton } from "@/components/vocal/VocalButton";
 import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
@@ -173,7 +173,7 @@ function DashboardContent() {
   const isDemo = useAppStore((s) => s.isDemo);
   const { currentAxes: dpiAxes, currentGlobalScore: dpiScore } = useDPIEvolution();
   const activeTools = useAppStore((s) => s.activeTools);
-  const { gateRequired, isLoading: gateLoading, dismissGate, markSaisieDone } = useSaisieGate();
+  const { showGate, context: gateContext, isLoading: gateLoading, dismissGate, markSaisieDone, showResumeButton, reopenGate } = useWeeklyGate();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
     "nxt-dashboard-tab",
@@ -321,10 +321,10 @@ function DashboardContent() {
       ? Math.round(((ventes.actesSignes / currentDay) * daysInMonth) * 10) / 10
       : 0;
 
-  // MondayGate fullscreen — rendu AVANT le dashboard, bloque tout le reste
-  if (!gateLoading && gateRequired) {
+  // WeeklyGate fullscreen — rendu AVANT le dashboard, bloque tout le reste
+  if (!gateLoading && showGate) {
     return (
-      <SaisieGate gateType={gateRequired} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />
+      <WeeklyGateWrapper context={gateContext} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />
     );
   }
 
@@ -388,6 +388,15 @@ function DashboardContent() {
         </button>
         </div>
         <VocalButton className="ml-auto" />
+        {showResumeButton && (
+          <button
+            type="button"
+            onClick={reopenGate}
+            className="ml-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            Compléter ma saisie
+          </button>
+        )}
       </div>
 
       {/* ========== RECOMMANDATION BANNER ========== */}

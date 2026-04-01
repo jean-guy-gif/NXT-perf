@@ -2,6 +2,7 @@ import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
 import { computeAllRatios } from "@/lib/ratios";
 import { getGlobalScore } from "@/lib/scoring";
+import { shouldNotifyManager } from "@/lib/weekly-gate";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 
 export interface AppNotification {
@@ -185,6 +186,31 @@ function computeManagerNotifications(
       type: "warning",
       message: `${lateName.length} conseiller${lateName.length > 1 ? "s" : ""} sans saisie récente`,
       detail: lateName.join(", "),
+    });
+  }
+
+  // Weekly gate: Monday notification if agents missed Friday submission
+  const overdueFriday: string[] = [];
+  for (const conseiller of teamConseillers) {
+    const userResults = results.filter((r) => r.userId === conseiller.id);
+    const latestDate = userResults.reduce<string | null>((latest, r) => {
+      if (!latest || r.updatedAt > latest) return r.updatedAt;
+      return latest;
+    }, null);
+    if (shouldNotifyManager({ agentLastSubmissionDate: latestDate })) {
+      overdueFriday.push(conseiller.firstName);
+    }
+  }
+  if (overdueFriday.length > 0) {
+    const names = overdueFriday.length <= 3
+      ? overdueFriday.join(", ")
+      : `${overdueFriday.slice(0, 3).join(", ")} et ${overdueFriday.length - 3} autre${overdueFriday.length - 3 > 1 ? "s" : ""}`;
+    notifs.push({
+      id: "manager-weekly-overdue",
+      type: "warning",
+      message: `Saisie manquante : ${overdueFriday.length} agent${overdueFriday.length > 1 ? "s" : ""}`,
+      detail: `${names} — saisie de la semaine passée non complétée`,
+      link: "/manager/cockpit",
     });
   }
 

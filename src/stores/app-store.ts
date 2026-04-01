@@ -465,7 +465,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addResults: (result) => {
     set((state) => ({
-      results: [...state.results.filter((r) => r.id !== result.id), result],
+      results: [
+        ...state.results.filter(
+          (r) =>
+            r.id !== result.id &&
+            !(r.userId === result.userId && r.periodType === result.periodType && r.periodStart === result.periodStart)
+        ),
+        result,
+      ],
     }));
   },
 
