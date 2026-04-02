@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Target, CheckCircle, AlertTriangle, ChevronRight, Volume2, Sparkles } from "lucide-react";
 import type { PeriodResults } from "@/types/results";
@@ -8,6 +8,7 @@ import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
 import { generateCoachingDebrief } from "@/lib/coaching-debrief";
 import { generateAIDebrief } from "@/lib/coaching-ai-client";
+import { speakText, playTTSResponse } from "@/lib/tts-service";
 import type { CoachingDebrief, VolumeVerdict, ActionItem, AgentProfile } from "@/lib/coaching-debrief";
 import type { AIDebriefText } from "@/lib/coaching-ai-client";
 
@@ -33,6 +34,7 @@ interface CoachingDebriefScreenProps {
   results: PeriodResults;
   category: UserCategory;
   ratioConfigs: Record<RatioId, RatioConfig>;
+  persona?: string;
   onClose: () => void;
 }
 
@@ -57,7 +59,7 @@ const actionIcon: Record<ActionItem["type"], typeof Target> = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function CoachingDebriefScreen({ results, category, ratioConfigs, onClose }: CoachingDebriefScreenProps) {
+export function CoachingDebriefScreen({ results, category, ratioConfigs, persona, onClose }: CoachingDebriefScreenProps) {
   const debrief = useMemo(() => generateCoachingDebrief(results, category, ratioConfigs), [results, category, ratioConfigs]);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [aiText, setAiText] = useState<AIDebriefText | null>(null);
@@ -70,7 +72,7 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, onClose
       return;
     }
     let cancelled = false;
-    generateAIDebrief(debrief).then((result) => {
+    generateAIDebrief(debrief, persona).then((result) => {
       if (!cancelled) {
         setAiText(result);
         setAiLoading(false);
@@ -79,9 +81,32 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, onClose
     return () => { cancelled = true; };
   }, [debrief]);
 
-  const handlePlayAudio = () => {
+  const coachAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handlePlayAudio = async () => {
     const script = aiText?.audioScript || debrief.audioScript;
     setAudioPlaying(true);
+
+    // Stop any previous playback
+    if (coachAudioRef.current) {
+      coachAudioRef.current.pause();
+      coachAudioRef.current = null;
+    }
+
+    // Try ElevenLabs first
+    const res = await speakText(script, "coach", persona);
+    if (res) {
+      const audio = await playTTSResponse(res, () => {
+        coachAudioRef.current = null;
+        setAudioPlaying(false);
+      });
+      if (audio) {
+        coachAudioRef.current = audio;
+        return;
+      }
+    }
+
+    // Fallback: Web Speech
     speakTTS(script, () => setAudioPlaying(false));
   };
 

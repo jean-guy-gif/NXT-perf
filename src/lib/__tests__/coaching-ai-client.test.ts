@@ -20,7 +20,7 @@ const mockDebrief: CoachingDebrief = {
   watchouts: ["Volume insuffisant : Mandats."],
   topPriorities: ["Remonter tes mandats."],
   nextWeekPlan: [{ type: "volume", text: "Atteindre 1 mandat minimum." }],
-  closingSentence: "T'es meilleur que tu crois. Bonne route.",
+  closingSentence: "tu es meilleur que ce que tu penses, Bonne route",
   coachingBranding: "Ce coaching hebdomadaire vous a été offert par NXT Coaching.",
   ctaLabel: "Tu veux en savoir plus ?",
   ctaUrl: "/formation",
@@ -101,7 +101,7 @@ describe("generateAIDebrief — fallback scenarios", () => {
     expect(result!.title).toBe("Bonne dynamique");
     expect(result!.overallSummary).toContain("correcte");
     // Closing is ALWAYS forced to the official signature
-    expect(result!.closing).toBe("T'es meilleur que tu crois. Bonne route.");
+    expect(result!.closing).toBe("tu es meilleur que ce que tu penses, Bonne route");
   });
 
   it("forces closing signature even if AI returns different text", async () => {
@@ -114,6 +114,6 @@ describe("generateAIDebrief — fallback scenarios", () => {
       }),
     });
     const result = await generateAIDebrief(mockDebrief);
-    expect(result!.closing).toBe("T'es meilleur que tu crois. Bonne route.");
+    expect(result!.closing).toBe("tu es meilleur que ce que tu penses, Bonne route");
   });
 });

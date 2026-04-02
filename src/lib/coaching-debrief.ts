@@ -73,10 +73,7 @@ export interface CoachingDebrief {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const CLOSING = "T'es meilleur que tu crois. Bonne route.";
-const BRANDING = "Ce coaching hebdomadaire vous a été offert par NXT Coaching.";
-const CTA_LABEL = "Tu veux en savoir plus ?";
-const CTA_URL = "/formation";
+import { COACHING_CLOSING, COACHING_BRANDING, COACHING_CTA_LABEL, COACHING_CTA_URL } from "@/lib/personas";
 
 const KEY_RATIOS: RatioId[] = [
   "contacts_rdv",
@@ -425,7 +422,7 @@ export function generateCoachingDebrief(
   }
 
   if (nextWeekPlan.length > 0) audio.push(`Semaine prochaine : ${nextWeekPlan[0].text}`);
-  audio.push(CLOSING);
+  audio.push(COACHING_CLOSING);
 
   return {
     profile,
@@ -440,10 +437,10 @@ export function generateCoachingDebrief(
     watchouts: watchouts.slice(0, 2),
     topPriorities: topPriorities.slice(0, 3),
     nextWeekPlan: nextWeekPlan.slice(0, 3),
-    closingSentence: CLOSING,
-    coachingBranding: BRANDING,
-    ctaLabel: CTA_LABEL,
-    ctaUrl: CTA_URL,
+    closingSentence: COACHING_CLOSING,
+    coachingBranding: COACHING_BRANDING,
+    ctaLabel: COACHING_CTA_LABEL,
+    ctaUrl: COACHING_CTA_URL,
     audioScript: audio.join(" "),
   };
 }

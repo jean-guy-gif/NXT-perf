@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, FileUp, PenLine, Sparkles, ArrowLeft, Upload, Loader2 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
 import { ImportConfirmation } from "@/components/saisie/import-confirmation";
 import { VoiceConversation } from "@/components/saisie/voice-conversation";
 import { CoachingDebriefScreen } from "@/components/saisie/coaching-debrief";
@@ -12,51 +13,17 @@ import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
 import { parseCountField, parseMandatsText, parseDetailsText, capitalizeFirst } from "@/lib/saisie-parser";
 import type { ExtractedFields, ExtractedArrays, ExtractionResult, MandatDetail, AcheteurDetail, InfoVenteDetail } from "@/lib/saisie-ai-client";
 
-// ─── Personas ────────────────────────────────────────────────────────────────
+// ─── Personas (centralized in src/lib/personas.ts) ──────────────────────────
 
-type PersonaId = "warrior" | "sport_coach" | "kind_coach" | "neutral_male" | "neutral_female";
+import { PERSONA_GREETINGS, DEFAULT_PERSONA, isValidPersona } from "@/lib/personas";
+import type { PersonaId } from "@/lib/personas";
 
-interface PersonaGreeting {
-  line1: (firstName: string) => string;
-  line2: string;
-}
-
-const PERSONA_GREETINGS: Record<PersonaId, PersonaGreeting> = {
-  warrior: {
-    line1: () => "Rapport de semaine.",
-    line2: "2 minutes. Allons-y.",
-  },
-  sport_coach: {
-    line1: () => "C'est l'heure du debrief !",
-    line2: "Ta semaine en 2 min.",
-  },
-  kind_coach: {
-    line1: () => "Tu as bossé dur cette semaine.",
-    line2: "Prends 2 minutes pour en faire le bilan.",
-  },
-  neutral_male: {
-    line1: (name) => `Bonne semaine, ${name}.`,
-    line2: "Prends 2 minutes pour saisir ton activité.",
-  },
-  neutral_female: {
-    line1: (name) => `Bonne semaine, ${name}.`,
-    line2: "Prends 2 minutes pour saisir ton activité.",
-  },
-};
+interface PersonaGreeting { line1: (firstName: string) => string; line2: string; }
 
 const CONTEXT_GREETINGS: Record<string, PersonaGreeting> = {
-  demo: {
-    line1: (name) => `Bienvenue, ${name} 👋`,
-    line2: "Découvre la saisie hebdomadaire. 2 minutes pour faire le point.",
-  },
-  friday_required: {
-    line1: (name) => `Bonne fin de semaine, ${name} 👊`,
-    line2: "Prends 2 minutes pour faire le bilan de ta semaine. C'est le moment.",
-  },
-  monday_catchup: {
-    line1: (name) => `${name}, ta saisie t'attend`,
-    line2: "Tu n'as pas complété vendredi. Prends 2 minutes pour rattraper.",
-  },
+  demo: { line1: (name) => `Bienvenue, ${name} 👋`, line2: "Découvre la saisie hebdomadaire. 2 minutes pour faire le point." },
+  friday_required: { line1: (name) => `Bonne fin de semaine, ${name} 👊`, line2: "Prends 2 minutes pour faire le bilan de ta semaine." },
+  monday_catchup: { line1: (name) => `${name}, ta saisie t'attend`, line2: "Tu n'as pas complété vendredi. Prends 2 minutes pour rattraper." },
 };
 
 const DEFAULT_GREETING: PersonaGreeting = {
@@ -113,7 +80,25 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const firstName = user?.firstName || "Conseiller";
-  const personaId: PersonaId | null = null;
+  const isDemo = useAppStore((s) => s.isDemo);
+  const [personaId, setPersonaId] = useState<PersonaId | null>(null);
+  const [preferredInputMode, setPreferredInputMode] = useState<string>("audio_full");
+
+  // Load persona + input_mode from Supabase
+  useEffect(() => {
+    if (isDemo || !user?.id) return;
+    const supabase = createClient();
+    supabase
+      .from("user_voice_preferences")
+      .select("persona, input_mode")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.persona && isValidPersona(data.persona)) setPersonaId(data.persona);
+        if (data?.input_mode) setPreferredInputMode(data.input_mode);
+      });
+  }, [user?.id, isDemo]);
+
   const contextGreeting = context ? CONTEXT_GREETINGS[context] : undefined;
   const greeting = personaId ? PERSONA_GREETINGS[personaId] : (contextGreeting ?? DEFAULT_GREETING);
 
@@ -530,6 +515,8 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   if (screen === "voice") {
     return (
       <VoiceConversation
+        persona={personaId ?? undefined}
+        startInTextMode={preferredInputMode === "text_keyboard"}
         onDismiss={onDismiss}
         onComplete={(voiceFields, voiceArrays) => {
           setExtractedFields(voiceFields);
@@ -622,6 +609,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
         results={savedResults}
         category={user.category}
         ratioConfigs={useAppStore.getState().ratioConfigs}
+        persona={personaId ?? undefined}
         onClose={onSaisieDone}
       />
     );

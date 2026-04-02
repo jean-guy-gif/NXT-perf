@@ -3,16 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL = "openai/gpt-4o-mini";
 
-const SYSTEM_PROMPT = `Tu es un coach immobilier hebdomadaire bienveillant et exigeant.
+import { PERSONA_COACHING_TONE, COACHING_CLOSING, isValidPersona, DEFAULT_PERSONA } from "@/lib/personas";
+import type { PersonaId } from "@/lib/personas";
+
+function buildSystemPrompt(persona: PersonaId): string {
+  const tone = PERSONA_COACHING_TONE[persona];
+  return `Tu es un coach immobilier hebdomadaire.
 Tu reformules un débrief coaching déjà calculé. Tu n'inventes RIEN.
 Tu ne contredis JAMAIS les scores fournis. Tu restes concis.
 
+TON : ${tone}
+
 Règles :
-- Ton juste, bienveillant, clair, professionnel
 - Phrases courtes
 - Pas de bullshit motivationnel vide
 - Pas d'invention de chiffres
-- Tu termines TOUJOURS par la signature exacte : "T'es meilleur que tu crois. Bonne route."
+- Tu termines TOUJOURS par la signature exacte : "${COACHING_CLOSING}"
 
 Réponds UNIQUEMENT en JSON valide :
 {
@@ -23,9 +29,10 @@ Réponds UNIQUEMENT en JSON valide :
   "strengthsText": "1 phrase sur les points forts",
   "watchoutsText": "1 phrase sur les points de vigilance",
   "nextWeekText": "1-2 phrases sur le plan semaine prochaine",
-  "closing": "T'es meilleur que tu crois. Bonne route.",
+  "closing": "${COACHING_CLOSING}",
   "audioScript": "Version orale complète en 4-5 phrases courtes, fluide à l'oral"
 }`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = await request.json();
+    const persona: PersonaId = isValidPersona(payload.persona) ? payload.persona : DEFAULT_PERSONA;
+    const systemPrompt = buildSystemPrompt(persona);
 
     const userPrompt = `Voici le débrief calculé à reformuler :
 
@@ -67,7 +76,7 @@ Reformule ce débrief de manière naturelle, concise et bienveillante.`;
         model: MODEL,
         max_tokens: 512,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
       }),

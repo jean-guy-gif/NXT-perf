@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, MessageCircle, Mic, Volume2, VolumeX, Keyboard } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { useGeminiLive } from "@/hooks/use-gemini-live";
 import { parseCountField, parseNumericResponse, parseMandatsText, parseDetailsText, normalize, capitalizeFirst } from "@/lib/saisie-parser";
 import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
 import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
@@ -49,6 +50,143 @@ function speakTTS(text: string, onEnd?: () => void): void {
 }
 function stopSpeaking(): void { if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel(); }
 
+// ── ElevenLabs TTS ───────────────────────────────────────────────────────────
+
+/** Global ref to current Audio element — allows barge-in from anywhere */
+let currentAudio: HTMLAudioElement | null = null;
+
+/** Stop and clean up any ElevenLabs audio in progress */
+function stopElevenLabsAudio(): void {
+  if (!currentAudio) return;
+  console.log("[VOICE] ELEVENLABS_STOP (barge-in or cleanup)");
+  currentAudio.onended = null;
+  currentAudio.onerror = null;
+  currentAudio.pause();
+  const src = currentAudio.src;
+  currentAudio.src = "";
+  currentAudio = null;
+  if (src.startsWith("blob:")) URL.revokeObjectURL(src);
+}
+
+/** Stop ALL audio sources — call before starting any new playback */
+function stopAllAudio(): void {
+  stopElevenLabsAudio();
+  stopSpeaking(); // Web Speech
+}
+
+const TTS_MAX_START_LATENCY_MS = 800;
+
+/** Session-level fallback flag: if persona voice fails, use default for the rest of the session */
+let ttsPersonaFailed = false;
+
+/** Reset session fallback (call when component mounts) */
+function resetTTSSession(): void { ttsPersonaFailed = false; }
+
+/** Fetch audio from /api/voice/tts and play it. Returns false if failed or too slow. */
+async function speakElevenLabs(text: string, onEnd?: () => void, persona?: string): Promise<boolean> {
+  if (!text || !text.trim()) {
+    console.log("[VOICE] ELEVENLABS_SKIP: empty text");
+    return false;
+  }
+
+  const t0 = performance.now();
+  let timedOut = false;
+
+  // Race: actual fetch+play vs timeout
+  const result = await Promise.race([
+    doElevenLabsFetchAndPlay(text, t0, () => timedOut, onEnd, persona),
+    new Promise<false>((resolve) =>
+      setTimeout(() => {
+        timedOut = true;
+        console.log(`[VOICE] ELEVENLABS_TIMEOUT_FALLBACK (>${TTS_MAX_START_LATENCY_MS}ms)`);
+        resolve(false);
+      }, TTS_MAX_START_LATENCY_MS),
+    ),
+  ]);
+
+  return result;
+}
+
+/** Inner function: fetch + blob + play. Checks timedOut flag at each step. */
+async function doElevenLabsFetchAndPlay(
+  text: string,
+  t0: number,
+  isTimedOut: () => boolean,
+  onEnd?: () => void,
+  persona?: string,
+): Promise<boolean> {
+  // If persona voice already failed this session, send without persona (fallback)
+  const effectivePersona = ttsPersonaFailed ? undefined : persona;
+  if (ttsPersonaFailed && persona) {
+    console.log("[VOICE] SESSION_FALLBACK_ACTIVE: using default voice");
+  }
+
+  try {
+    const res = await fetch("/api/voice/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, context: "conversation", persona: effectivePersona }),
+    });
+    if (!res.ok || !res.body) {
+      console.log("[VOICE] ELEVENLABS_FETCH_FAIL:", res.status, `(${Math.round(performance.now() - t0)}ms)`);
+      if (effectivePersona) {
+        ttsPersonaFailed = true;
+        console.log("[VOICE] PERSONA_VOICE_FAILED: switching session to fallback");
+      }
+      return false;
+    }
+    if (isTimedOut()) return false; // timeout won the race during fetch
+
+    const blob = await res.blob();
+    if (isTimedOut()) return false; // timeout won the race during blob read
+    if (currentAudio) {
+      console.log("[VOICE] ELEVENLABS_DISCARD: superseded during fetch");
+      return false;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentAudio = audio;
+
+    const cleanup = () => {
+      audio.onended = null;
+      audio.onerror = null;
+      if (currentAudio === audio) currentAudio = null;
+      URL.revokeObjectURL(url);
+    };
+
+    audio.onended = () => {
+      console.log("[VOICE] ELEVENLABS_ENDED");
+      cleanup();
+      onEnd?.();
+    };
+    audio.onerror = () => {
+      console.log("[VOICE] ELEVENLABS_PLAYBACK_ERROR");
+      cleanup();
+      onEnd?.();
+    };
+
+    if (isTimedOut()) {
+      // Timeout won just before play — clean up
+      cleanup();
+      return false;
+    }
+
+    await audio.play();
+    const latency = Math.round(performance.now() - t0);
+    const category = latency < 400 ? "FAST" : latency <= 800 ? "OK" : "SLOW";
+    console.log(`[VOICE] ELEVENLABS_PLAYING latency=${latency}ms category=${category}`);
+    return true;
+  } catch (err) {
+    console.log("[VOICE] ELEVENLABS_ERROR:", err instanceof Error ? err.message : err);
+    if (effectivePersona) {
+      ttsPersonaFailed = true;
+      console.log("[VOICE] PERSONA_VOICE_FAILED: switching session to fallback");
+    }
+    return false;
+  }
+}
+
 // ── STT ──────────────────────────────────────────────────────────────────────
 
 function getSR(): (new () => SpeechRecognition) | null {
@@ -59,7 +197,12 @@ function getSR(): (new () => SpeechRecognition) | null {
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
+import { CONVERSATION_GREETINGS, DEFAULT_PERSONA } from "@/lib/personas";
+import type { PersonaId } from "@/lib/personas";
+
 interface VoiceConversationProps {
+  persona?: PersonaId;
+  startInTextMode?: boolean;
   onDismiss: () => void;
   onComplete: (fields: ExtractedFields, arrays: ExtractedArrays) => void;
 }
@@ -68,20 +211,26 @@ type MicState = "idle" | "listening" | "processing";
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationProps) {
+export function VoiceConversation({ persona, startInTextMode, onDismiss, onComplete }: VoiceConversationProps) {
   const user = useAppStore((s) => s.user);
   const firstName = user?.firstName || "Conseiller";
+  const activePersona = persona ?? DEFAULT_PERSONA;
+  const greeting = CONVERSATION_GREETINGS[activePersona](firstName);
 
   // Voice mode
   const sttAvailable = typeof window !== "undefined" && !!getSR();
-  const [voiceMode, setVoiceMode] = useState(sttAvailable);
+  const [voiceMode, setVoiceMode] = useState(startInTextMode ? false : sttAvailable);
   const [muted, setMuted] = useState(() => typeof window !== "undefined" ? localStorage.getItem("nxt-voice-muted") === "true" : false);
   const [micState, setMicState] = useState<MicState>("idle");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [useGemini, setUseGemini] = useState(false); // true = Gemini Live active
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Gemini Live hook
+  const gemini = useGeminiLive();
 
   // Conversation
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -109,12 +258,12 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
   useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────
-  const toggleMute = () => { setMuted(p => { const n = !p; localStorage.setItem("nxt-voice-muted", String(n)); if (n) stopSpeaking(); return n; }); };
+  const toggleMute = () => { setMuted(p => { const n = !p; localStorage.setItem("nxt-voice-muted", String(n)); if (n) { stopSpeaking(); stopElevenLabsAudio(); } return n; }); };
   const addMsg = (role: "assistant" | "user", text: string) => setMessages(p => [...p, { role, text }]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, liveTranscript]);
   useEffect(() => { if (!voiceMode) inputRef.current?.focus(); }, [messages, voiceMode]);
-  useEffect(() => () => { stopSpeaking(); recognitionRef.current?.abort(); if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current); }, []);
+  useEffect(() => () => { stopSpeaking(); stopElevenLabsAudio(); recognitionRef.current?.abort(); if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current); gemini.stop(); }, [gemini.stop]);
 
   // getNextApplicableStep imported from saisie-steps.ts
 
@@ -135,25 +284,66 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
     doSpeak(step.prompt);
   };
 
-  // ── TTS wrapper that uses refs (no stale closure) ──────────────────────
+  // ── TTS wrapper — ElevenLabs → Gemini Live → Web Speech ────────────────
   const doSpeak = (text: string) => {
     if (mutedRef.current || !voiceModeRef.current) {
-      console.log("[VOICE] TTS_MUTED_OR_TEXT_MODE, skipping speak");
+      console.log("[VOICE] SPEAK_SKIP: muted or text mode");
       return;
     }
-    setIsSpeaking(true);
-    speakTTS(text, () => {
-      console.log("[VOICE] TTS_CALLBACK → starting mic");
+    if (!text || !text.trim()) {
+      console.log("[VOICE] SPEAK_SKIP: empty text");
+      return;
+    }
+
+    const t0 = performance.now();
+    console.log("[VOICE] SPEAK_START:", text.slice(0, 60));
+
+    // Stop any audio currently playing (prevents double playback)
+    stopAllAudio();
+
+    const onSpeakEnd = () => {
+      const dur = Math.round(performance.now() - t0);
+      console.log(`[VOICE] SPEAK_DONE total=${dur}ms`);
       setIsSpeaking(false);
       if (voiceModeRef.current) doStartListening();
+    };
+
+    setIsSpeaking(true);
+
+    // 1. ElevenLabs with persona voice
+    speakElevenLabs(text, onSpeakEnd, activePersona).then((ok) => {
+      if (ok) {
+        console.log("[VOICE] SPEAK_PROVIDER: elevenlabs");
+        return;
+      }
+
+      // 2. Gemini Live fallback
+      if (useGemini && gemini.isConnected) {
+        console.log("[VOICE] SPEAK_PROVIDER: gemini (elevenlabs failed)");
+        gemini.speak(text);
+        return;
+      }
+
+      // 3. Web Speech fallback
+      console.log("[VOICE] SPEAK_PROVIDER: webspeech (elevenlabs failed)");
+      speakTTS(text, onSpeakEnd);
     });
   };
 
-  // ── STT (reads processInput from ref) ──────────────────────────────────
+  // ── STT — dispatches to Gemini Live or Web Speech ──────────────────────
   const doStartListening = () => {
+    // Gemini Live path: just start mic capture, Gemini handles STT
+    if (useGemini && gemini.isConnected) {
+      console.log("[VOICE] GEMINI_MIC_START");
+      setMicState("listening");
+      gemini.startMic();
+      return;
+    }
+
+    // Web Speech fallback
     const SR = getSR();
     if (!SR) { console.log("[VOICE] MIC_NO_SR"); return; }
-    stopSpeaking(); setIsSpeaking(false);
+    stopSpeaking(); stopElevenLabsAudio(); setIsSpeaking(false);
     setMicState("listening"); setLiveTranscript("");
     console.log("[VOICE] MIC_START");
 
@@ -205,6 +395,11 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
   };
 
   const stopListening = () => {
+    if (useGemini && gemini.isListening) {
+      gemini.stopMic();
+      setMicState("idle");
+      return;
+    }
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     recognitionRef.current?.stop();
   };
@@ -297,18 +492,73 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
     console.log("[VOICE] DETAIL_AWAITING_CONFIRM");
   };
 
+  // ── Gemini Live: handle transcript from model ──────────────────────────
+  // When Gemini sends a transcript (user speech → text), process it
+  useEffect(() => {
+    if (!useGemini || !gemini.isConnected) return;
+    // The onTranscript callback is set during start() — no extra wiring needed here
+  }, [useGemini, gemini.isConnected]);
+
+  // Handle Gemini audio end → auto-start mic
+  useEffect(() => {
+    if (useGemini && !gemini.isPlaying && isSpeaking) {
+      setIsSpeaking(false);
+      if (voiceModeRef.current) doStartListening();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useGemini, gemini.isPlaying]);
+
   // ── Init ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    console.log("[VOICE] INIT");
-    const greeting = `${firstName}, on fait le point.`;
-    addMsg("assistant", greeting);
-    doSpeak(greeting);
-    setTimeout(() => {
-      const first = getNextApplicableStep(0, fieldsRef.current);
-      askStep(first);
-    }, 800);
+    resetTTSSession();
+    console.log("[VOICE] INIT persona:", activePersona);
+
+    // Try Gemini Live first if voice mode is on
+    if (voiceModeRef.current) {
+      const systemInstruction = "Tu es NXT Assistant, un coach immobilier. Tu poses des questions courtes sur l'activité hebdomadaire du conseiller. Tu parles en français. Tu es concis et bienveillant.";
+
+      gemini.start(systemInstruction, {
+        onTranscript: (text) => {
+          console.log("[VOICE] GEMINI_TRANSCRIPT:", text);
+          // Gemini sends both the model's spoken text and user transcriptions
+          // We use this for model responses — user speech is handled via mic
+          doProcessInput(text);
+        },
+        onAudioStart: () => setIsSpeaking(true),
+        onAudioEnd: () => {
+          setIsSpeaking(false);
+          if (voiceModeRef.current) doStartListening();
+        },
+        onError: (err) => {
+          console.log("[VOICE] GEMINI_ERROR:", err);
+          addMsg("assistant", "Voix standard activée");
+        },
+      }, activePersona).then((connected) => {
+        if (connected) {
+          console.log("[VOICE] GEMINI_LIVE_ACTIVE");
+          setUseGemini(true);
+        } else {
+          console.log("[VOICE] GEMINI_FALLBACK → Web Speech");
+        }
+
+        // Start conversation regardless of Gemini status
+        addMsg("assistant", greeting);
+        doSpeak(greeting);
+        setTimeout(() => {
+          const first = getNextApplicableStep(0, fieldsRef.current);
+          askStep(first);
+        }, 800);
+      });
+    } else {
+      // Text mode — no voice init needed
+      addMsg("assistant", greeting);
+      setTimeout(() => {
+        const first = getNextApplicableStep(0, fieldsRef.current);
+        askStep(first);
+      }, 800);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -323,7 +573,7 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
 
   const handleSend = () => { const t = inputText.trim(); if (!t || isDone) return; doProcessInput(t); };
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } };
-  const handleFinish = () => { stopSpeaking(); onComplete(fieldsRef.current, arraysRef.current); };
+  const handleFinish = () => { stopSpeaking(); stopElevenLabsAudio(); onComplete(fieldsRef.current, arraysRef.current); };
 
   // ── Progress ────────────────────────────────────────────────────────────
   const currentStep = stepIdx >= 0 && stepIdx < SAISIE_STEPS.length ? SAISIE_STEPS[stepIdx] : null;
@@ -337,7 +587,7 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"><MessageCircle className="h-4 w-4 text-primary" /></div>
           <div>
-            <p className="text-sm font-semibold text-foreground">NXT Assistant</p>
+            <p className="text-sm font-semibold text-foreground">NXT Assistant {useGemini && <span className="text-[10px] text-primary/50 ml-1">Live</span>}</p>
             <p className="text-xs text-muted-foreground">
               {isDone ? "Terminé" : isSpeaking ? "Parle…" : micState === "listening" ? "Écoute…"
                 : currentStep ? `${currentStep.section} — ${stepIdx + 1}/${SAISIE_STEPS.length}` : "Prêt"}
@@ -348,7 +598,7 @@ export function VoiceConversation({ onDismiss, onComplete }: VoiceConversationPr
           {sttAvailable && (
             <div className="flex items-center rounded-lg border border-border overflow-hidden">
               <button type="button" onClick={() => { setVoiceMode(true); voiceModeRef.current = true; }} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}><Mic className="h-3 w-3" />Voix</button>
-              <button type="button" onClick={() => { setVoiceMode(false); voiceModeRef.current = false; stopListening(); stopSpeaking(); }} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${!voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}><Keyboard className="h-3 w-3" />Texte</button>
+              <button type="button" onClick={() => { setVoiceMode(false); voiceModeRef.current = false; stopListening(); stopSpeaking(); stopElevenLabsAudio(); }} className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors ${!voiceMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}><Keyboard className="h-3 w-3" />Texte</button>
             </div>
           )}
           <button type="button" onClick={toggleMute} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">

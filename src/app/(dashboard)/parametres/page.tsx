@@ -13,7 +13,10 @@ import {
   AlertTriangle,
   HeartHandshake,
   Play,
+  Mic,
+  ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
 
@@ -64,8 +67,7 @@ export default function ParametresPage() {
               Parametres Performance
             </h1>
             <p className="text-sm text-muted-foreground">
-              Modifier les seuils de performance par niveau. Tout changement
-              recalcule instantanément les statuts.
+              Modifier les seuils de performance par niveau et vos préférences voix.
             </p>
           </div>
         </div>
@@ -86,6 +88,21 @@ export default function ParametresPage() {
           </button>
         </div>
       </div>
+
+      {/* Voix & Saisie card */}
+      <Link
+        href="/parametres/voix"
+        className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15">
+          <Mic className="h-5 w-5 text-primary" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Voix & Saisie</p>
+          <p className="text-xs text-muted-foreground">Choisis ta voix de guidage et ton mode de saisie préféré</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Link>
 
       {/* Notifications */}
       {saved && (

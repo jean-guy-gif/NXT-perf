@@ -22,12 +22,13 @@ export interface AIDebriefText {
  * Request AI reformulation of a coaching debrief.
  * Returns null if the call fails (caller uses local fallback).
  */
-export async function generateAIDebrief(debrief: CoachingDebrief): Promise<AIDebriefText | null> {
+export async function generateAIDebrief(debrief: CoachingDebrief, persona?: string): Promise<AIDebriefText | null> {
   try {
     const res = await fetch("/api/coaching-debrief", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        persona,
         profile: debrief.profile,
         volumeScore: debrief.volumeScore,
         performanceScore: debrief.performanceScore,
@@ -50,7 +51,7 @@ export async function generateAIDebrief(debrief: CoachingDebrief): Promise<AIDeb
     if (!data.title || !data.overallSummary) return null;
 
     // Force the closing signature
-    data.closing = "T'es meilleur que tu crois. Bonne route.";
+    data.closing = "tu es meilleur que ce que tu penses, Bonne route";
 
     return data as AIDebriefText;
   } catch {
