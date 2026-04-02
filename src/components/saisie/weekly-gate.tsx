@@ -5,6 +5,7 @@ import { Mic, FileUp, PenLine, Sparkles, ArrowLeft, Upload, Loader2 } from "luci
 import { useAppStore } from "@/stores/app-store";
 import { ImportConfirmation } from "@/components/saisie/import-confirmation";
 import { VoiceConversation } from "@/components/saisie/voice-conversation";
+import { CoachingDebriefScreen } from "@/components/saisie/coaching-debrief";
 import { extractFromDocument, extractFromImage } from "@/lib/saisie-ai-client";
 import { convertExtractedToPeriodResults } from "@/lib/weekly-gate";
 import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
@@ -76,7 +77,7 @@ interface WeeklyGateProps {
   context?: "demo" | "friday_required" | "monday_catchup" | "none";
 }
 
-type Screen = "welcome" | "mode" | "manual" | "voice" | "import" | "confirmation";
+type Screen = "welcome" | "mode" | "manual" | "voice" | "import" | "confirmation" | "debrief";
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
@@ -103,6 +104,9 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   const [confirmDesc, setConfirmDesc] = useState("");
   const [confirmUncertain, setConfirmUncertain] = useState<string[]>([]);
   const [confirmUnmapped, setConfirmUnmapped] = useState<string[]>([]);
+
+  // Debrief state — stored after successful save
+  const [savedResults, setSavedResults] = useState<import("@/types/results").PeriodResults | null>(null);
 
   // Import state
   const [isImporting, setIsImporting] = useState(false);
@@ -244,8 +248,9 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
     setIsSaving(true);
     const periodResult = convertExtractedToPeriodResults(user.id, fields, arrays);
     await saveResult(periodResult);
+    setSavedResults(periodResult);
     setIsSaving(false);
-    onSaisieDone();
+    setScreen("debrief");
   };
 
   const handleReset = () => {
@@ -607,6 +612,18 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
           />
         </div>
       </div>
+    );
+  }
+
+  // ── Écran 7 : Coaching Debrief ──────────────────────────────────────────
+  if (screen === "debrief" && savedResults && user) {
+    return (
+      <CoachingDebriefScreen
+        results={savedResults}
+        category={user.category}
+        ratioConfigs={useAppStore.getState().ratioConfigs}
+        onClose={onSaisieDone}
+      />
     );
   }
 
