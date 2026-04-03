@@ -25,6 +25,7 @@ export default function OnboardingIdentitePage() {
   const [logoDone, setLogoDone] = useState(false);
   const [error, setError] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +38,43 @@ export default function OnboardingIdentitePage() {
     if (isDemo) { router.replace("/dashboard"); return; }
     if (profile?.onboarding_completed) { router.replace("/dashboard"); }
   }, [profile?.onboarding_completed, isDemo, router]);
+
+  // ── Refetch profile from Supabase on mount ─────────────────────────────
+  // The optimistic profile from register may have empty org_id;
+  // the DB trigger needs a moment to populate it.
+  useEffect(() => {
+    if (isDemo) { setLoadingProfile(false); return; }
+
+    let cancelled = false;
+    const refetchProfile = async () => {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser || cancelled) { setLoadingProfile(false); return; }
+
+      // Retry up to 3 times with 1s delay for the DB trigger to finish
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data: freshProfile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (cancelled) return;
+
+        if (freshProfile) {
+          setProfile(freshProfile);
+          // If org_id is populated, we're done
+          if (freshProfile.org_id) break;
+          // Otherwise wait and retry (trigger may still be running)
+          if (attempt < 2) await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+      if (!cancelled) setLoadingProfile(false);
+    };
+
+    refetchProfile();
+    return () => { cancelled = true; };
+  }, [isDemo, setProfile]);
 
   // ── Upload handler (shared logic) ─────────────────────────────────────
   const handleFile = useCallback(async (
@@ -117,9 +155,24 @@ export default function OnboardingIdentitePage() {
     setCompleting(true);
     if (!isDemo && user?.id) {
       const supabase = createClient();
-      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", user.id);
+      // Write to DB and wait for confirmation
+      const { error: updateErr } = await supabase
+        .from("profiles")
+        .update({ onboarding_completed: true })
+        .eq("id", user.id);
+
+      if (updateErr) {
+        console.error("[onboarding] Failed to save onboarding_completed:", updateErr.message);
+      }
+
+      // Update Zustand store so dashboard layout doesn't redirect back
+      if (profile) {
+        setProfile({ ...profile, onboarding_completed: true });
+      }
     }
-    router.push("/dashboard");
+
+    // Full page reload to ensure dashboard layout re-fetches fresh profile from DB
+    window.location.href = "/dashboard";
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -137,39 +190,45 @@ export default function OnboardingIdentitePage() {
         </div>
 
         {/* Upload zones */}
-        <div className={`grid gap-6 ${hasOrg ? "sm:grid-cols-2" : "max-w-sm mx-auto"}`}>
-          {/* Avatar */}
-          <UploadZone
-            label="Photo de profil"
-            hint="Visible par ton équipe et ton manager"
-            icon={<Camera className="h-6 w-6" />}
-            preview={avatarPreview}
-            previewShape="circle"
-            uploading={avatarUploading}
-            done={avatarDone}
-            inputRef={avatarInputRef}
-            onFileSelect={(f) => handleFile(f, "avatar")}
-            onDrop={(e) => handleDrop(e, "avatar")}
-            onDragOver={handleDragOver}
-          />
-
-          {/* Logo agence */}
-          {hasOrg && (
+        {loadingProfile ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className={`grid gap-6 ${hasOrg ? "sm:grid-cols-2" : "max-w-sm mx-auto"}`}>
+            {/* Avatar */}
             <UploadZone
-              label="Logo de l'agence"
-              hint="Affiché sur les exports et le classement"
-              icon={<Building2 className="h-6 w-6" />}
-              preview={logoPreview}
-              previewShape="square"
-              uploading={logoUploading}
-              done={logoDone}
-              inputRef={logoInputRef}
-              onFileSelect={(f) => handleFile(f, "logo")}
-              onDrop={(e) => handleDrop(e, "logo")}
+              label="Photo de profil"
+              hint="Visible par ton équipe et ton manager"
+              icon={<Camera className="h-6 w-6" />}
+              preview={avatarPreview}
+              previewShape="circle"
+              uploading={avatarUploading}
+              done={avatarDone}
+              inputRef={avatarInputRef}
+              onFileSelect={(f) => handleFile(f, "avatar")}
+              onDrop={(e) => handleDrop(e, "avatar")}
               onDragOver={handleDragOver}
             />
-          )}
-        </div>
+
+            {/* Logo agence */}
+            {hasOrg && (
+              <UploadZone
+                label="Logo de l'agence"
+                hint="Affiché sur les exports et le classement"
+                icon={<Building2 className="h-6 w-6" />}
+                preview={logoPreview}
+                previewShape="square"
+                uploading={logoUploading}
+                done={logoDone}
+                inputRef={logoInputRef}
+                onFileSelect={(f) => handleFile(f, "logo")}
+                onDrop={(e) => handleDrop(e, "logo")}
+                onDragOver={handleDragOver}
+              />
+            )}
+          </div>
+        )}
 
         {/* Error */}
         {error && (
