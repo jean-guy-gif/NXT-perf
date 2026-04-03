@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
+import { AvatarDisplay } from "@/components/profile/avatar-upload";
 
 interface NavItem {
   href: string;
@@ -77,9 +78,16 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const availableRoles = useAppStore((s) => s.user?.availableRoles ?? []);
+  const user = useAppStore((s) => s.user);
+  const profile = useAppStore((s) => s.profile);
+  const availableRoles = user?.availableRoles ?? [];
   const hiddenViews = useAppStore((s) => s.hiddenViews);
   const visibleViews = getVisibleViews(availableRoles, hiddenViews);
+
+  const avatarUrl = profile?.avatar_url;
+  const initials = user
+    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+    : null;
 
   const advisorItems = visibleViews.includes("agent")
     ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && !item.networkOnly && item.href !== "/parametres")
@@ -103,7 +111,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       "flex h-full flex-col overflow-y-auto bg-sidebar py-4",
       collapsed ? "items-center px-2" : "px-3"
     )}>
-      {/* Logo */}
+      {/* Profile avatar */}
       <Link
         href="/dashboard"
         className={cn(
@@ -111,16 +119,19 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           collapsed ? "justify-center" : "gap-3 px-2"
         )}
       >
-        <Image
-          src="/logo-icon.svg"
-          alt="NXT Perf"
-          width={36}
-          height={36}
-          className="rounded-[var(--radius-button)] shadow-sm flex-shrink-0"
-        />
+        {initials ? (
+          <AvatarDisplay
+            avatarUrl={avatarUrl}
+            initials={initials}
+            size={40}
+            className="flex-shrink-0 border-2 border-border"
+          />
+        ) : (
+          <div className="h-10 w-10 flex-shrink-0 animate-pulse rounded-full bg-muted" />
+        )}
         {!collapsed && (
           <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap overflow-hidden">
-            NXT Performance
+            {user ? `${user.firstName} ${user.lastName}` : "Chargement…"}
           </span>
         )}
       </Link>
@@ -229,12 +240,12 @@ function SidebarItem({
         className={cn(
           "group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] transition-all duration-[var(--transition-fast)]",
           isActive
-            ? "bg-primary/15 text-primary shadow-sm"
+            ? "bg-agency-primary/15 text-agency-primary shadow-sm"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         )}
       >
         {isActive && (
-          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-agency-primary" />
         )}
         <item.icon className="h-5 w-5" />
         <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
@@ -250,12 +261,12 @@ function SidebarItem({
       className={cn(
         "relative flex h-10 items-center gap-3 rounded-[var(--radius-button)] px-3 text-sm font-medium transition-all duration-[var(--transition-fast)]",
         isActive
-          ? "bg-primary/15 text-primary shadow-sm"
+          ? "bg-agency-primary/15 text-agency-primary shadow-sm"
           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       )}
     >
       {isActive && (
-        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-agency-primary" />
       )}
       <item.icon className="h-5 w-5 flex-shrink-0" />
       <span className="truncate">{item.label}</span>

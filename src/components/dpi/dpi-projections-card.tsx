@@ -44,7 +44,7 @@ export function DPIProjectionsCard({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <TrendingUp className="h-5 w-5 text-primary" />
+        <TrendingUp className="h-5 w-5 text-agency-primary" />
         <h3 className="font-semibold text-foreground">Votre potentiel de progression</h3>
       </div>
 
@@ -54,7 +54,7 @@ export function DPIProjectionsCard({
             key={proj.palier}
             className={cn(
               "rounded-xl border p-4",
-              proj.palier === "3m" ? "border-primary/30 bg-primary/5" :
+              proj.palier === "3m" ? "border-agency-primary/30 bg-agency-primary/5" :
               proj.palier === "6m" ? "border-indigo-500/30 bg-indigo-500/5" :
               "border-purple-500/30 bg-purple-500/5"
             )}
@@ -65,7 +65,7 @@ export function DPIProjectionsCard({
               </span>
               <span className={cn(
                 "text-lg font-bold",
-                proj.palier === "3m" ? "text-primary" :
+                proj.palier === "3m" ? "text-agency-primary" :
                 proj.palier === "6m" ? "text-indigo-500" : "text-purple-500"
               )}>
                 {proj.globalScore}/100

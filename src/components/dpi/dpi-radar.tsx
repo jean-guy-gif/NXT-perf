@@ -65,8 +65,8 @@ export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) 
           <Radar
             name={projectionLabel}
             dataKey="projection"
-            stroke="#A055FF"
-            fill="#A055FF"
+            stroke="var(--agency-secondary, #A055FF)"
+            fill="var(--agency-secondary, #A055FF)"
             fillOpacity={0.15}
             strokeDasharray="5 5"
           />
@@ -76,8 +76,8 @@ export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) 
         <Radar
           name="Actuel"
           dataKey="score"
-          stroke="#3375FF"
-          fill="#3375FF"
+          stroke="var(--agency-primary, #3375FF)"
+          fill="var(--agency-primary, #3375FF)"
           fillOpacity={0.3}
         />
 

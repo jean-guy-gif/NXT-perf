@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -11,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { GuidedTour } from "@/components/tour/guided-tour";
 import { getTourStatus, getTourSteps, getTourRole } from "@/lib/guided-tour";
+import { applyAgencyTheme, resetToDefaultTheme } from "@/lib/agency-theme";
 
 const SIDEBAR_KEY = "nxt-sidebar-collapsed";
 
@@ -35,6 +37,11 @@ export default function DashboardLayout({
       }
     }
   }, [isDemo, isAuthenticated, enterDemo]);
+
+  // Apply default theme for demo mode (no org-specific colors)
+  useEffect(() => {
+    if (isDemo) resetToDefaultTheme();
+  }, [isDemo]);
 
   // hasSession: true if Supabase has a valid session (even if profile not yet loaded)
   const [hasSession, setHasSession] = useState(isAuthenticated || isDemo);
@@ -92,14 +99,28 @@ export default function DashboardLayout({
 
           if (!cancelled && profileData) {
             setProfile(profileData);
-            // Load org invite code
+            // Redirect to onboarding if not completed
+            if (profileData.onboarding_completed === false && profileData.onboarding_status === "DONE") {
+              window.location.href = "/onboarding/identite";
+              return;
+            }
+            // Load org invite code + agency theme
             if (profileData.org_id) {
               const { data: org } = await supabase
                 .from("organizations")
-                .select("invite_code")
+                .select("invite_code, primary_color, secondary_color")
                 .eq("id", profileData.org_id)
                 .single();
-              if (org) setOrgInviteCode(org.invite_code);
+              if (org) {
+                setOrgInviteCode(org.invite_code);
+                if (org.primary_color && org.secondary_color) {
+                  applyAgencyTheme(org.primary_color, org.secondary_color);
+                } else {
+                  resetToDefaultTheme();
+                }
+              }
+            } else {
+              resetToDefaultTheme();
             }
           }
           // If no profile yet, that's OK — useSupabaseProfile will retry with fallback

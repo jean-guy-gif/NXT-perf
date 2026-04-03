@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Users,
   Building2,
+  User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,16 @@ export default function ParametresPage() {
           </button>
         </div>
       </div>
+
+      {/* Mon profil card */}
+      <Link href="/parametres/profil" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><UserIcon className="h-5 w-5 text-primary" /></div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Mon profil</p>
+          <p className="text-xs text-muted-foreground">Photo, logo agence, thème</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Link>
 
       {/* Voix & Saisie card */}
       <Link

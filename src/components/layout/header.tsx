@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail } from "lucide-react";
+import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
@@ -39,6 +40,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAppStore((s) => s.user);
+  const profile = useAppStore((s) => s.profile);
   const users = useAppStore((s) => s.users);
   const results = useAppStore((s) => s.results);
   const hiddenViews = useAppStore((s) => s.hiddenViews);
@@ -124,7 +126,7 @@ export function Header() {
                   className={cn(
                     "rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-[var(--transition-fast)]",
                     isVisible
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-agency-primary text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
                   )}
                 >
@@ -178,7 +180,7 @@ export function Header() {
           <button
             onClick={() => setShowAddModal(true)}
             title="Ajouter un conseiller"
-            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] bg-gradient-nxt text-white shadow-sm transition-all duration-[var(--transition-fast)] hover:brightness-110 hover:-translate-y-px"
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] bg-gradient-agency text-white shadow-sm transition-all duration-[var(--transition-fast)] hover:brightness-110 hover:-translate-y-px"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -260,9 +262,7 @@ export function Header() {
           )}
         </div>
 
-        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-nxt text-xs font-semibold text-white shadow-sm">
-          {initials}
-        </button>
+        <AvatarDisplay avatarUrl={profile?.avatar_url} initials={initials} size={32} />
         <button
           onClick={async () => {
             if (!isDemo) {

@@ -14,6 +14,9 @@ export interface DbOrganization {
   invite_code: string;
   code_agence: string | null;
   network_id: string | null;
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
   created_at: string;
 }
 
@@ -43,6 +46,7 @@ export interface DbProfile {
   profile_type: string | null;
   coach_code: string | null;
   last_voice_saisie_date: string | null;
+  onboarding_completed: boolean;
   created_at: string;
 }
 

@@ -28,6 +28,7 @@ export interface TeamStats {
 export interface RankingEntry {
   userId: string;
   userName: string;
+  avatarUrl?: string;
   value: number;
   rank: number;
 }

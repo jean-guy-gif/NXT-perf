@@ -222,6 +222,7 @@ function RegisterForm() {
       profile_type: derivedProfile,
       sub_profile: null,
       coach_code: null,
+      onboarding_completed: false,
       last_voice_saisie_date: null,
       created_at: new Date().toISOString(),
     };

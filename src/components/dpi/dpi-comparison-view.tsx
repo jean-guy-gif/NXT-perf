@@ -120,7 +120,7 @@ export function DPIComparisonView() {
                       <div className="flex items-center justify-end gap-2">
                         <span className={cn("text-xs font-bold", winner === "A" ? "text-green-500" : "text-muted-foreground")}>{axisA.score}%</span>
                         <div className="h-2 w-full max-w-[80px] rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full bg-primary" style={{ width: `${axisA.score}%` }} />
+                          <div className="h-full rounded-full bg-agency-primary" style={{ width: `${axisA.score}%` }} />
                         </div>
                       </div>
                     </div>
@@ -144,7 +144,7 @@ export function DPIComparisonView() {
             </div>
             <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-6 rounded-full bg-primary" />
+                <div className="h-2 w-6 rounded-full bg-agency-primary" />
                 <span>{dpiA.user.firstName}</span>
               </div>
               <div className="flex items-center gap-2">

@@ -70,8 +70,8 @@ function DPIGrid({ memberDPIs, label }: { memberDPIs: MemberDPI[]; label: string
               key={member.id}
               onClick={() => setSelectedId(member.id === selectedId ? null : member.id)}
               className={cn(
-                "cursor-pointer rounded-xl border bg-card p-3 text-center transition-all hover:border-primary/50",
-                selectedId === member.id ? "border-primary ring-1 ring-primary/30" :
+                "cursor-pointer rounded-xl border bg-card p-3 text-center transition-all hover:border-agency-primary/50",
+                selectedId === member.id ? "border-agency-primary ring-1 ring-agency-primary/30" :
                 status === "ok" ? "border-green-500/30" : status === "warning" ? "border-orange-500/30" : "border-red-500/30"
               )}
             >
@@ -90,7 +90,7 @@ function DPIGrid({ memberDPIs, label }: { memberDPIs: MemberDPI[]; label: string
       </div>
 
       {selected && (
-        <div className="rounded-xl border border-primary/30 bg-card p-5">
+        <div className="rounded-xl border border-agency-primary/30 bg-card p-5">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-semibold text-foreground">
               {selected.member.firstName} {selected.member.lastName} — Détail

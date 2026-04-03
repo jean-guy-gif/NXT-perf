@@ -23,9 +23,9 @@ export function DPIEvolutionCard() {
   // Pas de snapshot
   if (!hasSnapshot) {
     return (
-      <div className="rounded-xl border border-primary/30 bg-card p-6">
+      <div className="rounded-xl border border-agency-primary/30 bg-card p-6">
         <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-agency-primary/10">
             <span className="text-xl">{"\u{1F3AF}"}</span>
           </div>
           <div>
@@ -35,7 +35,7 @@ export function DPIEvolutionCard() {
         </div>
 
         <div className="flex justify-center">
-          <MiniRadar scores={currentAxes} color="#3375FF" size={200} showLabels />
+          <MiniRadar scores={currentAxes} color="var(--agency-primary, #3375FF)" size={200} showLabels />
         </div>
         <p className="mt-2 text-center text-sm text-muted-foreground">
           Score actuel : <span className="font-bold text-foreground">{currentGlobalScore}/100</span>
@@ -43,7 +43,7 @@ export function DPIEvolutionCard() {
 
         <button
           onClick={initializeSnapshot}
-          className="mt-4 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          className="mt-4 w-full rounded-lg bg-agency-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-agency-primary/90"
         >
           Prendre mon DPI initial maintenant
         </button>
@@ -81,10 +81,10 @@ export function DPIEvolutionCard() {
               Score : <span className="font-bold">{initialSnapshot.globalScore}/100</span>
             </p>
           </div>
-          <div className="rounded-xl border border-primary/30 bg-card p-4">
-            <p className="mb-3 text-sm font-semibold text-primary">DPI Actuel</p>
+          <div className="rounded-xl border border-agency-primary/30 bg-card p-4">
+            <p className="mb-3 text-sm font-semibold text-agency-primary">DPI Actuel</p>
             <div className="flex justify-center">
-              <MiniRadar scores={currentAxes} color="#3375FF" size={200} showLabels />
+              <MiniRadar scores={currentAxes} color="var(--agency-primary, #3375FF)" size={200} showLabels />
             </div>
             <p className="mt-1 text-center text-sm text-muted-foreground">
               Score : <span className="font-bold text-foreground">{currentGlobalScore}/100</span>
@@ -139,7 +139,7 @@ export function DPIEvolutionCard() {
         </div>
       </div>
       <div className="flex justify-center">
-        <MiniRadar scores={currentAxes} color="#3375FF" size={200} showLabels />
+        <MiniRadar scores={currentAxes} color="var(--agency-primary, #3375FF)" size={200} showLabels />
       </div>
       <p className="mt-3 text-center text-xs text-muted-foreground">
         Score : <span className="font-bold text-foreground">{currentGlobalScore}/100</span> — Référence : {initialSnapshot?.globalScore ?? 0}/100
