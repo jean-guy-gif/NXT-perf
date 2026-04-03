@@ -15,6 +15,8 @@ import {
   Play,
   Mic,
   ChevronRight,
+  Users,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -100,6 +102,40 @@ export default function ParametresPage() {
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">Voix & Saisie</p>
           <p className="text-xs text-muted-foreground">Choisis ta voix de guidage et ton mode de saisie préféré</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Link>
+
+      {/* Équipe card (managers) */}
+      {user && (user.mainRole === "manager" || user.availableRoles?.includes("manager")) && (
+        <Link href="/parametres/equipe" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><Users className="h-5 w-5 text-primary" /></div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Mon équipe</p>
+            <p className="text-xs text-muted-foreground">Code d'invitation, membres, gestion</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      )}
+
+      {/* Agence card (directeurs) */}
+      {user && (user.mainRole === "directeur" || user.availableRoles?.includes("directeur")) && (
+        <Link href="/parametres/agence" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><Building2 className="h-5 w-5 text-primary" /></div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Mon agence</p>
+            <p className="text-xs text-muted-foreground">Codes, équipes, structure</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      )}
+
+      {/* Coaching card */}
+      <Link href="/parametres/coaching" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><HeartHandshake className="h-5 w-5 text-primary" /></div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Coaching</p>
+          <p className="text-xs text-muted-foreground">Rattacher ou gérer un coach</p>
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </Link>

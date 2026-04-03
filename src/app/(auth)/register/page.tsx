@@ -220,6 +220,8 @@ function RegisterForm() {
       avatar_url: null,
       onboarding_status: "DONE",
       profile_type: derivedProfile,
+      sub_profile: null,
+      coach_code: null,
       last_voice_saisie_date: null,
       created_at: new Date().toISOString(),
     };

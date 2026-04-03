@@ -1,9 +1,19 @@
 // Supabase row types (mirrors the SQL schema)
 
+export interface DbNetwork {
+  id: string;
+  name: string;
+  code_reseau: string;
+  admin_user_id: string | null;
+  created_at: string;
+}
+
 export interface DbOrganization {
   id: string;
   name: string;
   invite_code: string;
+  code_agence: string | null;
+  network_id: string | null;
   created_at: string;
 }
 
@@ -13,6 +23,7 @@ export interface DbTeam {
   manager_id: string | null;
   name: string;
   invite_code: string | null;
+  code_equipe: string | null;
   created_at: string;
 }
 
@@ -26,11 +37,43 @@ export interface DbProfile {
   role: "conseiller" | "manager" | "directeur" | "coach" | "reseau";
   available_roles: string[] | null;
   category: "debutant" | "confirme" | "expert";
+  sub_profile: "producteur" | "non_producteur" | null;
   avatar_url: string | null;
   onboarding_status: string | null;
   profile_type: string | null;
+  coach_code: string | null;
   last_voice_saisie_date: string | null;
   created_at: string;
+}
+
+export interface DbAgencyDirector {
+  id: string;
+  director_user_id: string;
+  agency_id: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+export interface DbCoachingLink {
+  id: string;
+  coach_user_id: string;
+  coachee_user_id: string;
+  coachee_role: "conseiller" | "manager" | "directeur";
+  created_at: string;
+  revoked_at: string | null;
+}
+
+export interface DbRoleHistory {
+  id: string;
+  user_id: string;
+  old_role: string;
+  new_role: string;
+  old_org_id: string | null;
+  new_org_id: string | null;
+  old_team_id: string | null;
+  new_team_id: string | null;
+  changed_at: string;
+  reason: string | null;
 }
 
 export interface DbPeriodResult {
