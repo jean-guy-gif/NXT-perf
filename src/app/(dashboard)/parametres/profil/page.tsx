@@ -11,8 +11,7 @@ export default function ProfilParametresPage() {
   const profile = useAppStore((s) => s.profile);
   const isDemo = useAppStore((s) => s.isDemo);
 
-  const isDirecteur = user?.mainRole === "directeur" || user?.availableRoles?.includes("directeur");
-  const isManager = user?.mainRole === "manager" || user?.availableRoles?.includes("manager");
+  const hasOrg = !!profile?.org_id;
 
   return (
     <div className="space-y-8">
@@ -36,18 +35,18 @@ export default function ProfilParametresPage() {
         </div>
       </section>
 
-      {/* Logo agence (directeur/manager only) */}
-      {(isDirecteur || isManager) && profile?.org_id && (
+      {/* Logo agence — visible pour tout utilisateur rattaché à une agence */}
+      {hasOrg && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Logo de l&apos;agence</h2>
-          <LogoUpload orgId={profile.org_id} />
+          <LogoUpload orgId={profile!.org_id} />
         </section>
       )}
 
-      {/* Theme (directeur only) */}
-      {isDirecteur && profile?.org_id && (
+      {/* Theme agence — visible pour tout utilisateur rattaché à une agence */}
+      {hasOrg && (
         <section className="space-y-3">
-          <ThemePicker orgId={profile.org_id} />
+          <ThemePicker orgId={profile!.org_id} />
         </section>
       )}
     </div>

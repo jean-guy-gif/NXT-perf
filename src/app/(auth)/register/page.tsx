@@ -228,9 +228,9 @@ function RegisterForm() {
     };
     useAppStore.getState().setProfile(optimisticProfile);
 
-    // Wait 1s for trigger to create the real profile, then redirect
+    // Wait 1s for trigger to create the real profile, then redirect to onboarding
     await new Promise((r) => setTimeout(r, 1000));
-    window.location.href = "/dashboard";
+    window.location.href = "/onboarding/identite";
   };
 
   const inputClassName =

@@ -100,7 +100,7 @@ export default function DashboardLayout({
           if (!cancelled && profileData) {
             setProfile(profileData);
             // Redirect to onboarding if not completed
-            if (profileData.onboarding_completed === false && profileData.onboarding_status === "DONE") {
+            if (profileData.onboarding_completed === false) {
               window.location.href = "/onboarding/identite";
               return;
             }
