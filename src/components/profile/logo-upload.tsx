@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Upload, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
-import { extractAgencyColors, applyAgencyTheme } from "@/lib/agency-theme";
+import { extractAgencyColorsFromBlob, applyAgencyTheme } from "@/lib/agency-theme";
 
 interface LogoUploadProps {
   orgId: string;
@@ -28,6 +28,11 @@ export function LogoUpload({ orgId, currentLogoUrl, onUploaded, onColorsExtracte
     if (file.size > 2 * 1024 * 1024) return; // 2MB max
 
     setUploading(true);
+
+    // Extract colors from local file BEFORE upload (avoids CORS)
+    const { primary, secondary } = await extractAgencyColorsFromBlob(file);
+    applyAgencyTheme(primary, secondary);
+
     const supabase = createClient();
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
     const path = `${orgId}/logo.${ext}`;
@@ -44,23 +49,15 @@ export function LogoUpload({ orgId, currentLogoUrl, onUploaded, onColorsExtracte
 
     const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
 
-    await supabase.from("organizations").update({ logo_url: publicUrl }).eq("id", orgId);
+    await supabase.from("organizations").update({
+      logo_url: publicUrl,
+      primary_color: primary,
+      secondary_color: secondary,
+    }).eq("id", orgId);
 
     setLogoUrl(publicUrl);
     onUploaded?.(publicUrl);
-
-    // Extract colors from logo and save to DB
-    try {
-      const { primary, secondary } = await extractAgencyColors(publicUrl);
-      await supabase
-        .from("organizations")
-        .update({ primary_color: primary, secondary_color: secondary })
-        .eq("id", orgId);
-      applyAgencyTheme(primary, secondary);
-      onColorsExtracted?.(primary, secondary);
-    } catch (err) {
-      console.error("[logo] Color extraction failed:", err);
-    }
+    onColorsExtracted?.(primary, secondary);
 
     setUploading(false);
   };

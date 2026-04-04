@@ -8,7 +8,7 @@ import { Camera, Building2, Upload, Loader2, Check, ArrowRight, ZoomIn } from "l
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import { compressImage, ImageCompressionError } from "@/lib/compress-image";
-import { extractAgencyColors, applyAgencyTheme } from "@/lib/agency-theme";
+import { extractAgencyColorsFromBlob, applyAgencyTheme } from "@/lib/agency-theme";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -161,6 +161,10 @@ export default function OnboardingIdentitePage() {
 
       if (!user?.id) { setLogoUploading(false); return; }
 
+      // Extract colors from local Blob BEFORE upload (avoids CORS issues)
+      const { primary, secondary } = await extractAgencyColorsFromBlob(blob);
+      applyAgencyTheme(primary, secondary);
+
       const supabase = createClient();
 
       if (hasOrg) {
@@ -172,14 +176,7 @@ export default function OnboardingIdentitePage() {
         if (upErr) { setError(`Erreur upload : ${upErr.message}`); setLogoUploading(false); return; }
 
         const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
-        await supabase.from("organizations").update({ logo_url: publicUrl }).eq("id", profile!.org_id);
-
-        // Extract and apply colors
-        try {
-          const { primary, secondary } = await extractAgencyColors(publicUrl);
-          await supabase.from("organizations").update({ primary_color: primary, secondary_color: secondary }).eq("id", profile!.org_id);
-          applyAgencyTheme(primary, secondary);
-        } catch { /* color extraction is best-effort */ }
+        await supabase.from("organizations").update({ logo_url: publicUrl, primary_color: primary, secondary_color: secondary }).eq("id", profile!.org_id);
       } else {
         // ── Solo upload (no org) ──
         const path = `${user.id}/logo.webp`;
@@ -189,15 +186,8 @@ export default function OnboardingIdentitePage() {
         if (upErr) { setError(`Erreur upload : ${upErr.message}`); setLogoUploading(false); return; }
 
         const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
-        await supabase.from("profiles").update({ agency_logo_url: publicUrl }).eq("id", user.id);
-
-        // Extract and apply colors to profile
-        try {
-          const { primary, secondary } = await extractAgencyColors(publicUrl);
-          await supabase.from("profiles").update({ agency_primary_color: primary, agency_secondary_color: secondary }).eq("id", user.id);
-          if (profile) setProfile({ ...profile, agency_logo_url: publicUrl, agency_primary_color: primary, agency_secondary_color: secondary });
-          applyAgencyTheme(primary, secondary);
-        } catch { /* best-effort */ }
+        await supabase.from("profiles").update({ agency_logo_url: publicUrl, agency_primary_color: primary, agency_secondary_color: secondary }).eq("id", user.id);
+        if (profile) setProfile({ ...profile, agency_logo_url: publicUrl, agency_primary_color: primary, agency_secondary_color: secondary });
       }
 
       setLogoDone(true);
@@ -250,11 +240,6 @@ export default function OnboardingIdentitePage() {
             Personnalise ton profil avant de commencer.
           </p>
         </div>
-
-        {/* DEBUG — diagnostic temporaire */}
-        <pre className="mx-auto max-w-xs rounded bg-muted/50 p-2 text-[10px] text-muted-foreground">
-          {JSON.stringify({ org_id: profile?.org_id ?? null, loading: loadingProfile }, null, 2)}
-        </pre>
 
         {/* Upload zones */}
         {loadingProfile ? (

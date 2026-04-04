@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Upload, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
-import { extractAgencyColors, applyAgencyTheme } from "@/lib/agency-theme";
+import { extractAgencyColorsFromBlob, applyAgencyTheme } from "@/lib/agency-theme";
 
 /**
  * Logo upload for users without an org_id.
@@ -28,6 +28,11 @@ export function PersonalLogoUpload({ size = 64 }: { size?: number }) {
     if (file.size > 2 * 1024 * 1024) return;
 
     setUploading(true);
+
+    // Extract colors from local file BEFORE upload (avoids CORS)
+    const { primary, secondary } = await extractAgencyColorsFromBlob(file);
+    applyAgencyTheme(primary, secondary);
+
     const supabase = createClient();
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
     const path = `${user.id}/logo.${ext}`;
@@ -43,21 +48,14 @@ export function PersonalLogoUpload({ size = 64 }: { size?: number }) {
     }
 
     const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
-    await supabase.from("profiles").update({ agency_logo_url: publicUrl }).eq("id", user.id);
+    await supabase.from("profiles").update({
+      agency_logo_url: publicUrl,
+      agency_primary_color: primary,
+      agency_secondary_color: secondary,
+    }).eq("id", user.id);
 
     setLogoUrl(publicUrl);
-
-    try {
-      const { primary, secondary } = await extractAgencyColors(publicUrl);
-      await supabase
-        .from("profiles")
-        .update({ agency_primary_color: primary, agency_secondary_color: secondary })
-        .eq("id", user.id);
-      if (profile) setProfile({ ...profile, agency_logo_url: publicUrl, agency_primary_color: primary, agency_secondary_color: secondary });
-      applyAgencyTheme(primary, secondary);
-    } catch (err) {
-      console.error("[personal-logo] Color extraction failed:", err);
-    }
+    if (profile) setProfile({ ...profile, agency_logo_url: publicUrl, agency_primary_color: primary, agency_secondary_color: secondary });
 
     setUploading(false);
   };

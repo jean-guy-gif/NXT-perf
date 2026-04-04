@@ -58,7 +58,38 @@ function contrastOnWhite(r: number, g: number, b: number): number {
   return (1.0 + 0.05) / (lum + 0.05);
 }
 
-// ── Extract colors ─────────────────────────────────────────────
+// ── Shared color derivation from a colorthief Color ───────────
+
+function deriveThemeColors(color: { rgb: () => { r: number; g: number; b: number } }): { primary: string; secondary: string } {
+  const { r, g, b } = color.rgb();
+
+  // Ensure WCAG AA contrast on white (≥ 4.5:1)
+  let [h, s, l] = rgbToHsl(r, g, b);
+  let [fr, fg, fb] = [r, g, b];
+
+  if (contrastOnWhite(fr, fg, fb) < 4.5) {
+    for (let step = 0; step < 10; step++) {
+      l = Math.max(0, l - 0.10);
+      [fr, fg, fb] = hslToRgb(h, s, l);
+      if (contrastOnWhite(fr, fg, fb) >= 4.5) break;
+    }
+  }
+
+  if (contrastOnWhite(fr, fg, fb) < 4.5) {
+    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+  }
+
+  const primary = rgbToHex(fr, fg, fb);
+
+  const [sh, ss, sl] = rgbToHsl(fr, fg, fb);
+  const [sr, sg, sb] = hslToRgb((sh + 30) % 360, ss, sl);
+  const secondary = rgbToHex(sr, sg, sb);
+
+  console.log("[agency-theme] Extracted:", { primary, secondary, sourceRgb: { r, g, b } });
+  return { primary, secondary };
+}
+
+// ── Extract colors from URL (may fail due to CORS) ───────────
 
 export async function extractAgencyColors(
   imageUrl: string
@@ -66,37 +97,26 @@ export async function extractAgencyColors(
   try {
     const color = await getColor(imageUrl);
     if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
-
-    const { r, g, b } = color.rgb();
-
-    // Ensure WCAG AA contrast on white (≥ 4.5:1)
-    let [h, s, l] = rgbToHsl(r, g, b);
-    let [fr, fg, fb] = [r, g, b];
-
-    if (contrastOnWhite(fr, fg, fb) < 4.5) {
-      // Darken by 10% steps until contrast is sufficient
-      for (let step = 0; step < 10; step++) {
-        l = Math.max(0, l - 0.10);
-        [fr, fg, fb] = hslToRgb(h, s, l);
-        if (contrastOnWhite(fr, fg, fb) >= 4.5) break;
-      }
-    }
-
-    // If still insufficient after max darkening → fallback
-    if (contrastOnWhite(fr, fg, fb) < 4.5) {
-      return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
-    }
-
-    const primary = rgbToHex(fr, fg, fb);
-
-    // Secondary = hue rotation +30°
-    const [sh, ss, sl] = rgbToHsl(fr, fg, fb);
-    const [sr, sg, sb] = hslToRgb((sh + 30) % 360, ss, sl);
-    const secondary = rgbToHex(sr, sg, sb);
-
-    return { primary, secondary };
+    return deriveThemeColors(color);
   } catch (err) {
-    console.error("[agency-theme] Color extraction failed:", err);
+    console.error("[agency-theme] Color extraction from URL failed:", err);
+    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+  }
+}
+
+// ── Extract colors from Blob (no CORS — local data) ──────────
+
+export async function extractAgencyColorsFromBlob(
+  blob: Blob
+): Promise<{ primary: string; secondary: string }> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const color = await getColor(bitmap);
+    bitmap.close();
+    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+    return deriveThemeColors(color);
+  } catch (err) {
+    console.error("[agency-theme] Color extraction from Blob failed:", err);
     return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
   }
 }
