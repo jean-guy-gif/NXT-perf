@@ -30,8 +30,8 @@ export function PersonalLogoUpload({ size = 64 }: { size?: number }) {
     setUploading(true);
 
     // Extract colors from local file BEFORE upload (avoids CORS)
-    const { primary, secondary, dark } = await extractAgencyColorsFromBlob(file);
-    applyAgencyTheme(primary, secondary, dark);
+    const { primary, secondary, dark, light } = await extractAgencyColorsFromBlob(file);
+    applyAgencyTheme(primary, secondary, dark, light);
 
     const supabase = createClient();
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";

@@ -4,6 +4,7 @@ import { getColor, getPalette } from "colorthief";
 const DEFAULT_PRIMARY = "#6C5CE7";
 const DEFAULT_SECONDARY = "#4A3FB5";
 const DEFAULT_DARK = "#1A1A2E";
+const DEFAULT_LIGHT = "#EDE9FF";
 
 // ── Color helpers ──────────────────────────────────────────────
 
@@ -59,12 +60,6 @@ function contrastOnWhite(r: number, g: number, b: number): number {
   return (1.0 + 0.05) / (lum + 0.05);
 }
 
-/** HSL saturation for a given RGB */
-function saturation(r: number, g: number, b: number): number {
-  const [, s] = rgbToHsl(r, g, b);
-  return s;
-}
-
 /** HSL lightness for a given RGB */
 function lightness(r: number, g: number, b: number): number {
   const [, , l] = rgbToHsl(r, g, b);
@@ -93,65 +88,72 @@ export interface AgencyThemeColors {
   primary: string;
   secondary: string;
   dark: string;
+  light: string;
 }
 
-// ── Derive theme from a palette of 2 colors ──────────────────
+const DEFAULTS: AgencyThemeColors = {
+  primary: DEFAULT_PRIMARY,
+  secondary: DEFAULT_SECONDARY,
+  dark: DEFAULT_DARK,
+  light: DEFAULT_LIGHT,
+};
+
+// ── Helper: RGB tuple type ────────────────────────────────────
+
+type Rgb = { r: number; g: number; b: number };
+
+// ── Derive theme from a palette of 3 colors (sorted by lightness) ──
 
 function deriveThemeFromPalette(
-  colors: { rgb: () => { r: number; g: number; b: number } }[]
+  colors: { rgb: () => Rgb }[]
 ): AgencyThemeColors {
-  // Get RGB values from each color
-  const rgbs = colors.map(c => {
-    const { r, g, b } = c.rgb();
-    return { r, g, b };
-  });
+  const rgbs = colors.map(c => c.rgb());
 
-  // Sort by saturation descending → most colorful first
-  const bySaturation = [...rgbs].sort(
-    (a, b) => saturation(b.r, b.g, b.b) - saturation(a.r, a.g, a.b)
-  );
-  // Sort by lightness ascending → darkest first
-  const byDarkness = [...rgbs].sort(
+  // Sort by lightness ascending (darkest → lightest)
+  const byLightness = [...rgbs].sort(
     (a, b) => lightness(a.r, a.g, a.b) - lightness(b.r, b.g, b.b)
   );
 
-  // Primary = most saturated (with WCAG contrast fix)
-  const primaryRgb = bySaturation[0];
-  const contrastFixed = ensureContrast(primaryRgb.r, primaryRgb.g, primaryRgb.b);
-  const primary = contrastFixed
-    ? rgbToHex(...contrastFixed)
-    : DEFAULT_PRIMARY;
+  // Darkest → dark
+  const darkRgb = byLightness[0];
+  // Lightest → light
+  const lightRgb = byLightness[byLightness.length - 1];
+  // Middle (or most saturated if only 2) → primary
+  const midRgb = byLightness.length >= 3 ? byLightness[1] : byLightness[0];
+
+  // Primary = mid color (with WCAG contrast fix)
+  const contrastFixed = ensureContrast(midRgb.r, midRgb.g, midRgb.b);
+  const primary = contrastFixed ? rgbToHex(...contrastFixed) : DEFAULT_PRIMARY;
 
   // Secondary = hue rotation +30° on primary
-  const [pr, pg, pb] = contrastFixed ?? [108, 92, 231]; // fallback to default
+  const [pr, pg, pb] = contrastFixed ?? [108, 92, 231];
   const [sh, ss, sl] = rgbToHsl(pr, pg, pb);
   const [sr, sg, sb] = hslToRgb((sh + 30) % 360, ss, sl);
   const secondary = rgbToHex(sr, sg, sb);
 
-  // Dark = darkest color from palette, ensure it's genuinely dark
-  const darkRgb = byDarkness[0];
+  // Dark = darkest, ensure genuinely dark for backgrounds
   let darkL = lightness(darkRgb.r, darkRgb.g, darkRgb.b);
-  let [dh, ds] = rgbToHsl(darkRgb.r, darkRgb.g, darkRgb.b);
-  // If not dark enough (L > 0.25), force it darker
+  const [dh, ds] = rgbToHsl(darkRgb.r, darkRgb.g, darkRgb.b);
   if (darkL > 0.25) darkL = 0.12;
   const [dr, dg, db] = hslToRgb(dh, Math.min(ds, 0.3), darkL);
   const dark = rgbToHex(dr, dg, db);
 
-  console.log("[agency-theme] Palette:", { primary, secondary, dark, sourceColors: rgbs });
-  return { primary, secondary, dark };
+  // Light = lightest color as-is (for card tinting)
+  const light = rgbToHex(lightRgb.r, lightRgb.g, lightRgb.b);
+
+  console.log("[agency-theme] Palette:", { primary, secondary, dark, light, sourceColors: rgbs });
+  return { primary, secondary, dark, light };
 }
 
 // ── Derive from single color (legacy compat) ─────────────────
 
 function deriveThemeColors(
-  color: { rgb: () => { r: number; g: number; b: number } }
+  color: { rgb: () => Rgb }
 ): AgencyThemeColors {
   const { r, g, b } = color.rgb();
   const contrastFixed = ensureContrast(r, g, b);
 
-  if (!contrastFixed) {
-    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
-  }
+  if (!contrastFixed) return DEFAULTS;
 
   const primary = rgbToHex(...contrastFixed);
   const [sh, ss, sl] = rgbToHsl(...contrastFixed);
@@ -162,7 +164,11 @@ function deriveThemeColors(
   const [dr, dg, db] = hslToRgb(sh, Math.min(ss, 0.3), 0.12);
   const dark = rgbToHex(dr, dg, db);
 
-  return { primary, secondary, dark };
+  // Derive light from primary hue at high lightness
+  const [lr, lg, lb] = hslToRgb(sh, Math.min(ss, 0.25), 0.85);
+  const light = rgbToHex(lr, lg, lb);
+
+  return { primary, secondary, dark, light };
 }
 
 // ── Extract colors from URL (may fail due to CORS) ───────────
@@ -172,11 +178,11 @@ export async function extractAgencyColors(
 ): Promise<AgencyThemeColors> {
   try {
     const color = await getColor(imageUrl);
-    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
+    if (!color) return DEFAULTS;
     return deriveThemeColors(color);
   } catch (err) {
     console.error("[agency-theme] Color extraction from URL failed:", err);
-    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
+    return DEFAULTS;
   }
 }
 
@@ -188,8 +194,8 @@ export async function extractAgencyColorsFromBlob(
   try {
     const bitmap = await createImageBitmap(blob);
 
-    // Try getPalette with 2 colors for richer extraction
-    const palette = await getPalette(bitmap, { colorCount: 2 });
+    // Extract 3 colors for dark/primary/light classification
+    const palette = await getPalette(bitmap, { colorCount: 3 });
     if (palette && palette.length >= 2) {
       bitmap.close();
       return deriveThemeFromPalette(palette);
@@ -198,24 +204,26 @@ export async function extractAgencyColorsFromBlob(
     // Fallback to single color
     const color = await getColor(bitmap);
     bitmap.close();
-    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
+    if (!color) return DEFAULTS;
     return deriveThemeColors(color);
   } catch (err) {
     console.error("[agency-theme] Color extraction from Blob failed:", err);
-    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
+    return DEFAULTS;
   }
 }
 
 // ── Apply / Reset theme ────────────────────────────────────────
 
-export function applyAgencyTheme(primary: string, secondary: string, dark?: string): void {
+export function applyAgencyTheme(primary: string, secondary: string, dark?: string, light?: string): void {
   const root = document.documentElement;
   const darkValue = dark || DEFAULT_DARK;
+  const lightValue = light || DEFAULT_LIGHT;
   root.style.setProperty("--agency-primary", primary);
   root.style.setProperty("--agency-secondary", secondary);
   root.style.setProperty("--agency-dark", darkValue);
+  root.style.setProperty("--agency-light", lightValue);
 
-  // In dark mode, also override --background so the entire screen uses the logo's dark tone
+  // In dark mode, override --background for full-screen dark tone
   if (root.classList.contains("dark")) {
     root.style.setProperty("--background", darkValue);
   }
@@ -226,7 +234,8 @@ export function resetToDefaultTheme(): void {
   root.style.setProperty("--agency-primary", DEFAULT_PRIMARY);
   root.style.setProperty("--agency-secondary", DEFAULT_SECONDARY);
   root.style.setProperty("--agency-dark", DEFAULT_DARK);
+  root.style.setProperty("--agency-light", DEFAULT_LIGHT);
 
-  // Reset --background to CSS default (remove inline override)
+  // Reset --background to CSS default
   root.style.removeProperty("--background");
 }

@@ -150,21 +150,6 @@ export function Header() {
           </div>
         )}
 
-        {/* Agency logo */}
-        {agencyLogoUrl && (
-          <>
-            <Image
-              src={agencyLogoUrl}
-              alt="Logo agence"
-              width={120}
-              height={32}
-              className="hidden object-contain sm:block dark:mix-blend-screen mix-blend-multiply"
-              style={{ maxHeight: 32, width: "auto" }}
-            />
-            <div className="hidden h-6 w-px bg-border sm:block" />
-          </>
-        )}
-
         <button
           onClick={() => setShowImportModal(true)}
           title="Importer des données"
@@ -290,7 +275,19 @@ export function Header() {
           )}
         </div>
 
-        <AvatarDisplay avatarUrl={profile?.avatar_url} initials={initials} size={32} />
+        {/* Logo agence or avatar — top right */}
+        {agencyLogoUrl ? (
+          <Image
+            src={agencyLogoUrl}
+            alt="Logo agence"
+            width={120}
+            height={36}
+            className="object-contain rounded-md dark:mix-blend-screen mix-blend-multiply"
+            style={{ maxHeight: 36, width: "auto" }}
+          />
+        ) : (
+          <AvatarDisplay avatarUrl={profile?.avatar_url} initials={initials} size={32} />
+        )}
         <button
           onClick={async () => {
             if (!isDemo) {
