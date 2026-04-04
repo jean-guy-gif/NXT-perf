@@ -60,10 +60,25 @@ function contrastOnWhite(r: number, g: number, b: number): number {
   return (1.0 + 0.05) / (lum + 0.05);
 }
 
-/** HSL lightness for a given RGB */
+function saturation(r: number, g: number, b: number): number {
+  const [, s] = rgbToHsl(r, g, b);
+  return s;
+}
+
 function lightness(r: number, g: number, b: number): number {
   const [, , l] = rgbToHsl(r, g, b);
   return l;
+}
+
+/** Filter out near-white, near-black, and low-saturation background noise */
+function isUsableColor(r: number, g: number, b: number): boolean {
+  const s = saturation(r, g, b);
+  const l = lightness(r, g, b);
+  // Reject near-white (L > 0.93), near-black (L < 0.05), and desaturated grays (S < 0.06 && L > 0.2)
+  if (l > 0.93) return false;
+  if (l < 0.05) return false;
+  if (s < 0.06 && l > 0.2 && l < 0.8) return false;
+  return true;
 }
 
 /** Ensure WCAG AA contrast, darken if needed */
@@ -102,46 +117,78 @@ const DEFAULTS: AgencyThemeColors = {
 
 type Rgb = { r: number; g: number; b: number };
 
-// ── Derive theme from a palette of 3 colors (sorted by lightness) ──
+// ── Derive theme from a palette of N colors ─────────────────
 
 function deriveThemeFromPalette(
   colors: { rgb: () => Rgb }[]
 ): AgencyThemeColors {
   const rgbs = colors.map(c => c.rgb());
 
-  // Sort by lightness ascending (darkest → lightest)
-  const byLightness = [...rgbs].sort(
-    (a, b) => lightness(a.r, a.g, a.b) - lightness(b.r, b.g, b.b)
-  );
+  // Filter out background noise (near-white, near-black, desaturated grays)
+  const usable = rgbs.filter(c => isUsableColor(c.r, c.g, c.b));
 
-  // Darkest → dark
-  const darkRgb = byLightness[0];
-  // Lightest → light
-  const lightRgb = byLightness[byLightness.length - 1];
-  // Middle (or most saturated if only 2) → primary
-  const midRgb = byLightness.length >= 3 ? byLightness[1] : byLightness[0];
+  // If nothing usable, fall back to single-color path on the most saturated raw
+  if (usable.length === 0) {
+    const best = [...rgbs].sort((a, b) => saturation(b.r, b.g, b.b) - saturation(a.r, a.g, a.b))[0];
+    if (!best) return DEFAULTS;
+    const fixed = ensureContrast(best.r, best.g, best.b);
+    if (!fixed) return DEFAULTS;
+    const p = rgbToHex(...fixed);
+    const [h, s, l] = rgbToHsl(...fixed);
+    const [sr, sg, sb] = hslToRgb(h, s, Math.max(0, l - 0.15));
+    const [dr, dg, db] = hslToRgb(h, Math.min(s, 0.35), 0.12);
+    const [lr, lg, lb] = hslToRgb(h, Math.min(s, 0.25), 0.90);
+    return { primary: p, secondary: rgbToHex(sr, sg, sb), dark: rgbToHex(dr, dg, db), light: rgbToHex(lr, lg, lb) };
+  }
 
-  // Primary = mid color (with WCAG contrast fix)
-  const contrastFixed = ensureContrast(midRgb.r, midRgb.g, midRgb.b);
+  // ── Fix 1: primary = most saturated usable color ──
+  const bySat = [...usable].sort((a, b) => saturation(b.r, b.g, b.b) - saturation(a.r, a.g, a.b));
+  const primaryRaw = bySat[0];
+  const contrastFixed = ensureContrast(primaryRaw.r, primaryRaw.g, primaryRaw.b);
   const primary = contrastFixed ? rgbToHex(...contrastFixed) : DEFAULT_PRIMARY;
+  const [ph, ps, pl] = contrastFixed ? rgbToHsl(...contrastFixed) : rgbToHsl(primaryRaw.r, primaryRaw.g, primaryRaw.b);
 
-  // Secondary = hue rotation +30° on primary
-  const [pr, pg, pb] = contrastFixed ?? [108, 92, 231];
-  const [sh, ss, sl] = rgbToHsl(pr, pg, pb);
-  const [sr, sg, sb] = hslToRgb((sh + 30) % 360, ss, sl);
-  const secondary = rgbToHex(sr, sg, sb);
+  // ── Fix 3: secondary = 2nd most saturated usable color if distinct ──
+  let secondary: string;
+  if (bySat.length >= 2) {
+    const secRaw = bySat[1];
+    const secFixed = ensureContrast(secRaw.r, secRaw.g, secRaw.b);
+    secondary = secFixed ? rgbToHex(...secFixed) : rgbToHex(secRaw.r, secRaw.g, secRaw.b);
+  } else {
+    // Only one usable color — darken primary for secondary
+    const [sr, sg, sb] = hslToRgb(ph, ps, Math.max(0, pl - 0.15));
+    secondary = rgbToHex(sr, sg, sb);
+  }
 
-  // Dark = darkest, ensure genuinely dark for backgrounds
-  let darkL = lightness(darkRgb.r, darkRgb.g, darkRgb.b);
-  const [dh, ds] = rgbToHsl(darkRgb.r, darkRgb.g, darkRgb.b);
-  if (darkL > 0.25) darkL = 0.12;
-  const [dr, dg, db] = hslToRgb(dh, Math.min(ds, 0.3), darkL);
+  // ── Dark = darkest from ALL palette colors (including filtered ones) ──
+  const byLight = [...rgbs].sort((a, b) => lightness(a.r, a.g, a.b) - lightness(b.r, b.g, b.b));
+  const darkRaw = byLight[0];
+  let darkL = lightness(darkRaw.r, darkRaw.g, darkRaw.b);
+  const [dh, ds] = rgbToHsl(darkRaw.r, darkRaw.g, darkRaw.b);
+  if (darkL > 0.15) darkL = 0.12;
+  const [dr, dg, db] = hslToRgb(dh, Math.min(ds, 0.35), darkL);
   const dark = rgbToHex(dr, dg, db);
 
-  // Light = lightest color as-is (for card tinting)
-  const light = rgbToHex(lightRgb.r, lightRgb.g, lightRgb.b);
+  // ── Fix 2: light = lightest usable color, sanitized ──
+  const lightCandidates = [...rgbs].sort((a, b) => lightness(b.r, b.g, b.b) - lightness(a.r, a.g, a.b));
+  const lightRaw = lightCandidates[0];
+  const ll = lightness(lightRaw.r, lightRaw.g, lightRaw.b);
+  const ls = saturation(lightRaw.r, lightRaw.g, lightRaw.b);
+  let light: string;
+  if (ll > 0.92 || ls < 0.05) {
+    // Too close to white or desaturated → derive tinted off-white from primary hue
+    const [lr, lg, lb] = hslToRgb(ph, Math.max(ps * 0.4, 0.15), 0.90);
+    light = rgbToHex(lr, lg, lb);
+  } else if (ll < 0.75) {
+    // "Lightest" is still quite dark → brighten it
+    const [lh] = rgbToHsl(lightRaw.r, lightRaw.g, lightRaw.b);
+    const [lr, lg, lb] = hslToRgb(lh, Math.min(ls, 0.30), 0.85);
+    light = rgbToHex(lr, lg, lb);
+  } else {
+    light = rgbToHex(lightRaw.r, lightRaw.g, lightRaw.b);
+  }
 
-  console.log("[agency-theme] Palette:", { primary, secondary, dark, light, sourceColors: rgbs });
+  console.log("[agency-theme] Palette:", { primary, secondary, dark, light, usable: usable.length, sourceColors: rgbs });
   return { primary, secondary, dark, light };
 }
 
@@ -195,7 +242,7 @@ export async function extractAgencyColorsFromBlob(
     const bitmap = await createImageBitmap(blob);
 
     // Extract 3 colors for dark/primary/light classification
-    const palette = await getPalette(bitmap, { colorCount: 3 });
+    const palette = await getPalette(bitmap, { colorCount: 5 });
     if (palette && palette.length >= 2) {
       bitmap.close();
       return deriveThemeFromPalette(palette);
