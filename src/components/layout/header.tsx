@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail } from "lucide-react";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
@@ -47,6 +48,10 @@ export function Header() {
   const toggleViewVisibility = useAppStore((s) => s.toggleViewVisibility);
   const isDemo = useAppStore((s) => s.isDemo);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const orgLogoUrl = useAppStore((s) => s.orgLogoUrl);
+
+  // Logo priority: org logo > personal logo
+  const agencyLogoUrl = orgLogoUrl || profile?.agency_logo_url || null;
 
   const availableViews = useMemo(
     () => rolesToViews(user?.availableRoles ?? []),
@@ -89,10 +94,18 @@ export function Header() {
 
   const toggleTheme = () => {
     const html = document.documentElement;
+    const agencyDark = getComputedStyle(html).getPropertyValue("--agency-dark").trim();
+
     if (isDark) {
       html.classList.remove("dark");
+      // Light mode: remove --background override
+      html.style.removeProperty("--background");
     } else {
       html.classList.add("dark");
+      // Dark mode: apply --agency-dark as --background if set
+      if (agencyDark && agencyDark !== "#1A1A2E") {
+        html.style.setProperty("--background", agencyDark);
+      }
     }
     setIsDark(!isDark);
   };
@@ -135,6 +148,21 @@ export function Header() {
               );
             })}
           </div>
+        )}
+
+        {/* Agency logo */}
+        {agencyLogoUrl && (
+          <>
+            <Image
+              src={agencyLogoUrl}
+              alt="Logo agence"
+              width={120}
+              height={32}
+              className="hidden object-contain sm:block dark:mix-blend-screen mix-blend-multiply"
+              style={{ maxHeight: 32, width: "auto" }}
+            />
+            <div className="hidden h-6 w-px bg-border sm:block" />
+          </>
         )}
 
         <button

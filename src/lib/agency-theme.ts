@@ -209,15 +209,24 @@ export async function extractAgencyColorsFromBlob(
 // ── Apply / Reset theme ────────────────────────────────────────
 
 export function applyAgencyTheme(primary: string, secondary: string, dark?: string): void {
-  const root = document.documentElement.style;
-  root.setProperty("--agency-primary", primary);
-  root.setProperty("--agency-secondary", secondary);
-  root.setProperty("--agency-dark", dark || DEFAULT_DARK);
+  const root = document.documentElement;
+  const darkValue = dark || DEFAULT_DARK;
+  root.style.setProperty("--agency-primary", primary);
+  root.style.setProperty("--agency-secondary", secondary);
+  root.style.setProperty("--agency-dark", darkValue);
+
+  // In dark mode, also override --background so the entire screen uses the logo's dark tone
+  if (root.classList.contains("dark")) {
+    root.style.setProperty("--background", darkValue);
+  }
 }
 
 export function resetToDefaultTheme(): void {
-  const root = document.documentElement.style;
-  root.setProperty("--agency-primary", DEFAULT_PRIMARY);
-  root.setProperty("--agency-secondary", DEFAULT_SECONDARY);
-  root.setProperty("--agency-dark", DEFAULT_DARK);
+  const root = document.documentElement;
+  root.style.setProperty("--agency-primary", DEFAULT_PRIMARY);
+  root.style.setProperty("--agency-secondary", DEFAULT_SECONDARY);
+  root.style.setProperty("--agency-dark", DEFAULT_DARK);
+
+  // Reset --background to CSS default (remove inline override)
+  root.style.removeProperty("--background");
 }

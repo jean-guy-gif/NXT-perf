@@ -112,7 +112,7 @@
 
 /* Dark mode — NXT charte */
 .dark {
-  --background: oklch(0.11 0.03 265);
+  --background: var(--agency-dark, oklch(0.11 0.03 265));
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.22 0.06 260);
   --card-foreground: oklch(0.985 0 0);
