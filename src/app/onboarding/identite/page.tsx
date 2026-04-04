@@ -3,10 +3,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Camera, Building2, Upload, Loader2, Check, ArrowRight } from "lucide-react";
+import AvatarEditor from "react-avatar-editor";
+import { Camera, Building2, Upload, Loader2, Check, ArrowRight, ZoomIn } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import { compressImage, ImageCompressionError } from "@/lib/compress-image";
+import { extractAgencyColors, applyAgencyTheme } from "@/lib/agency-theme";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type CoachVoice = "sport" | "sergent" | "bienveillant";
+
+const COACH_VOICES: { id: CoachVoice; emoji: string; label: string; desc: string }[] = [
+  { id: "sport", emoji: "\u{1F3C3}", label: "Coach Sport", desc: "Motivant, dynamique, orient\u00e9 performance. Il te pousse \u00e0 te d\u00e9passer." },
+  { id: "sergent", emoji: "\u{1F396}\uFE0F", label: "Sergent", desc: "Direct, exigeant, sans filtre. Les r\u00e9sultats d\u2019abord, les excuses dehors." },
+  { id: "bienveillant", emoji: "\u{1F91D}", label: "Coach Bienveillant", desc: "Doux, encourageant, \u00e0 l\u2019\u00e9coute. Il t\u2019accompagne sans pression." },
+];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -17,21 +29,32 @@ export default function OnboardingIdentitePage() {
   const setProfile = useAppStore((s) => s.setProfile);
   const isDemo = useAppStore((s) => s.isDemo);
 
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [avatarDone, setAvatarDone] = useState(false);
   const [logoDone, setLogoDone] = useState(false);
+  const [avatarZoom, setAvatarZoom] = useState(1.2);
+  const [coachVoice, setCoachVoice] = useState<CoachVoice>("bienveillant");
   const [error, setError] = useState("");
   const [completing, setCompleting] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const editorRef = useRef<any>(null);
 
   const hasOrg = !!profile?.org_id;
+  const isCoachExterne = profile?.profile_type === "COACH" && !hasOrg;
   const firstName = user?.firstName || "Conseiller";
+
+  // ── Init coachVoice from profile ──────────────────────────────────────
+  useEffect(() => {
+    if (profile?.coach_voice) setCoachVoice(profile.coach_voice);
+  }, [profile?.coach_voice]);
 
   // ── Redirect if already completed ──────────────────────────────────────
   useEffect(() => {
@@ -40,8 +63,6 @@ export default function OnboardingIdentitePage() {
   }, [profile?.onboarding_completed, isDemo, router]);
 
   // ── Refetch profile from Supabase on mount ─────────────────────────────
-  // The optimistic profile from register may have empty org_id;
-  // the DB trigger needs a moment to populate it.
   useEffect(() => {
     if (isDemo) { setLoadingProfile(false); return; }
 
@@ -51,7 +72,6 @@ export default function OnboardingIdentitePage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser || cancelled) { setLoadingProfile(false); return; }
 
-      // Retry up to 3 times with 1s delay for the DB trigger to finish
       for (let attempt = 0; attempt < 3; attempt++) {
         const { data: freshProfile } = await supabase
           .from("profiles")
@@ -61,11 +81,11 @@ export default function OnboardingIdentitePage() {
 
         if (cancelled) return;
 
+        console.log("Tentative", attempt + 1, "— org_id:", freshProfile?.org_id);
+
         if (freshProfile) {
           setProfile(freshProfile);
-          // If org_id is populated, we're done
           if (freshProfile.org_id) break;
-          // Otherwise wait and retry (trigger may still be running)
           if (attempt < 2) await new Promise((r) => setTimeout(r, 1000));
         }
       }
@@ -76,78 +96,123 @@ export default function OnboardingIdentitePage() {
     return () => { cancelled = true; };
   }, [isDemo, setProfile]);
 
-  // ── Upload handler (shared logic) ─────────────────────────────────────
-  const handleFile = useCallback(async (
-    file: File,
-    type: "avatar" | "logo",
-  ) => {
+  // ── Validate crop and upload avatar ────────────────────────────────────
+  const handleAvatarCropConfirm = useCallback(async () => {
+    if (!editorRef.current || !user?.id) return;
     setError("");
-    const setUploading = type === "avatar" ? setAvatarUploading : setLogoUploading;
-    const setPreview = type === "avatar" ? setAvatarPreview : setLogoPreview;
-    const setDone = type === "avatar" ? setAvatarDone : setLogoDone;
+    setAvatarUploading(true);
 
     try {
-      // Compress
-      setUploading(true);
-      const blob = await compressImage(file, {
-        maxSize: type === "avatar" ? 400 : 400,
-        maxBytes: 150 * 1024,
+      const canvas = editorRef.current.getImageScaledToCanvas();
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b: Blob | null) => (b ? resolve(b) : reject(new Error("Canvas vide"))),
+          "image/webp",
+          0.85,
+        );
       });
 
-      // Preview
-      const previewUrl = URL.createObjectURL(blob);
-      setPreview(previewUrl);
+      const file = new File([blob], "avatar.webp", { type: "image/webp" });
+      const compressed = await compressImage(file, { maxSize: 400, maxBytes: 150 * 1024 });
 
-      if (!user?.id) { setUploading(false); return; }
+      const previewUrl = URL.createObjectURL(compressed);
+      setAvatarPreview(previewUrl);
 
       const supabase = createClient();
-      const bucket = type === "avatar" ? "avatars" : "logos";
-      const folder = type === "avatar" ? user.id : profile?.org_id;
-      if (!folder) { setUploading(false); return; }
-
-      const path = `${folder}/${type}.webp`;
-
-      // Upload
+      const path = `${user.id}/avatar.webp`;
       const { error: upErr } = await supabase.storage
-        .from(bucket)
-        .upload(path, blob, { upsert: true, contentType: "image/webp" });
+        .from("avatars")
+        .upload(path, compressed, { upsert: true, contentType: "image/webp" });
 
       if (upErr) {
         setError(`Erreur upload : ${upErr.message}`);
-        setUploading(false);
+        setAvatarUploading(false);
         return;
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+      if (profile) setProfile({ ...profile, avatar_url: publicUrl });
 
-      // Update DB
-      if (type === "avatar") {
-        await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
-        if (profile) setProfile({ ...profile, avatar_url: publicUrl });
-      } else {
-        await supabase.from("organizations").update({ logo_url: publicUrl }).eq("id", profile!.org_id);
-      }
-
-      setDone(true);
-      setUploading(false);
+      setAvatarDone(true);
+      setAvatarFile(null);
     } catch (err) {
-      setUploading(false);
       if (err instanceof ImageCompressionError) {
         setError(err.message);
       } else {
         setError("Erreur inattendue lors du traitement de l'image.");
       }
+    } finally {
+      setAvatarUploading(false);
     }
   }, [user?.id, profile, setProfile]);
 
-  // ── Drag & drop handler ────────────────────────────────────────────────
-  const handleDrop = (e: React.DragEvent, type: "avatar" | "logo") => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file, type);
-  };
+  // ── Logo upload ────────────────────────────────────────────────────────
+  // If user has org_id → upload to logos/{org_id}/ and update organizations.logo_url
+  // If no org_id → upload to logos/{user_id}/ and update profiles.agency_logo_url
+  const handleLogoFile = useCallback(async (file: File) => {
+    setError("");
+    setLogoUploading(true);
 
+    try {
+      const blob = await compressImage(file, { maxSize: 400, maxBytes: 150 * 1024 });
+      const previewUrl = URL.createObjectURL(blob);
+      setLogoPreview(previewUrl);
+
+      if (!user?.id) { setLogoUploading(false); return; }
+
+      const supabase = createClient();
+
+      if (hasOrg) {
+        // ── Org-linked upload ──
+        const path = `${profile!.org_id}/logo.webp`;
+        const { error: upErr } = await supabase.storage
+          .from("logos")
+          .upload(path, blob, { upsert: true, contentType: "image/webp" });
+        if (upErr) { setError(`Erreur upload : ${upErr.message}`); setLogoUploading(false); return; }
+
+        const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
+        await supabase.from("organizations").update({ logo_url: publicUrl }).eq("id", profile!.org_id);
+
+        // Extract and apply colors
+        try {
+          const { primary, secondary } = await extractAgencyColors(publicUrl);
+          await supabase.from("organizations").update({ primary_color: primary, secondary_color: secondary }).eq("id", profile!.org_id);
+          applyAgencyTheme(primary, secondary);
+        } catch { /* color extraction is best-effort */ }
+      } else {
+        // ── Solo upload (no org) ──
+        const path = `${user.id}/logo.webp`;
+        const { error: upErr } = await supabase.storage
+          .from("logos")
+          .upload(path, blob, { upsert: true, contentType: "image/webp" });
+        if (upErr) { setError(`Erreur upload : ${upErr.message}`); setLogoUploading(false); return; }
+
+        const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
+        await supabase.from("profiles").update({ agency_logo_url: publicUrl }).eq("id", user.id);
+
+        // Extract and apply colors to profile
+        try {
+          const { primary, secondary } = await extractAgencyColors(publicUrl);
+          await supabase.from("profiles").update({ agency_primary_color: primary, agency_secondary_color: secondary }).eq("id", user.id);
+          if (profile) setProfile({ ...profile, agency_logo_url: publicUrl, agency_primary_color: primary, agency_secondary_color: secondary });
+          applyAgencyTheme(primary, secondary);
+        } catch { /* best-effort */ }
+      }
+
+      setLogoDone(true);
+    } catch (err) {
+      if (err instanceof ImageCompressionError) {
+        setError(err.message);
+      } else {
+        setError("Erreur inattendue lors du traitement de l'image.");
+      }
+    } finally {
+      setLogoUploading(false);
+    }
+  }, [user?.id, profile, hasOrg, setProfile]);
+
+  // ── Drop handlers ─────────────────────────────────────────────────────
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   // ── Complete onboarding ────────────────────────────────────────────────
@@ -155,23 +220,20 @@ export default function OnboardingIdentitePage() {
     setCompleting(true);
     if (!isDemo && user?.id) {
       const supabase = createClient();
-      // Write to DB and wait for confirmation
       const { error: updateErr } = await supabase
         .from("profiles")
-        .update({ onboarding_completed: true })
+        .update({ onboarding_completed: true, coach_voice: coachVoice })
         .eq("id", user.id);
 
       if (updateErr) {
         console.error("[onboarding] Failed to save onboarding_completed:", updateErr.message);
       }
 
-      // Update Zustand store so dashboard layout doesn't redirect back
       if (profile) {
-        setProfile({ ...profile, onboarding_completed: true });
+        setProfile({ ...profile, onboarding_completed: true, coach_voice: coachVoice });
       }
     }
 
-    // Full page reload to ensure dashboard layout re-fetches fresh profile from DB
     window.location.href = "/dashboard";
   };
 
@@ -189,45 +251,173 @@ export default function OnboardingIdentitePage() {
           </p>
         </div>
 
+        {/* DEBUG — diagnostic temporaire */}
+        <pre className="mx-auto max-w-xs rounded bg-muted/50 p-2 text-[10px] text-muted-foreground">
+          {JSON.stringify({ org_id: profile?.org_id ?? null, loading: loadingProfile }, null, 2)}
+        </pre>
+
         {/* Upload zones */}
         {loadingProfile ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className={`grid gap-6 ${hasOrg ? "sm:grid-cols-2" : "max-w-sm mx-auto"}`}>
-            {/* Avatar */}
-            <UploadZone
-              label="Photo de profil"
-              hint="Visible par ton équipe et ton manager"
-              icon={<Camera className="h-6 w-6" />}
-              preview={avatarPreview}
-              previewShape="circle"
-              uploading={avatarUploading}
-              done={avatarDone}
-              inputRef={avatarInputRef}
-              onFileSelect={(f) => handleFile(f, "avatar")}
-              onDrop={(e) => handleDrop(e, "avatar")}
-              onDragOver={handleDragOver}
-            />
-
-            {/* Logo agence */}
-            {hasOrg && (
-              <UploadZone
-                label="Logo de l'agence"
-                hint="Affiché sur les exports et le classement"
-                icon={<Building2 className="h-6 w-6" />}
-                preview={logoPreview}
-                previewShape="square"
-                uploading={logoUploading}
-                done={logoDone}
-                inputRef={logoInputRef}
-                onFileSelect={(f) => handleFile(f, "logo")}
-                onDrop={(e) => handleDrop(e, "logo")}
+          <>
+            {/* Row 1: Avatar + Logo */}
+            <div className={`grid gap-6 ${isCoachExterne ? "" : "sm:grid-cols-2"}`}>
+              {/* ── Avatar with interactive crop ── */}
+              <div
+                className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card/50 p-6 transition-all hover:border-primary/30 hover:bg-primary/5"
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files[0];
+                  if (f) setAvatarFile(f);
+                }}
                 onDragOver={handleDragOver}
-              />
-            )}
-          </div>
+              >
+                {avatarFile && !avatarDone ? (
+                  <>
+                    <AvatarEditor
+                      ref={editorRef}
+                      image={avatarFile}
+                      width={160}
+                      height={160}
+                      borderRadius={80}
+                      border={20}
+                      color={[0, 0, 0, 0.4]}
+                      scale={avatarZoom}
+                      rotate={0}
+                    />
+                    <div className="flex w-full items-center gap-2 px-2">
+                      <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.05}
+                        value={avatarZoom}
+                        onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                        className="h-1.5 w-full cursor-pointer accent-primary"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAvatarCropConfirm}
+                      disabled={avatarUploading}
+                      className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {avatarUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                      Valider le cadrage
+                    </button>
+                  </>
+                ) : avatarPreview ? (
+                  <div className="relative">
+                    <Image
+                      src={avatarPreview}
+                      alt="Photo de profil"
+                      width={80}
+                      height={80}
+                      className="rounded-full object-cover border-2 border-border"
+                      style={{ width: 80, height: 80 }}
+                    />
+                    {avatarDone && (
+                      <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Camera className="h-6 w-6" />
+                  </div>
+                )}
+
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">Photo de profil</p>
+                  <p className="text-xs text-muted-foreground">Visible par ton équipe et ton manager</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  <Upload className="h-3 w-3" />
+                  {avatarDone ? "Changer" : "Choisir un fichier"}
+                </button>
+                <p className="text-[10px] text-muted-foreground">ou glisser-déposer ici</p>
+
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setAvatarDone(false);
+                      setAvatarPreview(null);
+                      setAvatarFile(f);
+                    }
+                  }}
+                />
+              </div>
+
+              {/* ── Logo agence zone — visible pour tous sauf coach externe ── */}
+              {!isCoachExterne && (
+                <UploadZone
+                  label="Logo de l'agence"
+                  hint={hasOrg ? "Affiché sur les exports et le classement" : "Personnalise ton interface avec ton logo"}
+                  icon={<Building2 className="h-6 w-6" />}
+                  preview={logoPreview}
+                  previewShape="square"
+                  uploading={logoUploading}
+                  done={logoDone}
+                  inputRef={logoInputRef}
+                  onFileSelect={(f) => handleLogoFile(f)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const f = e.dataTransfer.files[0];
+                    if (f) handleLogoFile(f);
+                  }}
+                  onDragOver={handleDragOver}
+                />
+              )}
+            </div>
+
+            {/* Row 2: Coach Voice Selection */}
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-base font-semibold text-foreground">Votre voix coach</h2>
+                <p className="text-xs text-muted-foreground mt-1">Choisissez le style de coaching de votre assistant IA</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {COACH_VOICES.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setCoachVoice(v.id)}
+                    className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-center transition-all ${
+                      coachVoice === v.id
+                        ? "border-[var(--agency-primary,#6C5CE7)] bg-[var(--agency-primary,#6C5CE7)]/5 shadow-sm"
+                        : "border-border bg-card/50 hover:border-primary/30 hover:bg-primary/5"
+                    }`}
+                  >
+                    {coachVoice === v.id && (
+                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--agency-primary,#6C5CE7)]">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                    <span className="text-2xl">{v.emoji}</span>
+                    <p className="text-sm font-semibold text-foreground">{v.label}</p>
+                    <p className="text-[11px] leading-snug text-muted-foreground">{v.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {/* Error */}
@@ -286,7 +476,6 @@ function UploadZone({
       onDrop={onDrop}
       onDragOver={onDragOver}
     >
-      {/* Preview or placeholder */}
       {preview ? (
         <div className="relative">
           <Image
@@ -309,13 +498,11 @@ function UploadZone({
         </div>
       )}
 
-      {/* Label */}
       <div className="text-center">
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground">{hint}</p>
       </div>
 
-      {/* Upload button */}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}

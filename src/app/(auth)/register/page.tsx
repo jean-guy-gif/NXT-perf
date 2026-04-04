@@ -224,6 +224,10 @@ function RegisterForm() {
       coach_code: null,
       onboarding_completed: false,
       last_voice_saisie_date: null,
+      agency_logo_url: null,
+      agency_primary_color: null,
+      agency_secondary_color: null,
+      coach_voice: "bienveillant",
       created_at: new Date().toISOString(),
     };
     useAppStore.getState().setProfile(optimisticProfile);

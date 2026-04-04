@@ -119,6 +119,9 @@ export default function DashboardLayout({
                   resetToDefaultTheme();
                 }
               }
+            } else if (profileData.agency_primary_color && profileData.agency_secondary_color) {
+              // Fallback: per-profile agency colors (user uploaded logo without org)
+              applyAgencyTheme(profileData.agency_primary_color, profileData.agency_secondary_color);
             } else {
               resetToDefaultTheme();
             }

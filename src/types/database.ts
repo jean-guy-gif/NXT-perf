@@ -46,6 +46,10 @@ export interface DbProfile {
   profile_type: string | null;
   coach_code: string | null;
   last_voice_saisie_date: string | null;
+  agency_logo_url: string | null;
+  agency_primary_color: string | null;
+  agency_secondary_color: string | null;
+  coach_voice: "sport" | "sergent" | "bienveillant";
   onboarding_completed: boolean;
   created_at: string;
 }

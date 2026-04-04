@@ -70,6 +70,10 @@ export function useSupabaseProfile() {
           avatar_url: null,
           onboarding_status: "DONE",
           profile_type: null,
+          agency_logo_url: null,
+          agency_primary_color: null,
+          agency_secondary_color: null,
+          coach_voice: "bienveillant",
           created_at: new Date().toISOString(),
         };
 
