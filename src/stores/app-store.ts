@@ -106,6 +106,7 @@ interface AppState {
   isDemo: boolean;
   profile: DbProfile | null;
   orgInviteCode: string | null;
+  orgLogoUrl: string | null;
 
   // ── Data (cache for Supabase, or mock for demo) ──
   users: User[];
@@ -159,6 +160,7 @@ interface AppState {
   setProfile: (profile: DbProfile | null) => void;
   setAuthenticated: (authed: boolean) => void;
   setOrgInviteCode: (code: string | null) => void;
+  setOrgLogoUrl: (url: string | null) => void;
 
   // ── Data actions (used in both modes) ──
   setUser: (user: User) => void;
@@ -220,6 +222,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isDemo: false,
   profile: null,
   orgInviteCode: null,
+  orgLogoUrl: null,
   users: [],
   results: [],
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
@@ -343,7 +346,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, hiddenViews: [], users: [], results: [] });
+      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, orgLogoUrl: null, hiddenViews: [], users: [], results: [] });
     }
   },
 
@@ -400,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAuthenticated: (authed) => set({ isAuthenticated: authed }),
 
   setOrgInviteCode: (code) => set({ orgInviteCode: code }),
+  setOrgLogoUrl: (url) => set({ orgLogoUrl: url }),
 
   // ── Data actions ──
   setUser: (user) => set({ user }),

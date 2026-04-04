@@ -162,8 +162,8 @@ export default function OnboardingIdentitePage() {
       if (!user?.id) { setLogoUploading(false); return; }
 
       // Extract colors from local Blob BEFORE upload (avoids CORS issues)
-      const { primary, secondary } = await extractAgencyColorsFromBlob(blob);
-      applyAgencyTheme(primary, secondary);
+      const { primary, secondary, dark } = await extractAgencyColorsFromBlob(blob);
+      applyAgencyTheme(primary, secondary, dark);
 
       const supabase = createClient();
 

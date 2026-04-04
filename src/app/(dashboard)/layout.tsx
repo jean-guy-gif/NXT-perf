@@ -27,6 +27,7 @@ export default function DashboardLayout({
   const enterDemo = useAppStore((s) => s.enterDemo);
   const setProfile = useAppStore((s) => s.setProfile);
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
+  const setOrgLogoUrl = useAppStore((s) => s.setOrgLogoUrl);
 
   // Re-hydrate demo mode from cookie if store was lost (page reload on Vercel)
   useEffect(() => {
@@ -108,11 +109,12 @@ export default function DashboardLayout({
             if (profileData.org_id) {
               const { data: org } = await supabase
                 .from("organizations")
-                .select("invite_code, primary_color, secondary_color")
+                .select("invite_code, primary_color, secondary_color, logo_url")
                 .eq("id", profileData.org_id)
                 .single();
               if (org) {
                 setOrgInviteCode(org.invite_code);
+                setOrgLogoUrl(org.logo_url ?? null);
                 if (org.primary_color && org.secondary_color) {
                   applyAgencyTheme(org.primary_color, org.secondary_color);
                 } else {
@@ -138,7 +140,7 @@ export default function DashboardLayout({
 
     checkSession();
     return () => { cancelled = true; };
-  }, [isAuthenticated, isDemo, setProfile, setOrgInviteCode]);
+  }, [isAuthenticated, isDemo, setProfile, setOrgInviteCode, setOrgLogoUrl]);
 
   // Auto-launch guided tour on first visit after account creation
   useEffect(() => {

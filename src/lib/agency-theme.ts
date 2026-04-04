@@ -1,8 +1,9 @@
-// agency-theme.ts — Extract dominant color from logo & inject CSS custom properties
-import { getColor } from "colorthief";
+// agency-theme.ts — Extract dominant colors from logo & inject CSS custom properties
+import { getColor, getPalette } from "colorthief";
 
 const DEFAULT_PRIMARY = "#6C5CE7";
 const DEFAULT_SECONDARY = "#4A3FB5";
+const DEFAULT_DARK = "#1A1A2E";
 
 // ── Color helpers ──────────────────────────────────────────────
 
@@ -52,18 +53,26 @@ function luminance(r: number, g: number, b: number): number {
   return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 }
 
-/** Contrast ratio between two colors (against white = luminance 1.0) */
+/** Contrast ratio against white (luminance 1.0) */
 function contrastOnWhite(r: number, g: number, b: number): number {
   const lum = luminance(r, g, b);
   return (1.0 + 0.05) / (lum + 0.05);
 }
 
-// ── Shared color derivation from a colorthief Color ───────────
+/** HSL saturation for a given RGB */
+function saturation(r: number, g: number, b: number): number {
+  const [, s] = rgbToHsl(r, g, b);
+  return s;
+}
 
-function deriveThemeColors(color: { rgb: () => { r: number; g: number; b: number } }): { primary: string; secondary: string } {
-  const { r, g, b } = color.rgb();
+/** HSL lightness for a given RGB */
+function lightness(r: number, g: number, b: number): number {
+  const [, , l] = rgbToHsl(r, g, b);
+  return l;
+}
 
-  // Ensure WCAG AA contrast on white (≥ 4.5:1)
+/** Ensure WCAG AA contrast, darken if needed */
+function ensureContrast(r: number, g: number, b: number): [number, number, number] | null {
   let [h, s, l] = rgbToHsl(r, g, b);
   let [fr, fg, fb] = [r, g, b];
 
@@ -75,32 +84,99 @@ function deriveThemeColors(color: { rgb: () => { r: number; g: number; b: number
     }
   }
 
-  if (contrastOnWhite(fr, fg, fb) < 4.5) {
-    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
-  }
+  return contrastOnWhite(fr, fg, fb) >= 4.5 ? [fr, fg, fb] : null;
+}
 
-  const primary = rgbToHex(fr, fg, fb);
+// ── Theme result type ─────────────────────────────────────────
 
-  const [sh, ss, sl] = rgbToHsl(fr, fg, fb);
+export interface AgencyThemeColors {
+  primary: string;
+  secondary: string;
+  dark: string;
+}
+
+// ── Derive theme from a palette of 2 colors ──────────────────
+
+function deriveThemeFromPalette(
+  colors: { rgb: () => { r: number; g: number; b: number } }[]
+): AgencyThemeColors {
+  // Get RGB values from each color
+  const rgbs = colors.map(c => {
+    const { r, g, b } = c.rgb();
+    return { r, g, b };
+  });
+
+  // Sort by saturation descending → most colorful first
+  const bySaturation = [...rgbs].sort(
+    (a, b) => saturation(b.r, b.g, b.b) - saturation(a.r, a.g, a.b)
+  );
+  // Sort by lightness ascending → darkest first
+  const byDarkness = [...rgbs].sort(
+    (a, b) => lightness(a.r, a.g, a.b) - lightness(b.r, b.g, b.b)
+  );
+
+  // Primary = most saturated (with WCAG contrast fix)
+  const primaryRgb = bySaturation[0];
+  const contrastFixed = ensureContrast(primaryRgb.r, primaryRgb.g, primaryRgb.b);
+  const primary = contrastFixed
+    ? rgbToHex(...contrastFixed)
+    : DEFAULT_PRIMARY;
+
+  // Secondary = hue rotation +30° on primary
+  const [pr, pg, pb] = contrastFixed ?? [108, 92, 231]; // fallback to default
+  const [sh, ss, sl] = rgbToHsl(pr, pg, pb);
   const [sr, sg, sb] = hslToRgb((sh + 30) % 360, ss, sl);
   const secondary = rgbToHex(sr, sg, sb);
 
-  console.log("[agency-theme] Extracted:", { primary, secondary, sourceRgb: { r, g, b } });
-  return { primary, secondary };
+  // Dark = darkest color from palette, ensure it's genuinely dark
+  const darkRgb = byDarkness[0];
+  let darkL = lightness(darkRgb.r, darkRgb.g, darkRgb.b);
+  let [dh, ds] = rgbToHsl(darkRgb.r, darkRgb.g, darkRgb.b);
+  // If not dark enough (L > 0.25), force it darker
+  if (darkL > 0.25) darkL = 0.12;
+  const [dr, dg, db] = hslToRgb(dh, Math.min(ds, 0.3), darkL);
+  const dark = rgbToHex(dr, dg, db);
+
+  console.log("[agency-theme] Palette:", { primary, secondary, dark, sourceColors: rgbs });
+  return { primary, secondary, dark };
+}
+
+// ── Derive from single color (legacy compat) ─────────────────
+
+function deriveThemeColors(
+  color: { rgb: () => { r: number; g: number; b: number } }
+): AgencyThemeColors {
+  const { r, g, b } = color.rgb();
+  const contrastFixed = ensureContrast(r, g, b);
+
+  if (!contrastFixed) {
+    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
+  }
+
+  const primary = rgbToHex(...contrastFixed);
+  const [sh, ss, sl] = rgbToHsl(...contrastFixed);
+  const [sr, sg, sb] = hslToRgb((sh + 30) % 360, ss, sl);
+  const secondary = rgbToHex(sr, sg, sb);
+
+  // Derive dark from primary hue at low lightness
+  const [dr, dg, db] = hslToRgb(sh, Math.min(ss, 0.3), 0.12);
+  const dark = rgbToHex(dr, dg, db);
+
+  return { primary, secondary, dark };
 }
 
 // ── Extract colors from URL (may fail due to CORS) ───────────
 
 export async function extractAgencyColors(
   imageUrl: string
-): Promise<{ primary: string; secondary: string }> {
+): Promise<AgencyThemeColors> {
   try {
     const color = await getColor(imageUrl);
-    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
     return deriveThemeColors(color);
   } catch (err) {
     console.error("[agency-theme] Color extraction from URL failed:", err);
-    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
   }
 }
 
@@ -108,27 +184,40 @@ export async function extractAgencyColors(
 
 export async function extractAgencyColorsFromBlob(
   blob: Blob
-): Promise<{ primary: string; secondary: string }> {
+): Promise<AgencyThemeColors> {
   try {
     const bitmap = await createImageBitmap(blob);
+
+    // Try getPalette with 2 colors for richer extraction
+    const palette = await getPalette(bitmap, { colorCount: 2 });
+    if (palette && palette.length >= 2) {
+      bitmap.close();
+      return deriveThemeFromPalette(palette);
+    }
+
+    // Fallback to single color
     const color = await getColor(bitmap);
     bitmap.close();
-    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+    if (!color) return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
     return deriveThemeColors(color);
   } catch (err) {
     console.error("[agency-theme] Color extraction from Blob failed:", err);
-    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
+    return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY, dark: DEFAULT_DARK };
   }
 }
 
 // ── Apply / Reset theme ────────────────────────────────────────
 
-export function applyAgencyTheme(primary: string, secondary: string): void {
-  document.documentElement.style.setProperty("--agency-primary", primary);
-  document.documentElement.style.setProperty("--agency-secondary", secondary);
+export function applyAgencyTheme(primary: string, secondary: string, dark?: string): void {
+  const root = document.documentElement.style;
+  root.setProperty("--agency-primary", primary);
+  root.setProperty("--agency-secondary", secondary);
+  root.setProperty("--agency-dark", dark || DEFAULT_DARK);
 }
 
 export function resetToDefaultTheme(): void {
-  document.documentElement.style.setProperty("--agency-primary", DEFAULT_PRIMARY);
-  document.documentElement.style.setProperty("--agency-secondary", DEFAULT_SECONDARY);
+  const root = document.documentElement.style;
+  root.setProperty("--agency-primary", DEFAULT_PRIMARY);
+  root.setProperty("--agency-secondary", DEFAULT_SECONDARY);
+  root.setProperty("--agency-dark", DEFAULT_DARK);
 }

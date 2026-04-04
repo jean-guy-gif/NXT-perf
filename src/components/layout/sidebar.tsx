@@ -84,10 +84,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const hiddenViews = useAppStore((s) => s.hiddenViews);
   const visibleViews = getVisibleViews(availableRoles, hiddenViews);
 
+  const orgLogoUrl = useAppStore((s) => s.orgLogoUrl);
+
   const avatarUrl = profile?.avatar_url;
   const initials = user
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
     : null;
+
+  // Logo priority: org logo > personal logo
+  const agencyLogoUrl = orgLogoUrl || profile?.agency_logo_url || null;
 
   const advisorItems = visibleViews.includes("agent")
     ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && !item.networkOnly && item.href !== "/parametres")
@@ -135,6 +140,26 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </span>
         )}
       </Link>
+
+      {/* Agency logo */}
+      {agencyLogoUrl && (
+        <div className={cn(
+          "mb-4 flex flex-shrink-0",
+          collapsed ? "justify-center px-2" : "px-4"
+        )}>
+          <Image
+            src={agencyLogoUrl}
+            alt="Logo agence"
+            width={collapsed ? 28 : 120}
+            height={collapsed ? 28 : 36}
+            className="object-contain opacity-80"
+            style={{
+              maxHeight: collapsed ? 28 : 36,
+              width: "auto",
+            }}
+          />
+        </div>
+      )}
 
       {/* Conseiller section */}
       {advisorItems.length > 0 && (
