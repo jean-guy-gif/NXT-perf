@@ -45,6 +45,15 @@ export function setTourStatus(role: UserRole, status: TourStatus): void {
   }
 }
 
+/** Persist tour completion to Supabase (best-effort, non-blocking) */
+export async function persistTourCompleted(userId: string): Promise<void> {
+  try {
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    await supabase.from("profiles").update({ tour_completed: true }).eq("id", userId);
+  } catch { /* best-effort */ }
+}
+
 export function resetTourStatus(role: UserRole): void {
   setTourStatus(role, "unseen");
 }

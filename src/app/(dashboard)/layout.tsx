@@ -11,7 +11,7 @@ import { SupabaseProvider } from "@/components/providers/supabase-provider";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { GuidedTour } from "@/components/tour/guided-tour";
-import { getTourStatus, getTourSteps, getTourRole } from "@/lib/guided-tour";
+import { getTourStatus, getTourSteps, getTourRole, persistTourCompleted } from "@/lib/guided-tour";
 import { applyAgencyTheme, resetToDefaultTheme } from "@/lib/agency-theme";
 
 const SIDEBAR_KEY = "nxt-sidebar-collapsed";
@@ -222,7 +222,10 @@ export default function DashboardLayout({
         <GuidedTour
           steps={tourSteps}
           role={tourRole}
-          onComplete={() => setShowTour(false)}
+          onComplete={() => {
+            setShowTour(false);
+            if (user?.id && !isDemo) persistTourCompleted(user.id);
+          }}
         />
       )}
     </div>

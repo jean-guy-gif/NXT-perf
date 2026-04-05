@@ -112,7 +112,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const settingsItem = navItems.find((item) => item.href === "/parametres")!;
 
   return (
-    <nav className={cn(
+    <nav data-tour="sidebar" className={cn(
       "flex h-full flex-col overflow-y-auto bg-sidebar py-4",
       collapsed ? "items-center px-2" : "px-3"
     )}>
@@ -256,6 +256,7 @@ function SidebarItem({
       <Link
         href={item.href}
         title={item.label}
+        data-tour={item.href === "/parametres" ? "parametres-link" : item.href === "/saisie" ? "saisie-link" : undefined}
         className={cn(
           "group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] transition-all duration-[var(--transition-fast)]",
           isActive
@@ -277,6 +278,7 @@ function SidebarItem({
   return (
     <Link
       href={item.href}
+      data-tour={item.href === "/parametres" ? "parametres-link" : item.href === "/saisie" ? "saisie-link" : undefined}
       className={cn(
         "relative flex h-10 items-center gap-3 rounded-[var(--radius-button)] px-3 text-sm font-medium transition-all duration-[var(--transition-fast)]",
         isActive

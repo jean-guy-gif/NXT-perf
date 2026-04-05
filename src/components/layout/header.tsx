@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail } from "lucide-react";
+import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail, HelpCircle } from "lucide-react";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,7 @@ import { computeNotifications } from "@/lib/notifications";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NOTIFICATION_ICONS } from "@/types/notifications";
 import type { NotificationType } from "@/types/notifications";
+import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
 import { AddAgentModal } from "@/components/manager/add-agent-modal";
 import { ExportModal } from "@/components/export/export-modal";
 
@@ -216,6 +217,22 @@ export function Header() {
             <Plus className="h-4 w-4" />
           </button>
         )}
+
+        {/* Help / replay tour button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (user) {
+              const tourRole = getTourRole(user.availableRoles, user.mainRole);
+              resetTourStatus(tourRole);
+              window.location.reload();
+            }
+          }}
+          title="Revoir le tour guidé"
+          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground transition-all duration-[var(--transition-fast)] hover:bg-muted hover:text-foreground"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </button>
 
         {/* Notifications bell + dropdown */}
         <div className="relative" ref={dropdownRef}>
