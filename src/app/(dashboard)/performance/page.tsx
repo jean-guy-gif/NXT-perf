@@ -93,6 +93,25 @@ export default function PerformancePage() {
         ? "warning"
         : ("danger" as const);
 
+  if (!results && computedRatios.length === 0) {
+    return (
+      <LockedFeature feature="performance" featureName="Ma Performance" featureDescription="Analysez vos ratios et benchmarks métier">
+        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-5">
+            <Gauge className="h-8 w-8 text-primary/50" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground mb-2">Vos ratios de performance</h2>
+          <p className="text-sm text-muted-foreground max-w-sm leading-relaxed mb-6">
+            Vos ratios apparaîtront ici après votre première saisie. Continuez à saisir chaque semaine pour voir votre progression.
+          </p>
+          <a href="/saisie" className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+            Saisir mes résultats
+          </a>
+        </div>
+      </LockedFeature>
+    );
+  }
+
   return (
     <LockedFeature feature="performance" featureName="Ma Performance" featureDescription="Analysez vos ratios et benchmarks métier">
     <div className="space-y-6">

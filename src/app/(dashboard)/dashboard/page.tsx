@@ -23,6 +23,7 @@ import {
   Flame,
   ExternalLink,
   Check,
+  LayoutDashboard,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { DonutChart } from "@/components/charts/donut-chart";
@@ -226,10 +227,34 @@ function DashboardContent() {
     }
   }, [isDemo, user?.id]);
 
-  if (!user || !results) {
+  if (!user) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-muted-foreground">Chargement...</p>
+      </div>
+    );
+  }
+
+  // Empty state for new users with no data
+  if (!results) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-5">
+          <LayoutDashboard className="h-8 w-8 text-primary/50" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground mb-2">
+          Bienvenue sur NXT Performance, {user.firstName}
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-6">
+          Commencez par saisir vos premiers résultats pour voir votre dashboard prendre vie.
+        </p>
+        <button
+          type="button"
+          onClick={() => reopenGate()}
+          className="rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Faire ma première saisie
+        </button>
       </div>
     );
   }

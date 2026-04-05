@@ -56,7 +56,24 @@ export default function FormationPage() {
     ? generateFormationDiagnostic(computedRatios, ratioConfigs, user.id)
     : null;
 
-  if (!diagnostic) return null;
+  if (!diagnostic) {
+    return (
+      <LockedFeature feature="formation" featureName="Ma Formation" featureDescription="Identifiez vos axes d'amélioration et progressez">
+        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-5">
+            <BookOpen className="h-8 w-8 text-primary/50" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground mb-2">Votre plan de formation personnalisé</h2>
+          <p className="text-sm text-muted-foreground max-w-sm leading-relaxed mb-6">
+            Votre diagnostic sera généré après votre première saisie de résultats. Il identifiera vos axes de progression prioritaires.
+          </p>
+          <a href="/saisie" className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+            Faire ma première saisie
+          </a>
+        </div>
+      </LockedFeature>
+    );
+  }
 
   const StatusIcon = statusConfig[diagnostic.overallStatus].icon;
 
