@@ -10,8 +10,24 @@ import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { computeNotifications } from "@/lib/notifications";
+import { useNotifications } from "@/hooks/use-notifications";
+import { NOTIFICATION_ICONS } from "@/types/notifications";
+import type { NotificationType } from "@/types/notifications";
 import { AddAgentModal } from "@/components/manager/add-agent-modal";
 import { ExportModal } from "@/components/export/export-modal";
+
+function formatRelativeDate(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return `il y a ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "hier";
+  if (days < 7) return `il y a ${days}j`;
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Tableau de bord",
@@ -68,10 +84,12 @@ export function Header() {
   const [showExportModal, setShowExportModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const notifications = useMemo(
+  const localNotifs = useMemo(
     () => computeNotifications(user, results, users, ratioConfigs),
     [user, results, users, ratioConfigs]
   );
+  const { notifications: dbNotifs, unreadCount: dbUnreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const totalBadge = localNotifs.length + dbUnreadCount;
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -209,9 +227,9 @@ export function Header() {
             )}
           >
             <Bell className="h-4 w-4" />
-            {notifications.length > 0 && (
+            {totalBadge > 0 && (
               <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                {notifications.length}
+                {totalBadge > 9 ? "9+" : totalBadge}
               </span>
             )}
           </button>
@@ -222,54 +240,91 @@ export function Header() {
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Bell className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold text-foreground">Rappels</span>
+                  <span className="text-sm font-semibold text-foreground">Notifications</span>
                 </div>
-                {notifications.length > 0 && (
-                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                    {notifications.length}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {dbUnreadCount > 0 && (
+                    <button type="button" onClick={markAllAsRead} className="text-[10px] text-primary hover:text-primary/80">
+                      Tout lire
+                    </button>
+                  )}
+                  {totalBadge > 0 && (
+                    <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                      {totalBadge}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Notification list */}
               <div className="max-h-72 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {totalBadge === 0 && dbNotifs.length === 0 ? (
                   <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    Aucune alerte
+                    Aucune notification
                   </div>
                 ) : (
-                  notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      onClick={() => {
-                        if (notif.link) {
-                          router.push(notif.link);
-                          setShowNotifs(false);
-                        }
-                      }}
-                      className={cn(
-                        "flex gap-3 border-b border-border/50 px-4 py-3 last:border-b-0",
-                        notif.link && "cursor-pointer transition-colors hover:bg-muted/50"
-                      )}
-                    >
-                      <div className="mt-0.5 flex-shrink-0">
-                        {notif.type === "warning" ? (
-                          <AlertTriangle className="h-4 w-4 text-amber-500" />
-                        ) : (
-                          <Info className="h-4 w-4 text-blue-500" />
+                  <>
+                    {/* Supabase notifications (newest first, max 5) */}
+                    {dbNotifs.slice(0, 5).map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => { markAsRead(notif.id); setShowNotifs(false); }}
+                        className={cn(
+                          "flex gap-3 border-b border-border/50 px-4 py-3 last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50",
+                          !notif.read && "bg-primary/5"
                         )}
+                      >
+                        <div className="mt-0.5 flex-shrink-0 text-sm">
+                          {NOTIFICATION_ICONS[notif.type as NotificationType] ?? "🔔"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("text-sm text-foreground", !notif.read && "font-medium")}>
+                            {notif.message}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {formatRelativeDate(notif.created_at)}
+                          </p>
+                        </div>
+                        {!notif.read && <div className="mt-1.5 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {notif.message}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {notif.detail}
-                        </p>
+                    ))}
+                    {/* Local computed notifications */}
+                    {localNotifs.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => {
+                          if (notif.link) { router.push(notif.link); setShowNotifs(false); }
+                        }}
+                        className={cn(
+                          "flex gap-3 border-b border-border/50 px-4 py-3 last:border-b-0",
+                          notif.link && "cursor-pointer transition-colors hover:bg-muted/50"
+                        )}
+                      >
+                        <div className="mt-0.5 flex-shrink-0">
+                          {notif.type === "warning" ? (
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          ) : (
+                            <Info className="h-4 w-4 text-blue-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{notif.message}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{notif.detail}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </>
                 )}
+              </div>
+              {/* Footer link */}
+              <div className="border-t border-border px-4 py-2">
+                <button
+                  type="button"
+                  onClick={() => { router.push("/notifications"); setShowNotifs(false); }}
+                  className="w-full text-center text-xs text-primary hover:text-primary/80 transition-colors"
+                >
+                  Voir toutes les notifications
+                </button>
               </div>
             </div>
           )}
