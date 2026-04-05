@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 
@@ -18,6 +18,8 @@ export function AvatarUpload({ size = 80, className = "" }: AvatarUploadProps) {
   const isDemo = useAppStore((s) => s.isDemo);
 
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const avatarUrl = profile?.avatar_url;
@@ -44,7 +46,6 @@ export function AvatarUpload({ size = 80, className = "" }: AvatarUploadProps) {
       .upload(path, file, { upsert: true, contentType: file.type });
 
     if (uploadError) {
-      console.error("[avatar] Upload error:", uploadError.message);
       setUploading(false);
       return;
     }
@@ -64,49 +65,108 @@ export function AvatarUpload({ size = 80, className = "" }: AvatarUploadProps) {
     setUploading(false);
   };
 
-  return (
-    <div className={`relative group ${className}`} style={{ width: size, height: size }}>
-      {avatarUrl ? (
-        <Image
-          src={avatarUrl}
-          alt={initials}
-          width={size}
-          height={size}
-          className="rounded-full object-cover border-2 border-border"
-          style={{ width: size, height: size }}
-        />
-      ) : (
-        <div
-          className="flex items-center justify-center rounded-full bg-gradient-nxt text-white font-semibold"
-          style={{ width: size, height: size, fontSize: size * 0.35 }}
-        >
-          {initials}
-        </div>
-      )}
+  const handleDelete = async () => {
+    if (!user?.id || isDemo || !avatarUrl) return;
 
-      {/* Upload overlay */}
-      {!isDemo && (
+    setDeleting(true);
+    const supabase = createClient();
+
+    // Remove file from storage
+    await supabase.storage.from("avatars").remove([`${user.id}/avatar.webp`]);
+
+    // Update profile to clear avatar_url
+    const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
+    if (!error && profile) {
+      setProfile({ ...profile, avatar_url: null });
+    }
+
+    setDeleting(false);
+    setShowDeleteConfirm(false);
+  };
+
+  return (
+    <div className={`flex flex-col items-center gap-2 ${className}`}>
+      <div className="relative group" style={{ width: size, height: size }}>
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt={initials}
+            width={size}
+            height={size}
+            className="rounded-full object-cover border-2 border-border"
+            style={{ width: size, height: size }}
+          />
+        ) : (
+          <div
+            className="flex items-center justify-center rounded-full bg-gradient-nxt text-white font-semibold"
+            style={{ width: size, height: size, fontSize: size * 0.35 }}
+          >
+            {initials}
+          </div>
+        )}
+
+        {/* Upload overlay */}
+        {!isDemo && (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            {uploading ? (
+              <Loader2 className="h-5 w-5 text-white animate-spin" />
+            ) : (
+              <Camera className="h-5 w-5 text-white" />
+            )}
+          </button>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleUpload}
+        />
+      </div>
+
+      {/* Delete button */}
+      {!isDemo && avatarUrl && !showDeleteConfirm && (
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          onClick={() => setShowDeleteConfirm(true)}
+          className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 transition-colors"
         >
-          {uploading ? (
-            <Loader2 className="h-5 w-5 text-white animate-spin" />
-          ) : (
-            <Camera className="h-5 w-5 text-white" />
-          )}
+          <Trash2 className="h-3 w-3" />
+          Supprimer la photo
         </button>
       )}
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={handleUpload}
-      />
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <p className="text-xs text-foreground text-center">
+            Votre photo sera supprimée définitivement.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="rounded-lg border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-lg bg-destructive px-3 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+            >
+              {deleting ? "Suppression..." : "Supprimer"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
