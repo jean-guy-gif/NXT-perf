@@ -1,14 +1,17 @@
 "use client";
 
+import { Bar } from "react-chartjs-2";
 import {
-  BarChart as RechartsBarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
   Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+  Legend,
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface BarChartProps {
   data: Array<Record<string, unknown>>;
@@ -21,47 +24,43 @@ interface BarChartProps {
   height?: number;
 }
 
-export function BarChart({ data, xKey, bars }: BarChartProps) {
+export function BarChart({ data, xKey, bars, height }: BarChartProps) {
+  const labels = data.map((d) => String(d[xKey] ?? ""));
+
+  const datasets = bars.map((bar) => ({
+    label: bar.name,
+    data: data.map((d) => Number(d[bar.dataKey] ?? 0)),
+    backgroundColor: bar.color,
+    borderRadius: 4,
+    maxBarThickness: 40,
+  }));
+
   return (
-    <div style={{ width: "100%", height: "clamp(220px, 30vh, 360px)" }}>
-    <ResponsiveContainer width="100%" height="100%">
-      <RechartsBarChart data={data} barGap={4}>
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="color-mix(in oklch, currentColor, transparent 88%)"
-          vertical={false}
-        />
-        <XAxis
-          dataKey={xKey}
-          axisLine={false}
-          tickLine={false}
-          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
-        />
-        <YAxis
-          axisLine={false}
-          tickLine={false}
-          tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "var(--card, #0F1F46)",
-            border: "1px solid var(--border, #1a2d5a)",
-            borderRadius: "var(--radius-button)",
-            color: "var(--foreground, white)",
-            fontSize: "12px",
-          }}
-        />
-        {bars.map((bar) => (
-          <Bar
-            key={bar.dataKey}
-            dataKey={bar.dataKey}
-            fill={bar.color}
-            name={bar.name}
-            radius={[4, 4, 0, 0]}
-          />
-        ))}
-      </RechartsBarChart>
-    </ResponsiveContainer>
+    <div className="overflow-hidden" style={{ height: height ?? "clamp(220px, 30vh, 360px)" }}>
+      <Bar
+        data={{ labels, datasets }}
+        options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: bars.length > 1, labels: { color: "hsl(var(--muted-foreground))", font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: "hsl(var(--card))",
+              titleColor: "hsl(var(--foreground))",
+              bodyColor: "hsl(var(--foreground))",
+              borderColor: "hsl(var(--border))",
+              borderWidth: 1,
+              padding: 8,
+              titleFont: { size: 12 },
+              bodyFont: { size: 11 },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "hsl(var(--muted-foreground))", font: { size: 11 } } },
+            y: { grid: { color: "hsl(var(--border) / 0.3)" }, ticks: { color: "hsl(var(--muted-foreground))", font: { size: 11 } } },
+          },
+        }}
+      />
     </div>
   );
 }

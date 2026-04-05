@@ -32,16 +32,16 @@ import {
   TrendingDown,
   BarChart3,
 } from "lucide-react";
+import { Bar as ChartBar } from "react-chartjs-2";
 import {
-  BarChart as RechartsBarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip as ChartTooltip,
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTooltip);
 
 /* ────── Types ────── */
 type GPSTab = "gps" | "niveau" | "alignement";
@@ -735,46 +735,36 @@ export default function DirecteurGPSPage() {
                   <p className="text-xs text-muted-foreground">Objectifs annuels par niveau</p>
                 </div>
 
-                <div style={{ width: "100%", height: 200 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart data={chartData} layout="vertical" barGap={8}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="color-mix(in oklch, currentColor, transparent 88%)"
-                        horizontal={false}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="niveau"
-                        axisLine={false}
-                        tickLine={false}
-                        width={130}
-                        tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
-                      />
-                      <XAxis
-                        type="number"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "color-mix(in oklch, currentColor, transparent 45%)", fontSize: 12 }}
-                        tickFormatter={xFormatter}
-                      />
-                      <Tooltip
-                        formatter={(value) => [theme.isCA ? formatCurrency(value as number) : formatNumber(value as number), "Valeur"]}
-                        contentStyle={{
-                          backgroundColor: "var(--color-background-secondary)",
-                          border: "1px solid var(--color-border-tertiary)",
-                          borderRadius: "8px",
-                          color: "var(--color-text-primary)",
-                        }}
-                        labelStyle={{ color: "var(--color-text-primary)" }}
-                      />
-                      <Bar dataKey="value" barSize={32} radius={[0, 6, 6, 0]}>
-                        {chartData.map((entry) => (
-                          <Cell key={entry.niveau} fill={colorMap[entry.niveau]} />
-                        ))}
-                      </Bar>
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
+                <div className="overflow-hidden" style={{ height: 200 }}>
+                  <ChartBar
+                    data={{
+                      labels: chartData.map((d) => d.niveau),
+                      datasets: [{
+                        label: theme.label,
+                        data: chartData.map((d) => d.value),
+                        backgroundColor: chartData.map((d) => colorMap[d.niveau]),
+                        borderRadius: 6,
+                        maxBarThickness: 32,
+                      }],
+                    }}
+                    options={{
+                      indexAxis: "y",
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                          callbacks: {
+                            label: (ctx) => theme.isCA ? formatCurrency(ctx.raw as number) : formatNumber(ctx.raw as number),
+                          },
+                        },
+                      },
+                      scales: {
+                        x: { grid: { color: "hsl(var(--border) / 0.3)" }, ticks: { color: "hsl(var(--muted-foreground))", font: { size: 11 }, callback: (v) => xFormatter(v as number) } },
+                        y: { grid: { display: false }, ticks: { color: "hsl(var(--muted-foreground))", font: { size: 12 } } },
+                      },
+                    }}
+                  />
                 </div>
 
                 {/* Custom legend */}

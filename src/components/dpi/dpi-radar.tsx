@@ -1,15 +1,18 @@
 "use client";
 
+import { Radar } from "react-chartjs-2";
 import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
   Legend,
-  ResponsiveContainer,
-} from "recharts";
+} from "chart.js";
 import type { DPIAxisScore } from "@/lib/dpi-scoring";
+
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
 interface DPIRadarProps {
   axes: DPIAxisScore[];
@@ -18,21 +21,18 @@ interface DPIRadarProps {
 }
 
 export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) {
-  const data = axes.map((a) => {
-    let projectionValue = a.score;
-    switch (showProjection) {
-      case "3m": projectionValue = a.projection3m; break;
-      case "6m": projectionValue = a.projection6m; break;
-      case "9m": projectionValue = a.projection9m; break;
-      case "potential": projectionValue = a.potential; break;
-    }
+  const labels = axes.map((a) => a.label);
+  const scores = axes.map((a) => a.score);
+  const topData = axes.map((a) => topPerformer[a.id] ?? 80);
 
-    return {
-      axis: a.label,
-      score: a.score,
-      projection: projectionValue,
-      top: topPerformer[a.id] ?? 80,
-    };
+  const projectionData = axes.map((a) => {
+    switch (showProjection) {
+      case "3m": return a.projection3m;
+      case "6m": return a.projection6m;
+      case "9m": return a.projection9m;
+      case "potential": return a.potential;
+      default: return a.score;
+    }
   });
 
   const projectionLabel =
@@ -40,51 +40,67 @@ export function DPIRadar({ axes, topPerformer, showProjection }: DPIRadarProps) 
     : showProjection === "potential" ? "Potentiel"
     : `Projection ${showProjection}`;
 
+  const datasets = [
+    {
+      label: "Top Performer",
+      data: topData,
+      borderColor: "#888",
+      backgroundColor: "transparent",
+      borderDash: [4, 4],
+      borderWidth: 1,
+      pointRadius: 0,
+    },
+    ...(showProjection !== "current"
+      ? [{
+          label: projectionLabel,
+          data: projectionData,
+          borderColor: "var(--agency-secondary, #A055FF)",
+          backgroundColor: "rgba(160, 85, 255, 0.15)",
+          borderDash: [5, 5],
+          borderWidth: 1.5,
+          pointRadius: 2,
+        }]
+      : []),
+    {
+      label: "Actuel",
+      data: scores,
+      borderColor: "var(--agency-primary, #3375FF)",
+      backgroundColor: "rgba(51, 117, 255, 0.25)",
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: "var(--agency-primary, #3375FF)",
+    },
+  ];
+
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
-        <PolarGrid stroke="var(--color-border, #e5e7eb)" />
-        <PolarAngleAxis
-          dataKey="axis"
-          tick={{ fontSize: 11, fill: "var(--color-muted-foreground, #6b7280)" }}
-        />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-
-        {/* Top Performer reference */}
-        <Radar
-          name="Top Performer"
-          dataKey="top"
-          stroke="#888"
-          fill="none"
-          strokeDasharray="3 3"
-          strokeOpacity={0.5}
-        />
-
-        {/* Projection / Potential */}
-        {showProjection !== "current" && (
-          <Radar
-            name={projectionLabel}
-            dataKey="projection"
-            stroke="var(--agency-secondary, #A055FF)"
-            fill="var(--agency-secondary, #A055FF)"
-            fillOpacity={0.15}
-            strokeDasharray="5 5"
-          />
-        )}
-
-        {/* Current score */}
-        <Radar
-          name="Actuel"
-          dataKey="score"
-          stroke="var(--agency-primary, #3375FF)"
-          fill="var(--agency-primary, #3375FF)"
-          fillOpacity={0.3}
-        />
-
-        <Legend
-          wrapperStyle={{ fontSize: 12, paddingTop: 16 }}
-        />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div className="overflow-hidden" style={{ height: 400 }}>
+      <Radar
+        data={{ labels, datasets }}
+        options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: { display: false },
+              grid: { color: "hsl(var(--border) / 0.4)" },
+              angleLines: { color: "hsl(var(--border) / 0.4)" },
+              pointLabels: { color: "hsl(var(--muted-foreground))", font: { size: 11 } },
+            },
+          },
+          plugins: {
+            legend: { labels: { color: "hsl(var(--muted-foreground))", font: { size: 12 }, padding: 16 } },
+            tooltip: {
+              backgroundColor: "hsl(var(--card))",
+              titleColor: "hsl(var(--foreground))",
+              bodyColor: "hsl(var(--foreground))",
+              borderColor: "hsl(var(--border))",
+              borderWidth: 1,
+            },
+          },
+        }}
+      />
+    </div>
   );
 }
