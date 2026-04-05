@@ -51,11 +51,12 @@ function DPIResultsContent() {
 
     async function loadScores() {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("dpi_results")
         .select("scores")
         .eq("id", dpiId)
         .single();
+      if (error) { router.replace("/dpi"); setLoading(false); return; }
 
       if (data?.scores) {
         setScores(data.scores as DPIScores);

@@ -24,13 +24,13 @@ export default function AgenceParametresPage() {
     const supabase = createClient();
 
     supabase.from("profiles").select("org_id").eq("id", user.id).single()
-      .then(({ data }) => {
-        if (!data?.org_id) return;
+      .then(({ data, error }) => {
+        if (error || !data?.org_id) return;
         setOrgId(data.org_id);
 
         supabase.from("organizations").select("name, code_agence, invite_code").eq("id", data.org_id).single()
-          .then(({ data: org }) => {
-            if (org) {
+          .then(({ data: org, error: orgErr }) => {
+            if (!orgErr && org) {
               setOrgName(org.name);
               setCodeAgence(org.code_agence);
               setInviteCode(org.invite_code);
@@ -38,7 +38,7 @@ export default function AgenceParametresPage() {
           });
 
         supabase.from("teams").select("id, name, code_equipe").eq("org_id", data.org_id)
-          .then(({ data: t }) => { if (t) setTeams(t); });
+          .then(({ data: t, error: tErr }) => { if (!tErr && t) setTeams(t); });
       });
   }, [user?.id, isDemo]);
 

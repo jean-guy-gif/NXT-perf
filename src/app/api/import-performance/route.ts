@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       (p: { year: number; month: number | null }) => `${p.year}-${p.month ?? "annual"}`
     );
 
-    await supabase.from("performance_imports").insert({
+    const { error: insertErr } = await supabase.from("performance_imports").insert({
       user_id: user.id,
       file_name: fileName,
       file_type: ext,
@@ -142,6 +142,9 @@ export async function POST(request: NextRequest) {
       extracted_data: extracted,
       periods_detected: periods,
     });
+    if (insertErr) {
+      return NextResponse.json({ error: "Échec de sauvegarde" }, { status: 500 });
+    }
 
     return NextResponse.json(extracted);
   } catch (err) {

@@ -27,20 +27,20 @@ export default function CoachingParametresPage() {
     // Load coach code if coach
     if (isCoach) {
       supabase.from("profiles").select("coach_code").eq("id", user.id).single()
-        .then(({ data }) => setCoachCode(data?.coach_code ?? null));
+        .then(({ data, error }) => { if (!error) setCoachCode(data?.coach_code ?? null); });
 
       // Load coaching links
       supabase.from("coaching_links").select("*").eq("coach_user_id", user.id)
-        .then(({ data }) => {
-          if (data) setLinks(data);
+        .then(({ data, error }) => {
+          if (!error && data) setLinks(data);
         });
     }
 
     // Load my coach link if coachee
     if (isCoachee) {
       supabase.from("coaching_links").select("*").eq("coachee_user_id", user.id)
-        .then(({ data }) => {
-          if (data) setLinks(data);
+        .then(({ data, error }) => {
+          if (!error && data) setLinks(data);
         });
     }
   }, [user?.id, isDemo, isCoach, isCoachee]);

@@ -98,12 +98,12 @@ function RegisterForm() {
     }
     setInviteCodeStatus("checking");
     const supabase = createClient();
-    const { data: org } = await supabase
+    const { data: org, error: orgErr } = await supabase
       .from("organizations")
       .select("id, name")
       .eq("invite_code", trimmed)
       .single();
-    if (org) {
+    if (!orgErr && org) {
       setInviteCodeStatus("valid");
       setValidatedOrgName(org.name);
     } else {
@@ -145,13 +145,13 @@ function RegisterForm() {
         return;
       }
       if (inviteCodeStatus !== "valid") {
-        const { data: org } = await supabase
+        const { data: org, error: orgErr2 } = await supabase
           .from("organizations")
           .select("id")
           .eq("invite_code", finalInviteCode)
           .single();
 
-        if (!org) {
+        if (orgErr2 || !org) {
           setError("Code d'invitation invalide. Vérifiez avec votre manager.");
           setLoading(false);
           return;

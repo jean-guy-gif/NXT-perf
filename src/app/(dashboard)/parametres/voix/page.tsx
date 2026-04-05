@@ -34,7 +34,8 @@ export default function VoixParametresPage() {
       .select("persona, input_mode")
       .eq("user_id", user.id)
       .single()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) return;
         if (data?.persona && isValidPersona(data.persona)) setPersona(data.persona);
         if (data?.input_mode) setInputMode(data.input_mode as InputMode);
       });
@@ -44,9 +45,10 @@ export default function VoixParametresPage() {
     if (!user?.id || isDemo) { setSaved(true); setTimeout(() => setSaved(false), 2000); return; }
     setSaving(true);
     const supabase = createClient();
-    await supabase.from("user_voice_preferences").upsert({
+    const { error } = await supabase.from("user_voice_preferences").upsert({
       user_id: user.id, persona, input_mode: inputMode, updated_at: new Date().toISOString(),
     });
+    if (error) { setSaving(false); return; }
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
   };
 

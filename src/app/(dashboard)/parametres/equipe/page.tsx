@@ -24,16 +24,15 @@ export default function EquipeParametresPage() {
 
     // Load my team
     supabase.from("teams").select("id, name, code_equipe").eq("manager_id", user.id).single()
-      .then(({ data }) => {
-        if (data) {
-          setTeamId(data.id);
-          setTeamCode(data.code_equipe);
-          setTeamName(data.name);
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        setTeamId(data.id);
+        setTeamCode(data.code_equipe);
+        setTeamName(data.name);
 
-          // Load team members
-          supabase.from("profiles").select("id, first_name, last_name, role").eq("team_id", data.id)
-            .then(({ data: m }) => { if (m) setMembers(m); });
-        }
+        // Load team members
+        supabase.from("profiles").select("id, first_name, last_name, role").eq("team_id", data.id)
+          .then(({ data: m, error: mErr }) => { if (!mErr && m) setMembers(m); });
       });
   }, [user?.id, isDemo, isManager]);
 

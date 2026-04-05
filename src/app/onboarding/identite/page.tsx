@@ -140,7 +140,8 @@ export default function OnboardingIdentitePage() {
       }
 
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
-      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+      const { error: profErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+      if (profErr) { setError(`Erreur profil : ${profErr.message}`); setAvatarUploading(false); return; }
       if (profile) setProfile({ ...profile, avatar_url: publicUrl });
 
       setAvatarDone(true);

@@ -554,8 +554,7 @@ function resolveScope(input: ExportInput): User[] {
 
 // ── Sheet helper ──
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function addSheet(wb: XLSX.WorkBook, name: string, data: any[]) {
+function addSheet(wb: XLSX.WorkBook, name: string, data: Record<string, string | number | boolean | null>[]) {
   const ws = XLSX.utils.json_to_sheet(data);
 
   // Auto-size columns

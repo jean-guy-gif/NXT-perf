@@ -25,6 +25,7 @@ interface SpeechRecognition extends EventTarget {
   onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
   start(): void; stop(): void; abort(): void;
 }
+type SpeechRecognitionConstructor = new () => SpeechRecognition;
 
 // ── Chat message ─────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ async function doElevenLabsFetchAndPlay(
 function getSR(): (new () => SpeechRecognition) | null {
   if (typeof window === "undefined") return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const w = window as any; return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+  const w = window as unknown as Record<string, unknown>; return (w.SpeechRecognition || w.webkitSpeechRecognition || null) as SpeechRecognitionConstructor | null;
 }
 
 // ── Props ────────────────────────────────────────────────────────────────────

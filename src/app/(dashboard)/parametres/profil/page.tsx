@@ -37,7 +37,8 @@ export default function ProfilParametresPage() {
 
     setSavingVoice(true);
     const supabase = createClient();
-    await supabase.from("profiles").update({ coach_voice: voice }).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update({ coach_voice: voice }).eq("id", user.id);
+    if (error) { setSavingVoice(false); return; }
     if (profile) setProfile({ ...profile, coach_voice: voice });
     setSavingVoice(false);
     setVoiceSaved(true);

@@ -87,8 +87,8 @@ async function callOpenRouter(
   maxTokens = 2048,
   imageContent?: { base64: string; mediaType: string },
 ): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let messages: any[];
+  type ChatContent = string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  let messages: Array<{ role: string; content: ChatContent }>;
 
   if (imageContent) {
     messages = [

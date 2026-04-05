@@ -53,7 +53,8 @@ export function AvatarUpload({ size = 80, className = "" }: AvatarUploadProps) {
     const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
 
     // Update profile
-    await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+    const { error: updateErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+    if (updateErr) { setUploading(false); return; }
 
     // Update local store
     if (profile) {

@@ -92,11 +92,12 @@ export default function DashboardLayout({
           setHasSession(true);
           // Try to load profile — SupabaseProvider will also try via useSupabaseProfile
           // but we do it here too for faster initial render
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileErr } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", authUser.id)
             .single();
+          if (profileErr) return;
 
           if (!cancelled && profileData) {
             setProfile(profileData);
@@ -107,11 +108,12 @@ export default function DashboardLayout({
             }
             // Load org invite code + agency theme
             if (profileData.org_id) {
-              const { data: org } = await supabase
+              const { data: org, error: orgErr } = await supabase
                 .from("organizations")
                 .select("invite_code, primary_color, secondary_color, logo_url")
                 .eq("id", profileData.org_id)
                 .single();
+              if (orgErr) { /* org load failed — continue with defaults */ }
               if (org) {
                 setOrgInviteCode(org.invite_code);
                 setOrgLogoUrl(org.logo_url ?? null);
