@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getSystemPrompt, type VocalSection, SECTION_ORDER } from "@/lib/vocal-prompts";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const { allowed } = checkRateLimit(`vocal:${auth.user.id}`, 30, 60_000);
+  if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   // Instanciation dans le handler pour éviter le crash au build (clés absentes)
   const groq = new OpenAI({
     apiKey: process.env.GROQ_API_KEY || "",
@@ -84,7 +90,7 @@ export async function POST(req: NextRequest) {
       section,
     });
   } catch (error) {
-    console.error("[vocal] Error:", error);
+    if (process.env.NODE_ENV === "development") console.error("[vocal] Error:", error);
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
       { error: "Erreur serveur", details: message },

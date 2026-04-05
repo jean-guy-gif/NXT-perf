@@ -43,10 +43,13 @@ test.describe("1. Inscription & Rattachement", () => {
   });
 
   test("Demo mode works without registration", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: "Tester en démo" }).click();
-    await page.waitForURL("**/dashboard**");
-    await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible({ timeout: 10_000 });
+    await page.goto("/demo");
+    await page.locator("input[type='password']").fill("DEMO2024");
+    await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+    await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+    await page.getByText(/Passer cette étape/i).click();
+    await page.waitForURL("**/dashboard**", { timeout: 15_000 });
+    await expect(page.locator("header")).toBeVisible({ timeout: 10_000 });
   });
 });
 
@@ -207,9 +210,12 @@ test.describe("3. Sécurité RPC", () => {
 
 test.describe("4. Switch de vue", () => {
   test("Demo mode shows role switch buttons", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: "Tester en démo" }).click();
-    await page.waitForURL("**/dashboard**");
+    await page.goto("/demo");
+    await page.locator("input[type='password']").fill("DEMO2024");
+    await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+    await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+    await page.getByText(/Passer cette étape/i).click();
+    await page.waitForURL("**/dashboard**", { timeout: 15_000 });
 
     // Demo user has multiple roles — header should have role switch buttons
     await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible({ timeout: 5_000 });
@@ -219,9 +225,12 @@ test.describe("4. Switch de vue", () => {
   });
 
   test("Dashboard stays on /dashboard after role interaction", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: "Tester en démo" }).click();
-    await page.waitForURL("**/dashboard**");
+    await page.goto("/demo");
+    await page.locator("input[type='password']").fill("DEMO2024");
+    await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+    await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+    await page.getByText(/Passer cette étape/i).click();
+    await page.waitForURL("**/dashboard**", { timeout: 15_000 });
     expect(page.url()).toContain("/dashboard");
   });
 });
@@ -230,9 +239,12 @@ test.describe("4. Switch de vue", () => {
 
 test.describe("5. Paramètres pages", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: "Tester en démo" }).click();
-    await page.waitForURL("**/dashboard**");
+    await page.goto("/demo");
+    await page.locator("input[type='password']").fill("DEMO2024");
+    await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+    await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+    await page.getByText(/Passer cette étape/i).click();
+    await page.waitForURL("**/dashboard**", { timeout: 15_000 });
   });
 
   test("Paramètres page shows Voix & Saisie card", async ({ page }) => {

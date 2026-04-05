@@ -90,7 +90,7 @@ export default function OnboardingIdentitePage() {
 
         if (cancelled) return;
 
-        console.log("Tentative", attempt + 1, "— org_id:", freshProfile?.org_id);
+        if (process.env.NODE_ENV === "development") console.log("Tentative", attempt + 1, "— org_id:", freshProfile?.org_id);
 
         if (freshProfile) {
           setProfile(freshProfile);
@@ -232,7 +232,7 @@ export default function OnboardingIdentitePage() {
         .eq("id", user.id);
 
       if (updateErr) {
-        console.error("[onboarding] Failed to save onboarding_completed:", updateErr.message);
+        if (process.env.NODE_ENV === "development") console.error("[onboarding] Failed to save onboarding_completed:", updateErr.message);
       }
 
       if (profile) {

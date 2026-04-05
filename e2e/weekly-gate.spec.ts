@@ -2,9 +2,16 @@ import { test, expect } from "@playwright/test";
 
 test.describe("WeeklyGate — non-regression", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: "Tester en démo" }).click();
-    await page.waitForURL("**/dashboard**");
+    await page.goto("/demo");
+    await page.locator("input[type='password']").fill("DEMO2024");
+    await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+    await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+    await page.getByText(/Passer cette étape/i).click();
+    await page.waitForURL("**/dashboard**", { timeout: 15_000 });
+    // Set nxt-demo-saisie cookie to bypass DemoSaisieGate and reach WeeklyGate
+    await page.evaluate(() => {
+      document.cookie = "nxt-demo-saisie=true;path=/;max-age=28800";
+    });
     await page.goto("/dashboard?gate=1");
     await expect(page.getByText("Démarrer mon bilan")).toBeVisible({ timeout: 10_000 });
   });

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL = "openai/gpt-4o-mini";
@@ -35,6 +37,11 @@ Réponds UNIQUEMENT en JSON valide :
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const { allowed } = checkRateLimit(`coaching-debrief:${auth.user.id}`, 10, 60_000);
+  if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
   try {
     if (!OPENROUTER_API_KEY) {
       return NextResponse.json({ error: "OPENROUTER_API_KEY not configured" }, { status: 500 });
@@ -85,7 +92,7 @@ Reformule ce débrief de manière naturelle, concise et bienveillante.`;
     const data = await response.json();
 
     if (!response.ok || data?.error) {
-      console.error("[coaching-debrief] OpenRouter error:", data?.error);
+      if (process.env.NODE_ENV === "development") console.error("[coaching-debrief] OpenRouter error:", data?.error);
       return NextResponse.json({ error: "AI generation failed" }, { status: 502 });
     }
 
@@ -99,7 +106,7 @@ Reformule ce débrief de manière naturelle, concise et bienveillante.`;
       return NextResponse.json({ error: "Invalid JSON from AI" }, { status: 502 });
     }
   } catch (err) {
-    console.error("[coaching-debrief] Error:", err);
+    if (process.env.NODE_ENV === "development") console.error("[coaching-debrief] Error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL = "google/gemini-2.0-flash-001";
@@ -126,10 +128,7 @@ async function callOpenRouter(
   if (!response.ok || data?.error) {
     const errMsg =
       data?.error?.message || data?.error || response.statusText;
-    console.error(
-      "[saisie-ai] OpenRouter error:",
-      JSON.stringify(errMsg).slice(0, 500),
-    );
+    if (process.env.NODE_ENV === "development") console.error("[saisie-ai] OpenRouter error:", JSON.stringify(errMsg).slice(0, 500));
     throw new Error(typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg));
   }
 
@@ -146,6 +145,11 @@ function parseJsonResponse(raw: string): Record<string, unknown> {
 // ── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const { allowed } = checkRateLimit(`saisie-ai:${auth.user.id}`, 20, 60_000);
+  if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
   try {
     let body: Record<string, unknown> = {};
     try {
@@ -270,7 +274,7 @@ Réponds UNIQUEMENT en JSON valide selon le format spécifié.`;
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[saisie-ai] Unhandled error:", msg);
+    if (process.env.NODE_ENV === "development") console.error("[saisie-ai] Unhandled error:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

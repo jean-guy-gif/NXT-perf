@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
+    const { allowed } = checkRateLimit(`import-performance:${user.id}`, 5, 60_000);
+    if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     if (!file) {
@@ -142,7 +146,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(extracted);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("[import-performance]", message);
+    if (process.env.NODE_ENV === "development") console.error("[import-performance]", message);
     return NextResponse.json({ error: "Extraction échouée", details: message }, { status: 500 });
   }
 }

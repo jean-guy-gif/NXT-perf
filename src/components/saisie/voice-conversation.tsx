@@ -8,6 +8,9 @@ import { parseCountField, parseNumericResponse, parseMandatsText, parseDetailsTe
 import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
 import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const devLog: (...args: unknown[]) => void = process.env.NODE_ENV === "development" ? (...args) => console.log(...args) : () => {};
+
 // ── Web Speech API types ─────────────────────────────────────────────────────
 
 interface SpeechRecognitionResult { readonly isFinal: boolean; readonly length: number; 0: { readonly transcript: string; readonly confidence: number }; }
@@ -29,9 +32,9 @@ interface ChatMessage { role: "assistant" | "user"; text: string; }
 // ── TTS ──────────────────────────────────────────────────────────────────────
 
 function speakTTS(text: string, onEnd?: () => void): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) { console.log("[VOICE] TTS_SKIP: no speechSynthesis"); onEnd?.(); return; }
+  if (typeof window === "undefined" || !window.speechSynthesis) { devLog("[VOICE] TTS_SKIP: no speechSynthesis"); onEnd?.(); return; }
   window.speechSynthesis.cancel();
-  console.log("[VOICE] TTS_START:", text.slice(0, 60));
+  devLog("[VOICE] TTS_START:", text.slice(0, 60));
   const doSpeak = () => {
     const u = new SpeechSynthesisUtterance(text); u.lang = "fr-FR"; u.rate = 0.92; u.pitch = 1.05;
     const voices = window.speechSynthesis.getVoices();
@@ -41,8 +44,8 @@ function speakTTS(text: string, onEnd?: () => void): void {
     for (const n of PREF) { sel = fr.find(v => v.name.includes(n)); if (sel) break; }
     if (!sel) sel = fr[0]; if (!sel && voices.length) sel = voices[0];
     if (sel) u.voice = sel;
-    u.onend = () => { console.log("[VOICE] TTS_END:", text.slice(0, 40)); onEnd?.(); };
-    u.onerror = (ev) => { console.log("[VOICE] TTS_ERROR:", ev); onEnd?.(); };
+    u.onend = () => { devLog("[VOICE] TTS_END:", text.slice(0, 40)); onEnd?.(); };
+    u.onerror = (ev) => { devLog("[VOICE] TTS_ERROR:", ev); onEnd?.(); };
     window.speechSynthesis.speak(u);
   };
   if (window.speechSynthesis.getVoices().length > 0) doSpeak();
@@ -58,7 +61,7 @@ let currentAudio: HTMLAudioElement | null = null;
 /** Stop and clean up any ElevenLabs audio in progress */
 function stopElevenLabsAudio(): void {
   if (!currentAudio) return;
-  console.log("[VOICE] ELEVENLABS_STOP (barge-in or cleanup)");
+  devLog("[VOICE] ELEVENLABS_STOP (barge-in or cleanup)");
   currentAudio.onended = null;
   currentAudio.onerror = null;
   currentAudio.pause();
@@ -85,7 +88,7 @@ function resetTTSSession(): void { ttsPersonaFailed = false; }
 /** Fetch audio from /api/voice/tts and play it. Returns false if failed or too slow. */
 async function speakElevenLabs(text: string, onEnd?: () => void, persona?: string): Promise<boolean> {
   if (!text || !text.trim()) {
-    console.log("[VOICE] ELEVENLABS_SKIP: empty text");
+    devLog("[VOICE] ELEVENLABS_SKIP: empty text");
     return false;
   }
 
@@ -98,7 +101,7 @@ async function speakElevenLabs(text: string, onEnd?: () => void, persona?: strin
     new Promise<false>((resolve) =>
       setTimeout(() => {
         timedOut = true;
-        console.log(`[VOICE] ELEVENLABS_TIMEOUT_FALLBACK (>${TTS_MAX_START_LATENCY_MS}ms)`);
+        devLog(`[VOICE] ELEVENLABS_TIMEOUT_FALLBACK (>${TTS_MAX_START_LATENCY_MS}ms)`);
         resolve(false);
       }, TTS_MAX_START_LATENCY_MS),
     ),
@@ -118,7 +121,7 @@ async function doElevenLabsFetchAndPlay(
   // If persona voice already failed this session, send without persona (fallback)
   const effectivePersona = ttsPersonaFailed ? undefined : persona;
   if (ttsPersonaFailed && persona) {
-    console.log("[VOICE] SESSION_FALLBACK_ACTIVE: using default voice");
+    devLog("[VOICE] SESSION_FALLBACK_ACTIVE: using default voice");
   }
 
   try {
@@ -128,10 +131,10 @@ async function doElevenLabsFetchAndPlay(
       body: JSON.stringify({ text, context: "conversation", persona: effectivePersona }),
     });
     if (!res.ok || !res.body) {
-      console.log("[VOICE] ELEVENLABS_FETCH_FAIL:", res.status, `(${Math.round(performance.now() - t0)}ms)`);
+      devLog("[VOICE] ELEVENLABS_FETCH_FAIL:", res.status, `(${Math.round(performance.now() - t0)}ms)`);
       if (effectivePersona) {
         ttsPersonaFailed = true;
-        console.log("[VOICE] PERSONA_VOICE_FAILED: switching session to fallback");
+        devLog("[VOICE] PERSONA_VOICE_FAILED: switching session to fallback");
       }
       return false;
     }
@@ -140,7 +143,7 @@ async function doElevenLabsFetchAndPlay(
     const blob = await res.blob();
     if (isTimedOut()) return false; // timeout won the race during blob read
     if (currentAudio) {
-      console.log("[VOICE] ELEVENLABS_DISCARD: superseded during fetch");
+      devLog("[VOICE] ELEVENLABS_DISCARD: superseded during fetch");
       return false;
     }
 
@@ -156,12 +159,12 @@ async function doElevenLabsFetchAndPlay(
     };
 
     audio.onended = () => {
-      console.log("[VOICE] ELEVENLABS_ENDED");
+      devLog("[VOICE] ELEVENLABS_ENDED");
       cleanup();
       onEnd?.();
     };
     audio.onerror = () => {
-      console.log("[VOICE] ELEVENLABS_PLAYBACK_ERROR");
+      devLog("[VOICE] ELEVENLABS_PLAYBACK_ERROR");
       cleanup();
       onEnd?.();
     };
@@ -175,13 +178,13 @@ async function doElevenLabsFetchAndPlay(
     await audio.play();
     const latency = Math.round(performance.now() - t0);
     const category = latency < 400 ? "FAST" : latency <= 800 ? "OK" : "SLOW";
-    console.log(`[VOICE] ELEVENLABS_PLAYING latency=${latency}ms category=${category}`);
+    devLog(`[VOICE] ELEVENLABS_PLAYING latency=${latency}ms category=${category}`);
     return true;
   } catch (err) {
-    console.log("[VOICE] ELEVENLABS_ERROR:", err instanceof Error ? err.message : err);
+    devLog("[VOICE] ELEVENLABS_ERROR:", err instanceof Error ? err.message : err);
     if (effectivePersona) {
       ttsPersonaFailed = true;
-      console.log("[VOICE] PERSONA_VOICE_FAILED: switching session to fallback");
+      devLog("[VOICE] PERSONA_VOICE_FAILED: switching session to fallback");
     }
     return false;
   }
@@ -269,7 +272,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
 
   // ── Ask a step (reads from refs, not stale state) ──────────────────────
   const askStep = (idx: number) => {
-    console.log("[VOICE] ASK_STEP:", idx, idx < SAISIE_STEPS.length ? SAISIE_STEPS[idx].id : "DONE");
+    devLog("[VOICE] ASK_STEP:", idx, idx < SAISIE_STEPS.length ? SAISIE_STEPS[idx].id : "DONE");
     if (idx >= SAISIE_STEPS.length) {
       const t = "C'est tout ! Vérifie tes données et enregistre.";
       addMsg("assistant", t);
@@ -287,23 +290,23 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
   // ── TTS wrapper — ElevenLabs → Gemini Live → Web Speech ────────────────
   const doSpeak = (text: string) => {
     if (mutedRef.current || !voiceModeRef.current) {
-      console.log("[VOICE] SPEAK_SKIP: muted or text mode");
+      devLog("[VOICE] SPEAK_SKIP: muted or text mode");
       return;
     }
     if (!text || !text.trim()) {
-      console.log("[VOICE] SPEAK_SKIP: empty text");
+      devLog("[VOICE] SPEAK_SKIP: empty text");
       return;
     }
 
     const t0 = performance.now();
-    console.log("[VOICE] SPEAK_START:", text.slice(0, 60));
+    devLog("[VOICE] SPEAK_START:", text.slice(0, 60));
 
     // Stop any audio currently playing (prevents double playback)
     stopAllAudio();
 
     const onSpeakEnd = () => {
       const dur = Math.round(performance.now() - t0);
-      console.log(`[VOICE] SPEAK_DONE total=${dur}ms`);
+      devLog(`[VOICE] SPEAK_DONE total=${dur}ms`);
       setIsSpeaking(false);
       if (voiceModeRef.current) doStartListening();
     };
@@ -313,19 +316,19 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
     // 1. ElevenLabs with persona voice
     speakElevenLabs(text, onSpeakEnd, activePersona).then((ok) => {
       if (ok) {
-        console.log("[VOICE] SPEAK_PROVIDER: elevenlabs");
+        devLog("[VOICE] SPEAK_PROVIDER: elevenlabs");
         return;
       }
 
       // 2. Gemini Live fallback
       if (useGemini && gemini.isConnected) {
-        console.log("[VOICE] SPEAK_PROVIDER: gemini (elevenlabs failed)");
+        devLog("[VOICE] SPEAK_PROVIDER: gemini (elevenlabs failed)");
         gemini.speak(text);
         return;
       }
 
       // 3. Web Speech fallback
-      console.log("[VOICE] SPEAK_PROVIDER: webspeech (elevenlabs failed)");
+      devLog("[VOICE] SPEAK_PROVIDER: webspeech (elevenlabs failed)");
       speakTTS(text, onSpeakEnd);
     });
   };
@@ -334,7 +337,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
   const doStartListening = () => {
     // Gemini Live path: just start mic capture, Gemini handles STT
     if (useGemini && gemini.isConnected) {
-      console.log("[VOICE] GEMINI_MIC_START");
+      devLog("[VOICE] GEMINI_MIC_START");
       setMicState("listening");
       gemini.startMic();
       return;
@@ -342,10 +345,10 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
 
     // Web Speech fallback
     const SR = getSR();
-    if (!SR) { console.log("[VOICE] MIC_NO_SR"); return; }
+    if (!SR) { devLog("[VOICE] MIC_NO_SR"); return; }
     stopSpeaking(); stopElevenLabsAudio(); setIsSpeaking(false);
     setMicState("listening"); setLiveTranscript("");
-    console.log("[VOICE] MIC_START");
+    devLog("[VOICE] MIC_START");
 
     const rec = new SR(); rec.lang = "fr-FR"; rec.continuous = false; rec.interimResults = true;
     let finalText = "";
@@ -360,25 +363,25 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
         else interim = t;
       }
       setLiveTranscript(finalText + (interim ? " " + interim : ""));
-      silenceTimerRef.current = setTimeout(() => { console.log("[VOICE] MIC_SILENCE_TIMEOUT"); rec.stop(); }, 6000);
+      silenceTimerRef.current = setTimeout(() => { devLog("[VOICE] MIC_SILENCE_TIMEOUT"); rec.stop(); }, 6000);
     };
 
     rec.onend = () => {
       const duration = Date.now() - startTime;
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       const t = finalText.trim();
-      console.log("[VOICE] MIC_END duration:", duration, "ms, text:", JSON.stringify(t));
+      devLog("[VOICE] MIC_END duration:", duration, "ms, text:", JSON.stringify(t));
       if (t) {
         setMicState("processing"); setLiveTranscript("");
         doProcessInput(t);
       } else {
-        console.log("[VOICE] MIC_EMPTY → idle");
+        devLog("[VOICE] MIC_EMPTY → idle");
         setMicState("idle"); setLiveTranscript("");
       }
     };
 
     rec.onerror = (e: SpeechRecognitionErrorEvent) => {
-      console.log("[VOICE] MIC_ERROR:", e.error);
+      devLog("[VOICE] MIC_ERROR:", e.error);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (e.error === "not-allowed" || e.error === "permission-denied") {
         setVoiceMode(false); voiceModeRef.current = false;
@@ -390,8 +393,8 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
     };
 
     recognitionRef.current = rec;
-    silenceTimerRef.current = setTimeout(() => { console.log("[VOICE] MIC_INITIAL_TIMEOUT"); rec.stop(); }, 8000);
-    try { rec.start(); } catch (err) { console.log("[VOICE] MIC_START_ERROR:", err); setMicState("idle"); }
+    silenceTimerRef.current = setTimeout(() => { devLog("[VOICE] MIC_INITIAL_TIMEOUT"); rec.stop(); }, 8000);
+    try { rec.start(); } catch (err) { devLog("[VOICE] MIC_START_ERROR:", err); setMicState("idle"); }
   };
 
   const stopListening = () => {
@@ -410,7 +413,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
     const done = isDoneRef.current;
     const relance = awaitingRelanceRef.current;
 
-    console.log("[VOICE] PROCESS_INPUT:", JSON.stringify(text), "stepIdx:", currentIdx, "done:", done, "relance:", relance);
+    devLog("[VOICE] PROCESS_INPUT:", JSON.stringify(text), "stepIdx:", currentIdx, "done:", done, "relance:", relance);
 
     if (!text || done) { setMicState("idle"); return; }
     addMsg("user", text);
@@ -418,7 +421,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
 
     const step = SAISIE_STEPS[currentIdx];
     if (!step) {
-      console.log("[VOICE] NO_STEP at index:", currentIdx, "→ idle");
+      devLog("[VOICE] NO_STEP at index:", currentIdx, "→ idle");
       setMicState("idle");
       return;
     }
@@ -428,14 +431,14 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
       const norm = normalize(text);
       const fullResult = parseNumericResponse(text);
       const parsed = parseCountField(text);
-      console.log("[VOICE] STT_RAW:", JSON.stringify(text));
-      console.log("[VOICE] STT_NORMALIZED:", JSON.stringify(norm));
-      console.log("[VOICE] PARSE_DECISION:", fullResult.decision, "type:", fullResult.type, fullResult.type === "number" ? "value:" + fullResult.value : "");
-      console.log("[VOICE] PARSED_COUNT:", parsed, "field:", step.field);
+      devLog("[VOICE] STT_RAW:", JSON.stringify(text));
+      devLog("[VOICE] STT_NORMALIZED:", JSON.stringify(norm));
+      devLog("[VOICE] PARSE_DECISION:", fullResult.decision, "type:", fullResult.type, fullResult.type === "number" ? "value:" + fullResult.value : "");
+      devLog("[VOICE] PARSED_COUNT:", parsed, "field:", step.field);
 
       if (parsed === null) {
         if (!relance) {
-          console.log("[VOICE] RELANCE for", step.field);
+          devLog("[VOICE] RELANCE for", step.field);
           setAwaitingRelance(true); awaitingRelanceRef.current = true;
           const q = "Combien ?";
           addMsg("assistant", q);
@@ -443,7 +446,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
           setMicState("idle");
           return;
         }
-        console.log("[VOICE] SECOND_FAIL → default 0 for", step.field);
+        devLog("[VOICE] SECOND_FAIL → default 0 for", step.field);
         (fieldsRef.current as Record<string, number>)[step.field] = 0;
       } else {
         (fieldsRef.current as Record<string, number>)[step.field] = parsed;
@@ -452,7 +455,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
       setAwaitingRelance(false); awaitingRelanceRef.current = false;
       setMicState("idle");
       const next = getNextApplicableStep(currentIdx + 1, fieldsRef.current);
-      console.log("[VOICE] NEXT_STEP:", next, next < SAISIE_STEPS.length ? SAISIE_STEPS[next].id : "DONE");
+      devLog("[VOICE] NEXT_STEP:", next, next < SAISIE_STEPS.length ? SAISIE_STEPS[next].id : "DONE");
       askStep(next);
       return;
     }
@@ -466,19 +469,19 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
       expectedCount = fieldsRef.current.mandatsSignes ?? 0;
       parsedCount = mandats.length;
       arraysRef.current = { ...arraysRef.current, mandats: [...arraysRef.current.mandats, ...mandats.map(m => ({ ...m, nomVendeur: capitalizeFirst(m.nomVendeur) }))] };
-      console.log("[VOICE] MANDATS_PARSED:", parsedCount, "expected:", expectedCount);
+      devLog("[VOICE] MANDATS_PARSED:", parsedCount, "expected:", expectedCount);
     } else if (step.inputMode === "detail_infos") {
       const infos = parseDetailsText(text);
       expectedCount = (fieldsRef.current as Record<string, number>)["infosVenteCount"] ?? 0;
       parsedCount = infos.length;
       arraysRef.current = { ...arraysRef.current, informationsVente: [...arraysRef.current.informationsVente, ...infos.map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }))] };
-      console.log("[VOICE] INFOS_PARSED:", parsedCount, "expected:", expectedCount);
+      devLog("[VOICE] INFOS_PARSED:", parsedCount, "expected:", expectedCount);
     } else if (step.inputMode === "detail_acheteurs") {
       const acheteurs = parseDetailsText(text);
       expectedCount = fieldsRef.current.acheteursChaudsCount ?? 0;
       parsedCount = acheteurs.length;
       arraysRef.current = { ...arraysRef.current, acheteursChauds: [...arraysRef.current.acheteursChauds, ...acheteurs.map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }))] };
-      console.log("[VOICE] ACHETEURS_PARSED:", parsedCount, "expected:", expectedCount);
+      devLog("[VOICE] ACHETEURS_PARSED:", parsedCount, "expected:", expectedCount);
     }
 
     // Coherence check: if count mismatch, notify user
@@ -489,7 +492,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
     // Don't auto-advance on detail fields — wait for user to click "Suivant"
     setAwaitingDetailConfirm(true);
     setMicState("idle");
-    console.log("[VOICE] DETAIL_AWAITING_CONFIRM");
+    devLog("[VOICE] DETAIL_AWAITING_CONFIRM");
   };
 
   // ── Gemini Live: handle transcript from model ──────────────────────────
@@ -513,7 +516,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
     if (initRef.current) return;
     initRef.current = true;
     resetTTSSession();
-    console.log("[VOICE] INIT persona:", activePersona);
+    devLog("[VOICE] INIT persona:", activePersona);
 
     // Try Gemini Live first if voice mode is on
     if (voiceModeRef.current) {
@@ -521,7 +524,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
 
       gemini.start(systemInstruction, {
         onTranscript: (text) => {
-          console.log("[VOICE] GEMINI_TRANSCRIPT:", text);
+          devLog("[VOICE] GEMINI_TRANSCRIPT:", text);
           // Gemini sends both the model's spoken text and user transcriptions
           // We use this for model responses — user speech is handled via mic
           doProcessInput(text);
@@ -532,15 +535,15 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
           if (voiceModeRef.current) doStartListening();
         },
         onError: (err) => {
-          console.log("[VOICE] GEMINI_ERROR:", err);
+          devLog("[VOICE] GEMINI_ERROR:", err);
           addMsg("assistant", "Voix standard activée");
         },
       }, activePersona).then((connected) => {
         if (connected) {
-          console.log("[VOICE] GEMINI_LIVE_ACTIVE");
+          devLog("[VOICE] GEMINI_LIVE_ACTIVE");
           setUseGemini(true);
         } else {
-          console.log("[VOICE] GEMINI_FALLBACK → Web Speech");
+          devLog("[VOICE] GEMINI_FALLBACK → Web Speech");
         }
 
         // Start conversation regardless of Gemini status
@@ -567,7 +570,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
     setAwaitingDetailConfirm(false);
     const currentIdx = stepIdxRef.current;
     const next = getNextApplicableStep(currentIdx + 1, fieldsRef.current);
-    console.log("[VOICE] DETAIL_CONFIRMED → NEXT_STEP:", next, next < SAISIE_STEPS.length ? SAISIE_STEPS[next].id : "DONE");
+    devLog("[VOICE] DETAIL_CONFIRMED → NEXT_STEP:", next, next < SAISIE_STEPS.length ? SAISIE_STEPS[next].id : "DONE");
     askStep(next);
   };
 

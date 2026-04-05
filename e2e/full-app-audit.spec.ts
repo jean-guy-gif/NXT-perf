@@ -10,8 +10,13 @@ import fs from "fs";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function enterDemo(page: Page) {
-  await page.goto("/login");
-  await page.getByRole("button", { name: "Tester en démo" }).click();
+  // Full demo flow: /demo → code → onboarding → skip → dashboard
+  await page.goto("/demo");
+  await page.locator("input[type='password']").fill("DEMO2024");
+  await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+  await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+  // Skip onboarding to land on dashboard
+  await page.getByText(/Passer cette étape/i).click();
   await page.waitForURL("**/dashboard**", { timeout: 15_000 });
   await expect(page.locator("header")).toBeVisible({ timeout: 10_000 });
   // Dismiss guided tour if present

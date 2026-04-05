@@ -10,12 +10,20 @@ import { test, expect } from "@playwright/test";
 
 test.describe("MondayGate — Import inline (non-regression)", () => {
   test.beforeEach(async ({ page }) => {
-    // 1. Login as demo user
-    await page.goto("/login");
-    await page.getByRole("button", { name: "Tester en démo" }).click();
-    await page.waitForURL("**/dashboard**");
+    // 1. Enter demo mode via /demo page
+    await page.goto("/demo");
+    await page.locator("input[type='password']").fill("DEMO2024");
+    await page.getByRole("button", { name: /Démarrer la démo/i }).click();
+    await page.waitForURL("**/onboarding/**", { timeout: 15_000 });
+    await page.getByText(/Passer cette étape/i).click();
+    await page.waitForURL("**/dashboard**", { timeout: 15_000 });
 
-    // 2. Navigate to dashboard with forced gate
+    // 2. Set nxt-demo-saisie cookie to bypass DemoSaisieGate and reach WeeklyGate
+    await page.evaluate(() => {
+      document.cookie = "nxt-demo-saisie=true;path=/;max-age=28800";
+    });
+
+    // 3. Navigate to dashboard with forced gate
     await page.goto("/dashboard?gate=1");
     // Wait for MondayGate welcome screen
     await expect(page.getByText("Démarrer mon bilan")).toBeVisible({ timeout: 10_000 });

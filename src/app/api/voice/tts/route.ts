@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/voice/tts
@@ -20,25 +22,25 @@ function getVoiceId(persona?: string): { voiceId: string; fallback: boolean } {
     const envVar = PERSONA_ELEVENLABS_ENV[persona];
     const id = process.env[envVar];
     if (id) return { voiceId: id, fallback: false };
-    console.log(`[voice/tts] missing env ${envVar}, fallback to default`);
   }
   return { voiceId: DEFAULT_VOICE_ID, fallback: true };
 }
 
 export async function POST(request: NextRequest) {
-  console.log("[voice/tts] Request received");
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const { allowed } = checkRateLimit(`voice-tts:${auth.user.id}`, 30, 60_000);
+  if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   if (!ELEVENLABS_API_KEY) {
     return NextResponse.json({ error: "ELEVENLABS_API_KEY not configured" }, { status: 500 });
   }
 
   let text: string;
-  let context: string | undefined;
   let persona: string | undefined;
   try {
     const body = await request.json();
     text = body.text;
-    context = body.context;
     persona = body.persona;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
@@ -48,8 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Text is required" }, { status: 400 });
   }
 
-  const { voiceId, fallback } = getVoiceId(persona);
-  console.log(`[voice/tts] context=${context ?? "default"} persona=${persona ?? "none"} voiceId=${voiceId} fallback=${fallback}`);
+  const { voiceId } = getVoiceId(persona);
 
   try {
     const response = await fetch(
@@ -68,11 +69,9 @@ export async function POST(request: NextRequest) {
     );
 
     if (!response.ok || !response.body) {
-      console.error("[voice/tts] ElevenLabs error:", response.status);
+      if (process.env.NODE_ENV === "development") console.error("[voice/tts] ElevenLabs error:", response.status);
       return NextResponse.json({ error: "Failed to generate audio" }, { status: 502 });
     }
-
-    console.log("[voice/tts] Streaming audio response");
 
     return new NextResponse(response.body as ReadableStream, {
       status: 200,
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("[voice/tts] Error:", err instanceof Error ? err.message : err);
+    if (process.env.NODE_ENV === "development") console.error("[voice/tts] Error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Failed to generate audio" }, { status: 500 });
   }
 }

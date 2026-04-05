@@ -188,7 +188,7 @@ function deriveThemeFromPalette(
     light = rgbToHex(lightRaw.r, lightRaw.g, lightRaw.b);
   }
 
-  console.log("[agency-theme] Palette:", { primary, secondary, dark, light, usable: usable.length, sourceColors: rgbs });
+  if (process.env.NODE_ENV === "development") console.log("[agency-theme] Palette:", { primary, secondary, dark, light, usable: usable.length, sourceColors: rgbs });
   return { primary, secondary, dark, light };
 }
 
@@ -228,7 +228,7 @@ export async function extractAgencyColors(
     if (!color) return DEFAULTS;
     return deriveThemeColors(color);
   } catch (err) {
-    console.error("[agency-theme] Color extraction from URL failed:", err);
+    if (process.env.NODE_ENV === "development") console.error("[agency-theme] Color extraction from URL failed:", err);
     return DEFAULTS;
   }
 }
@@ -254,7 +254,7 @@ export async function extractAgencyColorsFromBlob(
     if (!color) return DEFAULTS;
     return deriveThemeColors(color);
   } catch (err) {
-    console.error("[agency-theme] Color extraction from Blob failed:", err);
+    if (process.env.NODE_ENV === "development") console.error("[agency-theme] Color extraction from Blob failed:", err);
     return DEFAULTS;
   }
 }
