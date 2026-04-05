@@ -5,6 +5,7 @@ import { Send, Loader2, MessageCircle, Mic, Volume2, VolumeX, Keyboard } from "l
 import { useAppStore } from "@/stores/app-store";
 import { useGeminiLive } from "@/hooks/use-gemini-live";
 import { parseCountField, parseNumericResponse, parseMandatsText, parseDetailsText, normalize, capitalizeFirst } from "@/lib/saisie-parser";
+import { normalizeSpokenNumbers } from "@/lib/normalize-spoken-numbers";
 import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
 import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
 
@@ -408,12 +409,14 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
   };
 
   // ── Process input (reads ALL from refs — no stale closures) ────────────
-  const doProcessInput = (text: string) => {
+  const doProcessInput = (rawText: string) => {
+    // Normalize spoken French numbers ("un" → "1", "vingt-cinq" → "25", etc.)
+    const text = normalizeSpokenNumbers(rawText);
     const currentIdx = stepIdxRef.current;
     const done = isDoneRef.current;
     const relance = awaitingRelanceRef.current;
 
-    devLog("[VOICE] PROCESS_INPUT:", JSON.stringify(text), "stepIdx:", currentIdx, "done:", done, "relance:", relance);
+    devLog("[VOICE] PROCESS_INPUT:", JSON.stringify(rawText), "→", JSON.stringify(text), "stepIdx:", currentIdx, "done:", done, "relance:", relance);
 
     if (!text || done) { setMicState("idle"); return; }
     addMsg("user", text);

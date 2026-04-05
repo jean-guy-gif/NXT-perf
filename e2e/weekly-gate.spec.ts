@@ -54,7 +54,9 @@ test.describe("WeeklyGate — non-regression", () => {
   });
 
   test("Dismiss returns to dashboard", async ({ page }) => {
-    await page.getByText("Passer pour l'instant").first().click();
+    await page.getByText("Passer cette semaine").first().click();
+    // Confirm skip in modal
+    await page.getByRole("button", { name: "Confirmer" }).click();
 
     // Dashboard content should be visible (heading, not sidebar tooltip)
     await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible({ timeout: 5_000 });

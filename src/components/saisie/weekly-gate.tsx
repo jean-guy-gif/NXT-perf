@@ -79,6 +79,9 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Skip confirmation state
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+
   const firstName = user?.firstName || "Conseiller";
   const isDemo = useAppStore((s) => s.isDemo);
   const [personaId, setPersonaId] = useState<PersonaId | null>(null);
@@ -324,17 +327,64 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
 
   // ── Screens ────────────────────────────────────────────────────────────────
 
+  const handleSkipConfirmed = async () => {
+    // Notify manager if user is attached to one
+    if (!isDemo && user?.managerId) {
+      try {
+        const supabase = createClient();
+        await supabase.from("notifications").insert({
+          user_id: user.managerId,
+          type: "saisie_skipped",
+          message: `${user.firstName} ${user.lastName} n'a pas saisi ses résultats cette semaine`,
+        });
+      } catch { /* notification is best-effort */ }
+    }
+    setShowSkipConfirm(false);
+    onDismiss();
+  };
+
   const fullscreen = "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background";
   const gradient = "pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent";
   const passBtn = (
     <button
-      onClick={onDismiss}
+      onClick={() => setShowSkipConfirm(true)}
       className="text-xs text-muted-foreground transition-colors hover:text-muted-foreground/70"
       style={{ fontSize: 12 }}
     >
-      Passer pour l&apos;instant
+      Passer cette semaine
     </button>
   );
+
+  // ── Skip confirmation modal ──
+  if (showSkipConfirm) {
+    return (
+      <div className={fullscreen}>
+        <div className={gradient} />
+        <div className="relative z-10 flex max-w-sm flex-col items-center gap-6 px-6 text-center">
+          <h2 className="text-xl font-bold text-foreground">Passer cette semaine ?</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {user?.managerId
+              ? "Votre manager sera notifié que vous n'avez pas saisi vos résultats."
+              : "Vous pourrez saisir vos résultats plus tard."}
+          </p>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => setShowSkipConfirm(false)}
+              className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSkipConfirmed}
+              className="flex-1 rounded-xl bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Écran 1 : Bienvenue ──────────────────────────────────────────────────
   if (screen === "welcome") {
