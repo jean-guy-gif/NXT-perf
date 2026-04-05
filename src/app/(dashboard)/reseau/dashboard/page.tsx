@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useNetworkData } from "@/hooks/use-network-data";
 import type { AgencyAggregate } from "@/hooks/use-network-data";
+import { BarChart } from "@/components/charts/bar-chart";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
@@ -227,6 +228,29 @@ export default function ReseauDashboardPage() {
           </table>
         </div>
       </div>
+
+      {/* Comparaison inter-agences (bar chart) */}
+      {agencies.length > 0 && (
+        <div className="rounded-lg border border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <h3 className="text-sm font-semibold">Comparaison inter-agences — CA mensuel</h3>
+          </div>
+          <div className="p-4">
+            <BarChart
+              data={sortedAgencies.map((a) => ({
+                name: a.institutionName.length > 15 ? a.institutionName.slice(0, 15) + "…" : a.institutionName,
+                CA: a.totalCA,
+                Mandats: a.totalMandats * 1000,
+              }))}
+              xKey="name"
+              bars={[
+                { dataKey: "CA", color: "var(--agency-primary, #6C5CE7)", name: "CA (€)" },
+              ]}
+              height={250}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Top performers */}
       <div className="grid gap-4 lg:grid-cols-2">

@@ -21,6 +21,7 @@ import {
   Network,
   Navigation,
   ClipboardCheck,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -68,7 +69,8 @@ const navItems: NavItem[] = [
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage financier", directorOnly: true },
   { href: "/directeur/formation-collective", icon: BookOpen, label: "Formation Collective", directorOnly: true },
   { href: "/coach/dashboard", icon: HeartHandshake, label: "Tableau de bord", coachOnly: true },
-  { href: "/reseau/dashboard", icon: Network, label: "Tableau de bord", networkOnly: true },
+  { href: "/reseau/dashboard", icon: Network, label: "Vue Réseau", networkOnly: true },
+  { href: "/reseau/agence", icon: Building2, label: "Mes Agences", networkOnly: true },
   { href: "/admin/dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
