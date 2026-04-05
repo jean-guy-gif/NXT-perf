@@ -58,6 +58,12 @@ export default function OnboardingIdentitePage() {
 
   // ── Redirect if already completed ──────────────────────────────────────
   useEffect(() => {
+    // Demo-onboarding mode: user entered via /demo with DEMO2024 code
+    // Don't redirect — let them experience the onboarding
+    const hasDemoOnboarding = typeof document !== "undefined"
+      && document.cookie.includes("nxt-demo-onboarding=true");
+    if (isDemo && hasDemoOnboarding) return;
+
     if (isDemo) { router.replace("/dashboard"); return; }
     if (profile?.onboarding_completed) { router.replace("/dashboard"); }
   }, [profile?.onboarding_completed, isDemo, router]);
@@ -222,6 +228,11 @@ export default function OnboardingIdentitePage() {
       if (profile) {
         setProfile({ ...profile, onboarding_completed: true, coach_voice: coachVoice });
       }
+    }
+
+    // Clear demo-onboarding flag if present
+    if (typeof document !== "undefined") {
+      document.cookie = "nxt-demo-onboarding=;path=/;max-age=0";
     }
 
     window.location.href = "/dashboard";

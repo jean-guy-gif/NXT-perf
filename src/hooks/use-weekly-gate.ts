@@ -45,6 +45,7 @@ export function useWeeklyGate(): WeeklyGateHookState {
   const isDemo = useAppStore((s) => s.isDemo);
   const user = useAppStore((s) => s.user);
   const profile = useAppStore((s) => s.profile);
+  const setProfile = useAppStore((s) => s.setProfile);
 
   const compute = useCallback(() => {
     if (!user?.id) return; // wait for hydration
@@ -81,30 +82,38 @@ export function useWeeklyGate(): WeeklyGateHookState {
 
   const dismissGate = useCallback(() => {
     setShowGate(false);
+    const thisMonday = getMondayOfWeek(new Date());
+    // Update Zustand store so gate doesn't reappear on navigation
+    if (profile) {
+      setProfile({ ...profile, last_voice_saisie_date: thisMonday });
+    }
     // Persist to Supabase so the gate won't re-show this week
     if (user?.id && !isDemo) {
       const supabase = createClient();
-      const thisMonday = getMondayOfWeek(new Date());
       supabase
         .from("profiles")
         .update({ last_voice_saisie_date: thisMonday })
         .eq("id", user.id)
         .then();
     }
-  }, [user?.id, isDemo]);
+  }, [user?.id, isDemo, profile, setProfile]);
 
   const markSaisieDone = useCallback(async () => {
     setShowGate(false);
     setSubmissionStatus("done");
     setShowResumeButton(false);
+    const thisMonday = getMondayOfWeek(new Date());
+    // Update Zustand store so gate doesn't reappear on navigation
+    if (profile) {
+      setProfile({ ...profile, last_voice_saisie_date: thisMonday });
+    }
     if (!user?.id) return;
     const supabase = createClient();
-    const thisMonday = getMondayOfWeek(new Date());
     await supabase
       .from("profiles")
       .update({ last_voice_saisie_date: thisMonday })
       .eq("id", user.id);
-  }, [user?.id]);
+  }, [user?.id, profile, setProfile]);
 
   const reopenGate = useCallback(() => {
     setShowGate(true);
