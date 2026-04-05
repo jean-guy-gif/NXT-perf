@@ -25,14 +25,14 @@ export default function DemoPage() {
 
     setLoading(true);
 
-    // Enter demo mode
+    // Enter demo mode (sets nxt-demo-mode cookie + mock data)
     enterDemo();
 
-    // Set a flag so onboarding won't redirect to dashboard
-    document.cookie = "nxt-demo-onboarding=true;path=/;max-age=28800"; // 8h
-
-    // Override demo cookie to 8h instead of 24h
+    // Override demo cookie to 8h
     document.cookie = "nxt-demo-mode=true;path=/;max-age=28800";
+
+    // Ensure nxt-demo-onboarding is NOT set — it will be set by the CTA after completing onboarding
+    document.cookie = "nxt-demo-onboarding=;path=/;max-age=0";
 
     router.push("/onboarding/identite");
   };

@@ -58,13 +58,14 @@ export default function OnboardingIdentitePage() {
 
   // ── Redirect if already completed ──────────────────────────────────────
   useEffect(() => {
-    // Demo-onboarding mode: user entered via /demo with DEMO2024 code
-    // Don't redirect — let them experience the onboarding
-    const hasDemoOnboarding = typeof document !== "undefined"
-      && document.cookie.includes("nxt-demo-onboarding=true");
-    if (isDemo && hasDemoOnboarding) return;
-
-    if (isDemo) { router.replace("/dashboard"); return; }
+    if (isDemo) {
+      // nxt-demo-onboarding=true means demo onboarding ALREADY completed → redirect
+      const demoOnboardingDone = typeof document !== "undefined"
+        && document.cookie.includes("nxt-demo-onboarding=true");
+      if (demoOnboardingDone) { router.replace("/dashboard"); return; }
+      // No cookie → show onboarding (first demo visit)
+      return;
+    }
     if (profile?.onboarding_completed) { router.replace("/dashboard"); }
   }, [profile?.onboarding_completed, isDemo, router]);
 
@@ -214,7 +215,11 @@ export default function OnboardingIdentitePage() {
   // ── Complete onboarding ────────────────────────────────────────────────
   const completeOnboarding = async () => {
     setCompleting(true);
-    if (!isDemo && user?.id) {
+
+    if (isDemo) {
+      // Demo mode: mark onboarding done via cookie (no Supabase write)
+      document.cookie = "nxt-demo-onboarding=true;path=/;max-age=28800"; // 8h
+    } else if (user?.id) {
       const supabase = createClient();
       const { error: updateErr } = await supabase
         .from("profiles")
@@ -228,11 +233,6 @@ export default function OnboardingIdentitePage() {
       if (profile) {
         setProfile({ ...profile, onboarding_completed: true, coach_voice: coachVoice });
       }
-    }
-
-    // Clear demo-onboarding flag if present
-    if (typeof document !== "undefined") {
-      document.cookie = "nxt-demo-onboarding=;path=/;max-age=0";
     }
 
     window.location.href = "/dashboard";
