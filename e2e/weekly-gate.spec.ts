@@ -92,10 +92,11 @@ test.describe("WeeklyGate — non-regression", () => {
       await saveBtn.click();
 
       // Should arrive at debrief screen — wait for local content (instant)
-      await expect(page.getByText(/débrief coaching/i)).toBeVisible({ timeout: 5_000 });
+      // The debrief shows scores (Volume / Performance / Global) and a closing sentence
+      await expect(page.getByText("Volume").first()).toBeVisible({ timeout: 5_000 });
 
-      // Signature finale
-      await expect(page.getByText("meilleur que tu crois")).toBeVisible();
+      // Signature finale (from COACHING_CLOSING in personas.ts)
+      await expect(page.getByText(/meilleur que ce que tu penses/i)).toBeVisible();
 
       // NXT Coaching branding
       await expect(page.getByText("NXT Coaching")).toBeVisible();
@@ -105,9 +106,6 @@ test.describe("WeeklyGate — non-regression", () => {
       await expect(cta).toBeVisible();
       const href = await cta.getAttribute("href");
       expect(href).toBe("/formation");
-
-      // Volume section visible
-      await expect(page.getByText("Volume").first()).toBeVisible();
 
       // Scores visible
       await expect(page.getByText("Global")).toBeVisible();
