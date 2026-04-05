@@ -241,7 +241,15 @@ export default function OnboardingIdentitePage() {
       }
     }
 
-    window.location.href = "/dashboard";
+    // Role-based redirect: manager → equipe, directeur → agence, others → dashboard
+    const role = profile?.role;
+    if (role === "manager") {
+      window.location.href = "/onboarding/equipe";
+    } else if (role === "directeur") {
+      window.location.href = "/onboarding/agence";
+    } else {
+      window.location.href = "/dashboard";
+    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
