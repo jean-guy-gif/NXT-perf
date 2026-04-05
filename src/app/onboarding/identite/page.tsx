@@ -219,6 +219,9 @@ export default function OnboardingIdentitePage() {
     if (isDemo) {
       // Demo mode: mark onboarding done via cookie (no Supabase write)
       document.cookie = "nxt-demo-onboarding=true;path=/;max-age=28800"; // 8h
+      // Redirect to dashboard with gate=1 to show saisie simulation
+      window.location.href = "/dashboard?gate=1";
+      return;
     } else if (user?.id) {
       const supabase = createClient();
       const { error: updateErr } = await supabase

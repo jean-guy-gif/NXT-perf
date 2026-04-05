@@ -19,7 +19,6 @@ function LoginForm() {
   const [success, setSuccess] = useState(
     resetSuccess ? "Mot de passe réinitialisé avec succès. Connectez-vous." : ""
   );
-  const enterDemo = useAppStore((s) => s.enterDemo);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,8 +49,7 @@ function LoginForm() {
   };
 
   const handleDemo = () => {
-    enterDemo();
-    router.push("/dashboard");
+    router.push("/demo");
   };
 
   const inputClassName =

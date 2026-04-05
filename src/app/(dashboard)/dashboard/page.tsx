@@ -64,6 +64,7 @@ import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
 import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
 import { useDPIEvolution } from "@/hooks/use-dpi-evolution";
 import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
+import { DemoSaisieGate } from "@/components/saisie/demo-saisie-gate";
 
 type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
 
@@ -320,6 +321,21 @@ function DashboardContent() {
     currentDay > 0
       ? Math.round(((ventes.actesSignes / currentDay) * daysInMonth) * 10) / 10
       : 0;
+
+  // Demo saisie simulation — shown when ?gate=1 in demo mode
+  const showDemoGate = isDemo
+    && searchParams.get("gate") === "1"
+    && typeof document !== "undefined"
+    && !document.cookie.includes("nxt-demo-saisie=true");
+
+  if (showDemoGate) {
+    return (
+      <DemoSaisieGate onComplete={() => {
+        // Remove ?gate=1 from URL and reload
+        window.location.href = "/dashboard";
+      }} />
+    );
+  }
 
   // WeeklyGate fullscreen — rendu AVANT le dashboard, bloque tout le reste
   if (!gateLoading && showGate) {
