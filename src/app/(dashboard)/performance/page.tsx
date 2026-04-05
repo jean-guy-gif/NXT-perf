@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
@@ -93,6 +94,7 @@ export default function PerformancePage() {
         : ("danger" as const);
 
   return (
+    <LockedFeature feature="performance" featureName="Ma Performance" featureDescription="Analysez vos ratios et benchmarks métier">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -317,5 +319,6 @@ export default function PerformancePage() {
         />
       )}
     </div>
+    </LockedFeature>
   );
 }

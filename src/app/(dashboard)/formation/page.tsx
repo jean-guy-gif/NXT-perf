@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
 import { generateFormationDiagnostic } from "@/lib/formation";
@@ -72,6 +73,7 @@ export default function FormationPage() {
   ];
 
   return (
+    <LockedFeature feature="formation" featureName="Ma Formation" featureDescription="Accédez à votre plan de formation personnalisé">
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Ma Formation</h1>
 
@@ -498,5 +500,6 @@ export default function FormationPage() {
         />
       )}
     </div>
+    </LockedFeature>
   );
 }

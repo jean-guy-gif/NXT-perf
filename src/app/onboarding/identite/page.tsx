@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import { compressImage, ImageCompressionError } from "@/lib/compress-image";
 import { extractAgencyColorsFromBlob, applyAgencyTheme } from "@/lib/agency-theme";
+import { ImportPerformance } from "@/components/onboarding/import-performance";
+import { ImportTeam } from "@/components/onboarding/import-team";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -416,6 +418,14 @@ export default function OnboardingIdentitePage() {
                 ))}
               </div>
             </div>
+
+            {/* Row 3: Import Performance */}
+            <ImportPerformance isDemo={isDemo} />
+
+            {/* Row 4: Import Team (manager/directeur only) */}
+            {(user?.mainRole === "manager" || user?.mainRole === "directeur") && (
+              <ImportTeam isDemo={isDemo} />
+            )}
           </>
         )}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { LockedFeature } from "@/components/subscription/locked-feature";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
@@ -125,6 +126,7 @@ export default function ComparaisonPage() {
   );
 
   return (
+    <LockedFeature feature="comparaison" featureName="Comparaison N-1" featureDescription="Comparez vos résultats avec l'année précédente">
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Comparaison</h1>
 
@@ -438,5 +440,6 @@ export default function ComparaisonPage() {
         <DPIComparisonView />
       )}
     </div>
+    </LockedFeature>
   );
 }

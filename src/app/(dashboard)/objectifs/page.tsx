@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
@@ -184,6 +185,7 @@ export default function ObjectifsPage() {
   }, [effectiveCategory, effectiveRatioConfigs]);
 
   return (
+    <LockedFeature feature="objectifs" featureName="Mes Objectifs" featureDescription="Définissez et suivez vos objectifs annuels">
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Mes Objectifs</h1>
 
@@ -524,5 +526,6 @@ export default function ObjectifsPage() {
         </div>
       )}
     </div>
+    </LockedFeature>
   );
 }

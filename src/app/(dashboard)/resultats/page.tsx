@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { LockedFeature } from "@/components/subscription/locked-feature";
 import { cn } from "@/lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip } from "react-tooltip";
@@ -79,6 +80,7 @@ export default function ResultatsPage() {
   const isCurrentPeriod = periodOffset === 0;
 
   return (
+    <LockedFeature feature="resultats" featureName="Mes Résultats" featureDescription="Consultez votre historique de performance mois par mois">
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Mes Résultats</h1>
 
@@ -194,5 +196,6 @@ export default function ResultatsPage() {
         opacity={1}
       />
     </div>
+    </LockedFeature>
   );
 }

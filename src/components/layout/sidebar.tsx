@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
+import { LockedNavItem } from "@/components/subscription/locked-nav-item";
 
 interface NavItem {
   href: string;
@@ -34,15 +35,17 @@ interface NavItem {
   directorOnly?: boolean;
   coachOnly?: boolean;
   networkOnly?: boolean;
+  /** Feature key for subscription lock check */
+  lockedFeature?: string;
 }
 
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
-  { href: "/resultats", icon: BarChart3, label: "Mes Résultats" },
-  { href: "/performance", icon: Gauge, label: "Ma Performance" },
-  { href: "/comparaison", icon: GitCompare, label: "Comparaison" },
-  { href: "/formation", icon: GraduationCap, label: "Ma Formation" },
-  { href: "/objectifs", icon: Target, label: "Mes Objectifs" },
+  { href: "/resultats", icon: BarChart3, label: "Mes Résultats", lockedFeature: "resultats" },
+  { href: "/performance", icon: Gauge, label: "Ma Performance", lockedFeature: "performance" },
+  { href: "/comparaison", icon: GitCompare, label: "Comparaison", lockedFeature: "comparaison" },
+  { href: "/formation", icon: GraduationCap, label: "Ma Formation", lockedFeature: "formation" },
+  { href: "/objectifs", icon: Target, label: "Mes Objectifs", lockedFeature: "objectifs" },
   { href: "/manager/cockpit", icon: Zap, label: "Cockpit", managerOnly: true },
   { href: "/manager/gps", icon: Target, label: "GPS Équipe", managerOnly: true },
   { href: "/manager/equipe", icon: Users, label: "Équipe", managerOnly: true },
@@ -230,6 +233,20 @@ function SidebarItem({
 }) {
   const isActive =
     pathname === item.href || pathname.startsWith(item.href + "/");
+
+  // Locked feature → delegate to LockedNavItem
+  if (item.lockedFeature) {
+    return (
+      <LockedNavItem
+        feature={item.lockedFeature}
+        href={item.href}
+        icon={item.icon}
+        label={item.label}
+        isActive={isActive}
+        collapsed={collapsed}
+      />
+    );
+  }
 
   if (collapsed) {
     return (
