@@ -27,6 +27,9 @@ import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { LockedNavItem } from "@/components/subscription/locked-nav-item";
+import { useBadges } from "@/hooks/use-badges";
+import { BADGES } from "@/lib/badges";
+import type { BadgeKey } from "@/lib/badges";
 
 interface NavItem {
   href: string;
@@ -89,6 +92,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const hiddenViews = useAppStore((s) => s.hiddenViews);
   const visibleViews = getVisibleViews(availableRoles, hiddenViews);
 
+  const { earnedBadges } = useBadges();
+  const recentBadgeEmojis = earnedBadges.slice(0, 3).map((b) => BADGES[b.badge_key as BadgeKey]?.emoji).filter(Boolean);
+
   const avatarUrl = profile?.avatar_url;
   const initials = user
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
@@ -140,6 +146,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </span>
         )}
       </Link>
+
+      {/* Recent badges */}
+      {recentBadgeEmojis.length > 0 && (
+        <div className={cn("flex gap-0.5 mb-3 flex-shrink-0", collapsed ? "justify-center" : "px-3")}>
+          {recentBadgeEmojis.map((emoji, i) => (
+            <span key={i} className="text-sm">{emoji}</span>
+          ))}
+        </div>
+      )}
 
       {/* Conseiller section */}
       {advisorItems.length > 0 && (

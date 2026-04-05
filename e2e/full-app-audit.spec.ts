@@ -278,7 +278,7 @@ test.describe("7. Paramètres", () => {
 
   test("7.3 — Section voix coach visible dans profil", async ({ page }) => {
     await page.goto("/parametres/profil");
-    await expect(page.getByText("Voix coach", { exact: false })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Voix coach" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("7.4 — 3 cartes voix coach présentes", async ({ page }) => {

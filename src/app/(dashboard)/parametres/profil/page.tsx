@@ -9,6 +9,8 @@ import { ThemePicker } from "@/components/profile/theme-picker";
 import { PersonalLogoUpload } from "@/components/profile/personal-logo-upload";
 import { PersonalThemePicker } from "@/components/profile/personal-theme-picker";
 import { createClient } from "@/lib/supabase/client";
+import { useBadges } from "@/hooks/use-badges";
+import { BadgeGrid } from "@/components/badges/badge-grid";
 
 type CoachVoice = "sport" | "sergent" | "bienveillant";
 
@@ -128,6 +130,15 @@ export default function ProfilParametresPage() {
           <p className="text-center text-xs text-green-500">Pr\u00e9f\u00e9rence sauvegard\u00e9e</p>
         )}
       </section>
+
+      {/* Badges */}
+      <BadgeGridSection />
     </div>
   );
+}
+
+function BadgeGridSection() {
+  const { earnedBadges, loading } = useBadges();
+  if (loading) return null;
+  return <BadgeGrid earnedBadges={earnedBadges} />;
 }
