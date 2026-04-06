@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Text is required" }, { status: 400 });
   }
 
-  const { voiceId } = getVoiceId(persona);
+  const { voiceId, fallback } = getVoiceId(persona);
+  console.log(`[TTS] persona=${persona ?? "none"} voiceId=${voiceId} fallback=${fallback} WARRIOR_ENV=${process.env.ELEVENLABS_WARRIOR_VOICE_ID ? "present" : "absent"}`);
 
   // Normalize abbreviations for natural TTS reading
   const normalizedText = text.trim()

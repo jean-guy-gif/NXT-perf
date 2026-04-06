@@ -125,6 +125,23 @@ export const PERSONA_ELEVENLABS_ENV: Record<PersonaId, string> = {
   kind_coach: "ELEVENLABS_KIND_COACH_VOICE_ID",
 };
 
+// ── coach_voice → PersonaId mapping ──────────────────────────────────────────
+// profiles.coach_voice stores "sergent"|"sport"|"bienveillant"
+// Persona system uses "warrior"|"sport_coach"|"kind_coach"
+
+const COACH_VOICE_TO_PERSONA: Record<string, PersonaId> = {
+  sergent: "warrior",
+  sport: "sport_coach",
+  bienveillant: "kind_coach",
+};
+
+export function coachVoiceToPersona(coachVoice: string | null | undefined): PersonaId {
+  if (coachVoice && coachVoice in COACH_VOICE_TO_PERSONA) {
+    return COACH_VOICE_TO_PERSONA[coachVoice];
+  }
+  return DEFAULT_PERSONA;
+}
+
 // ── Closing signature ────────────────────────────────────────────────────────
 
 export const COACHING_CLOSING = "tu es meilleur que ce que tu penses, Bonne route";

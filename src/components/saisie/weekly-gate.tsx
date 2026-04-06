@@ -15,7 +15,7 @@ import type { ExtractedFields, ExtractedArrays, ExtractionResult, MandatDetail, 
 
 // ─── Personas (centralized in src/lib/personas.ts) ──────────────────────────
 
-import { PERSONA_GREETINGS, DEFAULT_PERSONA, isValidPersona } from "@/lib/personas";
+import { PERSONA_GREETINGS, DEFAULT_PERSONA, isValidPersona, coachVoiceToPersona } from "@/lib/personas";
 import type { PersonaId } from "@/lib/personas";
 
 interface PersonaGreeting { line1: (firstName: string) => string; line2: string; }
@@ -87,8 +87,15 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   const [personaId, setPersonaId] = useState<PersonaId | null>(null);
   const [preferredInputMode, setPreferredInputMode] = useState<string>("audio_full");
 
-  // Load persona + input_mode from Supabase
+  const profile = useAppStore((s) => s.profile);
+
+  // Load persona + input_mode from Supabase, fallback to profile.coach_voice
   useEffect(() => {
+    // Fallback: derive persona from profile.coach_voice if no explicit preference
+    if (profile?.coach_voice && !personaId) {
+      setPersonaId(coachVoiceToPersona(profile.coach_voice));
+    }
+
     if (isDemo || !user?.id) return;
     const supabase = createClient();
     supabase
@@ -98,9 +105,10 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
       .single()
       .then(({ data }) => {
         if (data?.persona && isValidPersona(data.persona)) setPersonaId(data.persona);
+        else if (profile?.coach_voice) setPersonaId(coachVoiceToPersona(profile.coach_voice));
         if (data?.input_mode) setPreferredInputMode(data.input_mode);
       });
-  }, [user?.id, isDemo]);
+  }, [user?.id, isDemo, profile?.coach_voice, personaId]);
 
   const contextGreeting = context ? CONTEXT_GREETINGS[context] : undefined;
   const greeting = personaId ? PERSONA_GREETINGS[personaId] : (contextGreeting ?? DEFAULT_GREETING);
