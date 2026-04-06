@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import * as XLSX from "xlsx";
 import { checkRateLimit } from "@/lib/rate-limit";
 
+export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
@@ -32,16 +33,126 @@ Réponds UNIQUEMENT en JSON valide sans markdown avec cette structure :
   "missing_fields": []
 }`;
 
+// ── Known column name aliases for direct Excel mapping ──────────────────────
+
+const METRIC_ALIASES: Record<string, string> = {
+  // contacts_entrants
+  "contacts entrants": "contacts_entrants", "contacts": "contacts_entrants",
+  "leads": "contacts_entrants", "prospects": "contacts_entrants",
+  "appels entrants": "contacts_entrants", "portail": "contacts_entrants",
+  // mandats_signes
+  "mandats signés": "mandats_signes", "mandats signes": "mandats_signes",
+  "mandats": "mandats_signes", "prises de mandat": "mandats_signes",
+  // visites_realisees
+  "visites réalisées": "visites_realisees", "visites realisees": "visites_realisees",
+  "visites": "visites_realisees", "sorties visite": "visites_realisees",
+  // offres_recues
+  "offres reçues": "offres_recues", "offres recues": "offres_recues",
+  "offres": "offres_recues", "offres d'achat": "offres_recues",
+  // compromis_signes
+  "compromis signés": "compromis_signes", "compromis signes": "compromis_signes",
+  "compromis": "compromis_signes", "ssp": "compromis_signes",
+  // actes_signes
+  "actes signés": "actes_signes", "actes signes": "actes_signes",
+  "actes": "actes_signes", "actes authentiques": "actes_signes",
+  "ventes": "actes_signes",
+  // ca_encaisse
+  "ca encaissé": "ca_encaisse", "ca encaisse": "ca_encaisse",
+  "chiffre d'affaires": "ca_encaisse", "ca": "ca_encaisse",
+  "honoraires": "ca_encaisse", "commissions": "ca_encaisse",
+};
+
+const ALL_METRICS = [
+  "contacts_entrants", "mandats_signes", "visites_realisees",
+  "offres_recues", "compromis_signes", "actes_signes", "ca_encaisse",
+];
+
+// ── Supabase helper ─────────────────────────────────────────────────────────
+
 function getSupabase(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      getAll() { return request.cookies.getAll(); },
-      setAll() { /* read-only in API routes */ },
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll(); },
+        setAll() { /* read-only */ },
+      },
     },
-  });
+  );
 }
+
+// ── Direct Excel parsing (no LLM needed) ────────────────────────────────────
+
+function parseExcelDirectly(buffer: Buffer): {
+  periods: Array<{ year: number; month: number | null; metrics: Record<string, number | null> }>;
+  confidence: string;
+  missing_fields: string[];
+} {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const metrics: Record<string, number | null> = {};
+  ALL_METRICS.forEach((m) => { metrics[m] = null; });
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+
+    if (rows.length === 0) continue;
+
+    // Strategy 1: headers are metric names (columns = metrics, rows = periods/values)
+    const headers = Object.keys(rows[0]);
+    for (const header of headers) {
+      const normalized = header.toLowerCase().trim();
+      const metricKey = METRIC_ALIASES[normalized];
+      if (metricKey) {
+        // Sum all rows for this column
+        let total = 0;
+        for (const row of rows) {
+          const val = row[header];
+          if (typeof val === "number") total += val;
+          else if (typeof val === "string") {
+            const parsed = parseFloat(val.replace(/[^\d.,]/g, "").replace(",", "."));
+            if (!isNaN(parsed)) total += parsed;
+          }
+        }
+        if (total > 0 || rows.some((r) => r[header] !== null)) {
+          metrics[metricKey] = total;
+        }
+      }
+    }
+
+    // Strategy 2: first column is metric label, second column is value (vertical layout)
+    if (headers.length >= 2) {
+      for (const row of rows) {
+        const label = String(row[headers[0]] ?? "").toLowerCase().trim();
+        const value = row[headers[1]];
+        const metricKey = METRIC_ALIASES[label];
+        if (metricKey && value != null) {
+          const numVal = typeof value === "number" ? value
+            : parseFloat(String(value).replace(/[^\d.,]/g, "").replace(",", "."));
+          if (!isNaN(numVal)) {
+            metrics[metricKey] = (metrics[metricKey] ?? 0) + numVal;
+          }
+        }
+      }
+    }
+  }
+
+  const filledCount = ALL_METRICS.filter((m) => metrics[m] !== null).length;
+  const missingFields = ALL_METRICS.filter((m) => metrics[m] === null);
+
+  return {
+    periods: [{
+      year: new Date().getFullYear(),
+      month: null,
+      metrics,
+    }],
+    confidence: filledCount >= 5 ? "high" : filledCount >= 3 ? "medium" : "low",
+    missing_fields: missingFields,
+  };
+}
+
+// ── LLM call (for PDFs and images only) ─────────────────────────────────────
 
 async function callLLM(content: string, isImage: boolean, imageBase64?: string, mimeType?: string) {
   const model = isImage ? "google/gemini-flash-1.5" : "meta-llama/llama-3.3-70b-instruct";
@@ -75,31 +186,15 @@ async function callLLM(content: string, isImage: boolean, imageBase64?: string, 
 
   const data = await res.json();
   const raw = data.choices?.[0]?.message?.content ?? "";
-
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("No JSON found in LLM response");
-
   return JSON.parse(jsonMatch[0]);
 }
 
-/** Extract text from PDF buffer using dynamic import to avoid module-load crash */
-async function extractPDFText(buffer: Buffer): Promise<string> {
-  try {
-    // pdf-parse crashes on static import in Next.js App Router
-    // Dynamic require avoids the module-load side effect
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
-    const result = await pdfParse(buffer);
-    return result.text;
-  } catch {
-    // Fallback: send as base64 image for LLM extraction
-    throw new Error("PDF parsing failed — try uploading as image");
-  }
-}
+// ── POST handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check
     const supabase = getSupabase(request);
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) {
@@ -115,7 +210,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
     }
 
-    // Size check (10MB max)
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json({ error: "Fichier trop volumineux (max 10 Mo)" }, { status: 400 });
     }
@@ -125,23 +219,32 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    let extracted;
+    let extracted: { periods?: Array<{ year: number; month: number | null; metrics?: Record<string, number | null> }>; confidence?: string; missing_fields?: string[]; individuals?: unknown[] };
 
-    // Parse based on file type
     if (["xlsx", "xls", "csv"].includes(ext)) {
-      const workbook = XLSX.read(buffer, { type: "buffer" });
-      const sheets = workbook.SheetNames.map((name) => ({
-        name,
-        data: XLSX.utils.sheet_to_csv(workbook.Sheets[name]),
-      }));
-      const textContent = sheets.map((s) => `--- Feuille: ${s.name} ---\n${s.data}`).join("\n\n");
-      extracted = await callLLM(textContent, false);
+      // Direct parsing — no LLM needed, instant result
+      extracted = parseExcelDirectly(buffer);
+
+      // If direct parsing found very few metrics, fallback to LLM
+      const filledCount = ALL_METRICS.filter((m) => extracted.periods?.[0]?.metrics?.[m] !== null).length;
+      if (filledCount < 2 && OPENROUTER_API_KEY) {
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+        const csv = workbook.SheetNames.map((name) =>
+          `--- ${name} ---\n${XLSX.utils.sheet_to_csv(workbook.Sheets[name])}`
+        ).join("\n\n");
+        try {
+          extracted = await callLLM(csv, false);
+        } catch {
+          // Keep direct parsing result if LLM fails
+        }
+      }
     } else if (ext === "pdf") {
       try {
-        const pdfText = await extractPDFText(buffer);
-        extracted = await callLLM(pdfText, false);
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
+        const result = await pdfParse(buffer);
+        extracted = await callLLM(result.text, false);
       } catch {
-        // Fallback: treat PDF as image via base64
         const base64 = buffer.toString("base64");
         extracted = await callLLM("", true, base64, "application/pdf");
       }
@@ -153,14 +256,13 @@ export async function POST(request: NextRequest) {
       const base64 = buffer.toString("base64");
       extracted = await callLLM("", true, base64, mimeMap[ext] || "image/jpeg");
     } else {
-      return NextResponse.json({ error: `Type de fichier non supporté: .${ext}` }, { status: 400 });
+      return NextResponse.json({ error: `Type non supporté: .${ext}` }, { status: 400 });
     }
 
-    // Save to DB (best-effort, don't fail if table doesn't exist yet)
+    // Save to DB (best-effort)
     const periods = (extracted.periods ?? []).map(
       (p: { year: number; month: number | null }) => `${p.year}-${p.month ?? "annual"}`
     );
-
     await supabase.from("performance_imports").insert({
       user_id: user.id,
       file_name: fileName,
@@ -173,7 +275,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(extracted);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    if (process.env.NODE_ENV === "development") console.error("[import-performance]", message);
     return NextResponse.json({ error: "Extraction échouée", details: message }, { status: 500 });
   }
 }

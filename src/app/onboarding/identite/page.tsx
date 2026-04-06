@@ -137,15 +137,24 @@ export default function OnboardingIdentitePage() {
 
       const supabase = createClient();
 
-      // Verify auth session before upload
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
+      // Verify auth session before upload — use getSession (local, fast)
+      // then fallback to getUser (network) for reliability
+      let userId: string | null = null;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        userId = session.user.id;
+      } else {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        userId = authUser?.id ?? null;
+      }
+
+      if (!userId) {
         setError("Session expirée — veuillez vous reconnecter");
         setAvatarUploading(false);
         return;
       }
 
-      const path = `${authUser.id}/avatar.webp`;
+      const path = `${userId}/avatar.webp`;
       const { error: upErr } = await supabase.storage
         .from("avatars")
         .upload(path, compressed, { upsert: true, contentType: "image/webp" });
@@ -157,7 +166,7 @@ export default function OnboardingIdentitePage() {
       }
 
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
-      const { error: profErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", authUser.id);
+      const { error: profErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
       if (profErr) { setError(`Erreur profil : ${profErr.message}`); setAvatarUploading(false); return; }
       if (profile) setProfile({ ...profile, avatar_url: publicUrl });
 
