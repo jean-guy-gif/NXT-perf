@@ -248,13 +248,12 @@ function DashboardContent() {
         <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-6">
           Commencez par saisir vos premiers résultats pour voir votre dashboard prendre vie.
         </p>
-        <button
-          type="button"
-          onClick={() => reopenGate()}
-          className="rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        <a
+          href="/saisie"
+          className="inline-block rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           Faire ma première saisie
-        </button>
+        </a>
       </div>
     );
   }

@@ -232,6 +232,19 @@ function RegisterForm() {
     };
     useAppStore.getState().setProfile(optimisticProfile);
 
+    // Create trial subscription (30 days free)
+    await supabase.from("subscriptions").upsert({
+      user_id: signUpData.user.id,
+      plan: "trial",
+      status: "active",
+      trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString(),
+    }, { onConflict: "user_id" });
+
+    // Clear any leftover demo cookies
+    document.cookie = "nxt-demo-mode=;path=/;max-age=0";
+    document.cookie = "nxt-demo-onboarding=;path=/;max-age=0";
+    document.cookie = "nxt-demo-saisie=;path=/;max-age=0";
+
     // Wait 1s for trigger to create the real profile, then redirect to onboarding
     await new Promise((r) => setTimeout(r, 1000));
     window.location.href = "/onboarding/identite";

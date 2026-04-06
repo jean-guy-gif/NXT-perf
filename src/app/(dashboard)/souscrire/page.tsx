@@ -1,60 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CreditCard, Loader2, Users, Building2, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Check, Loader2, Sparkles } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
+import { useSubscription } from "@/hooks/use-subscription";
 
-type PlanId = "solo" | "team" | "agency";
-
-const PLANS: { id: PlanId; icon: React.ComponentType<{ className?: string }>; name: string; price: string; desc: string; features: string[] }[] = [
-  {
-    id: "solo",
-    icon: User,
-    name: "Conseiller Solo",
-    price: "9€/mois",
-    desc: "Accès complet individuel",
-    features: ["Tableau de bord complet", "7 ratios de performance", "GPS objectifs", "Formation personnalisée", "Export JPEG & Excel", "Assistant IA vocal"],
-  },
-  {
-    id: "team",
-    icon: Users,
-    name: "Équipe",
-    price: "9€/conseiller/mois",
-    desc: "Manager + conseillers",
-    features: ["Tout Solo +", "Cockpit Manager", "GPS Équipe", "Classement équipe", "Formation collective", "Gestion des membres"],
-  },
-  {
-    id: "agency",
-    icon: Building2,
-    name: "Agence",
-    price: "9€/conseiller/mois",
-    desc: "Directeur + managers + conseillers",
-    features: ["Tout Équipe +", "Pilotage Agence", "GPS Directeur", "Pilotage financier", "Multi-équipes", "Réseau multi-agences"],
-  },
+const FEATURES = [
+  "Saisie hebdomadaire (vocal, manuel, import)",
+  "Dashboard complet avec KPIs",
+  "Debrief coaching personnalisé",
+  "Import de vos données historiques",
+  "Thème couleurs de votre agence",
+  "Classements et export JPEG",
 ];
 
 export default function SouscrirePage() {
+  const user = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemo);
-  const [selected, setSelected] = useState<PlanId | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [processing, setProcessing] = useState(false);
+  const { isTrial, trialDaysLeft } = useSubscription();
+
+  const [promoCode, setPromoCode] = useState("");
+  const [activating, setActivating] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const handleChoose = (planId: PlanId) => {
-    setSelected(planId);
-    setShowPayment(true);
-  };
+  const handleActivateTrial = async () => {
+    setActivating(true);
 
-  const handlePay = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setProcessing(true);
-    // Demo: simulate payment
-    await new Promise(r => setTimeout(r, 1500));
-    setProcessing(false);
+    if (!isDemo && user?.id) {
+      const supabase = createClient();
+      await supabase.from("subscriptions").upsert({
+        user_id: user.id,
+        plan: "trial",
+        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString(),
+        status: "active",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+    }
+
+    setActivating(false);
     setSuccess(true);
   };
 
@@ -65,9 +49,9 @@ export default function SouscrirePage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
             <Check className="h-8 w-8 text-green-500" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Paiement validé</h1>
+          <h1 className="text-2xl font-bold text-foreground">Essai gratuit activé</h1>
           <p className="text-sm text-muted-foreground">
-            Votre abonnement {PLANS.find(p => p.id === selected)?.name} est maintenant actif.
+            30 jours d'accès complet — aucune carte requise.
           </p>
           <button
             type="button"
@@ -81,131 +65,62 @@ export default function SouscrirePage() {
     );
   }
 
-  if (showPayment) {
-    return (
-      <div className="mx-auto max-w-md space-y-6">
-        <h1 className="text-xl font-bold text-foreground">Finaliser votre abonnement</h1>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm font-medium text-foreground">{PLANS.find(p => p.id === selected)?.name}</p>
-          <p className="text-lg font-bold text-primary">{PLANS.find(p => p.id === selected)?.price}</p>
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
+      <div className="w-full max-w-md space-y-6 text-center">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">Accès anticipé NXT Performance</h1>
+          <p className="text-sm text-muted-foreground">
+            Testez gratuitement pendant 30 jours — aucune carte requise
+          </p>
         </div>
 
-        <form onSubmit={handlePay} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">Numéro de carte</label>
-            <div className="relative">
-              <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value)}
-                placeholder="4242 4242 4242 4242"
-                className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                required
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Expiration</label>
-              <input
-                type="text"
-                value={expiry}
-                onChange={(e) => setExpiry(e.target.value)}
-                placeholder="12/28"
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">CVV</label>
-              <input
-                type="text"
-                value={cvv}
-                onChange={(e) => setCvv(e.target.value)}
-                placeholder="123"
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                required
-              />
-            </div>
+        <div className="rounded-2xl border-2 border-primary/30 bg-card p-6 space-y-5">
+          <span className="inline-block rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold text-primary-foreground uppercase">
+            Bêta
+          </span>
+
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground line-through">9€/mois</p>
+            <p className="text-4xl font-bold text-green-500">GRATUIT</p>
+            <p className="text-xs text-muted-foreground">pendant 30 jours — puis 9€/mois</p>
           </div>
 
-          {isDemo && (
-            <p className="text-[10px] text-muted-foreground text-center">
-              Mode démo — aucun paiement réel ne sera effectué
+          {isTrial && trialDaysLeft !== null && trialDaysLeft > 0 && (
+            <p className="text-xs text-primary font-medium">
+              Votre essai est actif — {trialDaysLeft} jour{trialDaysLeft > 1 ? "s" : ""} restant{trialDaysLeft > 1 ? "s" : ""}
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={processing}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            Payer
-          </button>
+          <ul className="space-y-2 text-left">
+            {FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                <Check className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <div>
+            <input
+              type="text"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              placeholder="Code partenaire (optionnel)"
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-center outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
 
           <button
             type="button"
-            onClick={() => { setShowPayment(false); setSelected(null); }}
-            className="w-full text-center text-xs text-muted-foreground hover:text-foreground"
+            onClick={handleActivateTrial}
+            disabled={activating}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            Retour aux offres
+            {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Démarrer mon essai gratuit
           </button>
-        </form>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-foreground">Choisissez votre offre</h1>
-        <p className="text-sm text-muted-foreground">Débloquez l'accès complet à NXT Performance</p>
-      </div>
-
-      <div className="grid gap-6 sm:grid-cols-3">
-        {PLANS.map((plan) => (
-          <div
-            key={plan.id}
-            className={cn(
-              "flex flex-col rounded-2xl border-2 p-6 transition-all",
-              plan.id === "team"
-                ? "border-primary bg-primary/5 shadow-sm"
-                : "border-border bg-card hover:border-primary/30"
-            )}
-          >
-            {plan.id === "team" && (
-              <span className="mb-3 self-start rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold text-primary-foreground uppercase">
-                Populaire
-              </span>
-            )}
-            <plan.icon className="h-8 w-8 text-primary mb-3" />
-            <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
-            <p className="text-2xl font-bold text-primary mt-1">{plan.price}</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">{plan.desc}</p>
-            <ul className="space-y-2 mb-6 flex-1">
-              {plan.features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Check className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              onClick={() => handleChoose(plan.id)}
-              className={cn(
-                "h-10 w-full rounded-lg font-medium text-sm transition-colors",
-                plan.id === "team"
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border border-border bg-background text-foreground hover:bg-muted"
-              )}
-            >
-              Choisir
-            </button>
-          </div>
-        ))}
+        </div>
       </div>
     </div>
   );

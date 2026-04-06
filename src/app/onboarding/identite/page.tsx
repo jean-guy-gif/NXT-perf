@@ -250,6 +250,10 @@ export default function OnboardingIdentitePage() {
       window.location.href = "/dashboard?gate=1";
       return;
     } else if (user?.id) {
+      // Clear any leftover demo cookies to prevent real account being treated as demo
+      document.cookie = "nxt-demo-mode=;path=/;max-age=0";
+      document.cookie = "nxt-demo-onboarding=;path=/;max-age=0";
+      document.cookie = "nxt-demo-saisie=;path=/;max-age=0";
       const supabase = createClient();
       const { error: updateErr } = await supabase
         .from("profiles")

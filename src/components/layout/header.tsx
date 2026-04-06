@@ -14,6 +14,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { NOTIFICATION_ICONS } from "@/types/notifications";
 import type { NotificationType } from "@/types/notifications";
 import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
+import { useSubscription } from "@/hooks/use-subscription";
 import { AddAgentModal } from "@/components/manager/add-agent-modal";
 import { ExportModal } from "@/components/export/export-modal";
 
@@ -91,6 +92,7 @@ export function Header() {
   );
   const { notifications: dbNotifs, unreadCount: dbUnreadCount, markAsRead, markAllAsRead } = useNotifications();
   const totalBadge = localNotifs.length + dbUnreadCount;
+  const { isTrial, trialDaysLeft } = useSubscription();
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -130,7 +132,15 @@ export function Header() {
   };
 
   return (
-    <header className="relative z-40 flex h-16 items-center justify-between border-b border-border bg-card/50 px-3 sm:px-6 backdrop-blur-sm">
+    <header className="relative z-40 flex flex-col border-b border-border bg-card/50 backdrop-blur-sm">
+      {/* Trial expiry banner */}
+      {isTrial && trialDaysLeft !== null && trialDaysLeft <= 7 && trialDaysLeft > 0 && (
+        <div className="flex items-center justify-center gap-2 bg-amber-500/10 px-3 py-1 text-xs text-amber-600">
+          <span>Votre essai gratuit se termine dans {trialDaysLeft} jour{trialDaysLeft > 1 ? "s" : ""}</span>
+          <a href="/souscrire" className="font-semibold underline hover:no-underline">Souscrire</a>
+        </div>
+      )}
+      <div className="flex h-16 items-center justify-between px-3 sm:px-6">
       <div className="flex items-center gap-4">
         <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
         {user && (
@@ -388,6 +398,7 @@ export function Header() {
       {showExportModal && (
         <ExportModal onClose={() => setShowExportModal(false)} />
       )}
+    </div>
     </header>
   );
 }

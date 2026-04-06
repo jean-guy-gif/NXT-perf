@@ -31,150 +31,68 @@ async function enterDemo(page: Page) {
   }
 }
 
-// ═══ 1. FREEMIUM — CADENAS SIDEBAR ══════════════════════════════════════════
+// ═══ 1. ESSAI GRATUIT — ACCÈS COMPLET EN DÉMO ══════════════════════════════
 
-test.describe("1. Freemium — Cadenas sidebar", () => {
+test.describe("1. Essai gratuit — Accès complet en démo", () => {
   test.beforeEach(async ({ page }) => {
     await enterDemo(page);
   });
 
-  const lockedItems = [
-    { label: "Mes Résultats", feature: "resultats" },
-    { label: "Ma Performance", feature: "performance" },
-    { label: "Comparaison", feature: "comparaison" },
-    { label: "Ma Formation", feature: "formation" },
-    { label: "Mes Objectifs", feature: "objectifs" },
+  const pages = [
+    { label: "Mes Résultats", href: "/resultats" },
+    { label: "Ma Performance", href: "/performance" },
+    { label: "Ma Formation", href: "/formation" },
+    { label: "Mes Objectifs", href: "/objectifs" },
+    { label: "Comparaison", href: "/comparaison" },
   ];
 
-  for (const item of lockedItems) {
-    test(`1.x — Sidebar affiche un cadenas sur "${item.label}"`, async ({ page }) => {
-      const nav = page.locator("nav");
-      // In expanded sidebar, the locked item is a <button> with the label text + a Lock icon (svg) as sibling
-      // In collapsed sidebar, it's a button with title="Label (Premium)"
-      // Check for the button containing the label text with cursor-not-allowed (locked state)
-      const lockedButton = nav.locator(`button.cursor-not-allowed`).filter({ hasText: item.label });
-      const collapsedButton = nav.locator(`button[title="${item.label} (Premium)"]`);
-
-      const expandedVisible = await lockedButton.first().isVisible({ timeout: 3_000 }).catch(() => false);
-      const collapsedVisible = await collapsedButton.first().isVisible({ timeout: 1_000 }).catch(() => false);
-
-      expect(expandedVisible || collapsedVisible).toBe(true);
+  for (const p of pages) {
+    test(`1.x — "${p.label}" accessible sans cadenas (trial actif)`, async ({ page }) => {
+      await page.goto(p.href);
+      await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });
+      // No lock overlay should be visible
+      const lockOverlay = page.getByText("Débloquez");
+      const hasLock = await lockOverlay.isVisible({ timeout: 1_000 }).catch(() => false);
+      expect(hasLock).toBe(false);
     });
   }
 });
 
-// ═══ 2. FREEMIUM — OVERLAY LOCKED FEATURE ═══════════════════════════════════
+// ═══ 2. PAGE /souscrire — ESSAI GRATUIT ═══════════════════════════════════
 
-test.describe("2. Freemium — Overlay locked feature", () => {
+test.describe("2. Page /souscrire — Essai gratuit", () => {
   test.beforeEach(async ({ page }) => {
     await enterDemo(page);
   });
 
-  test("2.1 — Clic sur 'Mes Résultats' cadenassé → toast visible", async ({ page }) => {
-    const nav = page.locator("nav");
-    // Try expanded first, then collapsed
-    const expandedBtn = nav.locator("button.cursor-not-allowed").filter({ hasText: "Mes Résultats" }).first();
-    const collapsedBtn = nav.locator("button[title='Mes Résultats (Premium)']").first();
-
-    if (await expandedBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await expandedBtn.click();
-    } else {
-      await collapsedBtn.click();
-    }
-
-    // Toast message should appear
-    await expect(page.getByText(/Premium.*Souscrivez/i)).toBeVisible({ timeout: 3_000 });
-  });
-
-  test("2.2 — Toast contient 'Souscrivez'", async ({ page }) => {
-    const nav = page.locator("nav");
-    const btn = nav.locator("button.cursor-not-allowed").filter({ hasText: "Mes Résultats" }).first();
-    const collapsedBtn = nav.locator("button[title='Mes Résultats (Premium)']").first();
-
-    if (await btn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await btn.click();
-    } else {
-      await collapsedBtn.click();
-    }
-
-    await expect(page.getByText("Souscrivez")).toBeVisible({ timeout: 3_000 });
-  });
-
-  test("2.3 — Clic sur 'Ma Performance' cadenassé → toast visible", async ({ page }) => {
-    const nav = page.locator("nav");
-    const btn = nav.locator("button.cursor-not-allowed").filter({ hasText: "Ma Performance" }).first();
-    const collapsedBtn = nav.locator("button[title='Ma Performance (Premium)']").first();
-
-    if (await btn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await btn.click();
-    } else {
-      await collapsedBtn.click();
-    }
-
-    await expect(page.getByText(/Premium.*Souscrivez/i)).toBeVisible({ timeout: 3_000 });
-  });
-
-  test("2.4 — Clic sur 'Ma Formation' cadenassé → toast visible", async ({ page }) => {
-    const nav = page.locator("nav");
-    const btn = nav.locator("button.cursor-not-allowed").filter({ hasText: "Ma Formation" }).first();
-    const collapsedBtn = nav.locator("button[title='Ma Formation (Premium)']").first();
-
-    if (await btn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await btn.click();
-    } else {
-      await collapsedBtn.click();
-    }
-
-    await expect(page.getByText(/Premium.*Souscrivez/i)).toBeVisible({ timeout: 3_000 });
-  });
-});
-
-// ═══ 3. PAGE /souscrire ═════════════════════════════════════════════════════
-
-test.describe("3. Page /souscrire", () => {
-  test.beforeEach(async ({ page }) => {
-    await enterDemo(page);
-  });
-
-  test("3.1 — Page /souscrire accessible", async ({ page }) => {
+  test("2.1 — Page /souscrire accessible", async ({ page }) => {
     await page.goto("/souscrire");
-    await expect(page.getByText("Choisissez votre offre")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Accès anticipé")).toBeVisible({ timeout: 10_000 });
   });
 
-  test("3.2 — Affiche l'offre 'Conseiller Solo'", async ({ page }) => {
+  test("2.2 — Affiche 'GRATUIT'", async ({ page }) => {
     await page.goto("/souscrire");
-    await expect(page.getByText("Conseiller Solo")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("9€/mois")).toBeVisible();
+    await expect(page.getByText("GRATUIT", { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("3.3 — Affiche l'offre 'Équipe'", async ({ page }) => {
+  test("2.3 — Badge 'Bêta' visible", async ({ page }) => {
     await page.goto("/souscrire");
-    await expect(page.getByText("Équipe", { exact: false }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Populaire")).toBeVisible();
+    await expect(page.getByText("Bêta")).toBeVisible({ timeout: 10_000 });
   });
 
-  test("3.4 — Affiche l'offre 'Agence'", async ({ page }) => {
+  test("2.4 — Bouton 'Démarrer mon essai gratuit' présent", async ({ page }) => {
     await page.goto("/souscrire");
-    await expect(page.getByText("Agence", { exact: false }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /essai gratuit/i })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("3.5 — Bouton 'Choisir' présent sur chaque offre", async ({ page }) => {
+  test("2.5 — Champ code partenaire présent", async ({ page }) => {
     await page.goto("/souscrire");
-    await expect(page.getByText("Choisissez votre offre")).toBeVisible({ timeout: 10_000 });
-    const buttons = page.getByRole("button", { name: "Choisir" });
-    await expect(buttons).toHaveCount(3);
+    await expect(page.getByPlaceholder(/Code partenaire/i)).toBeVisible({ timeout: 10_000 });
   });
 
-  test("3.6 — Formulaire paiement simulé s'affiche après clic 'Choisir'", async ({ page }) => {
+  test("2.6 — Prix barré 9€/mois visible", async ({ page }) => {
     await page.goto("/souscrire");
-    await expect(page.getByText("Choisissez votre offre")).toBeVisible({ timeout: 10_000 });
-    // Click the first "Choisir" button (Conseiller Solo)
-    await page.getByRole("button", { name: "Choisir" }).first().click();
-    // Payment form should appear
-    await expect(page.getByText("Numéro de carte")).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("Expiration")).toBeVisible();
-    await expect(page.getByText("CVV")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Payer" })).toBeVisible();
+    await expect(page.getByText("9€/mois", { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 });
 
