@@ -5,6 +5,7 @@ import { Upload, FileSpreadsheet, FileText, ImageIcon, Loader2, Check, AlertCirc
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { convertExtractedToPeriodResults } from "@/lib/weekly-gate";
+import { awardBadgeIfEarned } from "@/lib/badge-service";
 import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
 
 interface ExtractedPeriod {
@@ -227,6 +228,11 @@ export function ImportPerformance({ isDemo }: ImportPerformanceProps) {
                       }, { onConflict: "user_id,period_type,period_start" });
                     }
                   }
+                }
+                // Award archiviste badge for first import
+                if (!isDemo && user?.id) {
+                  const sb = createClient();
+                  awardBadgeIfEarned(sb, user.id, "archiviste").catch(() => {});
                 }
                 setSaving(false);
                 setValidated(true);

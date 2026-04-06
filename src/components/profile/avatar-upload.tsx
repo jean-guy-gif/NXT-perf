@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
+import { awardBadgeIfEarned } from "@/lib/badge-service";
 
 interface AvatarUploadProps {
   size?: number;
@@ -61,6 +62,9 @@ export function AvatarUpload({ size = 80, className = "" }: AvatarUploadProps) {
     if (profile) {
       setProfile({ ...profile, avatar_url: publicUrl });
     }
+
+    // Award badge for profile photo
+    awardBadgeIfEarned(supabase, user.id, "visage_reussite").catch(() => {});
 
     setUploading(false);
   };

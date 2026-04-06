@@ -9,6 +9,7 @@ import { ThemePicker } from "@/components/profile/theme-picker";
 import { PersonalLogoUpload } from "@/components/profile/personal-logo-upload";
 import { PersonalThemePicker } from "@/components/profile/personal-theme-picker";
 import { createClient } from "@/lib/supabase/client";
+import { awardBadgeIfEarned } from "@/lib/badge-service";
 import { useBadges } from "@/hooks/use-badges";
 import { BadgeGrid } from "@/components/badges/badge-grid";
 
@@ -42,6 +43,7 @@ export default function ProfilParametresPage() {
     const { error } = await supabase.from("profiles").update({ coach_voice: voice }).eq("id", user.id);
     if (error) { setSavingVoice(false); return; }
     if (profile) setProfile({ ...profile, coach_voice: voice });
+    awardBadgeIfEarned(supabase, user.id, "ma_voix").catch(() => {});
     setSavingVoice(false);
     setVoiceSaved(true);
     setTimeout(() => setVoiceSaved(false), 2000);
