@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
 import { checkRateLimit } from "@/lib/rate-limit";
+
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
@@ -74,11 +76,25 @@ async function callLLM(content: string, isImage: boolean, imageBase64?: string, 
   const data = await res.json();
   const raw = data.choices?.[0]?.message?.content ?? "";
 
-  // Extract JSON from response (may be wrapped in markdown)
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("No JSON found in LLM response");
 
   return JSON.parse(jsonMatch[0]);
+}
+
+/** Extract text from PDF buffer using dynamic import to avoid module-load crash */
+async function extractPDFText(buffer: Buffer): Promise<string> {
+  try {
+    // pdf-parse crashes on static import in Next.js App Router
+    // Dynamic require avoids the module-load side effect
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
+    const result = await pdfParse(buffer);
+    return result.text;
+  } catch {
+    // Fallback: send as base64 image for LLM extraction
+    throw new Error("PDF parsing failed — try uploading as image");
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -99,9 +115,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
     }
 
+    // Size check (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "Fichier trop volumineux (max 10 Mo)" }, { status: 400 });
+    }
+
     const fileName = file.name;
     const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     let extracted;
 
@@ -115,9 +137,14 @@ export async function POST(request: NextRequest) {
       const textContent = sheets.map((s) => `--- Feuille: ${s.name} ---\n${s.data}`).join("\n\n");
       extracted = await callLLM(textContent, false);
     } else if (ext === "pdf") {
-      const parser = new PDFParse({ data: buffer });
-      const pdfResult = await parser.getText();
-      extracted = await callLLM(pdfResult.text, false);
+      try {
+        const pdfText = await extractPDFText(buffer);
+        extracted = await callLLM(pdfText, false);
+      } catch {
+        // Fallback: treat PDF as image via base64
+        const base64 = buffer.toString("base64");
+        extracted = await callLLM("", true, base64, "application/pdf");
+      }
     } else if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
       const mimeMap: Record<string, string> = {
         jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
@@ -129,12 +156,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Type de fichier non supporté: .${ext}` }, { status: 400 });
     }
 
-    // Save to DB
+    // Save to DB (best-effort, don't fail if table doesn't exist yet)
     const periods = (extracted.periods ?? []).map(
       (p: { year: number; month: number | null }) => `${p.year}-${p.month ?? "annual"}`
     );
 
-    const { error: insertErr } = await supabase.from("performance_imports").insert({
+    await supabase.from("performance_imports").insert({
       user_id: user.id,
       file_name: fileName,
       file_type: ext,
@@ -142,9 +169,6 @@ export async function POST(request: NextRequest) {
       extracted_data: extracted,
       periods_detected: periods,
     });
-    if (insertErr) {
-      return NextResponse.json({ error: "Échec de sauvegarde" }, { status: 500 });
-    }
 
     return NextResponse.json(extracted);
   } catch (err) {
