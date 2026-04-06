@@ -2,6 +2,10 @@
 
 import { useState, useRef } from "react";
 import { Upload, FileSpreadsheet, FileText, ImageIcon, Loader2, Check, AlertCircle, X } from "lucide-react";
+import { useAppStore } from "@/stores/app-store";
+import { createClient } from "@/lib/supabase/client";
+import { convertExtractedToPeriodResults } from "@/lib/weekly-gate";
+import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
 
 interface ExtractedPeriod {
   year: number;
@@ -44,7 +48,10 @@ const METRIC_LABELS: Record<string, string> = {
 export function ImportPerformance({ isDemo }: ImportPerformanceProps) {
   const [results, setResults] = useState<ImportResult[]>([]);
   const [validated, setValidated] = useState(false);
+  const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const user = useAppStore((s) => s.user);
+  const addResults = useAppStore((s) => s.addResults);
 
   const handleFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -184,10 +191,49 @@ export function ImportPerformance({ isDemo }: ImportPerformanceProps) {
           {results.some(r => r.status === "extracted") && (
             <button
               type="button"
-              onClick={() => setValidated(true)}
-              className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                // Persist extracted data to store (and Supabase if not demo)
+                for (const r of results.filter(r => r.status === "extracted" && r.data)) {
+                  for (const period of r.data!.periods) {
+                    const m = period.metrics;
+                    const fields: ExtractedFields = {
+                      contactsEntrants: m.contacts_entrants ?? undefined,
+                      mandatsSignes: m.mandats_signes ?? undefined,
+                      nombreVisites: m.visites_realisees ?? undefined,
+                      offresRecues: m.offres_recues ?? undefined,
+                      compromisSignes: m.compromis_signes ?? undefined,
+                      actesSignes: m.actes_signes ?? undefined,
+                      chiffreAffaires: m.ca_encaisse ?? undefined,
+                    };
+                    const arrays: ExtractedArrays = { mandats: [], informationsVente: [], acheteursChauds: [] };
+                    const userId = user?.id ?? "unknown";
+                    const periodResult = convertExtractedToPeriodResults(userId, fields, arrays);
+                    addResults(periodResult);
+                    if (!isDemo && user?.id) {
+                      const supabase = createClient();
+                      await supabase.from("period_results").upsert({
+                        user_id: user.id,
+                        period_type: periodResult.periodType,
+                        period_start: periodResult.periodStart,
+                        period_end: periodResult.periodEnd,
+                        data: {
+                          prospection: periodResult.prospection,
+                          vendeurs: periodResult.vendeurs,
+                          acheteurs: periodResult.acheteurs,
+                          ventes: periodResult.ventes,
+                        },
+                      }, { onConflict: "user_id,period_type,period_start" });
+                    }
+                  }
+                }
+                setSaving(false);
+                setValidated(true);
+              }}
+              className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Valider ces données
+              {saving ? "Enregistrement..." : "Valider ces données"}
             </button>
           )}
         </div>

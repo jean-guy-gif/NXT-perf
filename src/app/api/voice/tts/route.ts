@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
 
   const { voiceId } = getVoiceId(persona);
 
+  // Normalize abbreviations for natural TTS reading
+  const normalizedText = text.trim()
+    .replace(/\bRDV\b/gi, "rendez-vous")
+    .replace(/\bCA\b/g, "chiffre d'affaires")
+    .replace(/\bKPI\b/gi, "indicateur clé")
+    .replace(/\bNXT\b/g, "Next")
+    .replace(/€/g, " euros")
+    .replace(/%/g, " pourcent")
+    .replace(/(\d+)\/(\d+)/g, "$1 sur $2");
+
   try {
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
@@ -62,7 +72,7 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: text.trim(),
+          text: normalizedText,
           model_id: MODEL_ID,
         }),
       },

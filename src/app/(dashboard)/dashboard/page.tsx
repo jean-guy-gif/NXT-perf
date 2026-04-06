@@ -51,7 +51,6 @@ const emptyActivityData: Array<{ day: string; contacts: number; visites: number 
 import { useAppStore } from "@/stores/app-store";
 import { useWeeklyGate } from "@/hooks/use-weekly-gate";
 import { WeeklyGateWrapper } from "@/components/dashboard/weekly-gate-wrapper";
-import { VocalButton } from "@/components/vocal/VocalButton";
 import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
 import type { RatioId } from "@/types/ratios";
@@ -427,7 +426,6 @@ function DashboardContent() {
           )}
         </button>
         </div>
-        <VocalButton className="ml-auto" />
         {showResumeButton && (
           <button
             type="button"

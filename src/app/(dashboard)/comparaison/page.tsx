@@ -15,7 +15,7 @@ import type { RatioId } from "@/types/ratios";
 import type { ComputedRatio } from "@/types/ratios";
 
 type CompareMode = "advisor" | "profile";
-type TabType = "interne" | "temporel" | "dpi";
+type TabType = "interne" | "temporel" | "dpi" | "classement";
 
 function getPerformanceIndicator(ratio: ComputedRatio) {
   const pct = ratio.percentageOfTarget;
@@ -165,7 +165,23 @@ export default function ComparaisonPage() {
         >
           Comparaison DPI
         </button>
+        <button
+          onClick={() => setTab("classement")}
+          className={cn(
+            "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            tab === "classement"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Classement NXT
+        </button>
       </div>
+
+      {/* ========== CLASSEMENT NXT ========== */}
+      {tab === "classement" && (
+        <LeaderboardSection currentUserId={user?.id ?? ""} currentUserFirstName={user?.firstName ?? ""} />
+      )}
 
       {/* ========== INTERNE ========== */}
       {tab === "interne" && (
@@ -441,5 +457,89 @@ export default function ComparaisonPage() {
       )}
     </div>
     </LockedFeature>
+  );
+}
+
+// ── Classement NXT anonyme ──────────────────────────────────────────────────
+
+function LeaderboardSection({ currentUserId, currentUserFirstName }: { currentUserId: string; currentUserFirstName: string }) {
+  const isDemo = useAppStore((s) => s.isDemo);
+  const allResults = useAllResults();
+  const users = useAppStore((s) => s.users);
+
+  // In demo mode: build leaderboard from mock data
+  const leaderboard = useMemo(() => {
+    const conseillers = users.filter((u) => u.role === "conseiller" || u.role === "manager");
+    const entries = conseillers.map((u) => {
+      const userResults = allResults.filter((r) => r.userId === u.id);
+      const totalCA = userResults.reduce((sum, r) => sum + (r.ventes?.chiffreAffaires ?? 0), 0);
+      const totalMandats = userResults.reduce((sum, r) => sum + (r.vendeurs?.mandatsSignes ?? 0), 0);
+      const totalActes = userResults.reduce((sum, r) => sum + (r.ventes?.actesSignes ?? 0), 0);
+      return { userId: u.id, prenom: u.firstName, ca: totalCA, mandats: totalMandats, actes: totalActes };
+    });
+    return entries.sort((a, b) => b.ca - a.ca).slice(0, 20);
+  }, [users, allResults]);
+
+  const currentUserRank = leaderboard.findIndex((e) => e.userId === currentUserId);
+  const currentEntry = leaderboard.find((e) => e.userId === currentUserId);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-foreground">Classement NXT Performance — Top 20</h2>
+        <p className="text-xs text-muted-foreground">Comparaison anonyme entre conseillers NXT — Prénoms uniquement</p>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <th className="px-4 py-2.5">#</th>
+              <th className="px-4 py-2.5">Prénom</th>
+              <th className="px-4 py-2.5 text-right">CA</th>
+              <th className="px-4 py-2.5 text-right hidden sm:table-cell">Mandats</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leaderboard.map((entry, idx) => {
+              const isMe = entry.userId === currentUserId;
+              return (
+                <tr key={entry.userId} className={cn(
+                  "border-b border-border/50 last:border-0",
+                  isMe && "bg-primary/10 font-semibold"
+                )}>
+                  <td className="px-4 py-2.5">
+                    <span className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold",
+                      idx === 0 ? "bg-amber-500/20 text-amber-500" :
+                      idx === 1 ? "bg-slate-400/20 text-slate-400" :
+                      idx === 2 ? "bg-orange-600/20 text-orange-600" :
+                      "bg-muted text-muted-foreground"
+                    )}>
+                      {idx + 1}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-foreground">
+                    {isMe ? `${entry.prenom} (vous)` : entry.prenom}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-foreground">
+                    {entry.ca.toLocaleString("fr-FR")} €
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-muted-foreground hidden sm:table-cell">
+                    {entry.mandats}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {currentUserRank === -1 && currentUserFirstName && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          Votre position : #{leaderboard.length + 1} — CA : {currentEntry?.ca?.toLocaleString("fr-FR") ?? 0} €
+        </div>
+      )}
+    </div>
   );
 }
