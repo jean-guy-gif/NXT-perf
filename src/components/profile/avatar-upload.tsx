@@ -71,8 +71,9 @@ export function AvatarUpload({ size = 80, className = "" }: AvatarUploadProps) {
     setDeleting(true);
     const supabase = createClient();
 
-    // Remove file from storage
-    await supabase.storage.from("avatars").remove([`${user.id}/avatar.webp`]);
+    // Remove all possible avatar files from storage
+    const filesToRemove = ["webp", "jpg", "jpeg", "png"].map((ext) => `${user.id}/avatar.${ext}`);
+    await supabase.storage.from("avatars").remove(filesToRemove);
 
     // Update profile to clear avatar_url
     const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);

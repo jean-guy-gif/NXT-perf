@@ -127,8 +127,25 @@ export default function OnboardingIdentitePage() {
       const previewUrl = URL.createObjectURL(compressed);
       setAvatarPreview(previewUrl);
 
+      // Demo mode: store preview locally only, no Supabase upload
+      if (isDemo) {
+        setAvatarDone(true);
+        setAvatarFile(null);
+        setAvatarUploading(false);
+        return;
+      }
+
       const supabase = createClient();
-      const path = `${user.id}/avatar.webp`;
+
+      // Verify auth session before upload
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        setError("Session expirée — veuillez vous reconnecter");
+        setAvatarUploading(false);
+        return;
+      }
+
+      const path = `${authUser.id}/avatar.webp`;
       const { error: upErr } = await supabase.storage
         .from("avatars")
         .upload(path, compressed, { upsert: true, contentType: "image/webp" });
@@ -140,7 +157,7 @@ export default function OnboardingIdentitePage() {
       }
 
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
-      const { error: profErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+      const { error: profErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", authUser.id);
       if (profErr) { setError(`Erreur profil : ${profErr.message}`); setAvatarUploading(false); return; }
       if (profile) setProfile({ ...profile, avatar_url: publicUrl });
 
@@ -155,7 +172,7 @@ export default function OnboardingIdentitePage() {
     } finally {
       setAvatarUploading(false);
     }
-  }, [user?.id, profile, setProfile]);
+  }, [user?.id, isDemo, profile, setProfile]);
 
   // ── Logo upload ────────────────────────────────────────────────────────
   // If user has org_id → upload to logos/{org_id}/ and update organizations.logo_url
@@ -174,6 +191,13 @@ export default function OnboardingIdentitePage() {
       // Extract colors from local Blob BEFORE upload (avoids CORS issues)
       const { primary, secondary, dark, light } = await extractAgencyColorsFromBlob(blob);
       applyAgencyTheme(primary, secondary, dark, light);
+
+      // Demo mode: store preview locally only, no Supabase upload
+      if (isDemo) {
+        setLogoDone(true);
+        setLogoUploading(false);
+        return;
+      }
 
       const supabase = createClient();
 
