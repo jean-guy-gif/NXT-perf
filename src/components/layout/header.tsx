@@ -132,7 +132,7 @@ export function Header() {
   };
 
   return (
-    <header className="relative z-40 flex flex-col border-b border-border bg-card/50 backdrop-blur-sm">
+    <header className="relative z-40 flex flex-col border-b border-[var(--agency-primary,#6C5CE7)]/30 bg-card/50 backdrop-blur-sm">
       {/* Trial expiry banner */}
       {isTrial && trialDaysLeft !== null && trialDaysLeft <= 7 && trialDaysLeft > 0 && (
         <div className="flex items-center justify-center gap-2 bg-amber-500/10 px-3 py-1 text-xs text-amber-600">
@@ -142,7 +142,7 @@ export function Header() {
       )}
       <div className="flex h-16 items-center justify-between px-3 sm:px-6">
       <div className="flex items-center gap-4">
-        <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-foreground">{pageTitle}</h1>
+        <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-agency-primary">{pageTitle}</h1>
         {user && (
           <span
             className={cn(

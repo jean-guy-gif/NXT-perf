@@ -119,7 +119,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <nav data-tour="sidebar" className={cn(
-      "flex h-full flex-col overflow-y-auto bg-sidebar py-4",
+      "flex h-full flex-col overflow-y-auto py-4 bg-[var(--agency-dark,#1A1A2E)]",
       collapsed ? "items-center px-2" : "px-3"
     )}>
       {/* Profile avatar */}
@@ -141,7 +141,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <div className="h-10 w-10 flex-shrink-0 animate-pulse rounded-full bg-muted" />
         )}
         {!collapsed && (
-          <span className="text-sm font-bold tracking-tight text-foreground whitespace-nowrap overflow-hidden">
+          <span className="text-sm font-bold tracking-tight text-agency-primary whitespace-nowrap overflow-hidden">
             {user ? `${user.firstName} ${user.lastName}` : "Chargement…"}
           </span>
         )}

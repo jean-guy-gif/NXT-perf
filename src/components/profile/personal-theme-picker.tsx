@@ -61,7 +61,7 @@ export function PersonalThemePicker() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Palette className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold text-foreground">Th\u00e8me personnel</h3>
+        <h3 className="text-sm font-semibold text-foreground">Thème personnel</h3>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -103,12 +103,12 @@ export function PersonalThemePicker() {
 
       <div className="flex items-center gap-3 rounded-lg border border-border p-3">
         <div className="h-10 w-10 rounded-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }} />
-        <div className="text-xs text-muted-foreground">Aper\u00e7u du d\u00e9grad\u00e9</div>
+        <div className="text-xs text-muted-foreground">Aperçu du dégradé</div>
       </div>
 
       <button type="button" onClick={handleSave} disabled={saving}
         className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
-        {saved ? "Th\u00e8me sauvegard\u00e9 \u2713" : saving ? "Enregistrement\u2026" : "Appliquer le th\u00e8me"}
+        {saved ? "Thème sauvegardé ✓" : saving ? "Enregistrement…" : "Appliquer le thème"}
       </button>
     </div>
   );

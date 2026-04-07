@@ -270,6 +270,10 @@ export function applyAgencyTheme(primary: string, secondary: string, dark?: stri
   root.style.setProperty("--agency-dark", darkValue);
   root.style.setProperty("--agency-light", lightValue);
 
+  // Sync --primary (Tailwind) with --agency-primary so bg-primary/text-primary follow the theme
+  root.style.setProperty("--primary", primary);
+  root.style.setProperty("--ring", primary);
+
   // In dark mode, override --background for full-screen dark tone
   if (root.classList.contains("dark")) {
     root.style.setProperty("--background", darkValue);
@@ -282,6 +286,8 @@ export function resetToDefaultTheme(): void {
   root.style.setProperty("--agency-secondary", DEFAULT_SECONDARY);
   root.style.setProperty("--agency-dark", DEFAULT_DARK);
   root.style.setProperty("--agency-light", DEFAULT_LIGHT);
+  root.style.setProperty("--primary", DEFAULT_PRIMARY);
+  root.style.setProperty("--ring", DEFAULT_PRIMARY);
 
   // Reset --background to CSS default
   root.style.removeProperty("--background");

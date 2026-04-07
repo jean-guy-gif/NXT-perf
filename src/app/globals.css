@@ -99,7 +99,7 @@
   --chart-3: oklch(0.555 0.27 295);
   --chart-4: oklch(0.78 0.155 60);
   --chart-5: oklch(0.66 0.18 30);
-  --sidebar: color-mix(in srgb, var(--agency-light) 30%, oklch(0.978 0.006 264));
+  --sidebar: color-mix(in srgb, var(--agency-light) 40%, oklch(0.978 0.006 264));
   --sidebar-foreground: oklch(0.17 0.025 250);
   --sidebar-primary: oklch(0.585 0.22 264);
   --sidebar-primary-foreground: oklch(1 0 0);
