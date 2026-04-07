@@ -21,6 +21,7 @@ import {
   Wallet,
   FileText,
 } from "lucide-react";
+import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 
 type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement";
 
@@ -93,6 +94,12 @@ export default function FormationPage() {
     <LockedFeature feature="formation" featureName="Ma Formation" featureDescription="Accédez à votre plan de formation personnalisé">
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Ma Formation</h1>
+
+      {/* Outils pour progresser */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Outils pour progresser</h2>
+        <ImprovementCatalogue />
+      </section>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">

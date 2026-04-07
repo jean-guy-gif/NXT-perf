@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { LockedFeature } from "@/components/subscription/locked-feature";
+import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
@@ -61,6 +62,7 @@ export default function PerformancePage() {
   const { computedRatios, ratioConfigs } = useRatios();
   const results = useResults();
   const [selectedRatioId, setSelectedRatioId] = useState<RatioId | null>(null);
+  const [expandedRatio, setExpandedRatio] = useState<string | null>(null);
   const [viewMode, setViewMode] = usePersistedState<"chiffres" | "pourcentages">("nxt-perf-view-mode", "chiffres");
   const isDemo = useAppStore((s) => s.isDemo);
 
@@ -251,6 +253,33 @@ export default function PerformancePage() {
                       : `${ratio.thresholdForCategory} ${config.unit}`}
                   </span>
                 </div>
+
+                {/* Améliorer ce ratio — only for warning/danger */}
+                {(ratio.status === "warning" || ratio.status === "danger") && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedRatio(expandedRatio === ratio.ratioId ? null : ratio.ratioId);
+                      }}
+                      className="mt-3 w-full text-xs font-medium text-primary hover:text-primary/80 transition-colors text-left"
+                    >
+                      {expandedRatio === ratio.ratioId ? "Fermer ✕" : "Améliorer ce ratio →"}
+                    </button>
+                    {expandedRatio === ratio.ratioId && (
+                      <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Votre {config.name.split("→")[0].trim().toLowerCase()} est à {Math.round(ratio.percentageOfTarget)}% de l'objectif {CATEGORY_LABELS[category]}.
+                        </p>
+                        <ImprovementCatalogue
+                          gap={100 - ratio.percentageOfTarget}
+                          ratioName={config.name.split("→")[0].trim().toLowerCase()}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
 
               </div>
             );
