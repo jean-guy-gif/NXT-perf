@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { GuidedTour } from "@/components/tour/guided-tour";
 import { getTourStatus, getTourSteps, getTourRole, persistTourCompleted } from "@/lib/guided-tour";
 import { applyAgencyTheme, resetToDefaultTheme } from "@/lib/agency-theme";
+import { BadgeCelebration } from "@/components/badges/badge-celebration";
 
 const SIDEBAR_KEY = "nxt-sidebar-collapsed";
 
@@ -228,6 +229,8 @@ export default function DashboardLayout({
           }}
         />
       )}
+
+      <BadgeCelebration />
     </div>
   );
 }

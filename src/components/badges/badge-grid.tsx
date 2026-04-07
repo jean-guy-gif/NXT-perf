@@ -1,7 +1,9 @@
 "use client";
 
 import { BADGES, BADGE_CATEGORIES } from "@/lib/badges";
+import type { BadgeKey } from "@/lib/badges";
 import type { DbBadge } from "@/lib/badge-service";
+import { useBadgeStore } from "@/stores/badge-store";
 import { cn } from "@/lib/utils";
 
 interface BadgeGridProps {
@@ -53,6 +55,15 @@ export function BadgeGrid({ earnedBadges }: BadgeGridProps) {
                     <p className="text-[9px] text-muted-foreground leading-tight">{badge.description}</p>
                     {earned && earnedAt && (
                       <p className="text-[8px] text-primary mt-0.5">{formatDate(earnedAt)}</p>
+                    )}
+                    {earned && (
+                      <button
+                        type="button"
+                        onClick={() => useBadgeStore.getState().queueCelebrations([badge.key as BadgeKey])}
+                        className="text-[8px] text-muted-foreground hover:text-primary transition-colors mt-0.5"
+                      >
+                        Revoir
+                      </button>
                     )}
                   </div>
                 );

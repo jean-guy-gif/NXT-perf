@@ -7,6 +7,7 @@ import { useWeeklyGate } from "@/hooks/use-weekly-gate";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { checkAndAwardBadges } from "@/lib/badge-service";
+import { useBadgeStore } from "@/stores/badge-store";
 
 export default function SaisiePage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function SaisiePage() {
         // Check and award badges based on latest results
         const latestResult = results.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
         if (latestResult) {
-          await checkAndAwardBadges(
+          const newBadges = await checkAndAwardBadges(
             supabase,
             user.id,
             { avatar_url: profile?.avatar_url, agency_logo_url: profile?.agency_logo_url, coach_voice: profile?.coach_voice },
@@ -48,6 +49,9 @@ export default function SaisiePage() {
             { mandatsSignes: latestResult.vendeurs.mandatsSignes },
             { contactsEntrants: latestResult.prospection.contactsEntrants },
           );
+          if (newBadges.length > 0) {
+            useBadgeStore.getState().queueCelebrations(newBadges);
+          }
         }
       } catch { /* best-effort */ }
     }
