@@ -28,6 +28,9 @@ import { getHumanScore, getGlobalScore } from "@/lib/scoring";
 import { formatBenchmark } from "@/data/mock-benchmark";
 import { useAppStore } from "@/stores/app-store";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { useSupabase } from "@/hooks/use-supabase";
+import { PERFORMANCE_BADGES, LEVEL_EMOJI } from "@/lib/performance-badge-service";
+import type { DbPerformanceBadge } from "@/lib/performance-badge-service";
 import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
 
 const statusConfig = {
@@ -65,6 +68,14 @@ export default function PerformancePage() {
   const [expandedRatio, setExpandedRatio] = useState<string | null>(null);
   const [viewMode, setViewMode] = usePersistedState<"chiffres" | "pourcentages">("nxt-perf-view-mode", "chiffres");
   const isDemo = useAppStore((s) => s.isDemo);
+  const supabase = useSupabase();
+  const [perfBadges, setPerfBadges] = useState<DbPerformanceBadge[]>([]);
+
+  useEffect(() => {
+    if (isDemo || !user?.id) return;
+    supabase.from("performance_badges").select("*").eq("user_id", user.id).eq("is_active", true)
+      .then(({ data }) => { if (data) setPerfBadges(data as DbPerformanceBadge[]); });
+  }, [supabase, isDemo, user?.id]);
 
   useEffect(() => {
     if (isDemo && user?.id) {
@@ -185,7 +196,19 @@ export default function PerformancePage() {
                   sc.border
                 )}
               >
-                {/* Header with status */}
+                {/* Header with status + performance badge */}
+                {(() => {
+                  const matchedPerfBadge = perfBadges.find((pb) => {
+                    const def = PERFORMANCE_BADGES.find((d) => d.key === pb.badge_key);
+                    return def && config.name.toLowerCase().includes(def.name.toLowerCase().split(" ")[0].toLowerCase());
+                  });
+                  return matchedPerfBadge ? (
+                    <div className="flex items-center gap-1 text-[10px] text-primary/70 mb-1">
+                      <span>{PERFORMANCE_BADGES.find((d) => d.key === matchedPerfBadge.badge_key)?.emoji}</span>
+                      <span>{LEVEL_EMOJI[matchedPerfBadge.level]}</span>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold text-foreground leading-tight">
