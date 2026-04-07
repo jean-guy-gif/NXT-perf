@@ -26,6 +26,7 @@ import {
 import { getHumanScore, getGlobalScore } from "@/lib/scoring";
 import { formatBenchmark } from "@/data/mock-benchmark";
 import { useAppStore } from "@/stores/app-store";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
 
 const statusConfig = {
@@ -60,6 +61,7 @@ export default function PerformancePage() {
   const { computedRatios, ratioConfigs } = useRatios();
   const results = useResults();
   const [selectedRatioId, setSelectedRatioId] = useState<RatioId | null>(null);
+  const [viewMode, setViewMode] = usePersistedState<"chiffres" | "pourcentages">("nxt-perf-view-mode", "chiffres");
   const isDemo = useAppStore((s) => s.isDemo);
 
   useEffect(() => {
@@ -142,86 +144,20 @@ export default function PerformancePage() {
         )}
       </div>
 
-      {/* Summary KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Overall Score */}
-        <div
-          className={cn(
-            "rounded-xl border p-5",
-            statusConfig[overallStatus].border,
-            statusConfig[overallStatus].bg
-          )}
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-muted-foreground">
-              Score global
-            </p>
-            <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", globalScore.bgColor, globalScore.color)}>
-              {globalScore.label}
-            </span>
-          </div>
-          <p
-            className={cn(
-              "mt-2 text-4xl font-bold",
-              statusConfig[overallStatus].color
-            )}
-          >
-            {overallPerformance}%
-          </p>
-          <ProgressBar
-            value={overallPerformance}
-            status={overallStatus}
-            showValue={false}
-            className="mt-3"
-          />
-        </div>
-
-        {/* Status counts */}
-        <div className="rounded-xl border border-green-500/25 bg-card p-5">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <p className="text-sm font-medium text-muted-foreground">
-              Conformes
-            </p>
-          </div>
-          <p className="mt-2 text-3xl font-bold text-green-500">
-            {statusCounts.ok}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            ratio(s) dans l&apos;objectif
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-orange-500/25 bg-card p-5">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-            <p className="text-sm font-medium text-muted-foreground">
-              Vigilance
-            </p>
-          </div>
-          <p className="mt-2 text-3xl font-bold text-orange-500">
-            {statusCounts.warning}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            ratio(s) en vigilance
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-red-500/25 bg-card p-5">
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-500" />
-            <p className="text-sm font-medium text-muted-foreground">
-              Sous-perf.
-            </p>
-          </div>
-          <p className="mt-2 text-3xl font-bold text-red-500">
-            {statusCounts.danger}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            ratio(s) en alerte
-          </p>
-        </div>
+      {/* Toggle Chiffres / Pourcentages */}
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        <button type="button" onClick={() => setViewMode("chiffres")}
+          className={cn("rounded-md px-4 py-1.5 text-xs font-medium transition-colors",
+            viewMode === "chiffres" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+          Chiffres
+        </button>
+        <button type="button" onClick={() => setViewMode("pourcentages")}
+          className={cn("rounded-md px-4 py-1.5 text-xs font-medium transition-colors",
+            viewMode === "pourcentages" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+          Pourcentages
+        </button>
       </div>
+
 
       {/* Ratios Detail Grid */}
       <div>
@@ -275,11 +211,15 @@ export default function PerformancePage() {
 
                 {/* Current Value */}
                 <p className={cn("mt-3 text-3xl font-bold", sc.color)}>
-                  {config.isPercentage
-                    ? `${Math.round(ratio.value)}%`
-                    : ratio.value.toFixed(1)}
+                  {viewMode === "pourcentages"
+                    ? `${Math.round(ratio.percentageOfTarget)}%`
+                    : config.isPercentage
+                      ? `${Math.round(ratio.value)}%`
+                      : ratio.value.toFixed(1)}
                 </p>
-                <p className="text-xs text-muted-foreground">{config.unit}</p>
+                <p className="text-xs text-muted-foreground">
+                  {viewMode === "pourcentages" ? "de l'objectif" : config.unit}
+                </p>
 
                 {/* Progress */}
                 {/* Scoring badge */}
