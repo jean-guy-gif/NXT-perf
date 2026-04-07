@@ -81,11 +81,6 @@ const conseillerSteps: TourStep[] = [
     description: "Ici, tu suis ta performance à travers tes 7 ratios clés. Chaque ratio t'indique si tu es conforme, en attention ou en zone critique.",
   },
   {
-    target: '[href="/objectifs"]',
-    title: "Tes objectifs",
-    description: "Ici, tu suis tes objectifs et tu visualises le chemin qui te reste pour les atteindre, étape par étape.",
-  },
-  {
     target: '[href="/formation"]',
     title: "Ta formation",
     description: "Ici, tu identifies tes axes de progression prioritaires et les formations recommandées en fonction de tes ratios.",
@@ -101,11 +96,6 @@ const managerSteps: TourStep[] = [
     target: '[href="/manager/cockpit"]',
     title: "Ton cockpit manager",
     description: "Ici, tu suis les résultats de ton équipe en un coup d'oeil : KPI collectifs, suivi des contacts et acheteurs chauds, alertes de performance.",
-  },
-  {
-    target: '[href="/manager/gps"]',
-    title: "GPS Équipe",
-    description: "Ici, tu compares les performances individuelles de tes conseillers sur chaque indicateur clé et tu identifies rapidement les écarts.",
   },
   {
     target: '[href="/manager/equipe"]',
@@ -133,11 +123,6 @@ const directeurSteps: TourStep[] = [
     target: '[href="/directeur/pilotage"]',
     title: "Pilotage agence",
     description: "Ici, tu visualises la performance globale de ton agence : objectifs, réalisé, écart et projection sur chaque indicateur clé.",
-  },
-  {
-    target: '[href="/directeur/gps"]',
-    title: "GPS Agence",
-    description: "Ici, tu saisis ton objectif agence et tu suis ton GPS personnel et celui de l'agence.",
   },
   {
     target: '[href="/directeur/equipes"]',

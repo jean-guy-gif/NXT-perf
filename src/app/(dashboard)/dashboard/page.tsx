@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { GpsPilotage } from "@/components/dashboard/gps-pilotage";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -1314,6 +1315,14 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========== GPS PILOTAGE (Ce mois) ========== */}
+      {activeTab === "mois" && user && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-foreground mb-3">GPS Pilotage</h3>
+          <GpsPilotage scope="individual" userId={user.id} />
         </div>
       )}
 

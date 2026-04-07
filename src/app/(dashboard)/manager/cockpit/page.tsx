@@ -38,6 +38,7 @@ import type { FormationArea } from "@/types/formation";
 import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
+import { GpsPilotage } from "@/components/dashboard/gps-pilotage";
 
 /* ────── Clickable badge with popover ────── */
 type StatutGroupData = {
@@ -522,16 +523,21 @@ export default function CockpitPage() {
     );
   }
 
+  const [gpsView, setGpsView] = usePersistedState<"equipe" | "individuel">(
+    "nxt-manager-gps-view", "equipe"
+  );
+  const [selectedUserId, setSelectedUserId] = useState(conseillers[0]?.id ?? "");
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Cockpit Manager
+            Mon Tableau de Bord
           </h1>
           <p className="text-sm text-muted-foreground">
-            Vue synthétique de la performance de votre équipe
+            Performance de votre équipe
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5">
@@ -540,6 +546,39 @@ export default function CockpitPage() {
             {teamData.advisorCount} conseillers
           </span>
         </div>
+      </div>
+
+      {/* GPS Pilotage toggle */}
+      <div className="space-y-3">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
+          <button type="button" onClick={() => setGpsView("equipe")}
+            className={cn("rounded-md px-4 py-2 text-sm font-medium transition-colors", gpsView === "equipe" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            Équipe
+          </button>
+          <button type="button" onClick={() => setGpsView("individuel")}
+            className={cn("rounded-md px-4 py-2 text-sm font-medium transition-colors", gpsView === "individuel" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            Par collaborateur
+          </button>
+        </div>
+
+        {gpsView === "equipe" && (
+          <GpsPilotage scope="team" teamId={currentUser?.teamId ?? undefined} />
+        )}
+
+        {gpsView === "individuel" && (
+          <div className="space-y-3">
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            >
+              {conseillers.map((c) => (
+                <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+              ))}
+            </select>
+            {selectedUserId && <GpsPilotage scope="individual" userId={selectedUserId} />}
+          </div>
+        )}
       </div>
 
       {/* ── Team Recommendations ── */}
