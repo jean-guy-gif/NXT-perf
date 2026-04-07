@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAppStore } from "@/stores/app-store";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
@@ -23,7 +24,7 @@ import {
 } from "lucide-react";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 
-type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement";
+type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement" | "catalogue";
 
 const priorityConfig = {
   1: { label: "P1", color: "bg-red-500/20 text-red-500", border: "border-red-500/30" },
@@ -150,6 +151,18 @@ export default function FormationPage() {
         >
           <Wallet className="h-4 w-4" />
           Financement
+        </button>
+        <button
+          onClick={() => setActiveTab("catalogue")}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            activeTab === "catalogue"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <ExternalLink className="h-4 w-4" />
+          Catalogue
         </button>
       </div>
 
@@ -516,6 +529,11 @@ export default function FormationPage() {
         </div>
       )}
 
+      {/* ========== CATALOGUE ========== */}
+      {activeTab === "catalogue" && (
+        <CatalogueTab />
+      )}
+
       {/* AGEFICE Wizard Modal */}
       {showAgeficeWizard && (
         <AgeficeWizard
@@ -525,5 +543,68 @@ export default function FormationPage() {
       )}
     </div>
     </LockedFeature>
+  );
+}
+
+function CatalogueTab() {
+  const profile = useAppStore((s) => s.profile);
+  const networks = useAppStore((s) => s.networks);
+  const [iframeError, setIframeError] = useState(false);
+
+  // Find catalogue URL from user's network if available
+  const userNetwork = networks.find((n) =>
+    n.institutionIds.includes(profile?.org_id ?? "")
+  );
+  const catalogueUrl = (userNetwork as { catalogue_url?: string } | undefined)?.catalogue_url
+    || "https://www.start-academy.fr/consultez-catalogue-formation-immobiliere/";
+
+  if (iframeError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+        <BookOpen className="h-10 w-10 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">
+          Le catalogue ne peut pas être affiché directement.
+        </p>
+        <a
+          href={catalogueUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ouvrir le catalogue
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Catalogue de formations professionnelles</p>
+        <a href={catalogueUrl} target="_blank" rel="noopener noreferrer"
+          className="text-xs text-primary hover:text-primary/80 flex items-center gap-1">
+          Ouvrir dans un nouvel onglet <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+      <div className="rounded-xl border border-border overflow-hidden">
+        <iframe
+          src={catalogueUrl}
+          className="w-full border-0"
+          style={{ height: "calc(100vh - 280px)", minHeight: 400 }}
+          onError={() => setIframeError(true)}
+          onLoad={(e) => {
+            // Detect X-Frame-Options block (iframe loads but content is blank)
+            try {
+              const frame = e.currentTarget;
+              if (frame.contentDocument?.title === "") setIframeError(true);
+            } catch {
+              // Cross-origin — iframe loaded successfully (can't access contentDocument)
+            }
+          }}
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+        />
+      </div>
+    </div>
   );
 }
