@@ -1,10 +1,13 @@
 "use client";
 
-import { Bell, CheckCheck } from "lucide-react";
+import { useState } from "react";
+import { Bell, CheckCheck, Check } from "lucide-react";
 import { useNotifications } from "@/hooks/use-notifications";
-import { NOTIFICATION_ICONS } from "@/types/notifications";
+import { NOTIFICATION_ICONS, getAgingLevel } from "@/types/notifications";
 import type { NotificationType, DbNotification } from "@/types/notifications";
 import { cn } from "@/lib/utils";
+
+type FilterMode = "all" | "unresolved" | "resolved";
 
 function formatRelativeDate(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -44,7 +47,8 @@ function groupByDate(notifs: DbNotification[]): { label: string; items: DbNotifi
 }
 
 export default function NotificationsPage() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications();
+  const { notifications, unresolvedCount, markAllAsRead, markAsResolved, loading } = useNotifications();
+  const [filter, setFilter] = useState<FilterMode>("unresolved");
 
   if (loading) {
     return (
@@ -54,7 +58,13 @@ export default function NotificationsPage() {
     );
   }
 
-  const groups = groupByDate(notifications);
+  const filtered = notifications.filter((n) => {
+    if (filter === "unresolved") return !n.resolved_at;
+    if (filter === "resolved") return !!n.resolved_at;
+    return true;
+  });
+
+  const groups = groupByDate(filtered);
 
   return (
     <div className="space-y-6">
@@ -65,10 +75,10 @@ export default function NotificationsPage() {
             <Bell className="h-5 w-5" /> Notifications
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? "s" : ""}` : "Tout est lu"}
+            {unresolvedCount > 0 ? `${unresolvedCount} non traitée${unresolvedCount > 1 ? "s" : ""}` : "Tout est traité"}
           </p>
         </div>
-        {unreadCount > 0 && (
+        {unresolvedCount > 0 && (
           <button
             type="button"
             onClick={markAllAsRead}
@@ -80,11 +90,28 @@ export default function NotificationsPage() {
         )}
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        {([
+          { key: "all" as FilterMode, label: "Toutes" },
+          { key: "unresolved" as FilterMode, label: "Non traitées" },
+          { key: "resolved" as FilterMode, label: "Traitées" },
+        ]).map((f) => (
+          <button key={f.key} type="button" onClick={() => setFilter(f.key)}
+            className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              filter === f.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Empty state */}
-      {notifications.length === 0 && (
+      {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Bell className="h-10 w-10 text-muted-foreground/30 mb-4" />
-          <p className="text-sm text-muted-foreground">Aucune notification pour le moment</p>
+          <p className="text-sm text-muted-foreground">
+            {filter === "unresolved" ? "Aucune alerte non traitée" : filter === "resolved" ? "Aucune alerte traitée" : "Aucune notification pour le moment"}
+          </p>
         </div>
       )}
 
@@ -95,33 +122,62 @@ export default function NotificationsPage() {
             {group.label}
           </h2>
           <div className="space-y-1">
-            {group.items.map((notif) => (
-              <div
-                key={notif.id}
-                onClick={() => { if (!notif.read) markAsRead(notif.id); }}
-                className={cn(
-                  "flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors",
-                  notif.read
-                    ? "border-border bg-card"
-                    : "border-primary/20 bg-primary/5 cursor-pointer hover:bg-primary/10"
-                )}
-              >
-                {!notif.read && (
-                  <div className="mt-1.5 h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                )}
-                <div className="flex-shrink-0 text-base mt-0.5">
-                  {NOTIFICATION_ICONS[notif.type as NotificationType] ?? "🔔"}
+            {group.items.map((notif) => {
+              const aging = getAgingLevel(notif.created_at, notif.resolved_at);
+              const isResolved = !!notif.resolved_at;
+
+              return (
+                <div
+                  key={notif.id}
+                  className={cn(
+                    "flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors",
+                    isResolved
+                      ? "border-border bg-card opacity-50"
+                      : "border-primary/20 bg-primary/5"
+                  )}
+                >
+                  {/* Aging badge */}
+                  <div className={cn("mt-1 text-[10px] font-medium whitespace-nowrap", aging.color)}>
+                    {aging.level === "new" && !isResolved && "🟢"}
+                    {aging.level === "pending" && "🟡"}
+                    {aging.level === "waiting" && "🟠"}
+                    {aging.level === "urgent" && "🔴"}
+                    {isResolved && "✅"}
+                  </div>
+
+                  <div className="flex-shrink-0 text-base mt-0.5">
+                    {NOTIFICATION_ICONS[notif.type as NotificationType] ?? "🔔"}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-sm text-foreground", !isResolved && "font-medium")}>
+                      {notif.message}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatRelativeDate(notif.created_at)}
+                      </span>
+                      <span className={cn("text-[10px] font-medium", aging.color)}>
+                        {aging.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Resolve button */}
+                  {!isResolved && (
+                    <button
+                      type="button"
+                      onClick={() => markAsResolved(notif.id)}
+                      title="Marquer comme traité"
+                      className="flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[10px] font-medium text-foreground hover:bg-muted transition-colors flex-shrink-0"
+                    >
+                      <Check className="h-3 w-3" />
+                      Traité
+                    </button>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className={cn("text-sm text-foreground", !notif.read && "font-medium")}>
-                    {notif.message}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {formatRelativeDate(notif.created_at)}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
