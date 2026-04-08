@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { BarChart3, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BarChart3, ArrowRight, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 
 export default function OnboardingDpiPage() {
-  const router = useRouter();
   const user = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemo);
+  const [showDpi, setShowDpi] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [skipping, setSkipping] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Get email from Supabase session (not from store — fresh)
+  useEffect(() => {
+    if (isDemo) return;
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) setUserEmail(session.user.email);
+    });
+  }, [isDemo]);
 
   const handleComplete = async () => {
     setCompleting(true);
@@ -26,17 +34,41 @@ export default function OnboardingDpiPage() {
   };
 
   const handleSkip = () => {
-    setSkipping(true);
     window.location.href = "/onboarding/gps";
   };
 
-  const handleStartDpi = () => {
-    // Store return URL and navigate to public DPI
-    sessionStorage.setItem("dpi_return_url", "/onboarding/dpi");
-    router.push("/dpi");
-  };
-
   const firstName = user?.firstName || "Conseiller";
+
+  // DPI inline view (iframe with email pre-filled)
+  if (showDpi) {
+    const dpiUrl = userEmail
+      ? `/dpi/questionnaire?email=${encodeURIComponent(userEmail)}&onboarding=true`
+      : "/dpi/questionnaire?onboarding=true";
+
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h1 className="text-sm font-semibold text-foreground">Diagnostic de Performance</h1>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={handleComplete}
+              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+              Terminer et continuer
+            </button>
+            <a href="/dpi/questionnaire" target="_blank" rel="noopener noreferrer"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" /> Nouvel onglet
+            </a>
+          </div>
+        </div>
+        <iframe
+          src={dpiUrl}
+          className="flex-1 w-full border-0"
+          style={{ minHeight: "calc(100vh - 52px)" }}
+          sandbox="allow-same-origin allow-scripts allow-forms"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -66,9 +98,14 @@ export default function OnboardingDpiPage() {
             <div className="rounded-lg border border-border bg-card px-3 py-2">Suivi client</div>
             <div className="rounded-lg border border-border bg-card px-3 py-2">Organisation</div>
           </div>
+          {userEmail && (
+            <p className="text-[10px] text-muted-foreground">
+              Connecté en tant que {userEmail}
+            </p>
+          )}
           <button
             type="button"
-            onClick={handleStartDpi}
+            onClick={() => setShowDpi(true)}
             className="w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Commencer mon diagnostic
@@ -80,7 +117,7 @@ export default function OnboardingDpiPage() {
             type="button"
             onClick={handleComplete}
             disabled={completing}
-            className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
           >
             <ArrowRight className="h-4 w-4" />
             Continuer sans DPI
@@ -88,7 +125,6 @@ export default function OnboardingDpiPage() {
           <button
             type="button"
             onClick={handleSkip}
-            disabled={skipping}
             className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
           >
             Passer cette étape
