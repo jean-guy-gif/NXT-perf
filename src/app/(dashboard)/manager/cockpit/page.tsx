@@ -38,7 +38,7 @@ import type { FormationArea } from "@/types/formation";
 import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
-import { GpsPilotage } from "@/components/dashboard/gps-pilotage";
+import { ProductionChain } from "@/components/dashboard/production-chain";
 
 /* ────── Clickable badge with popover ────── */
 type StatutGroupData = {
@@ -562,7 +562,7 @@ export default function CockpitPage() {
         </div>
 
         {gpsView === "equipe" && (
-          <GpsPilotage scope="team" teamId={currentUser?.teamId ?? undefined} />
+          <ProductionChain scope="team" teamId={currentUser?.teamId ?? undefined} />
         )}
 
         {gpsView === "individuel" && (
@@ -576,7 +576,7 @@ export default function CockpitPage() {
                 <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
               ))}
             </select>
-            {selectedUserId && <GpsPilotage scope="individual" userId={selectedUserId} />}
+            {selectedUserId && <ProductionChain scope="individual" userId={selectedUserId} />}
           </div>
         )}
       </div>

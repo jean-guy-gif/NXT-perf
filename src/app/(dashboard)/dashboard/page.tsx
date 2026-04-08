@@ -26,7 +26,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { GpsPilotage } from "@/components/dashboard/gps-pilotage";
+import { ProductionChain } from "@/components/dashboard/production-chain";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -179,7 +179,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
     "nxt-dashboard-tab",
-    "overview"
+    "mois"
   );
   const [favorites, setFavorites] = usePersistedState<WidgetId[]>(
     "nxt-dashboard-favorites",
@@ -1318,11 +1318,10 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* ========== GPS PILOTAGE (Ce mois) ========== */}
+      {/* ========== PRODUCTION CHAIN (Ce mois) ========== */}
       {activeTab === "mois" && user && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold text-foreground mb-3">GPS Pilotage</h3>
-          <GpsPilotage scope="individual" userId={user.id} />
+          <ProductionChain scope="individual" userId={user.id} />
         </div>
       )}
 

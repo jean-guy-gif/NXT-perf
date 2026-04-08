@@ -19,7 +19,7 @@ import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
-import { GpsPilotage } from "@/components/dashboard/gps-pilotage";
+import { ProductionChain } from "@/components/dashboard/production-chain";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { NXT_COLORS } from "@/lib/constants";
@@ -293,8 +293,8 @@ export default function PilotageAgencePage() {
         </div>
       </div>
 
-      {/* ═══ 1b. GPS Pilotage ═══ */}
-      <GpsPilotage scope="agency" />
+      {/* ═══ 1b. Production Chain ═══ */}
+      <ProductionChain scope="agency" />
 
       {/* ═══ 2. Saisie objectif (collapsible) ═══ */}
       <div className="rounded-lg border border-border bg-card">
