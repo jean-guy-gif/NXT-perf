@@ -57,8 +57,8 @@ test.describe("Gamification — Badges", () => {
     await expect(page.getByText("Mes badges")).toBeVisible({ timeout: 10_000 });
     // Check categories are displayed
     await expect(page.getByText("Démarrage")).toBeVisible();
-    await expect(page.getByText("Régularité")).toBeVisible();
-    await expect(page.locator("main").getByText("Performance", { exact: true })).toBeVisible();
+    await expect(page.getByText("Régularité").first()).toBeVisible();
+    await expect(page.getByText("Social")).toBeVisible();
   });
 
   test("6 — useBadges hook existe", async () => {

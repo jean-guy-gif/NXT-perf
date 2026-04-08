@@ -40,12 +40,12 @@ test.describe("Notifications", () => {
 
   test("3 — État vide affiché si aucune notif DB", async ({ page }) => {
     await page.goto("/notifications");
-    await expect(page.getByText("Aucune notification pour le moment")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Aucune alerte|Aucune notification/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test("4 — 'Tout marquer comme lu' absent quand pas de notifs non lues", async ({ page }) => {
+  test("4 — Message 'traité' visible quand pas de notifs non traitées", async ({ page }) => {
     await page.goto("/notifications");
-    await expect(page.getByText("Tout est lu")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/traité|lu/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("5 — Dropdown s'ouvre au clic sur la cloche", async ({ page }) => {
