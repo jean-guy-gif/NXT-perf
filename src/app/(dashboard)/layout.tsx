@@ -212,6 +212,7 @@ export default function DashboardLayout({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Header />
+        <DpiGpsReminders />
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
           <SupabaseProvider>{children}</SupabaseProvider>
         </main>
@@ -233,4 +234,52 @@ export default function DashboardLayout({
       <BadgeCelebration />
     </div>
   );
+}
+
+function DpiGpsReminders() {
+  const profile = useAppStore((s) => s.profile);
+  const isDemo = useAppStore((s) => s.isDemo);
+  const [dismissed, setDismissed] = useState(false);
+
+  if (isDemo || dismissed || !profile) return null;
+
+  const today = new Date();
+  const isFirstMondayOfMonth = today.getDay() === 1 && today.getDate() <= 7;
+
+  // DPI monthly reminder
+  const lastDpi = (profile as unknown as Record<string, unknown>).last_dpi_date as string | null;
+  const lastDpiDate = lastDpi ? new Date(lastDpi) : null;
+  const dpiDoneThisMonth = lastDpiDate &&
+    lastDpiDate.getMonth() === today.getMonth() &&
+    lastDpiDate.getFullYear() === today.getFullYear();
+
+  const dismissKey = `nxt-dpi-dismissed-${today.toISOString().slice(0, 10)}`;
+  const wasDismissedToday = typeof window !== "undefined" && localStorage.getItem(dismissKey) === "true";
+
+  if (isFirstMondayOfMonth && !dpiDoneThisMonth && !wasDismissedToday) {
+    return (
+      <div className="flex items-center justify-center gap-3 bg-primary/10 px-3 py-2 text-xs">
+        <span>Votre DPI mensuel est disponible — Faites-le en 3 minutes</span>
+        <a href="/onboarding/dpi" className="font-semibold text-primary underline">Faire mon DPI</a>
+        <button type="button" onClick={() => { localStorage.setItem(dismissKey, "true"); setDismissed(true); }}
+          className="text-muted-foreground hover:text-foreground">Plus tard</button>
+      </div>
+    );
+  }
+
+  // GPS annual reminder (first Monday of January)
+  const lastGps = (profile as unknown as Record<string, unknown>).last_gps_date as string | null;
+  const lastGpsDate = lastGps ? new Date(lastGps) : null;
+  const gpsThisYear = lastGpsDate && lastGpsDate.getFullYear() === today.getFullYear();
+
+  if (isFirstMondayOfMonth && today.getMonth() === 0 && !gpsThisYear) {
+    return (
+      <div className="flex items-center justify-center gap-3 bg-amber-500/10 px-3 py-2 text-xs">
+        <span>Redéfinissez vos objectifs pour la nouvelle année</span>
+        <a href="/onboarding/gps" className="font-semibold text-amber-600 underline">Définir mes objectifs</a>
+      </div>
+    );
+  }
+
+  return null;
 }

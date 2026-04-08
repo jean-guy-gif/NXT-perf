@@ -278,17 +278,8 @@ export default function OnboardingIdentitePage() {
       }
     }
 
-    // Role-based redirect: manager → equipe, directeur → agence, coach → coach, others → dashboard
-    const role = profile?.role;
-    if (role === "manager") {
-      window.location.href = "/onboarding/equipe";
-    } else if (role === "directeur") {
-      window.location.href = "/onboarding/agence";
-    } else if (role === "coach") {
-      window.location.href = "/onboarding/coach";
-    } else {
-      window.location.href = "/dashboard";
-    }
+    // All roles go through DPI → GPS → role-specific destination
+    window.location.href = "/onboarding/dpi";
   };
 
   // ── Render ─────────────────────────────────────────────────────────────

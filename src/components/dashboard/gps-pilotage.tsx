@@ -179,10 +179,22 @@ export function GpsPilotage({ scope, userId, teamId }: GpsPilotageProps) {
 
   const active = METRICS.find((m) => m.key === activeMetric) ?? METRICS[0];
 
+  const profile = useAppStore((s) => s.profile);
+  const gpsCompleted = (profile as unknown as Record<string, unknown> | null)?.onboarding_gps_completed as boolean | undefined;
+
   if (!scopedResult) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        Aucune donnée disponible pour cette période.
+      <div className="py-8 text-center space-y-3">
+        <p className="text-sm text-muted-foreground">
+          {gpsCompleted === false
+            ? "Définissez vos objectifs pour activer le pilotage."
+            : "Aucune donnée disponible pour cette période."}
+        </p>
+        {gpsCompleted === false && (
+          <a href="/onboarding/gps" className="inline-block rounded-xl bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+            Définir mes objectifs
+          </a>
+        )}
       </div>
     );
   }
