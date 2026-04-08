@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { CATEGORY_OBJECTIVES, CATEGORY_LABELS } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
 import type { PeriodResults } from "@/types/results";
 import type { UserCategory } from "@/types/user";
 
@@ -58,9 +59,9 @@ function getVolumeStatus(realise: number, objectif: number): Status {
 }
 
 const STATUS_CONFIG = {
-  surperf: { border: "border-green-500", bg: "bg-green-500/5", text: "text-green-500", label: "Surperf", arrow: "↑" },
-  stable: { border: "border-amber-500", bg: "bg-amber-500/5", text: "text-amber-500", label: "Stable", arrow: "=" },
-  sousperf: { border: "border-red-500", bg: "bg-red-500/5", text: "text-red-500", label: "Sous-perf", arrow: "↓" },
+  surperf: { borderColor: "#22c55e", bg: "bg-green-500/5", text: "text-green-500", label: "Surperf", arrow: "↑" },
+  stable:  { borderColor: "#f59e0b", bg: "bg-amber-500/5", text: "text-amber-500", label: "Stable", arrow: "=" },
+  sousperf:{ borderColor: "#ef4444", bg: "bg-red-500/5",   text: "text-red-500",   label: "Sous-perf", arrow: "↓" },
 };
 
 function safeDiv(a: number, b: number): number {
@@ -121,10 +122,55 @@ interface ProductionChainProps {
   profile?: UserCategory;
 }
 
+// ── Objectifs : GPS (Supabase) > Catégorie (constantes) ─────────────────────
+//
+// Résolution par métrique :
+//   1. Si l'utilisateur a rempli le GPS onboarding cette année
+//      → table `objectives`, champ `breakdown` (jsonb)
+//      → on utilise la valeur GPS pour chaque métrique présente et > 0
+//   2. Sinon, ou si une métrique GPS est absente / à 0
+//      → fallback sur CATEGORY_OBJECTIVES[category] (Junior / Confirmé / Expert)
+//
+// Le GPS ne collecte pas offres, compromis, actes
+// → ces 3 métriques tombent toujours en fallback catégorie.
+
+interface GpsBreakdown {
+  estimations?: number;
+  mandats?: number;
+  exclusivite?: number;
+  visites?: number;
+  ca?: number;
+  offres?: number;
+  compromis?: number;
+  actes?: number;
+}
+
+/** Pour chaque métrique : GPS si > 0, sinon catégorie. */
+function resolveObjectives(
+  gps: GpsBreakdown | null,
+  fallback: typeof CATEGORY_OBJECTIVES["confirme"],
+) {
+  if (!gps) return { source: "category" as const, values: fallback };
+
+  const values = {
+    estimations: (gps.estimations && gps.estimations > 0) ? gps.estimations : fallback.estimations,
+    mandats:     (gps.mandats && gps.mandats > 0)         ? gps.mandats     : fallback.mandats,
+    exclusivite: (gps.exclusivite && gps.exclusivite > 0) ? gps.exclusivite : fallback.exclusivite,
+    visites:     (gps.visites && gps.visites > 0)         ? gps.visites     : fallback.visites,
+    offres:      (gps.offres && gps.offres > 0)           ? gps.offres      : fallback.offres,
+    compromis:   (gps.compromis && gps.compromis > 0)     ? gps.compromis   : fallback.compromis,
+    actes:       (gps.actes && gps.actes > 0)             ? gps.actes       : fallback.actes,
+    ca:          (gps.ca && gps.ca > 0)                   ? gps.ca          : fallback.ca,
+  };
+
+  return { source: "gps" as const, values };
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ProductionChain({ scope, userId, teamId, profile: profileProp }: ProductionChainProps) {
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("nxt-chain-view", "volumes");
+  const [gpsBreakdown, setGpsBreakdown] = useState<GpsBreakdown | null>(null);
 
   const allResults = useAllResults();
   const individualResult = useResults(userId);
@@ -132,7 +178,32 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp }:
   const currentUser = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemo);
   const category: UserCategory = profileProp ?? currentUser?.category ?? "confirme";
-  const obj = CATEGORY_OBJECTIVES[category];
+  const categoryObj = CATEGORY_OBJECTIVES[category];
+
+  // Charger les objectifs GPS depuis Supabase (scope individual uniquement)
+  const targetUserId = scope === "individual" ? (userId ?? currentUser?.id) : null;
+  useEffect(() => {
+    if (isDemo || !targetUserId) return;
+    const supabase = createClient();
+    const currentYear = new Date().getFullYear();
+    supabase.from("objectives").select("breakdown")
+      .eq("user_id", targetUserId).eq("year", currentYear).single()
+      .then(({ data }) => {
+        if (data?.breakdown && typeof data.breakdown === "object") {
+          const b = data.breakdown as Record<string, number>;
+          // Au moins une métrique significative → considérer comme GPS valide
+          if (b.estimations > 0 || b.mandats > 0 || b.ca > 0) {
+            setGpsBreakdown(b as GpsBreakdown);
+          }
+        }
+      });
+  }, [isDemo, targetUserId]);
+
+  // Résolution explicite : GPS > catégorie, par métrique
+  const { source: objectifSource, values: obj } = useMemo(
+    () => resolveObjectives(gpsBreakdown, categoryObj),
+    [gpsBreakdown, categoryObj],
+  );
 
   // Scope-based result
   const scopedResult = useMemo((): PeriodResults | null => {
@@ -223,9 +294,10 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp }:
             </button>
           ))}
         </div>
-        {scope !== "individual" && (
-          <span className="text-xs text-muted-foreground">{headcount} collaborateur{headcount > 1 ? "s" : ""} · {CATEGORY_LABELS[category]}</span>
-        )}
+        <span className="text-xs text-muted-foreground">
+          {scope !== "individual" && <>{headcount} collaborateur{headcount > 1 ? "s" : ""} · </>}
+          {objectifSource === "gps" ? "Objectifs GPS" : `Objectifs ${CATEGORY_LABELS[category]}`}
+        </span>
       </div>
 
       {/* Chain cards */}
@@ -239,7 +311,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp }:
           if (viewMode === "ratios" && !ratio && vol.num !== 1 && vol.num !== 6) return null;
 
           return (
-            <div key={vol.num} className={cn("rounded-xl border-t-3 p-3 space-y-2 border border-border", `border-t-${sc.border.split("-").slice(1).join("-")}`, sc.bg)}>
+            <div key={vol.num} className={cn("rounded-xl p-3 space-y-2 border border-border", sc.bg)} style={{ borderTop: `3px solid ${sc.borderColor}` }}>
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-muted-foreground">{String(vol.num).padStart(2, "0")}</span>
                 <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold", sc.text, sc.bg)}>
@@ -269,7 +341,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp }:
                     {ratio.realisePct > 0 && <span className="text-muted-foreground"> · {ratio.realisePct}%</span>}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    Obj. {CATEGORY_LABELS[category]} : {ratio.objectif} → 1
+                    Obj. {objectifSource === "gps" ? "GPS" : CATEGORY_LABELS[category]} : {ratio.objectif} → 1
                     {ratio.objectifPct > 0 && <span> · {ratio.objectifPct}%</span>}
                   </p>
                 </div>

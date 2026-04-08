@@ -43,17 +43,45 @@ export default function OnboardingGpsPage() {
         last_gps_date: new Date().toISOString().split("T")[0],
       }).eq("id", user.id);
 
-      // Save objectives to store (localStorage via Zustand)
-      if (caAnnuel) {
+      // Save objectives to Supabase + Zustand store
+      const inputData = {
+        caAnnuel: Number(caAnnuel) || 0,
+        mandatsMois: Number(mandatsMois) || 0,
+        exclusivite: Number(exclusivite) || 0,
+        estimationsMois: Number(estimationsMois) || 0,
+        visitesSemaine: Number(visitesSemaine) || 0,
+      };
+      const avgActValue = inputData.caAnnuel / Math.max(1, inputData.mandatsMois * 12);
+
+      if (inputData.caAnnuel > 0) {
+        // Persist to Supabase objectives table
+        const currentYear = new Date().getFullYear();
+        await supabase.from("objectives").upsert({
+          user_id: user.id,
+          year: currentYear,
+          input: inputData,
+          breakdown: {
+            estimations: inputData.estimationsMois,
+            mandats: inputData.mandatsMois,
+            exclusivite: inputData.exclusivite,
+            visites: inputData.visitesSemaine * 4,
+            ca: Math.round(inputData.caAnnuel / 12),
+            avgActValue: Math.round(avgActValue),
+          },
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,year" });
+
+        // Also update Zustand store for immediate use
         useAppStore.getState().setAgencyObjective({
-          annualCA: Number(caAnnuel) || 0,
-          avgActValue: (Number(caAnnuel) || 0) / Math.max(1, (Number(mandatsMois) || 1) * 12),
+          annualCA: inputData.caAnnuel,
+          avgActValue,
         });
       }
     }
     window.location.href = getRedirectUrl();
   };
 
+  // Skip = aucun flag marqué, simple redirection
   const handleSkip = () => {
     window.location.href = getRedirectUrl();
   };

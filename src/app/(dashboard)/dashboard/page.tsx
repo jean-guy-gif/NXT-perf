@@ -59,7 +59,6 @@ import type { PeriodResults } from "@/types/results";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { generateFormationDiagnostic } from "@/lib/formation";
 import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
-import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { useAllResults } from "@/hooks/use-results";
 import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
 import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
@@ -193,14 +192,6 @@ function DashboardContent() {
     : null;
 
   const allResultsData = useAllResults();
-  const previousResults = useMemo(() => {
-    if (!user) return null;
-    const userResults = allResultsData
-      .filter((r) => r.userId === user.id)
-      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
-    return userResults.length >= 2 ? userResults[1] : null;
-  }, [allResultsData, user]);
-
   const kpiChartConfigs = useMemo(() => getKpiChartConfigs(isDemo), [isDemo]);
   const monthlyCAData = isDemo ? mockMonthlyCA : emptyCAData;
   const weeklyActivityData = isDemo ? mockWeeklyActivity : emptyActivityData;
@@ -1075,253 +1066,66 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* ========== TAB: CE MOIS ========== */}
+      {/* ========== TAB: CE MOIS — Chaîne de production au centre ========== */}
       {activeTab === "mois" && (
         <div className="space-y-6">
-          {/* Month header */}
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold capitalize text-foreground">
-                  {currentMonthLabel}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Jour {currentDay}/{daysInMonth} — {monthProgressPct}% du mois
-                  écoulé
-                </p>
-              </div>
-              <div className="w-48">
-                <ProgressBar
-                  value={monthProgressPct}
-                  status="ok"
-                  showValue
-                  size="md"
-                />
-              </div>
+          {/* Compact month header */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold capitalize text-foreground">
+                {currentMonthLabel}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Jour {currentDay}/{daysInMonth} — {monthProgressPct}% du mois écoulé
+              </p>
             </div>
-          </div>
-
-          {/* Monthly KPIs */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1">
-              <KpiCard
-                title="Estimations ce mois"
-                value={vendeurs.estimationsRealisees}
-                icon={ClipboardCheck}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "estimations" ? null : "estimations")}
-              />
-              {previousResults && (
-                <TrendIndicator current={vendeurs.estimationsRealisees} previous={previousResults.vendeurs.estimationsRealisees} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <KpiCard
-                title="Mandats ce mois"
-                value={vendeurs.mandatsSignes}
-                icon={FileSignature}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "mandats" ? null : "mandats")}
-              />
-              {previousResults && (
-                <TrendIndicator current={vendeurs.mandatsSignes} previous={previousResults.vendeurs.mandatsSignes} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <KpiCard
-                title="Compromis ce mois"
-                value={acheteurs.compromisSignes}
-                icon={Handshake}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "compromis" ? null : "compromis")}
-              />
-              {previousResults && (
-                <TrendIndicator current={acheteurs.compromisSignes} previous={previousResults.acheteurs.compromisSignes} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <KpiCard
-                title="CA ce mois"
-                value={formatCurrency(ventes.chiffreAffaires)}
-                icon={DollarSign}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "ca" ? null : "ca")}
-              />
-              {previousResults && (
-                <TrendIndicator current={ventes.chiffreAffaires} previous={previousResults.ventes.chiffreAffaires} />
-              )}
-            </div>
-          </div>
-
-          {/* Detailed breakdown */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Left: Monthly numbers */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Activité du mois
-              </h3>
-
-              <div className="rounded-xl border border-border bg-card divide-y divide-border">
-                {[
-                  {
-                    label: "Contacts entrants",
-                    value: prospection.contactsEntrants,
-                    icon: Phone,
-                  },
-                  {
-                    label: "Contacts totaux",
-                    value: prospection.contactsTotaux,
-                    icon: Phone,
-                  },
-                  {
-                    label: "RDV Estimation",
-                    value: prospection.rdvEstimation,
-                    icon: ClipboardCheck,
-                  },
-                  {
-                    label: "Estimations réalisées",
-                    value: vendeurs.estimationsRealisees,
-                    icon: ClipboardCheck,
-                  },
-                  {
-                    label: "Mandats signés",
-                    value: vendeurs.mandatsSignes,
-                    icon: FileSignature,
-                  },
-                  {
-                    label: "Visites réalisées",
-                    value: acheteurs.nombreVisites,
-                    icon: Eye,
-                  },
-                  {
-                    label: "Offres reçues",
-                    value: acheteurs.offresRecues,
-                    icon: FileText,
-                  },
-                  {
-                    label: "Compromis signés",
-                    value: acheteurs.compromisSignes,
-                    icon: Handshake,
-                  },
-                  {
-                    label: "Actes signés",
-                    value: ventes.actesSignes,
-                    icon: DollarSign,
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between px-4 py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-foreground">
-                        {item.label}
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-foreground">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
+            <div className="flex items-center gap-6">
+              {/* Key figures inline */}
+              <div className="hidden sm:flex items-center gap-4 text-sm">
+                <span className="text-muted-foreground">CA : <strong className="text-foreground">{formatCurrency(ventes.chiffreAffaires)}</strong></span>
+                <span className="text-muted-foreground">Mandats : <strong className="text-foreground">{vendeurs.mandatsSignes}</strong></span>
+                <span className="text-muted-foreground">Compromis : <strong className="text-foreground">{acheteurs.compromisSignes}</strong></span>
               </div>
-            </div>
-
-            {/* Right: Projections */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Projections fin de mois
-              </h3>
-
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm text-muted-foreground">CA projeté</p>
-                <p className="mt-1 text-3xl font-bold text-primary">
-                  {formatCurrency(projectedCA)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Basé sur le rythme actuel ({formatCurrency(ventes.chiffreAffaires)}{" "}
-                  en {currentDay} jours)
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm text-muted-foreground">Actes projetés</p>
-                <p className="mt-1 text-3xl font-bold text-foreground">
-                  {projectedActes}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Basé sur {ventes.actesSignes} acte(s) en {currentDay} jours
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm text-muted-foreground">
-                  Performance globale
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-3xl font-bold",
-                    overallPerformance >= 80
-                      ? "text-green-500"
-                      : overallPerformance >= 60
-                        ? "text-orange-500"
-                        : "text-red-500"
-                  )}
-                >
-                  {overallPerformance}%
-                </p>
-                <ProgressBar
-                  value={overallPerformance}
-                  status={
-                    overallPerformance >= 80
-                      ? "ok"
-                      : overallPerformance >= 60
-                        ? "warning"
-                        : "danger"
-                  }
-                  showValue={false}
-                  size="sm"
-                  className="mt-2"
-                />
-              </div>
-
-              {/* Mandats breakdown */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="mb-3 text-sm font-medium text-foreground">
-                  Mandats du mois
-                </p>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Exclusifs</span>
-                      <span className="font-bold text-green-500">
-                        {vendeurs.mandats.filter((m) => m.type === "exclusif").length}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Simples</span>
-                      <span className="font-bold text-yellow-500">
-                        {vendeurs.mandats.filter((m) => m.type === "simple").length}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-foreground">
-                      {exclusiviteRate}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">exclusivité</p>
-                  </div>
-                </div>
+              <div className="w-36">
+                <ProgressBar value={monthProgressPct} status="ok" showValue size="md" />
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ========== PRODUCTION CHAIN (Ce mois) ========== */}
-      {activeTab === "mois" && user && (
-        <div className="mt-6">
-          <ProductionChain scope="individual" userId={user.id} />
+          {/* ═══ PRODUCTION CHAIN — Élément central ═══ */}
+          {user && <ProductionChain scope="individual" userId={user.id} />}
+
+          {/* Compact projections row */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">CA projeté fin de mois</p>
+              <p className="mt-1 text-2xl font-bold text-primary">
+                {formatCurrency(projectedCA)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Rythme actuel : {formatCurrency(ventes.chiffreAffaires)} en {currentDay}j
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Actes projetés</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{projectedActes}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {ventes.actesSignes} acte(s) en {currentDay}j
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Mandats du mois</p>
+              <div className="mt-1 flex items-baseline gap-3">
+                <span className="text-2xl font-bold text-foreground">{vendeurs.mandatsSignes}</span>
+                <span className="text-sm text-muted-foreground">
+                  <span className="text-green-500 font-medium">{vendeurs.mandats.filter((m) => m.type === "exclusif").length} exclu.</span>
+                  {" / "}
+                  <span className="text-yellow-500 font-medium">{vendeurs.mandats.filter((m) => m.type === "simple").length} simpl.</span>
+                  {" · "}{exclusiviteRate}%
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

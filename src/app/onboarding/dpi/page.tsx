@@ -21,6 +21,7 @@ export default function OnboardingDpiPage() {
     });
   }, [isDemo]);
 
+  // Seul chemin qui marque completed — l'utilisateur a réellement fait le DPI
   const handleComplete = async () => {
     setCompleting(true);
     if (!isDemo && user?.id) {
@@ -33,6 +34,7 @@ export default function OnboardingDpiPage() {
     window.location.href = "/onboarding/gps";
   };
 
+  // Skip = aucun flag marqué, simple redirection
   const handleSkip = () => {
     window.location.href = "/onboarding/gps";
   };
@@ -98,11 +100,6 @@ export default function OnboardingDpiPage() {
             <div className="rounded-lg border border-border bg-card px-3 py-2">Suivi client</div>
             <div className="rounded-lg border border-border bg-card px-3 py-2">Organisation</div>
           </div>
-          {userEmail && (
-            <p className="text-[10px] text-muted-foreground">
-              Connecté en tant que {userEmail}
-            </p>
-          )}
           <button
             type="button"
             onClick={() => setShowDpi(true)}
@@ -115,18 +112,10 @@ export default function OnboardingDpiPage() {
         <div className="flex flex-col items-center gap-3">
           <button
             type="button"
-            onClick={handleComplete}
-            disabled={completing}
-            className="flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            onClick={handleSkip}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowRight className="h-4 w-4" />
-            Continuer sans DPI
-          </button>
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
-          >
             Passer cette étape
           </button>
         </div>

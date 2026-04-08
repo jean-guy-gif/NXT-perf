@@ -471,11 +471,10 @@ export default function OnboardingIdentitePage() {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 {COACH_VOICES.map((v) => (
-                  <button
+                  <div
                     key={v.id}
-                    type="button"
                     onClick={() => setCoachVoice(v.id)}
-                    className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-center transition-all ${
+                    className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-center transition-all cursor-pointer ${
                       coachVoice === v.id
                         ? "border-[var(--agency-primary,#6C5CE7)] bg-[var(--agency-primary,#6C5CE7)]/5 shadow-sm"
                         : "border-border bg-card/50 hover:border-primary/30 hover:bg-primary/5"
@@ -493,12 +492,12 @@ export default function OnboardingIdentitePage() {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleListenVoice(v.id); }}
                       disabled={playingVoice !== null && playingVoice !== v.id}
-                      className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
                     >
                       {playingVoice === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-3 w-3" />}
                       {playingVoice === v.id ? "Lecture…" : "Écouter"}
                     </button>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -527,12 +526,12 @@ export default function OnboardingIdentitePage() {
             className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-            Accéder à mon dashboard
+            Suivant
           </button>
 
           <button
             type="button"
-            onClick={completeOnboarding}
+            onClick={() => { window.location.href = "/onboarding/dpi"; }}
             className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
           >
             Passer cette étape
