@@ -42,6 +42,7 @@ const pageTitles: Record<string, string> = {
   "/manager/equipe": "Mon Volume d'Activité",
   "/manager/classement": "Mes Ratios de Transformation",
   "/manager/comparaison": "Me Comparer",
+  "/manager/alertes": "Alertes",
   "/parametres": "Paramètres",
   "/manager/formation-collective": "Ma Formation Collective",
   "/directeur/pilotage": "Mon Tableau de Bord",

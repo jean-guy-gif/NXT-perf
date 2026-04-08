@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Gauge, Users as UsersIcon, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Gauge, Users as UsersIcon, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, ClipboardList } from "lucide-react";
+import { PlanExport } from "@/components/dashboard/plan-export";
 import { getHumanScore, getGlobalScore } from "@/lib/scoring";
 import { MARKET_BENCHMARKS, formatBenchmark } from "@/data/mock-benchmark";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,7 @@ export default function PerformancePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("collective");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
+  const [showPlan, setShowPlan] = useState(false);
 
   // ── Period-aware results ──
   const currentYear = new Date().getFullYear();
@@ -173,7 +175,13 @@ export default function PerformancePage() {
             <Gauge className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Performance Agence</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">Performance Agence</h1>
+              <button onClick={() => setShowPlan(true)}
+                className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted">
+                <ClipboardList className="h-3 w-3" /> Plan agence 30j
+              </button>
+            </div>
             <p className="text-sm text-muted-foreground">
               Ratios de performance — {periodLabel}
             </p>
@@ -489,6 +497,18 @@ export default function PerformancePage() {
             </div>
           )}
         </div>
+      )}
+
+      {showPlan && (
+        <PlanExport
+          title="Plan 30 jours — Agence"
+          subtitle="Plan collectif agence"
+          weakRatios={[
+            { name: "Mandats", current: 6, target: 12, unit: "" },
+            { name: "Offres", current: 3, target: 8, unit: "" },
+          ]}
+          onClose={() => setShowPlan(false)}
+        />
       )}
 
       {/* ── DPI Global Agence ── */}

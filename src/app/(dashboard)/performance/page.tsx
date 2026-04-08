@@ -196,18 +196,30 @@ export default function PerformancePage() {
                   sc.border
                 )}
               >
-                {/* Header with status + performance badge */}
+                {/* Performance badge on ratio card */}
                 {(() => {
-                  const matchedPerfBadge = perfBadges.find((pb) => {
-                    const def = PERFORMANCE_BADGES.find((d) => d.key === pb.badge_key);
-                    return def && config.name.toLowerCase().includes(def.name.toLowerCase().split(" ")[0].toLowerCase());
-                  });
-                  return matchedPerfBadge ? (
-                    <div className="flex items-center gap-1 text-[10px] text-primary/70 mb-1">
-                      <span>{PERFORMANCE_BADGES.find((d) => d.key === matchedPerfBadge.badge_key)?.emoji}</span>
-                      <span>{LEVEL_EMOJI[matchedPerfBadge.level]}</span>
+                  const RATIO_BADGE_MAP: Record<string, string> = {
+                    "contacts": "prospecteur", "rdv": "prospecteur",
+                    "estimation": "roi_estimation",
+                    "exclusiv": "maitre_exclusivite",
+                    "visite": "visiteur_pro",
+                    "offre": "closing_master",
+                    "compromis": "finisher", "acte": "finisher",
+                  };
+                  const nameLC = config.name.toLowerCase();
+                  const badgeKey = Object.entries(RATIO_BADGE_MAP).find(([kw]) => nameLC.includes(kw))?.[1];
+                  const matched = badgeKey ? perfBadges.find((pb) => pb.badge_key === badgeKey) : null;
+                  const regBadge = perfBadges.find((pb) => pb.badge_key === "regularite");
+                  const badge = matched || regBadge;
+                  if (!badge) return null;
+                  const def = PERFORMANCE_BADGES.find((d) => d.key === badge.badge_key);
+                  return (
+                    <div className="flex items-center gap-1 text-[10px] text-primary/70 mb-1"
+                      title={`${def?.name} ${badge.level} — ${badge.consecutive_months} mois`}>
+                      <span>{def?.emoji}</span>
+                      <span>{LEVEL_EMOJI[badge.level]}</span>
                     </div>
-                  ) : null;
+                  );
                 })()}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-1.5">

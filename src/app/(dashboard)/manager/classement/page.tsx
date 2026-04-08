@@ -13,7 +13,8 @@ import {
   mockRankingsOffres,
   mockRankingsCompromis,
 } from "@/data/mock-team";
-import { Trophy, Medal, Award, TrendingDown, Users, User, Download } from "lucide-react";
+import { Trophy, Medal, Award, TrendingDown, Users, User, Download, ClipboardList } from "lucide-react";
+import { PlanExport } from "@/components/dashboard/plan-export";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
@@ -115,6 +116,7 @@ export default function ClassementPage() {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("ca");
   const [viewMode, setViewMode] = useState<ViewMode>("individuel");
   const [exporting, setExporting] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
   const isDemo = useAppStore((s) => s.isDemo);
   const users = useAppStore((s) => s.users);
   const currentUser = useAppStore((s) => s.user);
@@ -169,6 +171,14 @@ export default function ClassementPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-foreground">Classement</h1>
         <div className="flex items-center gap-3">
+          {/* Plan 30 jours */}
+          <button
+            onClick={() => setShowPlan(true)}
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ClipboardList className="h-4 w-4" />
+            Plan équipe 30j
+          </button>
           {/* Export JPEG */}
           <button
             onClick={handleExportJpeg}
@@ -404,6 +414,17 @@ export default function ClassementPage() {
           </div>
         </div>
       </div>
+      {showPlan && (
+        <PlanExport
+          title={`Plan 30 jours — Équipe ${currentUser?.firstName ?? ""}`}
+          subtitle="Plan collectif équipe"
+          weakRatios={[
+            { name: "Mandats", current: 4, target: 8, unit: "" },
+            { name: "Visites", current: 15, target: 30, unit: "" },
+          ]}
+          onClose={() => setShowPlan(false)}
+        />
+      )}
     </div>
   );
 }
