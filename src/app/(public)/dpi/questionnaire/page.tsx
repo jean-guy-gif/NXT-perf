@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DPI_QUESTIONS } from "@/lib/dpi-questions";
 import { computeDPIScores } from "@/lib/dpi-scoring";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-export default function DPIQuestionnairePage() {
+function DPIQuestionnaireContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isOnboarding = searchParams.get("onboarding") === "true";
+  const onboardingEmail = searchParams.get("email");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [showTransition, setShowTransition] = useState(false);
@@ -17,13 +20,28 @@ export default function DPIQuestionnairePage() {
   const [dpiId, setDpiId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Onboarding mode: auto-create dpi_results with session email
+    if (isOnboarding && onboardingEmail) {
+      const supabase = createClient();
+      supabase
+        .from("dpi_results")
+        .insert({ email: onboardingEmail, status: "started" })
+        .select("id")
+        .single()
+        .then(({ data }) => {
+          if (data?.id) setDpiId(data.id);
+        });
+      return;
+    }
+
+    // Public mode: require dpi_id from sessionStorage
     const id = sessionStorage.getItem("dpi_id");
     if (!id) {
       router.replace("/dpi");
       return;
     }
     setDpiId(id);
-  }, [router]);
+  }, [router, isOnboarding, onboardingEmail]);
 
   const totalQuestions = DPI_QUESTIONS.length;
   const question = DPI_QUESTIONS[currentIndex];
@@ -31,7 +49,6 @@ export default function DPIQuestionnairePage() {
 
   // Detect bloc transition
   const contextCount = DPI_QUESTIONS.filter((q) => q.bloc === "contexte").length;
-  const isTransitionPoint = currentIndex === contextCount && !showTransition;
 
   const handleAnswer = async (value: number) => {
     if (!question) return;
@@ -104,6 +121,13 @@ export default function DPIQuestionnairePage() {
     }
 
     sessionStorage.setItem("dpi_scores", JSON.stringify(scores));
+
+    // Onboarding mode: notify parent iframe instead of navigating to results
+    if (isOnboarding && window.parent !== window) {
+      window.parent.postMessage({ type: "dpi-complete", dpiId, scores }, "*");
+      return;
+    }
+
     router.push(`/dpi/resultats?id=${dpiId}`);
   };
 
@@ -199,5 +223,17 @@ export default function DPIQuestionnairePage() {
         </button>
       )}
     </div>
+  );
+}
+
+export default function DPIQuestionnairePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    }>
+      <DPIQuestionnaireContent />
+    </Suspense>
   );
 }

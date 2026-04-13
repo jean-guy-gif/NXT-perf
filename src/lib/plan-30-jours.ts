@@ -3,10 +3,14 @@ import type { FormationArea, FormationDiagnostic } from "@/types/formation";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
+export type ActionStatus = "todo" | "in_progress" | "done";
+
 export interface PlanAction {
   id: string;
   label: string;
   done: boolean;
+  status: ActionStatus;
+  note?: string;
 }
 
 export interface WeekPlan {
@@ -259,6 +263,7 @@ export function generatePlan30Days(
           id: `w${weekNumber}-${priority.area}-${actions.length}`,
           label,
           done: false,
+          status: "todo",
         });
       }
 

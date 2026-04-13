@@ -21,6 +21,18 @@ export default function OnboardingDpiPage() {
     });
   }, [isDemo]);
 
+  // Listen for DPI completion from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "dpi-complete") {
+        handleComplete();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo, user?.id]);
+
   // Seul chemin qui marque completed — l'utilisateur a réellement fait le DPI
   const handleComplete = async () => {
     setCompleting(true);
