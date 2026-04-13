@@ -57,28 +57,32 @@ export default function OnboardingGpsPage() {
 
   const handleComplete = async () => {
     setCompleting(true);
-    if (!isDemo && user?.id) {
-      const supabase = createClient();
-      await supabase.from("profiles").update({
-        onboarding_gps_completed: true,
-        last_gps_date: new Date().toISOString().split("T")[0],
-      }).eq("id", user.id);
+    try {
+      if (!isDemo && user?.id) {
+        const supabase = createClient();
+        await supabase.from("profiles").update({
+          onboarding_gps_completed: true,
+          last_gps_date: new Date().toISOString().split("T")[0],
+        }).eq("id", user.id);
 
-      if (breakdown && ca > 0) {
-        const currentYear = new Date().getFullYear();
-        await supabase.from("objectives").upsert({
-          user_id: user.id,
-          year: currentYear,
-          input: { objectifFinancierAnnuel: ca },
-          breakdown,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id,year" });
+        if (breakdown && ca > 0) {
+          const currentYear = new Date().getFullYear();
+          await supabase.from("objectives").upsert({
+            user_id: user.id,
+            year: currentYear,
+            input: { objectifFinancierAnnuel: ca },
+            breakdown,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id,year" });
 
-        useAppStore.getState().setAgencyObjective({
-          annualCA: ca,
-          avgActValue: commission,
-        });
+          useAppStore.getState().setAgencyObjective({
+            annualCA: ca,
+            avgActValue: commission,
+          });
+        }
       }
+    } catch {
+      // Continue to dashboard even if Supabase fails
     }
     window.location.href = getRedirectUrl();
   };

@@ -22,15 +22,20 @@ function DPIQuestionnaireContent() {
   useEffect(() => {
     // Onboarding mode: auto-create dpi_results with session email
     if (isOnboarding && onboardingEmail) {
-      const supabase = createClient();
-      supabase
-        .from("dpi_results")
-        .insert({ email: onboardingEmail, status: "started" })
-        .select("id")
-        .single()
-        .then(({ data }) => {
-          if (data?.id) setDpiId(data.id);
-        });
+      try {
+        const supabase = createClient();
+        supabase
+          .from("dpi_results")
+          .insert({ email: onboardingEmail, status: "started" })
+          .select("id")
+          .single()
+          .then(({ data, error }) => {
+            if (data?.id) setDpiId(data.id);
+            else if (error) setDpiId("onboarding-temp");
+          });
+      } catch {
+        setDpiId("onboarding-temp");
+      }
       return;
     }
 

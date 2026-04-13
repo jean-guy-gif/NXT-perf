@@ -15,10 +15,14 @@ export default function OnboardingDpiPage() {
   // Get email from Supabase session (not from store — fresh)
   useEffect(() => {
     if (isDemo) return;
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) setUserEmail(session.user.email);
-    });
+    try {
+      const supabase = createClient();
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.email) setUserEmail(session.user.email);
+      }).catch(() => {});
+    } catch {
+      // Supabase not available — continue without email
+    }
   }, [isDemo]);
 
   // Listen for DPI completion from iframe
@@ -36,12 +40,16 @@ export default function OnboardingDpiPage() {
   // Seul chemin qui marque completed — l'utilisateur a réellement fait le DPI
   const handleComplete = async () => {
     setCompleting(true);
-    if (!isDemo && user?.id) {
-      const supabase = createClient();
-      await supabase.from("profiles").update({
-        onboarding_dpi_completed: true,
-        last_dpi_date: new Date().toISOString().split("T")[0],
-      }).eq("id", user.id);
+    try {
+      if (!isDemo && user?.id) {
+        const supabase = createClient();
+        await supabase.from("profiles").update({
+          onboarding_dpi_completed: true,
+          last_dpi_date: new Date().toISOString().split("T")[0],
+        }).eq("id", user.id);
+      }
+    } catch {
+      // Continue even if Supabase fails
     }
     window.location.href = "/onboarding/gps";
   };
