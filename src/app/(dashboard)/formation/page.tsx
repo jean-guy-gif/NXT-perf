@@ -172,12 +172,12 @@ export default function FormationPage() {
           {/* Diagnostic Summary */}
           <div
             className={cn(
-              "rounded-xl border p-6",
+              "rounded-[14px] border p-6 shadow-[var(--shadow-1)]",
               diagnostic.overallStatus === "ok"
-                ? "border-green-500/30 bg-green-500/5"
+                ? "border-green-500/30 bg-green-500/8"
                 : diagnostic.overallStatus === "warning"
-                  ? "border-orange-500/30 bg-orange-500/5"
-                  : "border-red-500/30 bg-red-500/5"
+                  ? "border-orange-500/30 bg-orange-500/8"
+                  : "border-red-500/30 bg-red-500/8"
             )}
           >
             <div className="flex items-center gap-4">
@@ -220,7 +220,7 @@ export default function FormationPage() {
                     <div
                       key={rec.area}
                       className={cn(
-                        "rounded-xl border bg-card p-5",
+                        "rounded-[14px] border bg-card p-5 shadow-[var(--shadow-1)]",
                         pConfig.border
                       )}
                     >
@@ -245,7 +245,7 @@ export default function FormationPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Actuel</span>
                           <span className="font-medium text-foreground">
-                            {rec.currentRatio.toFixed(1)}
+                            <span className="tabular-nums">{rec.currentRatio.toFixed(1)}</span>
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -288,7 +288,7 @@ export default function FormationPage() {
       {activeTab === "entrainer" && (
         <div className="space-y-6">
           {/* Header */}
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5">
+          <div className="rounded-[14px] border border-orange-500/30 bg-orange-500/8 p-5 shadow-[var(--shadow-1)]">
             <div className="flex items-center gap-3">
               <Dumbbell className="h-5 w-5 text-orange-500" />
               <div>
@@ -317,7 +317,7 @@ export default function FormationPage() {
                     <div
                       key={rec.area}
                       className={cn(
-                        "rounded-xl border bg-card p-5",
+                        "rounded-[14px] border bg-card p-5 shadow-[var(--shadow-1)]",
                         pConfig.border
                       )}
                     >
@@ -360,7 +360,7 @@ export default function FormationPage() {
                         onClick={() =>
                           window.open("https://train-my-agent.vercel.app/", "_blank")
                         }
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--radius-button)] bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                       >
                         <Dumbbell className="h-4 w-4" />
                         S&apos;entraîner sur NXT
@@ -378,7 +378,7 @@ export default function FormationPage() {
             <h3 className="text-lg font-semibold text-foreground">
               Vue complète de vos ratios
             </h3>
-            <div className="rounded-xl border border-border bg-card divide-y divide-border">
+            <div className="rounded-[14px] border border-border bg-card shadow-[var(--shadow-1)] divide-y divide-border">
               {computedRatios.map((ratio) => {
                 const config = ratioConfigs[ratio.ratioId as keyof typeof ratioConfigs];
                 const isWeak = ratio.status !== "ok";
@@ -413,7 +413,7 @@ export default function FormationPage() {
                               : "text-red-500"
                         )}
                       >
-                        {ratio.percentageOfTarget}%
+                        <span className="tabular-nums">{ratio.percentageOfTarget}%</span>
                       </span>
                       {isWeak && (
                         <button
@@ -434,7 +434,7 @@ export default function FormationPage() {
           </div>
 
           {/* NXT Connection banner */}
-          <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-6">
+          <div className="rounded-[14px] border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-6 shadow-[var(--shadow-1)]">
             <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
                 <Dumbbell className="h-7 w-7 text-indigo-500" />
@@ -452,7 +452,7 @@ export default function FormationPage() {
                 onClick={() =>
                   window.open("https://train-my-agent.vercel.app/", "_blank")
                 }
-                className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-600"
+                className="flex shrink-0 items-center gap-2 rounded-[var(--radius-button)] bg-indigo-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-600"
               >
                 Accéder à NXT
                 <ExternalLink className="h-4 w-4" />
@@ -466,7 +466,7 @@ export default function FormationPage() {
       {activeTab === "financement" && (
         <div className="space-y-6">
           {/* Banner AGEFICE */}
-          <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6">
+          <div className="rounded-[14px] border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6 shadow-[var(--shadow-1)]">
             <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20">
                 <Wallet className="h-7 w-7 text-emerald-500" />
@@ -486,19 +486,19 @@ export default function FormationPage() {
 
           {/* Infos clés */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-5 text-center">
-              <p className="text-2xl font-bold text-emerald-500">100%</p>
+            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
+              <p className="text-2xl font-bold text-emerald-500 tabular-nums">100%</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Prise en charge possible
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-5 text-center">
+            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
               <p className="text-2xl font-bold text-emerald-500">3 min</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Pour constituer le dossier
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-5 text-center">
+            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
               <p className="text-2xl font-bold text-emerald-500">0 €</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Reste à charge estimé
@@ -507,7 +507,7 @@ export default function FormationPage() {
           </div>
 
           {/* CTA */}
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
+          <div className="flex flex-col items-center rounded-[14px] border border-dashed border-border bg-card px-6 py-10 text-center shadow-[var(--shadow-1)]">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
               <FileText className="h-7 w-7 text-emerald-500" />
             </div>
@@ -520,7 +520,7 @@ export default function FormationPage() {
             </p>
             <button
               onClick={() => setShowAgeficeWizard(true)}
-              className="mt-6 flex items-center gap-2 rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+              className="mt-6 flex items-center gap-2 rounded-[var(--radius-button)] bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-600"
             >
               <FileText className="h-4 w-4" />
               Constituer mon dossier
@@ -587,7 +587,7 @@ function CatalogueTab() {
           Ouvrir dans un nouvel onglet <ExternalLink className="h-3 w-3" />
         </a>
       </div>
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="rounded-[14px] border border-border overflow-hidden shadow-[var(--shadow-1)]">
         <iframe
           src={catalogueUrl}
           className="w-full border-0"
