@@ -451,14 +451,16 @@ function computeRatioImpact(
     propagation = buildPropagation(cfg.propagateFrom, delta);
   }
 
-  const deltaCA = Math.round(deltaActes * avgCA);
+  // Guard rails: cap at reasonable values
+  const cappedActes = Math.min(deltaActes, 10);
+  const deltaCA = Math.min(Math.round(cappedActes * avgCA), 100000);
 
   return {
     ratioLabel: cfg.label, currentRatio: cfg.curRatio, targetRatio: targetRatioValue,
     upstreamVolume: cfg.upVol, upstreamLabel: cfg.upLabel,
     currentDownstream: Math.round(cfg.curDown), projectedDownstream: Math.round(projectedDown),
     deltaDownstream: delta, downstreamLabel: cfg.downLabel,
-    deltaActes, deltaCA, isPct: false, propagation, avgCAperActe: Math.round(avgCA),
+    deltaActes: cappedActes, deltaCA, isPct: false, propagation, avgCAperActe: Math.round(avgCA),
   };
 }
 
@@ -512,6 +514,8 @@ function aggregateResults(results: PeriodResults[]): PeriodResults | null {
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
+type PeriodMode = "mois" | "ytd" | "custom";
+
 interface ProductionChainProps {
   scope: "individual" | "team" | "agency";
   userId?: string;
@@ -522,6 +526,8 @@ interface ProductionChainProps {
   resultsOverride?: PeriodResults | null;
   /** Number of months for objective scaling. 1 = monthly, 4 = Jan-Apr YTD, etc. Default: 1. */
   periodMonths?: number;
+  /** Current period mode for label display */
+  periodMode?: PeriodMode;
 }
 
 // ── Objectifs : GPS (Supabase) > Catégorie (constantes) ─────────────────────
@@ -570,7 +576,7 @@ function resolveObjectives(
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function ProductionChain({ scope, userId, teamId, profile: profileProp, resultsOverride, periodMonths = 1 }: ProductionChainProps) {
+export function ProductionChain({ scope, userId, teamId, profile: profileProp, resultsOverride, periodMonths = 1, periodMode = "mois" }: ProductionChainProps) {
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("nxt-chain-view", "volumes");
   const [gpsBreakdown, setGpsBreakdown] = useState<GpsBreakdown | null>(null);
   const [expandedAction, setExpandedAction] = useState<number | null>(null);
@@ -709,6 +715,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
   ].filter((p) => p.steps.length > 0);
 
   const objLabel = objectifSource === "gps" ? "GPS" : CATEGORY_LABELS[category];
+  const objPeriodTag = periodMode === "ytd" ? "obj. YTD" : periodMode === "custom" ? `obj. ${periodMonths} mois` : "obj. mensuel";
 
   return (
     <div className="space-y-4">
@@ -725,7 +732,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
         </div>
         <span className="text-xs text-muted-foreground">
           {scope !== "individual" && <>{headcount} collaborateur{headcount > 1 ? "s" : ""} · </>}
-          Objectifs {objLabel}
+          Objectifs {objLabel} · {periodMode === "ytd" ? `${periodMonths} mois cumulés` : periodMode === "custom" ? `${periodMonths} mois` : "ce mois-ci"}
         </span>
       </div>
 
@@ -782,7 +789,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                           </span>
                           <div className="flex items-center justify-between mt-0.5">
                             <span className="text-[9px] text-muted-foreground">
-                              obj. {formatVal(vol.objectif, vol.unit)}
+                              {objPeriodTag} {formatVal(vol.objectif, vol.unit)}
                             </span>
                             <span className={cn("text-[9px] font-bold", sc.text)}>
                               {vol.realise - vol.objectif >= 0 ? "+" : ""}
@@ -905,23 +912,71 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                     step.ratio.objectif,
                   )
                 : (() => {
-                    // Volume mode: estimate CA gain from reaching volume objective
+                    // Volume mode: propagate delta through the real chain with actual ratios
                     const volDelta = step.vol.objectif - step.vol.realise;
                     if (volDelta <= 0) return null;
-                    const avgCA = actes > 0 ? ca / actes : 8000;
-                    const currentTotal = step.vol.realise || 1;
-                    const actesPerUnit = actes / currentTotal;
-                    const estDeltaActes = Math.round(volDelta * actesPerUnit * 10) / 10;
+                    const avgCAVal = actes > 0 ? ca / actes : 8000;
+
+                    // Current ratios (same as computeRatioImpact)
+                    const cr = {
+                      contacts_rdv: rdvEstim > 0 ? contacts / rdvEstim : 15,
+                      rdv_estim: estimations > 0 ? rdvEstim / estimations : 1.5,
+                      estim_mandat: mandats > 0 ? estimations / mandats : 2,
+                      visites_offre: offres > 0 ? visites / offres : 10,
+                      offres_compromis: compromis > 0 ? offres / compromis : 2,
+                      compromis_acte: actes > 0 ? compromis / actes : 1.5,
+                    };
+
+                    // Map each volume step to its position in the chain and propagate forward
+                    const chainSteps = [
+                      { num: 1,  label: "contacts",    next: "rdv",         ratio: cr.contacts_rdv },
+                      { num: 2,  label: "RDV",         next: "estimations", ratio: cr.rdv_estim },
+                      { num: 3,  label: "estimations", next: "mandats",     ratio: cr.estim_mandat },
+                      // 4 (mandats) → no direct chain to visites (different flow)
+                      { num: 6,  label: "acheteurs",   next: "visites",     ratio: 3 },   // ~1 acheteur sur 3 génère des visites
+                      { num: 7,  label: "visites",     next: "offres",      ratio: cr.visites_offre },
+                      { num: 8,  label: "offres",      next: "compromis",   ratio: cr.offres_compromis },
+                      { num: 9,  label: "compromis",   next: "actes",       ratio: cr.compromis_acte },
+                      { num: 10, label: "actes",        next: "",            ratio: 1 },
+                    ];
+
+                    const startIdx = chainSteps.findIndex((s) => s.num === step.vol.num);
+                    if (startIdx < 0) {
+                      // CA cards (11, 12): simple — delta is already in €
+                      return null;
+                    }
+
+                    // Propagate through remaining chain steps
+                    let val = volDelta;
+                    const propagationSteps: Array<{ label: string; delta: number }> = [
+                      { label: chainSteps[startIdx].label, delta: Math.round(val * 10) / 10 },
+                    ];
+
+                    for (let i = startIdx; i < chainSteps.length; i++) {
+                      if (!chainSteps[i].next) break;
+                      const ratio = chainSteps[i].ratio;
+                      if (ratio > 0) val = val / ratio;
+                      // Find next step in chain
+                      const nextStep = chainSteps.find((s) => s.label === chainSteps[i].next);
+                      if (nextStep) {
+                        propagationSteps.push({ label: nextStep.label, delta: Math.round(val * 100) / 100 });
+                      }
+                    }
+
+                    // The last value is the delta in actes
+                    let estDeltaActes = Math.round(val * 10) / 10;
+
+                    // Guard rails: cap at reasonable values
+                    estDeltaActes = Math.min(estDeltaActes, 10); // max 10 actes from a single volume improvement
+                    const estDeltaCA = Math.min(Math.round(estDeltaActes * avgCAVal), 100000); // max 100k€
+
                     return {
                       ratioLabel: step.vol.label, currentRatio: step.vol.realise, targetRatio: step.vol.objectif,
                       upstreamVolume: 0, upstreamLabel: "", currentDownstream: step.vol.realise,
                       projectedDownstream: step.vol.objectif, deltaDownstream: volDelta,
-                      downstreamLabel: step.vol.label, deltaActes: estDeltaActes, deltaCA: Math.round(estDeltaActes * avgCA), isPct: false,
-                      propagation: [
-                        { label: step.vol.label.toLowerCase(), delta: volDelta },
-                        { label: "actes (estimation)", delta: estDeltaActes },
-                      ],
-                      avgCAperActe: Math.round(avgCA),
+                      downstreamLabel: step.vol.label, deltaActes: estDeltaActes, deltaCA: estDeltaCA, isPct: false,
+                      propagation: propagationSteps,
+                      avgCAperActe: Math.round(avgCAVal),
                     };
                   })();
 

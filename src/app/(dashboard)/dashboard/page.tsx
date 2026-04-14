@@ -548,6 +548,7 @@ function DashboardContent() {
             userId={user.id}
             resultsOverride={periodResults}
             periodMonths={periodMonthCount}
+            periodMode={periodFilter === "ytd" ? "ytd" : periodFilter === "mois" ? "mois" : "custom"}
           />
         </div>
       )}
