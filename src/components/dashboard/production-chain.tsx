@@ -290,7 +290,22 @@ function getSolutionsForRatio(stepNum: number, _area: FormationArea, isVolumeMod
   }));
 }
 
-// ── Simulation d'impact ROI concret par ratio ───────────────────────
+// ── Simulation d'impact ROI — logique métier vendeur/mandat ─────────
+//
+// Tunnel vendeur :
+//   contacts → RDV → mandats → split exclu/simple → ventes par type → CA
+//
+// Taux de transformation par type de mandat (règle métier fixe) :
+//   - 1 mandat exclusif sur 2 aboutit à une vente
+//   - 1 mandat simple sur 5 aboutit à une vente
+//
+// Tunnel acheteur :
+//   visites → offres → compromis → actes
+//
+// Les ratios contacts→RDV, RDV→mandat, % exclu sont paramétrés par profil.
+
+const TAUX_VENTE_EXCLU = 0.5;   // 1 exclu sur 2 → vente
+const TAUX_VENTE_SIMPLE = 0.2;  // 1 simple sur 5 → vente
 
 interface RatioImpact {
   ratioLabel: string;
@@ -302,25 +317,26 @@ interface RatioImpact {
   projectedDownstream: number;
   deltaDownstream: number;
   downstreamLabel: string;
-  /** Propagated gain in actes at end of chain */
   deltaActes: number;
-  /** Estimated CA gain (deltaActes × avgCAperActe) */
   deltaCA: number;
-  /** Is the ratio a percentage (exclusivité)? */
   isPct: boolean;
-  /** Propagation chain: ordered list of steps with their delta */
   propagation: Array<{ label: string; delta: number; unit?: string }>;
-  /** Average CA per acte used in computation */
   avgCAperActe: number;
 }
 
 /**
- * For a given ratio step, compute the concrete impact of improving
- * from current to target ratio, propagated through the production chain.
- *
- * Chain: contacts → rdv → estimations → mandats → visites → offres → compromis → actes → CA
- * Each link has a current ratio. We improve ONE link and propagate downstream.
+ * Compute mandats → ventes using exclu/simple split + fixed conversion rates.
  */
+function mandatsToVentes(mandats: number, pctExclu: number): {
+  exclusifs: number; simples: number; ventesExclu: number; ventesSimples: number; totalVentes: number;
+} {
+  const exclusifs = Math.round(mandats * pctExclu / 100 * 10) / 10;
+  const simples = Math.round((mandats - exclusifs) * 10) / 10;
+  const ventesExclu = Math.round(exclusifs * TAUX_VENTE_EXCLU * 10) / 10;
+  const ventesSimples = Math.round(simples * TAUX_VENTE_SIMPLE * 10) / 10;
+  return { exclusifs, simples, ventesExclu, ventesSimples, totalVentes: Math.round((ventesExclu + ventesSimples) * 10) / 10 };
+}
+
 function computeRatioImpact(
   stepNum: number,
   currentVolumes: {
@@ -331,138 +347,135 @@ function computeRatioImpact(
   targetRatioValue: number,
 ): RatioImpact | null {
   const v = currentVolumes;
-  const avgCA = v.actes > 0 ? v.ca / v.actes : 8000; // fallback 8k if no data
+  const avgCA = v.actes > 0 ? v.ca / v.actes : 8000;
 
-  // Current ratios between each step (as "input per 1 output")
+  // Current ratios (input per 1 output)
   const curRatios = {
     contacts_rdv: v.rdvEstim > 0 ? v.contacts / v.rdvEstim : 15,
-    rdv_estim: v.estimations > 0 ? v.rdvEstim / v.estimations : 1.5,
-    estim_mandat: v.mandats > 0 ? v.estimations / v.mandats : 2,
+    rdv_mandat: v.mandats > 0 ? v.rdvEstim / v.mandats : 1.5,
     visites_offre: v.offres > 0 ? v.visites / v.offres : 10,
     offres_compromis: v.compromis > 0 ? v.offres / v.compromis : 2,
     compromis_acte: v.actes > 0 ? v.compromis / v.actes : 1.5,
   };
 
-  // Downstream propagation: given a volume at a step, compute actes
-  // by applying current ratios from that step forward
-  const propagateToActes = (fromStep: string, volume: number): number => {
-    let val = volume;
-    const chain: Array<{ key: keyof typeof curRatios }> = [
-      { key: "contacts_rdv" },
-      { key: "rdv_estim" },
-      { key: "estim_mandat" },
-      // skip exclusivite (doesn't reduce volume, it's a quality metric)
-      { key: "visites_offre" },
-      { key: "offres_compromis" },
-      { key: "compromis_acte" },
-    ];
-    const stepOrder = ["contacts", "rdv", "estimations", "mandats", "visites", "offres", "compromis"];
-    const startIdx = stepOrder.indexOf(fromStep);
-    if (startIdx < 0) return val;
-    for (let i = startIdx; i < chain.length; i++) {
-      const ratio = curRatios[chain[i].key];
-      if (ratio > 0) val = val / ratio;
-    }
-    return val;
-  };
+  // ── Tunnel vendeur : steps 2, 3, 4, 5 propagent via mandats → ventes ──
 
-  // Define each ratio step
-  const configs: Record<number, {
-    label: string; upstream: string; upLabel: string; downLabel: string;
-    upVol: number; curDown: number; curRatio: number; propagateFrom: string; isPct: boolean;
-  }> = {
-    2: { label: "Contacts \u2192 RDV", upstream: "contacts", upLabel: "contacts", downLabel: "RDV", upVol: v.contacts, curDown: v.rdvEstim, curRatio: curRatios.contacts_rdv, propagateFrom: "rdv", isPct: false },
-    3: { label: "RDV \u2192 Estimation", upstream: "rdv", upLabel: "RDV", downLabel: "estimations", upVol: v.rdvEstim, curDown: v.estimations, curRatio: curRatios.rdv_estim, propagateFrom: "estimations", isPct: false },
-    4: { label: "Estimation \u2192 Mandat", upstream: "estimations", upLabel: "estimations", downLabel: "mandats", upVol: v.estimations, curDown: v.mandats, curRatio: curRatios.estim_mandat, propagateFrom: "mandats", isPct: false },
-    5: { label: "% Exclusivit\u00E9", upstream: "mandats", upLabel: "mandats", downLabel: "mandats exclusifs", upVol: v.mandats, curDown: Math.round(v.mandats * v.pctExclu / 100), curRatio: v.pctExclu, propagateFrom: "", isPct: true },
-    7: { label: "Visites \u2192 Offre", upstream: "visites", upLabel: "visites", downLabel: "offres", upVol: v.visites, curDown: v.offres, curRatio: curRatios.visites_offre, propagateFrom: "offres", isPct: false },
-    8: { label: "Offres \u2192 Compromis", upstream: "offres", upLabel: "offres", downLabel: "compromis", upVol: v.offres, curDown: v.compromis, curRatio: curRatios.offres_compromis, propagateFrom: "compromis", isPct: false },
-    9: { label: "Compromis \u2192 Acte", upstream: "compromis", upLabel: "compromis", downLabel: "actes", upVol: v.compromis, curDown: v.actes, curRatio: curRatios.compromis_acte, propagateFrom: "actes_direct", isPct: false },
-  };
-
-  const cfg = configs[stepNum];
-  if (!cfg) return null;
-  if (cfg.upVol === 0) return null;
-
-  // Build propagation chain: list each step gain from the impacted step down to actes
-  const buildPropagation = (fromStep: string, deltaStart: number): Array<{ label: string; delta: number }> => {
-    const stepLabels: Record<string, string> = {
-      rdv: "RDV", estimations: "estimations", mandats: "mandats",
-      visites: "visites", offres: "offres", compromis: "compromis", actes: "actes",
+  // Steps 2-4: ratio improvement → more downstream → propagate to mandats → split → ventes → CA
+  if (stepNum === 2 || stepNum === 3 || stepNum === 4) {
+    const labels: Record<number, { label: string; upLabel: string; downLabel: string; upVol: number; curDown: number; curRatio: number }> = {
+      2: { label: "Contacts \u2192 RDV", upLabel: "contacts", downLabel: "RDV", upVol: v.contacts, curDown: v.rdvEstim, curRatio: curRatios.contacts_rdv },
+      3: { label: "RDV \u2192 Estimation", upLabel: "RDV", downLabel: "estimations", upVol: v.rdvEstim, curDown: v.estimations, curRatio: v.estimations > 0 ? v.rdvEstim / v.estimations : 1.5 },
+      4: { label: "RDV \u2192 Mandat", upLabel: "RDV", downLabel: "mandats", upVol: v.rdvEstim, curDown: v.mandats, curRatio: curRatios.rdv_mandat },
     };
-    const chainOrder = [
-      { from: "rdv",         ratioKey: "rdv_estim",        next: "estimations" },
-      { from: "estimations", ratioKey: "estim_mandat",     next: "mandats" },
-      // mandats → visites: pas de ratio direct, on ne propage pas via cette branche
-      { from: "visites",     ratioKey: "visites_offre",    next: "offres" },
-      { from: "offres",      ratioKey: "offres_compromis", next: "compromis" },
-      { from: "compromis",   ratioKey: "compromis_acte",   next: "actes" },
-    ];
-    const startIdx = chainOrder.findIndex((c) => c.from === fromStep);
-    if (startIdx < 0) return [];
-    const result: Array<{ label: string; delta: number }> = [];
-    let val = deltaStart;
-    result.push({ label: stepLabels[fromStep] ?? fromStep, delta: Math.round(val * 10) / 10 });
-    for (let i = startIdx; i < chainOrder.length; i++) {
-      const ratio = curRatios[chainOrder[i].ratioKey as keyof typeof curRatios];
-      if (ratio > 0) {
-        val = val / ratio;
-        result.push({ label: stepLabels[chainOrder[i].next] ?? chainOrder[i].next, delta: Math.round(val * 10) / 10 });
-      }
-    }
-    return result;
-  };
+    const cfg = labels[stepNum];
+    if (!cfg || cfg.upVol === 0) return null;
 
-  // Exclusivité (special case)
-  if (cfg.isPct) {
-    const currentExclu = Math.round(cfg.upVol * cfg.curRatio / 100);
-    const projectedExclu = Math.round(cfg.upVol * targetRatioValue / 100);
-    const delta = projectedExclu - currentExclu;
-    const excluRate = curRatios.compromis_acte > 0 ? curRatios.compromis_acte : 1.5;
-    const simpleRate = 6;
-    const excluActesGain = delta > 0 ? delta * (1 / excluRate - 1 / simpleRate) : 0;
-    const excluDeltaCA = Math.round(excluActesGain * avgCA);
+    const projectedDown = targetRatioValue > 0 ? cfg.upVol / targetRatioValue : cfg.curDown;
+    const deltaDown = Math.round((projectedDown - cfg.curDown) * 10) / 10;
+    if (deltaDown <= 0) return null;
+
+    // Propagate delta downstream to mandats
+    let deltaMandats = deltaDown;
+    const propagation: Array<{ label: string; delta: number; unit?: string }> = [
+      { label: cfg.downLabel, delta: deltaDown },
+    ];
+
+    if (stepNum === 2) {
+      // +RDV → +mandats via rdv_mandat ratio
+      deltaMandats = Math.round(deltaDown / curRatios.rdv_mandat * 10) / 10;
+      propagation.push({ label: "mandats", delta: deltaMandats });
+    }
+    if (stepNum === 3) {
+      // +estimations → +mandats (estimations → mandats is roughly 1:1 in this context since RDV~=estimations)
+      deltaMandats = Math.round(deltaDown / (v.mandats > 0 ? v.estimations / v.mandats : 2) * 10) / 10;
+      propagation.push({ label: "mandats", delta: deltaMandats });
+    }
+
+    // Split mandats → exclu/simple → ventes
+    const split = mandatsToVentes(deltaMandats, v.pctExclu);
+    propagation.push({ label: `${split.exclusifs} exclu + ${split.simples} simples`, delta: deltaMandats });
+    propagation.push({ label: `ventes (${split.ventesExclu} exclu + ${split.ventesSimples} simples)`, delta: split.totalVentes });
+
+    const cappedVentes = Math.min(split.totalVentes, 10);
+    const deltaCA = Math.min(Math.round(cappedVentes * avgCA), 100000);
+    propagation.push({ label: "CA", delta: deltaCA, unit: "€" });
+
     return {
       ratioLabel: cfg.label, currentRatio: cfg.curRatio, targetRatio: targetRatioValue,
       upstreamVolume: cfg.upVol, upstreamLabel: cfg.upLabel,
-      currentDownstream: currentExclu, projectedDownstream: projectedExclu,
-      deltaDownstream: delta, downstreamLabel: cfg.downLabel,
-      deltaActes: Math.round(excluActesGain * 10) / 10, deltaCA: excluDeltaCA, isPct: true,
+      currentDownstream: Math.round(cfg.curDown), projectedDownstream: Math.round(projectedDown),
+      deltaDownstream: Math.round(deltaDown), downstreamLabel: cfg.downLabel,
+      deltaActes: cappedVentes, deltaCA, isPct: false, propagation, avgCAperActe: Math.round(avgCA),
+    };
+  }
+
+  // Step 5: % Exclusivité — more exclusifs means better conversion rate
+  if (stepNum === 5) {
+    if (v.mandats === 0) return null;
+    const curSplit = mandatsToVentes(v.mandats, v.pctExclu);
+    const projSplit = mandatsToVentes(v.mandats, targetRatioValue);
+    const deltaVentes = Math.round((projSplit.totalVentes - curSplit.totalVentes) * 10) / 10;
+    if (deltaVentes <= 0) return null;
+
+    const cappedVentes = Math.min(deltaVentes, 10);
+    const deltaCA = Math.min(Math.round(cappedVentes * avgCA), 100000);
+
+    return {
+      ratioLabel: "% Exclusivité", currentRatio: v.pctExclu, targetRatio: targetRatioValue,
+      upstreamVolume: v.mandats, upstreamLabel: "mandats",
+      currentDownstream: Math.round(curSplit.exclusifs), projectedDownstream: Math.round(projSplit.exclusifs),
+      deltaDownstream: Math.round(projSplit.exclusifs - curSplit.exclusifs), downstreamLabel: "mandats exclusifs",
+      deltaActes: cappedVentes, deltaCA, isPct: true,
       propagation: [
-        { label: "mandats exclusifs", delta },
-        { label: "actes (gain net)", delta: Math.round(excluActesGain * 10) / 10 },
+        { label: `${Math.round(projSplit.exclusifs)} exclu + ${Math.round(projSplit.simples)} simples`, delta: v.mandats },
+        { label: `ventes (${projSplit.ventesExclu} exclu + ${projSplit.ventesSimples} simples)`, delta: projSplit.totalVentes },
+        { label: `gain net : +${deltaVentes} ventes`, delta: deltaVentes },
       ],
       avgCAperActe: Math.round(avgCA),
     };
   }
 
-  // Standard ratio
-  const projectedDown = targetRatioValue > 0 ? cfg.upVol / targetRatioValue : cfg.curDown;
-  const delta = Math.round(projectedDown - cfg.curDown);
+  // ── Tunnel acheteur : steps 7, 8, 9 propagent linéairement ──
 
-  let deltaActes = 0;
-  let propagation: Array<{ label: string; delta: number }> = [];
-  if (cfg.propagateFrom === "actes_direct") {
-    deltaActes = delta;
-    propagation = [{ label: "actes", delta }];
-  } else if (cfg.propagateFrom && delta > 0) {
-    const currentActesFromStep = propagateToActes(cfg.propagateFrom, cfg.curDown);
-    const projectedActesFromStep = propagateToActes(cfg.propagateFrom, projectedDown);
-    deltaActes = Math.round((projectedActesFromStep - currentActesFromStep) * 10) / 10;
-    propagation = buildPropagation(cfg.propagateFrom, delta);
+  if (stepNum === 7 || stepNum === 8 || stepNum === 9) {
+    const acheteurConfigs: Record<number, { label: string; upLabel: string; downLabel: string; upVol: number; curDown: number; curRatio: number; propagateSteps: Array<{ ratioKey: string; label: string }> }> = {
+      7: { label: "Visites \u2192 Offre", upLabel: "visites", downLabel: "offres", upVol: v.visites, curDown: v.offres, curRatio: curRatios.visites_offre,
+        propagateSteps: [{ ratioKey: "offres_compromis", label: "compromis" }, { ratioKey: "compromis_acte", label: "actes" }] },
+      8: { label: "Offres \u2192 Compromis", upLabel: "offres", downLabel: "compromis", upVol: v.offres, curDown: v.compromis, curRatio: curRatios.offres_compromis,
+        propagateSteps: [{ ratioKey: "compromis_acte", label: "actes" }] },
+      9: { label: "Compromis \u2192 Acte", upLabel: "compromis", downLabel: "actes", upVol: v.compromis, curDown: v.actes, curRatio: curRatios.compromis_acte,
+        propagateSteps: [] },
+    };
+
+    const cfg = acheteurConfigs[stepNum];
+    if (!cfg || cfg.upVol === 0) return null;
+
+    const projectedDown = targetRatioValue > 0 ? cfg.upVol / targetRatioValue : cfg.curDown;
+    const deltaDown = Math.round((projectedDown - cfg.curDown) * 10) / 10;
+    if (deltaDown <= 0) return null;
+
+    // Propagate through remaining steps
+    let val = deltaDown;
+    const propagation: Array<{ label: string; delta: number; unit?: string }> = [{ label: cfg.downLabel, delta: val }];
+    for (const ps of cfg.propagateSteps) {
+      const ratio = curRatios[ps.ratioKey as keyof typeof curRatios];
+      if (ratio > 0) val = Math.round(val / ratio * 10) / 10;
+      propagation.push({ label: ps.label, delta: val });
+    }
+
+    const cappedActes = Math.min(val, 10);
+    const deltaCA = Math.min(Math.round(cappedActes * avgCA), 100000);
+
+    return {
+      ratioLabel: cfg.label, currentRatio: cfg.curRatio, targetRatio: targetRatioValue,
+      upstreamVolume: cfg.upVol, upstreamLabel: cfg.upLabel,
+      currentDownstream: Math.round(cfg.curDown), projectedDownstream: Math.round(projectedDown),
+      deltaDownstream: Math.round(deltaDown), downstreamLabel: cfg.downLabel,
+      deltaActes: cappedActes, deltaCA, isPct: false, propagation, avgCAperActe: Math.round(avgCA),
+    };
   }
 
-  // Guard rails: cap at reasonable values
-  const cappedActes = Math.min(deltaActes, 10);
-  const deltaCA = Math.min(Math.round(cappedActes * avgCA), 100000);
-
-  return {
-    ratioLabel: cfg.label, currentRatio: cfg.curRatio, targetRatio: targetRatioValue,
-    upstreamVolume: cfg.upVol, upstreamLabel: cfg.upLabel,
-    currentDownstream: Math.round(cfg.curDown), projectedDownstream: Math.round(projectedDown),
-    deltaDownstream: delta, downstreamLabel: cfg.downLabel,
-    deltaActes: cappedActes, deltaCA, isPct: false, propagation, avgCAperActe: Math.round(avgCA),
-  };
+  return null;
 }
 
 function safeDiv(a: number, b: number): number {
