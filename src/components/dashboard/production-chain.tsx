@@ -694,22 +694,6 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
   const stableCount = ratios.filter((r) => r.status === "stable").length;
   const sousperfCount = ratios.filter((r) => r.status === "sousperf").length;
 
-  // Priority #1: worst ratio by gap magnitude (sousperf first, then stable)
-  const priorityNum = useMemo(() => {
-    if (scope !== "individual") return -1;
-    // Rank ratios: sousperf with biggest gap first
-    const ranked = [...ratios]
-      .filter((r) => r.status === "sousperf" || r.status === "stable")
-      .sort((a, b) => {
-        if (a.status !== b.status) return a.status === "sousperf" ? -1 : 1;
-        // Within same status: biggest deviation from objectif
-        const gapA = a.isLowerBetter ? a.realise / Math.max(0.01, a.objectif) : a.objectif / Math.max(0.01, a.realise);
-        const gapB = b.isLowerBetter ? b.realise / Math.max(0.01, b.objectif) : b.objectif / Math.max(0.01, b.realise);
-        return gapB - gapA;
-      });
-    return ranked[0]?.num ?? -1;
-  }, [ratios, scope]);
-
   // Build visible steps for rendering
   const visibleSteps = volumes
     .map((vol) => {
@@ -768,36 +752,24 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                 const { vol, ratio, volStatus } = step;
                 const sc = STATUS_CONFIG[showRatios && ratio ? ratio.status : volStatus];
                 const isLast = stepIdx === phase.steps.length - 1;
-                const isPriority = vol.num === priorityNum && showRatios;
 
                 return (
                   <div key={vol.num} className="flex items-stretch shrink-0">
                     {/* Step card */}
                     <div
                       className={cn(
-                        "relative p-3.5 transition-all border",
-                        isPriority ? "w-[210px] z-10" : "w-[176px]",
+                        "relative w-[176px] p-3.5 transition-all border",
                         sc.bg,
                       )}
                       style={{
-                        borderColor: isPriority ? sc.borderColor : sc.borderColor,
-                        borderLeftWidth: isPriority ? "4px" : "3px",
+                        borderColor: sc.borderColor,
+                        borderLeftWidth: "3px",
                         borderRadius: "var(--radius-card)",
-                        boxShadow: isPriority
-                          ? `var(--shadow-2), 0 0 20px color-mix(in srgb, ${sc.borderColor} 25%, transparent)`
-                          : "var(--shadow-1)",
+                        boxShadow: "var(--shadow-1)",
                       }}
                     >
-                      {/* Priority badge */}
-                      {isPriority && (
-                        <div className="absolute -top-2.5 left-3 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider shadow-md animate-pulse" style={{ animationDuration: "3s" }}>
-                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-white" />
-                          Levier principal
-                        </div>
-                      )}
-
                       {/* Status pill */}
-                      <div className={cn("flex items-center justify-between", isPriority ? "mb-3 mt-1" : "mb-2")}>
+                      <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-semibold text-muted-foreground/50 tabular-nums">
                           {String(vol.num).padStart(2, "0")}
                         </span>
@@ -807,14 +779,14 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                       </div>
 
                       {/* Label */}
-                      <p className={cn("font-semibold text-foreground leading-snug mb-2", isPriority ? "text-sm" : "text-xs")}>
+                      <p className="text-xs font-semibold text-foreground leading-snug mb-2">
                         {vol.label}
                       </p>
 
                       {/* Volume */}
                       {showVolumes && (
                         <div className="mb-2">
-                          <span className={cn("font-extrabold text-foreground leading-none tracking-tight", isPriority ? "text-2xl" : "text-xl")}>
+                          <span className="text-xl font-extrabold text-foreground leading-none tracking-tight">
                             {formatVal(vol.realise, vol.unit)}
                           </span>
                           <div className="flex items-center justify-between mt-1">
