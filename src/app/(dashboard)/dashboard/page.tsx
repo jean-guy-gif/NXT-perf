@@ -328,8 +328,8 @@ function DashboardContent() {
   return (
     <div className="space-y-6">
       {/* ── Top tabs ── */}
-      <div className="flex items-center border-b border-border pb-3">
-        <div className="flex items-center gap-6">
+      <div className="flex items-center border-b border-border/50 pb-3">
+        <div className="flex items-center gap-8">
           <button
             onClick={() => setActiveTab("chaine")}
             className={cn(
@@ -386,7 +386,8 @@ function DashboardContent() {
           <button
             type="button"
             onClick={() => setShowPlansPanel(!showPlansPanel)}
-            className="w-full flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 hover:bg-primary/10 transition-colors text-left"
+            className="w-full flex items-center justify-between border border-primary/20 bg-primary/5 px-5 py-3 hover:bg-primary/8 transition-all text-left"
+            style={{ borderRadius: "var(--radius-card)" }}
           >
             <div className="flex items-center gap-3">
               <span className="text-base">{"\uD83D\uDCC5"}</span>
@@ -402,13 +403,13 @@ function DashboardContent() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-24">
-                <div className="h-1.5 rounded-full bg-border/50 overflow-hidden">
-                  <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%` }} />
+            <div className="flex items-center gap-4">
+              <div className="w-28">
+                <div className="h-2 rounded-full bg-border/30 overflow-hidden">
+                  <div className="h-full rounded-full bg-green-500 transition-all duration-500" style={{ width: `${totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%` }} />
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-primary">
+              <span className="text-xs font-bold text-primary tabular-nums">
                 {totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%
               </span>
             </div>
@@ -451,9 +452,9 @@ function DashboardContent() {
       {activeTab === "chaine" && (
         <div className="space-y-4">
           {/* Period selector + context bar */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-primary/15 bg-primary/5 px-5 py-3.5" style={{ borderRadius: "var(--radius-card)" }}>
             <div className="flex items-center gap-3">
-              <Calendar className="h-4 w-4 text-primary shrink-0" />
+              <Calendar className="h-4.5 w-4.5 text-primary shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-foreground capitalize">{periodLabel}</p>
                 {periodFilter === "mois" && (
@@ -647,16 +648,16 @@ function DashboardContent() {
                   const fmtVal = (v: number) => vol.unit === "€" ? formatCurrency(v) : vol.unit === "%" ? `${v}%` : String(v);
 
                   return (
-                    <div key={fid} className={cn("rounded-xl border p-4 space-y-2", s.border, s.bg)}>
+                    <div key={fid} className={cn("border p-4 space-y-2.5", s.border, s.bg)} style={{ borderRadius: "var(--radius-card)", boxShadow: "var(--shadow-1)" }}>
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-foreground">{vol.label}</p>
-                        <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold", s.text, s.bg)}>{s.label}</span>
+                        <p className="text-xs font-semibold text-foreground">{vol.label}</p>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", s.text, s.bg)}>{s.label}</span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-2xl font-bold text-foreground">{fmtVal(vol.realise)}</span>
+                        <span className="text-2xl font-extrabold text-foreground tracking-tight tabular-nums">{fmtVal(vol.realise)}</span>
                         <div className="text-right">
                           <span className="text-[10px] text-muted-foreground">obj. {fmtVal(vol.objectif)}</span>
-                          <p className={cn("text-xs font-semibold", s.text)}>
+                          <p className={cn("text-xs font-bold tabular-nums", s.text)}>
                             {delta >= 0 ? "+" : ""}{fmtVal(delta)}
                           </p>
                         </div>
@@ -672,16 +673,16 @@ function DashboardContent() {
                 const s = STATUS_STYLE[status];
 
                 return (
-                  <div key={fid} className={cn("rounded-xl border p-4 space-y-2", s.border, s.bg)}>
+                  <div key={fid} className={cn("border p-4 space-y-2.5", s.border, s.bg)} style={{ borderRadius: "var(--radius-card)", boxShadow: "var(--shadow-1)" }}>
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-foreground">{ratio.label}</p>
-                      <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold", s.text, s.bg)}>{s.label}</span>
+                      <p className="text-xs font-semibold text-foreground">{ratio.label}</p>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", s.text, s.bg)}>{s.label}</span>
                     </div>
                     <p className="text-sm text-foreground">
-                      Réalisé : <span className="font-semibold">{ratio.realise}</span> pour 1
+                      {"Réalisé : "}<span className="font-bold tabular-nums">{ratio.realise}</span> pour 1
                       {ratio.realisePct > 0 && <span className="text-muted-foreground"> · {ratio.realisePct}%</span>}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Obj. {CATEGORY_LABELS[category]} : {ratio.objectif} pour 1
                       {ratio.objectifPct > 0 && <span> · {ratio.objectifPct}%</span>}
                     </p>
