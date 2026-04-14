@@ -1048,92 +1048,87 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                     </button>
                   </div>
 
-                  {/* ═══ ROI CONCRET — Simulation d'impact ═══ */}
+                  {/* ═══ ROI — Projection si objectif atteint ═══ */}
                   {impact && impact.deltaDownstream > 0 && (
                     <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 space-y-3">
-                      <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Impact potentiel si vous atteignez l&apos;objectif</p>
+                      <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">{"Projection si objectif atteint"}</p>
 
-                      {/* Évolution du ratio */}
+                      {/* Ratio : actuel → cible */}
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5 text-xs">
-                          <span className="rounded-lg bg-red-500/10 px-2 py-1 font-bold text-red-500">
-                            {impact.isPct ? `${impact.currentRatio}%` : `${impact.currentRatio} pour 1`}
-                          </span>
-                          <span className="text-muted-foreground">{"\u2192"}</span>
-                          <span className="rounded-lg bg-green-500/10 px-2 py-1 font-bold text-green-600">
-                            {impact.isPct ? `${impact.targetRatio}%` : `${impact.targetRatio} pour 1`}
-                          </span>
+                          <div className="text-center">
+                            <p className="text-[8px] text-muted-foreground mb-0.5">{"Actuel"}</p>
+                            <span className="rounded-lg bg-red-500/10 px-2 py-1 font-bold text-red-500">
+                              {impact.isPct ? `${impact.currentRatio}%` : `${impact.currentRatio} pour 1`}
+                            </span>
+                          </div>
+                          <span className="text-muted-foreground mt-3">{"\u2192"}</span>
+                          <div className="text-center">
+                            <p className="text-[8px] text-muted-foreground mb-0.5">{"Objectif"}</p>
+                            <span className="rounded-lg bg-green-500/10 px-2 py-1 font-bold text-green-600">
+                              {impact.isPct ? `${impact.targetRatio}%` : `${impact.targetRatio} pour 1`}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground mt-3">
                           {impact.ratioLabel}
                         </span>
                       </div>
 
-                      {/* Impact opérationnel */}
+                      {/* 3 colonnes : actuel / cible / gain incrémental */}
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <div className="rounded-lg bg-card border border-border p-2.5">
                           <p className="text-[9px] text-muted-foreground uppercase">{impact.downstreamLabel}</p>
-                          <p className="text-sm font-bold text-foreground">
+                          <p className="text-sm font-bold text-foreground tabular-nums">
                             {impact.currentDownstream} {"\u2192"} {impact.projectedDownstream}
                           </p>
-                          <p className="text-[10px] font-bold text-green-600">
-                            +{impact.deltaDownstream} {impact.downstreamLabel}
+                          <p className="text-[10px] font-bold text-green-600 tabular-nums">
+                            {"gain : +"}{impact.deltaDownstream} {impact.downstreamLabel}
                           </p>
                         </div>
 
                         {impact.deltaActes > 0 && (
                           <div className="rounded-lg bg-card border border-border p-2.5">
-                            <p className="text-[9px] text-muted-foreground uppercase">{"Actes supplémentaires"}</p>
-                            <p className="text-sm font-bold text-foreground">
-                              +{impact.deltaActes < 1 ? impact.deltaActes.toFixed(1) : Math.round(impact.deltaActes)}
+                            <p className="text-[9px] text-muted-foreground uppercase">{"Ventes si objectif atteint"}</p>
+                            <p className="text-sm font-bold text-foreground tabular-nums">
+                              +{impact.deltaActes < 1 ? impact.deltaActes.toFixed(1) : Math.round(impact.deltaActes)} {"ventes"}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">{"À activité constante"}</p>
+                            <p className="text-[10px] text-muted-foreground">{"à volumes constants"}</p>
                           </div>
                         )}
 
                         {impact.deltaCA > 0 && (
                           <div className="rounded-lg bg-card border border-green-500/30 p-2.5">
-                            <p className="text-[9px] text-muted-foreground uppercase">Gain potentiel CA</p>
-                            <p className="text-sm font-bold text-green-600">
+                            <p className="text-[9px] text-muted-foreground uppercase">{"CA si objectif atteint"}</p>
+                            <p className="text-sm font-bold text-green-600 tabular-nums">
                               +{impact.deltaCA.toLocaleString("fr-FR")} {"€"}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">{"Estimation à activité constante"}</p>
+                            <p className="text-[10px] text-muted-foreground">{`honoraires moyens : ${impact.avgCAperActe.toLocaleString("fr-FR")} €/acte`}</p>
                           </div>
                         )}
                       </div>
 
-                      {/* Propagation chaîne — visualisation pas-à-pas */}
+                      {/* Détail de la propagation */}
                       {impact.propagation && impact.propagation.length > 1 && (
                         <div className="rounded-lg bg-card border border-border p-3">
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase mb-2">{"Propagation dans votre chaîne"}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase mb-2">{"Détail du calcul"}</p>
                           <div className="flex flex-wrap items-center gap-1.5">
                             {impact.propagation.map((p, i) => (
                               <div key={i} className="flex items-center gap-1.5">
-                                <span className="rounded-md bg-green-500/10 px-2 py-1 text-[10px] font-bold text-green-600">
-                                  +{p.delta < 1 ? p.delta.toFixed(1) : Math.round(p.delta)} {p.label}
+                                <span className="rounded-md bg-green-500/10 px-2 py-1 text-[10px] font-bold text-green-600 tabular-nums">
+                                  {"unit" in p && p.unit === "€" ? `+${p.delta.toLocaleString("fr-FR")} €` : `+${p.delta < 1 ? p.delta.toFixed(1) : Math.round(p.delta)} ${p.label}`}
                                 </span>
                                 {i < impact.propagation.length - 1 && (
                                   <span className="text-muted-foreground text-xs">{"\u2192"}</span>
                                 )}
                               </div>
                             ))}
-                            {impact.deltaActes > 0 && impact.deltaCA > 0 && (
-                              <>
-                                <span className="text-muted-foreground text-xs">{"\u2192"}</span>
-                                <span className="rounded-md bg-green-500/20 px-2 py-1 text-[10px] font-bold text-green-700">
-                                  +{impact.deltaCA.toLocaleString("fr-FR")} {"€ CA"}
-                                </span>
-                              </>
-                            )}
                           </div>
-                          <p className="text-[9px] text-muted-foreground mt-2">
-                            {`Conversion finale : ${impact.avgCAperActe.toLocaleString("fr-FR")} € par acte (vos honoraires moyens réels)`}
-                          </p>
                         </div>
                       )}
 
                       <p className="text-[9px] text-muted-foreground italic">
-                        {"Simulation basée sur vos volumes actuels et vos honoraires moyens, autres ratios maintenus constants."}
+                        {"Projection théorique si l'objectif est atteint, à volumes et autres ratios constants. Honoraires basés sur votre moyenne réelle."}
                       </p>
                     </div>
                   )}
@@ -1343,8 +1338,8 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                   <p className="text-[9px] text-foreground leading-snug">
                                     <span className="font-bold text-green-600">CA </span>
                                     {toolCA > 0
-                                      ? <span className="font-bold text-green-700">{`+${toolCA.toLocaleString("fr-FR")} € potentiels`}</span>
-                                      : <span className="text-muted-foreground">{"Gain indirect sur le CA"}</span>
+                                      ? <span className="font-bold text-green-700">{`+${toolCA.toLocaleString("fr-FR")} € si objectif atteint`}</span>
+                                      : <span className="text-muted-foreground">{"Impact indirect sur le CA"}</span>
                                     }
                                   </p>
                                 </div>
