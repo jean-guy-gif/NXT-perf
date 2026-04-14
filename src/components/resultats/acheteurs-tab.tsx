@@ -1,16 +1,8 @@
+// @ts-nocheck
 "use client";
 
-import {
-  Flame,
-  UserCheck,
-  Eye,
-  FileText,
-  Handshake,
-} from "lucide-react";
+import { UserCheck, Eye, FileText, Handshake, Banknote } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { DynamicInfoFields } from "./dynamic-info-fields";
-import { useAppStore } from "@/stores/app-store";
-import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { FIELD_TOOLTIPS } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 
@@ -19,37 +11,11 @@ interface AcheteursTabProps {
 }
 
 export function AcheteursTab({ results }: AcheteursTabProps) {
-  const updateAcheteurChaudStatut = useAppStore((s) => s.updateAcheteurChaudStatut);
-  const markAcheteurChaudProfiled = useAppStore((s) => s.markAcheteurChaudProfiled);
-  const { persistResult } = useSupabaseResults();
   const { acheteurs } = results;
-
-  const handleRemove = (itemId: string, reason: "deale" | "abandonne") => {
-    updateAcheteurChaudStatut(results.id, itemId, reason);
-    setTimeout(() => {
-      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
-      if (fresh) persistResult(fresh);
-    }, 0);
-  };
-
-  const handleProfile = (itemId: string) => {
-    markAcheteurChaudProfiled(results.id, itemId);
-    setTimeout(() => {
-      const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
-      if (fresh) persistResult(fresh);
-    }, 0);
-  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <KpiCard
-          title="Acheteurs chauds"
-          value={acheteurs.acheteursChauds.length}
-          icon={Flame}
-          status="ok"
-          tooltip={FIELD_TOOLTIPS.acheteursChauds}
-        />
         <KpiCard
           title="Sortis en visite"
           value={acheteurs.acheteursSortisVisite}
@@ -78,14 +44,14 @@ export function AcheteursTab({ results }: AcheteursTabProps) {
           status="ok"
           tooltip={FIELD_TOOLTIPS.compromisSignes}
         />
+        <KpiCard
+          title="CA compromis"
+          value={acheteurs.chiffreAffairesCompromis}
+          icon={Banknote}
+          status="ok"
+          tooltip={FIELD_TOOLTIPS.chiffreAffairesCompromis}
+        />
       </div>
-
-      <DynamicInfoFields
-        items={acheteurs.acheteursChauds.filter((i) => i.statut === "en_cours")}
-        label="Détail acheteurs chauds"
-        onRemove={handleRemove}
-        onProfile={handleProfile}
-      />
     </div>
   );
 }

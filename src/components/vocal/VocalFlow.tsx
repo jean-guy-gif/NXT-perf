@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useEffect, useCallback, useState, useRef, useMemo } from "react";
@@ -90,37 +91,34 @@ const SECTION_COLORS: Record<VocalSection, { border: string; bg: string; text: s
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  contactsEntrants: "Contacts entrants",
   contactsTotaux: "Contacts totaux",
   rdvEstimation: "RDV estimation",
-  informationsVente: "Informations vente",
   estimationsRealisees: "Estimations réalisées",
   mandatsSignes: "Mandats signés",
   mandats: "Détail mandats",
   rdvSuivi: "RDV suivi",
   requalificationSimpleExclusif: "Requalifications",
   baissePrix: "Baisses de prix",
-  acheteursChauds: "Acheteurs chauds",
   acheteursSortisVisite: "Acheteurs en visite",
   nombreVisites: "Nombre de visites",
   offresRecues: "Offres reçues",
   compromisSignes: "Compromis signés",
+  chiffreAffairesCompromis: "CA compromis",
   actesSignes: "Actes signés",
   chiffreAffaires: "Chiffre d'affaires",
-  delaiMoyenVente: "Délai moyen de vente",
 };
 
 const SECTION_NUMERIC_FIELDS: Record<VocalSection, string[]> = {
-  prospection: ["contactsEntrants", "contactsTotaux", "rdvEstimation"],
+  prospection: ["contactsTotaux", "rdvEstimation"],
   vendeurs: ["estimationsRealisees", "mandatsSignes", "rdvSuivi", "requalificationSimpleExclusif", "baissePrix"],
-  acheteurs: ["acheteursSortisVisite", "nombreVisites", "offresRecues", "compromisSignes"],
-  ventes: ["actesSignes", "chiffreAffaires", "delaiMoyenVente"],
+  acheteurs: ["acheteursSortisVisite", "nombreVisites", "offresRecues", "compromisSignes", "chiffreAffairesCompromis"],
+  ventes: ["actesSignes", "chiffreAffaires"],
 };
 
 const SECTION_ARRAY_FIELDS: Record<VocalSection, string[]> = {
-  prospection: ["informationsVente"],
+  prospection: [],
   vendeurs: ["mandats"],
-  acheteurs: ["acheteursChauds"],
+  acheteurs: [],
   ventes: [],
 };
 

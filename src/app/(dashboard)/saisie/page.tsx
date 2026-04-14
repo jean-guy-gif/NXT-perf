@@ -48,7 +48,7 @@ export default function SaisiePage() {
             { avatar_url: profile?.avatar_url, agency_logo_url: profile?.agency_logo_url, coach_voice: profile?.coach_voice },
             { actesSignes: latestResult.ventes.actesSignes, chiffreAffaires: latestResult.ventes.chiffreAffaires },
             { mandatsSignes: latestResult.vendeurs.mandatsSignes },
-            { contactsEntrants: latestResult.prospection.contactsEntrants },
+            { contactsTotaux: latestResult.prospection.contactsTotaux },
           );
           if (newBadges.length > 0) {
             useBadgeStore.getState().queueCelebrations(newBadges);

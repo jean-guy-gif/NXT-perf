@@ -12,10 +12,10 @@ DICTIONNAIRE D'ALIAS — Mapping obligatoire :
 - "MS", "Mandat Simple", "M. Simple" → mandats[].type = "simple"
 - "ME", "Exclusif", "Mandat Exclusif", "MEx" → mandats[].type = "exclusif"
 - "SSP", "Compromis", "Promesse", "CSSP" → compromisSignes
+- "CA compromis", "Honoraires compromis", "CA engagé" → chiffreAffairesCompromis
 - "AA", "Acte", "Acte Authentique", "Vente" (en tant que résultat final) → actesSignes
 - "CA", "HO", "Honoraires", "Comm.", "Commission" → chiffreAffaires
-- "Contacts", "Appels", "Prospects", "Leads" → contactsTotaux
-- "Entrants", "Portail", "Vitrine", "Leads entrants" → contactsEntrants
+- "Contacts", "Appels", "Prospects", "Leads", "Entrants", "Portail", "Vitrine" → contactsTotaux
 - "Estim", "RDV Estim", "Estimation", "Évaluation" → estimationsRealisees
 - "Mandat", "Prise de mandat", "Mandats" → mandatsSignes
 - "Visite", "Sortie visite", "Visites acquéreurs" → nombreVisites
@@ -23,7 +23,6 @@ DICTIONNAIRE D'ALIAS — Mapping obligatoire :
 - "Suivi", "RDV suivi", "Suivi vendeur" → rdvSuivi
 - "Requalif", "Requalification", "Simple→Exclusif" → requalificationSimpleExclusif
 - "Baisse", "Baisse de prix", "Baisses" → baissePrix
-- "Acheteurs chauds", "Acquéreurs qualifiés" → acheteursChaudsCount
 - "Acheteurs sortis", "Sortis visite" → acheteursSortisVisite
 - "RDV estimation", "RDV estim" → rdvEstimation
 `;
