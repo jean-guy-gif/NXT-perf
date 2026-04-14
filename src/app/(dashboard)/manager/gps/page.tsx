@@ -65,7 +65,7 @@ const niveauOptions: NiveauOption[] = [
   },
 ];
 
-const ratioLabels: Record<RatioId, string> = {
+const ratioLabels: Partial<Record<RatioId, string>> = {
   contacts_rdv: "Contacts → RDV Estimation",
   rdv_mandats: "RDV → Mandats",
   pct_mandats_exclusifs: "% Mandats Exclusifs",

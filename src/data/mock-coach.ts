@@ -209,15 +209,15 @@ export const mockCoachPlans: CoachPlan[] = [
         weekNumber: 3,
         focus: "Estimations → Mandats",
         actions: [
-          pa("pa-1-3-1", "Revoir l'argumentation prix avec comparables", "2x/semaine", "terrain", "CR estimation", "estimations_mandats", false),
-          pa("pa-1-3-2", "Préparer un dossier comparatif par secteur", "ponctuel", "bureau", "Dossier imprimé", "estimations_mandats", false),
+          pa("pa-1-3-1", "Revoir l'argumentation prix avec comparables", "2x/semaine", "terrain", "CR estimation", "rdv_mandats", false),
+          pa("pa-1-3-2", "Préparer un dossier comparatif par secteur", "ponctuel", "bureau", "Dossier imprimé", "rdv_mandats", false),
         ],
       },
       {
         weekNumber: 4,
         focus: "Estimations → Mandats",
         actions: [
-          pa("pa-1-4-1", "Consolider les acquis des semaines précédentes", "quotidien", "mixte", "Rapport vendeur", "estimations_mandats", false),
+          pa("pa-1-4-1", "Consolider les acquis des semaines précédentes", "quotidien", "mixte", "Rapport vendeur", "rdv_mandats", false),
           pa("pa-1-4-2", "Bilan du plan 30 jours avec le coach", "ponctuel", "visio", "CR bilan", null, false),
         ],
       },
@@ -341,7 +341,7 @@ export const mockCoachPlans: CoachPlan[] = [
         weekNumber: 3,
         focus: "Accompagnement Nicolas",
         actions: [
-          pa("pa-d3-3-1", "Co-animer un RDV estimation avec Nicolas", "ponctuel", "terrain", "CR visite", "estimations_mandats", false),
+          pa("pa-d3-3-1", "Co-animer un RDV estimation avec Nicolas", "ponctuel", "terrain", "CR visite", "rdv_mandats", false),
           pa("pa-d3-3-2", "Débriefer et fixer un plan d'action individuel", "ponctuel", "bureau", "Plan individuel", null, false),
         ],
       },

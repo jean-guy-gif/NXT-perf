@@ -35,27 +35,23 @@ ${ALIAS_DICTIONARY}
 
 CHAMPS DE SORTIE (JSON) :
 Numériques :
-- contactsTotaux (number) — tous contacts pris ou reçus
-- contactsEntrants (number) — contacts entrants (portails, vitrine)
+- contactsTotaux (number) — tous contacts pris ou reçus (entrants + sortants)
 - rdvEstimation (number) — RDV estimation décrochés
 - estimationsRealisees (number) — estimations effectuées
 - mandatsSignes (number) — nombre total de mandats signés
 - rdvSuivi (number) — RDV de suivi vendeurs
 - requalificationSimpleExclusif (number) — requalifications simple→exclusif
 - baissePrix (number) — baisses de prix obtenues
-- acheteursChaudsCount (number) — nombre d'acheteurs chauds (entier, prendre UNIQUEMENT le premier nombre mentionné)
 - acheteursSortisVisite (number) — acheteurs distincts sortis en visite
 - nombreVisites (number) — nombre total de visites
 - offresRecues (number) — offres reçues
 - compromisSignes (number) — compromis signés
+- chiffreAffairesCompromis (number) — CA sur compromis signés (en euros)
 - actesSignes (number) — actes signés chez le notaire
-- chiffreAffaires (number) — CA en euros
-- delaiMoyenVente (number) — délai moyen en jours
+- chiffreAffaires (number) — CA sur actes (en euros)
 
 Tableaux (si les noms/détails sont disponibles) :
 - mandats: [{ nomVendeur: string, type: "simple"|"exclusif" }]
-- informationsVente: [{ nom: string, commentaire: string }]
-- acheteursChauds: [{ nom: string, commentaire: string }]
 
 RÈGLES :
 1. Si TABLEAU multi-lignes → SOMME les valeurs numériques par colonne sur TOUTES les lignes.
@@ -69,9 +65,7 @@ FORMAT DE RÉPONSE — JSON strict, rien d'autre :
 {
   "extracted": { "nomDuChamp": valeurNumérique, ... },
   "arrays": {
-    "mandats": [{ "nomVendeur": "...", "type": "simple"|"exclusif" }],
-    "informationsVente": [{ "nom": "...", "commentaire": "..." }],
-    "acheteursChauds": [{ "nom": "...", "commentaire": "..." }]
+    "mandats": [{ "nomVendeur": "...", "type": "simple"|"exclusif" }]
   },
   "uncertain": ["liste des champs à valeur incertaine"],
   "unmapped": ["libellés trouvés dans le document mais non reconnus"],
@@ -185,7 +179,7 @@ Extrais TOUTES les valeurs numériques et qualitatives mentionnées dans cette r
 Exemples :
 - "3 mandats signés deux exclusivités" → mandatsSignes=3, mandats=[{type:"exclusif"},{type:"exclusif"},{type:"simple"}]
 - "un acte pour 12000€" → actesSignes=1 ET chiffreAffaires=12000
-- "85 contacts dont 17 entrants" → contactsTotaux=85 ET contactsEntrants=17
+- "85 contacts au total" → contactsTotaux=85
 - "6 estimations 3 mandats" → estimationsRealisees=6 ET mandatsSignes=3
 
 Si l'utilisateur donne uniquement un nombre sans contexte (ex: "5", "12"), associe-le au premier champ manquant de la liste des champs recherchés ci-dessus.

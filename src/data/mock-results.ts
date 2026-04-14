@@ -1,5 +1,11 @@
 import type { PeriodResults } from "@/types/results";
 
+// TODO(provisoire): placeholder dev, valeur à calibrer — CA compromis mock =
+// compromisSignes × 15 000€. Les valeurs `chiffreAffairesCompromis` de ce
+// fichier sont des placeholders dérivés de cette règle, pas des valeurs
+// issues du CRM. À remplacer par des données réelles ou une règle calibrée
+// quand le backend sera branché. Voir docs/TECH_DEBT.md.
+
 export const mockResults: PeriodResults[] = [
   // Manager (Jean-Guy Dupont - expert, aussi producteur)
   {
@@ -9,14 +15,8 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 38,
       contactsTotaux: 55,
       rdvEstimation: 5,
-      informationsVente: [
-        { id: "iv-m1", nom: "M. Delacroix", commentaire: "Patrimoine familial, 2 biens", statut: "deale", profiled: true },
-        { id: "iv-m2", nom: "Mme Vasseur", commentaire: "Résidence principale, départ étranger", statut: "deale", profiled: true },
-        { id: "iv-m3", nom: "SCI Horizon", commentaire: "Lot commercial centre-ville", statut: "en_cours" },
-      ],
     },
     vendeurs: {
       rdvEstimation: 5,
@@ -33,20 +33,15 @@ export const mockResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acm1", nom: "Groupe Invest+", commentaire: "Portefeuille 800k, multi-lots", statut: "deale", profiled: true },
-        { id: "acm2", nom: "M. et Mme Château", commentaire: "Résidence principale haut de gamme", statut: "deale" },
-        { id: "acm3", nom: "M. Ferreira", commentaire: "Investisseur, rendement locatif", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 7,
       nombreVisites: 12,
       offresRecues: 3,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 32000,
-      delaiMoyenVente: 60,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-23T10:00:00Z",
@@ -63,14 +58,8 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 42,
       contactsTotaux: 65,
       rdvEstimation: 7,
-      informationsVente: [
-        { id: "iv6", nom: "M. Lambert", commentaire: "Héritage, maison ancienne à rénover", statut: "deale", profiled: true },
-        { id: "iv6b", nom: "Mme Perrin", commentaire: "Résidence secondaire Côte d'Azur", statut: "deale" },
-        { id: "iv6c", nom: "SCI Patrimoine+", commentaire: "Lot de 2 T2 investissement", statut: "en_cours" },
-      ],
     },
     vendeurs: {
       rdvEstimation: 7,
@@ -88,20 +77,15 @@ export const mockResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac6", nom: "Mlle Thomas", commentaire: "Cadre dirigeant, budget 600k", statut: "deale", profiled: true },
-        { id: "ac6b", nom: "M. et Mme Fabre", commentaire: "Famille recomposée, maison 5p", statut: "deale" },
-        { id: "ac6c", nom: "Investisseur Groupe B", commentaire: "Portefeuille locatif", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 8,
       nombreVisites: 16,
       offresRecues: 4,
       compromisSignes: 3,
+      chiffreAffairesCompromis: 45000,
     },
     ventes: {
       actesSignes: 3,
       chiffreAffaires: 42000,
-      delaiMoyenVente: 52,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-26T10:00:00Z",
@@ -118,13 +102,8 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 36,
       contactsTotaux: 52,
       rdvEstimation: 5,
-      informationsVente: [
-        { id: "iv4", nom: "M. Moreau", commentaire: "Divorce, vente rapide souhaitée", statut: "deale", profiled: true },
-        { id: "iv5", nom: "Mme Leroy", commentaire: "Investisseur, revente T2 locatif", statut: "en_cours" },
-      ],
     },
     vendeurs: {
       rdvEstimation: 5,
@@ -141,20 +120,15 @@ export const mockResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac3", nom: "M. Bertrand", commentaire: "Cadre sup, budget 500k+", statut: "deale" },
-        { id: "ac4", nom: "Couple Fontaine", commentaire: "Famille 2 enfants, maison 4ch", statut: "en_cours" },
-        { id: "ac5", nom: "M. Girard", commentaire: "Investisseur, rentabilité >5%", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 7,
       nombreVisites: 14,
       offresRecues: 4,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 28000,
-      delaiMoyenVente: 58,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-25T10:00:00Z",
@@ -172,13 +146,8 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 30,
       contactsTotaux: 50,
       rdvEstimation: 3,
-      informationsVente: [
-        { id: "iv1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale", statut: "deale" },
-        { id: "iv2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville", statut: "en_cours" },
-      ],
     },
     vendeurs: {
       rdvEstimation: 3,
@@ -193,19 +162,15 @@ export const mockResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin", statut: "en_cours" },
-        { id: "ac2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k", statut: "abandonne" },
-      ],
       acheteursSortisVisite: 4,
       nombreVisites: 12,
       offresRecues: 2,
       compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
     ventes: {
       actesSignes: 1,
       chiffreAffaires: 8500,
-      delaiMoyenVente: 78,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-23T10:00:00Z",
@@ -219,13 +184,8 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 28,
       contactsTotaux: 45,
       rdvEstimation: 4,
-      informationsVente: [
-        { id: "iv-s1", nom: "M. Duplessis", commentaire: "Vente résidence principale", statut: "deale" },
-        { id: "iv-s2", nom: "Mme Cartier", commentaire: "Investissement locatif", statut: "en_cours" },
-      ],
     },
     vendeurs: {
       rdvEstimation: 4,
@@ -241,16 +201,13 @@ export const mockResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acs1", nom: "Couple Dumas", commentaire: "Budget 400k", statut: "deale" },
-        { id: "acs2", nom: "M. Rivière", commentaire: "Investisseur", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 5,
       nombreVisites: 10,
       offresRecues: 3,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 18000, delaiMoyenVente: 65 },
+    ventes: { actesSignes: 1, chiffreAffaires: 18000 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-25T10:00:00Z",
   },
@@ -262,8 +219,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 22, contactsTotaux: 40, rdvEstimation: 3,
-      informationsVente: [{ id: "iv-b1", nom: "M. Blanc", commentaire: "Succession", statut: "en_cours" }],
+      contactsTotaux: 40, rdvEstimation: 3,
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
@@ -271,10 +227,10 @@ export const mockResults: PeriodResults[] = [
       rdvSuivi: 4, requalificationSimpleExclusif: 0, baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [{ id: "acb1", nom: "M. Petit", commentaire: "Premier achat", statut: "en_cours" }],
       acheteursSortisVisite: 3, nombreVisites: 8, offresRecues: 2, compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 12000, delaiMoyenVente: 70 },
+    ventes: { actesSignes: 1, chiffreAffaires: 12000 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-24T10:00:00Z",
   },
@@ -286,11 +242,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 40, contactsTotaux: 60, rdvEstimation: 7,
-      informationsVente: [
-        { id: "iv-b2a", nom: "SCI Méridien", commentaire: "Portefeuille 3 lots", statut: "deale" },
-        { id: "iv-b2b", nom: "M. Pons", commentaire: "Villa prestige", statut: "en_cours" },
-      ],
+      contactsTotaux: 60, rdvEstimation: 7,
     },
     vendeurs: {
       rdvEstimation: 7, estimationsRealisees: 6, mandatsSignes: 5,
@@ -304,13 +256,10 @@ export const mockResults: PeriodResults[] = [
       rdvSuivi: 10, requalificationSimpleExclusif: 2, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acb2", nom: "Groupe Invest Sud", commentaire: "Budget 900k", statut: "deale" },
-        { id: "acb3", nom: "M. et Mme Faure", commentaire: "Résidence secondaire", statut: "deale" },
-      ],
       acheteursSortisVisite: 8, nombreVisites: 15, offresRecues: 5, compromisSignes: 4,
+      chiffreAffairesCompromis: 60000,
     },
-    ventes: { actesSignes: 3, chiffreAffaires: 52000, delaiMoyenVente: 45 },
+    ventes: { actesSignes: 3, chiffreAffaires: 52000 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-27T10:00:00Z",
   },
@@ -325,10 +274,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 15, contactsTotaux: 35, rdvEstimation: 3,
-      informationsVente: [
-        { id: "iv-t1", nom: "M. Renoir", commentaire: "Studio étudiant à vendre", statut: "en_cours" },
-      ],
+      contactsTotaux: 35, rdvEstimation: 3,
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 1,
@@ -336,13 +282,11 @@ export const mockResults: PeriodResults[] = [
       rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "act1", nom: "Mlle Bouvier", commentaire: "Premier achat, budget 150k", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 2, nombreVisites: 6,
       offresRecues: 1, compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
-    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    ventes: { actesSignes: 0, chiffreAffaires: 0 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-20T10:00:00Z",
   },
@@ -355,11 +299,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 35, contactsTotaux: 50, rdvEstimation: 6,
-      informationsVente: [
-        { id: "iv-marc1", nom: "M. Lefèvre", commentaire: "Divorce, vente rapide", statut: "deale" },
-        { id: "iv-marc2", nom: "Mme Guérin", commentaire: "Déménagement province", statut: "deale" },
-      ],
+      contactsTotaux: 50, rdvEstimation: 6,
     },
     vendeurs: {
       rdvEstimation: 6, estimationsRealisees: 5, mandatsSignes: 4,
@@ -372,13 +312,10 @@ export const mockResults: PeriodResults[] = [
       rdvSuivi: 7, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acm3a", nom: "M. Royer", commentaire: "Investisseur multi-lots", statut: "deale" },
-        { id: "acm3b", nom: "Couple André", commentaire: "Résidence principale 500k", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 6, nombreVisites: 11, offresRecues: 4, compromisSignes: 3,
+      chiffreAffairesCompromis: 45000,
     },
-    ventes: { actesSignes: 2, chiffreAffaires: 28000, delaiMoyenVente: 55 },
+    ventes: { actesSignes: 2, chiffreAffaires: 28000 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-26T10:00:00Z",
   },
@@ -390,11 +327,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 30, contactsTotaux: 48, rdvEstimation: 4,
-      informationsVente: [
-        { id: "iv-g1", nom: "M. Picard", commentaire: "Retraite, maison de ville", statut: "deale" },
-        { id: "iv-g2", nom: "Mme Aubry", commentaire: "Investissement locatif T2", statut: "en_cours" },
-      ],
+      contactsTotaux: 48, rdvEstimation: 4,
     },
     vendeurs: {
       rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
@@ -406,13 +339,10 @@ export const mockResults: PeriodResults[] = [
       rdvSuivi: 5, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acg1", nom: "M. et Mme Dumont", commentaire: "Budget 350k, T4", statut: "deale" },
-        { id: "acg2", nom: "Mlle Perrot", commentaire: "Premier achat 200k", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 5, nombreVisites: 12, offresRecues: 3, compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
-    ventes: { actesSignes: 2, chiffreAffaires: 22000, delaiMoyenVente: 62 },
+    ventes: { actesSignes: 2, chiffreAffaires: 22000 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-25T10:00:00Z",
   },
@@ -427,11 +357,7 @@ export const mockResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 18, contactsTotaux: 30, rdvEstimation: 5,
-      informationsVente: [
-        { id: "iv-g3", nom: "M. Vernet", commentaire: "Appartement T3", statut: "en_cours" },
-        { id: "iv-g4", nom: "Mme Pascal", commentaire: "Maison mitoyenne, départ province", statut: "en_cours" },
-      ],
+      contactsTotaux: 30, rdvEstimation: 5,
     },
     vendeurs: {
       rdvEstimation: 5, estimationsRealisees: 5, mandatsSignes: 2,
@@ -442,13 +368,11 @@ export const mockResults: PeriodResults[] = [
       rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acg3", nom: "M. Sanchez", commentaire: "Budget 180k, T2/T3", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 2, nombreVisites: 5,
       offresRecues: 1, compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
-    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    ventes: { actesSignes: 0, chiffreAffaires: 0 },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-18T10:00:00Z",
   },
@@ -464,11 +388,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 30, contactsTotaux: 45, rdvEstimation: 4,
-      informationsVente: [
-        { id: "iv-mj1", nom: "Mme Arnaud", commentaire: "Appartement T4 centre", statut: "deale", profiled: true },
-        { id: "iv-mj2", nom: "M. Chevalier", commentaire: "Maison de ville", statut: "deale" },
-      ],
+      contactsTotaux: 45, rdvEstimation: 4,
     },
     vendeurs: {
       rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
@@ -480,13 +400,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 6, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acmj1", nom: "M. Blanc", commentaire: "Budget 600k, villa", statut: "deale" },
-        { id: "acmj2", nom: "Couple Renard", commentaire: "Investissement locatif", statut: "deale" },
-      ],
       acheteursSortisVisite: 6, nombreVisites: 10, offresRecues: 3, compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 22000, delaiMoyenVente: 55 },
+    ventes: { actesSignes: 1, chiffreAffaires: 22000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -498,11 +415,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 35, contactsTotaux: 55, rdvEstimation: 6,
-      informationsVente: [
-        { id: "iv6j", nom: "M. Dubois", commentaire: "Résidence principale, retraite", statut: "deale" },
-        { id: "iv6jb", nom: "Mme Colin", commentaire: "Investissement locatif", statut: "deale" },
-      ],
+      contactsTotaux: 55, rdvEstimation: 6,
     },
     vendeurs: {
       rdvEstimation: 6, estimationsRealisees: 6, mandatsSignes: 4,
@@ -515,13 +428,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 8, requalificationSimpleExclusif: 1, baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac6j", nom: "M. Moreau", commentaire: "Budget 450k", statut: "deale" },
-        { id: "ac6jb", nom: "Couple Lefevre", commentaire: "Maison 4p", statut: "deale" },
-      ],
       acheteursSortisVisite: 7, nombreVisites: 14, offresRecues: 3, compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
-    ventes: { actesSignes: 2, chiffreAffaires: 35000, delaiMoyenVente: 48 },
+    ventes: { actesSignes: 2, chiffreAffaires: 35000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -533,10 +443,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 28, contactsTotaux: 42, rdvEstimation: 4,
-      informationsVente: [
-        { id: "iv4j", nom: "M. Duval", commentaire: "Déménagement professionnel", statut: "deale" },
-      ],
+      contactsTotaux: 42, rdvEstimation: 4,
     },
     vendeurs: {
       rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
@@ -548,13 +455,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 6, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac3j", nom: "M. Lemoine", commentaire: "Budget 400k", statut: "deale" },
-        { id: "ac4j", nom: "Mlle Garnier", commentaire: "Premier achat T3", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 5, nombreVisites: 11, offresRecues: 3, compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 18000, delaiMoyenVente: 62 },
+    ventes: { actesSignes: 1, chiffreAffaires: 18000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -566,10 +470,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 25, contactsTotaux: 40, rdvEstimation: 2,
-      informationsVente: [
-        { id: "iv1j", nom: "M. Fernandez", commentaire: "Succession, maison", statut: "deale" },
-      ],
+      contactsTotaux: 40, rdvEstimation: 2,
     },
     vendeurs: {
       rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
@@ -579,12 +480,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "ac1j", nom: "Mme Gauthier", commentaire: "Budget 280k, T3", statut: "deale" },
-      ],
       acheteursSortisVisite: 3, nombreVisites: 8, offresRecues: 1, compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 9800, delaiMoyenVente: 72 },
+    ventes: { actesSignes: 1, chiffreAffaires: 9800 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -596,10 +495,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 22, contactsTotaux: 38, rdvEstimation: 3,
-      informationsVente: [
-        { id: "iv-s1j", nom: "Mme Boucher", commentaire: "Vente T2 centre", statut: "deale" },
-      ],
+      contactsTotaux: 38, rdvEstimation: 3,
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
@@ -610,12 +506,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 5, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acs1j", nom: "M. Brunet", commentaire: "Budget 350k", statut: "deale" },
-      ],
       acheteursSortisVisite: 4, nombreVisites: 8, offresRecues: 2, compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 14000, delaiMoyenVente: 68 },
+    ventes: { actesSignes: 1, chiffreAffaires: 14000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -627,10 +521,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 18, contactsTotaux: 32, rdvEstimation: 2,
-      informationsVente: [
-        { id: "iv-b1j", nom: "M. Mercier", commentaire: "Retraite, pavillon", statut: "deale" },
-      ],
+      contactsTotaux: 32, rdvEstimation: 2,
     },
     vendeurs: {
       rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
@@ -638,10 +529,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [{ id: "acb1j", nom: "Mlle Dupuis", commentaire: "Budget 200k", statut: "deale" }],
       acheteursSortisVisite: 2, nombreVisites: 6, offresRecues: 1, compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
-    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    ventes: { actesSignes: 0, chiffreAffaires: 0 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -653,11 +544,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 35, contactsTotaux: 52, rdvEstimation: 6,
-      informationsVente: [
-        { id: "iv-b2aj", nom: "M. Laurent", commentaire: "Villa avec piscine", statut: "deale" },
-        { id: "iv-b2bj", nom: "Mme Roussel", commentaire: "Appartement haussmannien", statut: "deale" },
-      ],
+      contactsTotaux: 52, rdvEstimation: 6,
     },
     vendeurs: {
       rdvEstimation: 6, estimationsRealisees: 5, mandatsSignes: 4,
@@ -670,13 +557,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 8, requalificationSimpleExclusif: 1, baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acb2j", nom: "SCI Horizon", commentaire: "Budget 700k", statut: "deale" },
-        { id: "acb3j", nom: "M. et Mme Blanc", commentaire: "Résidence principale", statut: "deale" },
-      ],
       acheteursSortisVisite: 7, nombreVisites: 13, offresRecues: 4, compromisSignes: 3,
+      chiffreAffairesCompromis: 45000,
     },
-    ventes: { actesSignes: 2, chiffreAffaires: 38000, delaiMoyenVente: 50 },
+    ventes: { actesSignes: 2, chiffreAffaires: 38000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -688,10 +572,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 12, contactsTotaux: 28, rdvEstimation: 2,
-      informationsVente: [
-        { id: "iv-t1j", nom: "Mme Morin", commentaire: "T2 à vendre", statut: "en_cours" },
-      ],
+      contactsTotaux: 28, rdvEstimation: 2,
     },
     vendeurs: {
       rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
@@ -699,12 +580,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 1, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "act1j", nom: "M. Berger", commentaire: "Budget 120k, studio", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 1, nombreVisites: 4, offresRecues: 0, compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
-    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    ventes: { actesSignes: 0, chiffreAffaires: 0 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -716,10 +595,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 28, contactsTotaux: 42, rdvEstimation: 5,
-      informationsVente: [
-        { id: "iv-marc1j", nom: "Mme Fournier", commentaire: "Départ étranger", statut: "deale" },
-      ],
+      contactsTotaux: 42, rdvEstimation: 5,
     },
     vendeurs: {
       rdvEstimation: 5, estimationsRealisees: 4, mandatsSignes: 3,
@@ -731,12 +607,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 5, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acm3aj", nom: "M. Perrin", commentaire: "Investisseur, 2 lots", statut: "deale" },
-      ],
       acheteursSortisVisite: 5, nombreVisites: 9, offresRecues: 3, compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
-    ventes: { actesSignes: 2, chiffreAffaires: 24000, delaiMoyenVente: 58 },
+    ventes: { actesSignes: 2, chiffreAffaires: 24000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -748,10 +622,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 24, contactsTotaux: 38, rdvEstimation: 3,
-      informationsVente: [
-        { id: "iv-g1j", nom: "M. Bonnet", commentaire: "Maison de campagne", statut: "deale" },
-      ],
+      contactsTotaux: 38, rdvEstimation: 3,
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
@@ -762,12 +633,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 4, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acg1j", nom: "Couple Roche", commentaire: "Budget 300k, T3", statut: "deale" },
-      ],
       acheteursSortisVisite: 4, nombreVisites: 9, offresRecues: 2, compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
-    ventes: { actesSignes: 1, chiffreAffaires: 15000, delaiMoyenVente: 65 },
+    ventes: { actesSignes: 1, chiffreAffaires: 15000 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -779,10 +648,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 14, contactsTotaux: 25, rdvEstimation: 3,
-      informationsVente: [
-        { id: "iv-g3j", nom: "Mme Lopez", commentaire: "T2 investissement", statut: "en_cours" },
-      ],
+      contactsTotaux: 25, rdvEstimation: 3,
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 1,
@@ -792,12 +658,10 @@ export const mockJanuaryResults: PeriodResults[] = [
       rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [
-        { id: "acg3j", nom: "M. Robin", commentaire: "Budget 160k, T2", statut: "en_cours" },
-      ],
       acheteursSortisVisite: 2, nombreVisites: 4, offresRecues: 1, compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
-    ventes: { actesSignes: 0, chiffreAffaires: 0, delaiMoyenVente: 0 },
+    ventes: { actesSignes: 0, chiffreAffaires: 0 },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
@@ -811,12 +675,8 @@ export const mockWeeklyResults: PeriodResults = {
   periodStart: "2026-02-23",
   periodEnd: "2026-03-01",
   prospection: {
-    contactsEntrants: 7,
     contactsTotaux: 12,
     rdvEstimation: 1,
-    informationsVente: [
-      { id: "iv-w1", nom: "M. Renaud", commentaire: "Vente pavillon suite divorce", statut: "en_cours" },
-    ],
   },
   vendeurs: {
     rdvEstimation: 1,
@@ -828,18 +688,15 @@ export const mockWeeklyResults: PeriodResults = {
     baissePrix: 0,
   },
   acheteurs: {
-    acheteursChauds: [
-      { id: "ac-w1", nom: "Mlle Carpentier", commentaire: "Budget 220k, T3 centre", statut: "en_cours" },
-    ],
     acheteursSortisVisite: 1,
     nombreVisites: 3,
     offresRecues: 0,
     compromisSignes: 0,
+    chiffreAffairesCompromis: 0,
   },
   ventes: {
     actesSignes: 0,
     chiffreAffaires: 0,
-    delaiMoyenVente: 0,
   },
   createdAt: "2026-02-23T08:00:00Z",
   updatedAt: "2026-02-24T10:00:00Z",
@@ -853,16 +710,8 @@ export const mockYearlyResults: PeriodResults = {
   periodStart: "2026-01-01",
   periodEnd: "2026-12-31",
   prospection: {
-    contactsEntrants: 310,
     contactsTotaux: 520,
     rdvEstimation: 34,
-    informationsVente: [
-      { id: "iv-y1", nom: "Mme Dubois", commentaire: "Départ retraite, vente maison principale", statut: "deale" },
-      { id: "iv-y2", nom: "M. Garcia", commentaire: "Succession, appartement T3 centre-ville", statut: "deale" },
-      { id: "iv-y3", nom: "Famille Petit", commentaire: "Mutation professionnelle Lyon", statut: "deale" },
-      { id: "iv-y4", nom: "M. Renaud", commentaire: "Vente pavillon suite divorce", statut: "en_cours" },
-      { id: "iv-y5", nom: "Mme Lefèvre", commentaire: "Investisseur, revente locatif", statut: "abandonne" },
-    ],
   },
   vendeurs: {
     rdvEstimation: 34,
@@ -879,20 +728,15 @@ export const mockYearlyResults: PeriodResults = {
     baissePrix: 8,
   },
   acheteurs: {
-    acheteursChauds: [
-      { id: "ac-y1", nom: "M. et Mme Laurent", commentaire: "Budget 350k, recherche T4 avec jardin", statut: "deale" },
-      { id: "ac-y2", nom: "Mlle Roux", commentaire: "Premier achat, studio/T2 max 180k", statut: "abandonne" },
-      { id: "ac-y3", nom: "Mlle Carpentier", commentaire: "Budget 220k, T3 centre", statut: "en_cours" },
-    ],
     acheteursSortisVisite: 42,
     nombreVisites: 88,
     offresRecues: 22,
     compromisSignes: 10,
+    chiffreAffairesCompromis: 150000,
   },
   ventes: {
     actesSignes: 8,
     chiffreAffaires: 95000,
-    delaiMoyenVente: 82,
   },
   createdAt: "2026-01-01T08:00:00Z",
   updatedAt: "2026-02-24T10:00:00Z",
@@ -987,10 +831,8 @@ export function createZeroResults(userId: string): PeriodResults {
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 0,
       contactsTotaux: 0,
       rdvEstimation: 0,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 0,
@@ -1002,16 +844,15 @@ export function createZeroResults(userId: string): PeriodResults {
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 0,
       nombreVisites: 0,
       offresRecues: 0,
       compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
     ventes: {
       actesSignes: 0,
       chiffreAffaires: 0,
-      delaiMoyenVente: 0,
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

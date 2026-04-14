@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Align RatioId/PeriodResults types between branches
 "use client";
 
 import { useState, useEffect } from "react";

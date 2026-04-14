@@ -5,45 +5,30 @@ export interface MandatDetail {
   type: "simple" | "exclusif";
 }
 
-export interface InfoVenteDetail {
-  nom: string;
-  commentaire: string;
-}
-
-export interface AcheteurDetail {
-  nom: string;
-  commentaire: string;
-}
-
-/** Champs numériques extraits — PRD section 9 mapping complet */
+/** Champs numériques extraits */
 export interface ExtractedFields {
-  // Prospection
+  // Prospection vendeur
   contactsTotaux?: number;
-  contactsEntrants?: number;
   rdvEstimation?: number;
-  // Vendeurs
   estimationsRealisees?: number;
   mandatsSignes?: number;
+  // Pilotage portefeuille
   rdvSuivi?: number;
   requalificationSimpleExclusif?: number;
   baissePrix?: number;
-  // Acheteurs
-  acheteursChaudsCount?: number;
+  // Transaction acheteur
   acheteursSortisVisite?: number;
   nombreVisites?: number;
   offresRecues?: number;
   compromisSignes?: number;
-  // Ventes
+  chiffreAffairesCompromis?: number;
   actesSignes?: number;
   chiffreAffaires?: number;
-  delaiMoyenVente?: number;
 }
 
 /** Tableaux structurés extraits (noms, détails) */
 export interface ExtractedArrays {
   mandats: MandatDetail[];
-  informationsVente: InfoVenteDetail[];
-  acheteursChauds: AcheteurDetail[];
 }
 
 /** Résultat complet d'une extraction */
@@ -58,7 +43,7 @@ export interface ExtractionResult {
 
 const EMPTY_RESULT: ExtractionResult = {
   extracted: {},
-  arrays: { mandats: [], informationsVente: [], acheteursChauds: [] },
+  arrays: { mandats: [] },
   uncertain: [],
   unmapped: [],
   description: "",
@@ -71,7 +56,6 @@ function normalizeResult(data: Record<string, unknown>): ExtractionResult {
   const raw = (data.extracted ?? {}) as Record<string, unknown>;
   const extracted: ExtractedFields = {};
 
-  // Ne garder que les champs numériques valides
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === "number" && !isNaN(value)) {
       (extracted as Record<string, number>)[key] = value;
@@ -84,12 +68,6 @@ function normalizeResult(data: Record<string, unknown>): ExtractionResult {
     extracted,
     arrays: {
       mandats: Array.isArray(arrays.mandats) ? arrays.mandats : [],
-      informationsVente: Array.isArray(arrays.informationsVente)
-        ? arrays.informationsVente
-        : [],
-      acheteursChauds: Array.isArray(arrays.acheteursChauds)
-        ? arrays.acheteursChauds
-        : [],
     },
     uncertain: Array.isArray(data.uncertain) ? (data.uncertain as string[]) : [],
     unmapped: Array.isArray(data.unmapped) ? (data.unmapped as string[]) : [],

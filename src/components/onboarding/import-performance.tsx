@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useRef } from "react";
@@ -201,7 +200,7 @@ export function ImportPerformance({ isDemo }: ImportPerformanceProps) {
                   for (const period of r.data!.periods) {
                     const m = period.metrics;
                     const fields: ExtractedFields = {
-                      contactsEntrants: m.contacts_entrants ?? undefined,
+                      contactsTotaux: m.contacts_entrants ?? undefined,
                       mandatsSignes: m.mandats_signes ?? undefined,
                       nombreVisites: m.visites_realisees ?? undefined,
                       offresRecues: m.offres_recues ?? undefined,
@@ -209,7 +208,7 @@ export function ImportPerformance({ isDemo }: ImportPerformanceProps) {
                       actesSignes: m.actes_signes ?? undefined,
                       chiffreAffaires: m.ca_encaisse ?? undefined,
                     };
-                    const arrays: ExtractedArrays = { mandats: [], informationsVente: [], acheteursChauds: [] };
+                    const arrays: ExtractedArrays = { mandats: [] };
                     const userId = user?.id ?? "unknown";
                     const periodResult = convertExtractedToPeriodResults(userId, fields, arrays);
                     addResults(periodResult);

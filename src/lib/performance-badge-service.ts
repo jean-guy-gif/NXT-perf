@@ -17,7 +17,7 @@ export const PERFORMANCE_BADGES: PerformanceBadgeDef[] = [
   {
     key: "prospecteur", emoji: "\u{1F50D}", name: "Prospecteur",
     description: "Taux contacts \u2192 RDV sup\u00e9rieur \u00e0 l'objectif",
-    check: (r, obj) => r.prospection.contactsEntrants >= obj.estimations,
+    check: (r, obj) => r.prospection.contactsTotaux >= obj.estimations,
   },
   {
     key: "roi_estimation", emoji: "\u{1F3E0}", name: "Roi de l'Estimation",

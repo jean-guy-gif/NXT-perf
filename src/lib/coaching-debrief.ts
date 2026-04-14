@@ -77,21 +77,21 @@ import { COACHING_CLOSING, COACHING_BRANDING, COACHING_CTA_LABEL, COACHING_CTA_U
 
 const KEY_RATIOS: RatioId[] = [
   "contacts_rdv",
-  "estimations_mandats",
+  "rdv_mandats",
   "pct_mandats_exclusifs",
   "visites_offre",
 ];
 
 const RATIO_LABELS: Record<string, string> = {
   contacts_rdv: "Contacts → RDV",
-  estimations_mandats: "Estimations → Mandats",
+  rdv_mandats: "RDV → Mandats",
   pct_mandats_exclusifs: "% Exclusivité",
   visites_offre: "Visites → Offre",
 };
 
 const RATIO_DIRECTIONS: Record<string, RatioDirection> = {
   contacts_rdv: "lower_is_better",
-  estimations_mandats: "lower_is_better",
+  rdv_mandats: "lower_is_better",
   pct_mandats_exclusifs: "higher_is_better",
   visites_offre: "lower_is_better",
 };
@@ -146,8 +146,8 @@ function computeRatioConfidence(ratioId: string, results: PeriodResults): RatioC
       if (den >= 2 || num >= 5) return "medium";
       return "low";
     }
-    case "estimations_mandats": {
-      const num = v.estimationsRealisees;
+    case "rdv_mandats": {
+      const num = v.rdvEstimation;
       const den = v.mandatsSignes;
       if (den >= 3 && num >= 5) return "high";
       if (den >= 2 || num >= 3) return "medium";

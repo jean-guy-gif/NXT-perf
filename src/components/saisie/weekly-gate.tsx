@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -167,7 +166,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
     }
 
     // Validate detail fields — reject non-exploitable input
-    if (currentStep.inputMode === "detail_mandats" || currentStep.inputMode === "detail_infos" || currentStep.inputMode === "detail_acheteurs") {
+    if (currentStep.inputMode === "detail_mandats") {
       const trimmed = raw.trim();
       if (trimmed && trimmed !== "0" && trimmed.toLowerCase() !== "aucun" && trimmed.toLowerCase() !== "rien") {
         const isJustNumber = /^\d+$/.test(trimmed);
@@ -477,7 +476,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   // ── Écran 3 : Saisie manuelle question par question ──────────────────────
   if (screen === "manual" && currentStep) {
     const progress = totalApplicable > 0 ? ((applicableIdx + 1) / totalApplicable) * 100 : 0;
-    const isDetail = currentStep.inputMode === "detail_mandats" || currentStep.inputMode === "detail_infos" || currentStep.inputMode === "detail_acheteurs";
+    const isDetail = currentStep.inputMode === "detail_mandats";
 
     return (
       <div className={fullscreen}>

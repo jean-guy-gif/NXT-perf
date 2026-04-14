@@ -4,12 +4,12 @@ import type { PeriodResults } from "@/types/results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 
 function makeResults(o: Partial<{
-  contactsTotaux: number; contactsEntrants: number; rdvEstimation: number;
+  contactsTotaux: number; rdvEstimation: number;
   estimationsRealisees: number; mandatsSignes: number; mandatsExclusifs: number;
   rdvSuivi: number; nombreVisites: number; offresRecues: number;
   compromisSignes: number; actesSignes: number; chiffreAffaires: number;
 }> = {}): PeriodResults {
-  const d = { contactsTotaux: 0, contactsEntrants: 0, rdvEstimation: 0,
+  const d = { contactsTotaux: 0, rdvEstimation: 0,
     estimationsRealisees: 0, mandatsSignes: 0, mandatsExclusifs: 0,
     rdvSuivi: 0, nombreVisites: 0, offresRecues: 0,
     compromisSignes: 0, actesSignes: 0, chiffreAffaires: 0, ...o };
@@ -18,10 +18,10 @@ function makeResults(o: Partial<{
   for (let i = 0; i < (d.mandatsSignes - d.mandatsExclusifs); i++) mandats.push({ id: `s${i}`, nomVendeur: "", type: "simple" as const });
   return {
     id: "t", userId: "u1", periodType: "month", periodStart: "2026-04-01", periodEnd: "2026-04-30",
-    prospection: { contactsEntrants: d.contactsEntrants, contactsTotaux: d.contactsTotaux, rdvEstimation: d.rdvEstimation, informationsVente: [] },
+    prospection: { contactsTotaux: d.contactsTotaux, rdvEstimation: d.rdvEstimation },
     vendeurs: { rdvEstimation: d.rdvEstimation, estimationsRealisees: d.estimationsRealisees, mandatsSignes: d.mandatsSignes, mandats, rdvSuivi: d.rdvSuivi, requalificationSimpleExclusif: 0, baissePrix: 0 },
-    acheteurs: { acheteursChauds: [], acheteursSortisVisite: 0, nombreVisites: d.nombreVisites, offresRecues: d.offresRecues, compromisSignes: d.compromisSignes },
-    ventes: { actesSignes: d.actesSignes, chiffreAffaires: d.chiffreAffaires, delaiMoyenVente: 0 },
+    acheteurs: { acheteursSortisVisite: 0, nombreVisites: d.nombreVisites, offresRecues: d.offresRecues, compromisSignes: d.compromisSignes, chiffreAffairesCompromis: 0 },
+    ventes: { actesSignes: d.actesSignes, chiffreAffaires: d.chiffreAffaires },
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   };
 }
@@ -115,7 +115,7 @@ describe("direction métier", () => {
       contactsTotaux: 30, rdvEstimation: 3, estimationsRealisees: 6,
       mandatsSignes: 3, nombreVisites: 8, offresRecues: 2,
     }), "expert", cfg);
-    const ratio = d.performanceReview.find(r => r.ratioId === "estimations_mandats")!;
+    const ratio = d.performanceReview.find(r => r.ratioId === "rdv_mandats")!;
     expect(ratio.value).toBe(2); // 6/3 = 2, target 1.5 → 2 > 1.5 → bad
     expect(["warning", "danger"]).toContain(ratio.status);
   });
@@ -139,7 +139,7 @@ describe("confidence", () => {
       contactsTotaux: 30, rdvEstimation: 3, estimationsRealisees: 1,
       mandatsSignes: 1, mandatsExclusifs: 1, nombreVisites: 8, offresRecues: 2,
     }), "confirme", cfg);
-    const ratio = d.performanceReview.find(r => r.ratioId === "estimations_mandats")!;
+    const ratio = d.performanceReview.find(r => r.ratioId === "rdv_mandats")!;
     expect(ratio.confidence).toBe("low");
   });
 
@@ -259,7 +259,7 @@ describe("constraints", () => {
       mandatsSignes: 2, mandatsExclusifs: 1, nombreVisites: 8, offresRecues: 2,
     }), "confirme", cfg);
     expect(d.performanceReview.map(r => r.ratioId)).toEqual(
-      expect.arrayContaining(["contacts_rdv", "estimations_mandats", "pct_mandats_exclusifs", "visites_offre"])
+      expect.arrayContaining(["contacts_rdv", "rdv_mandats", "pct_mandats_exclusifs", "visites_offre"])
     );
   });
 

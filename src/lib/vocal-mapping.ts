@@ -14,17 +14,8 @@ export function mapVocalToResults(
     switch (sr.section) {
       case "prospection":
         result.prospection = {
-          contactsEntrants: (d.contactsEntrants as number) ?? 0,
           contactsTotaux: (d.contactsTotaux as number) ?? 0,
           rdvEstimation: (d.rdvEstimation as number) ?? 0,
-          informationsVente: (
-            (d.informationsVente as Array<{ nom: string; commentaire: string }>) ?? []
-          ).map((iv, i) => ({
-            id: `iv-vocal-${i}`,
-            nom: iv.nom,
-            commentaire: iv.commentaire,
-            statut: "en_cours" as const,
-          })),
         };
         break;
 
@@ -49,18 +40,11 @@ export function mapVocalToResults(
 
       case "acheteurs":
         result.acheteurs = {
-          acheteursChauds: (
-            (d.acheteursChauds as Array<{ nom: string; commentaire: string }>) ?? []
-          ).map((ac, i) => ({
-            id: `ac-vocal-${i}`,
-            nom: ac.nom,
-            commentaire: ac.commentaire,
-            statut: "en_cours" as const,
-          })),
           acheteursSortisVisite: (d.acheteursSortisVisite as number) ?? 0,
           nombreVisites: (d.nombreVisites as number) ?? 0,
           offresRecues: (d.offresRecues as number) ?? 0,
           compromisSignes: (d.compromisSignes as number) ?? 0,
+          chiffreAffairesCompromis: (d.chiffreAffairesCompromis as number) ?? 0,
         };
         break;
 
@@ -68,7 +52,6 @@ export function mapVocalToResults(
         result.ventes = {
           actesSignes: (d.actesSignes as number) ?? 0,
           chiffreAffaires: (d.chiffreAffaires as number) ?? 0,
-          delaiMoyenVente: (d.delaiMoyenVente as number) ?? 0,
         };
         break;
     }

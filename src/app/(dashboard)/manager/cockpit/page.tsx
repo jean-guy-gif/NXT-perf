@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Align PeriodResults/ProspectionData types between branches
 "use client";
 
 import { useState, useMemo } from "react";

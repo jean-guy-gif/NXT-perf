@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Align RatioId types between branches — this file uses old RatioId names
 "use client";
 
 import { useState, useMemo } from "react";
@@ -85,19 +83,16 @@ const niveauOptions: NiveauOption[] = [
 
 const ratioLabels: Record<string, string> = {
   contacts_rdv: "Contacts → RDV Estimation",
-  estimations_mandats: "Estimations → Mandats",
   rdv_mandats: "RDV → Mandats",
   pct_mandats_exclusifs: "% Mandats Exclusifs",
   acheteurs_visites: "Acheteurs → Visites",
   visites_offre: "Visites → Offre",
   offres_compromis: "Offres → Compromis",
   compromis_actes: "Compromis → Actes",
-  mandats_simples_vente: "Mandats simples / Vente",
-  mandats_exclusifs_vente: "Mandats exclusifs / Vente",
   honoraires_moyens: "Honoraires moyens",
 };
 
-const ratioIds: string[] = [
+const ratioIds: RatioId[] = [
   "contacts_rdv",
   "rdv_mandats",
   "pct_mandats_exclusifs",

@@ -199,15 +199,8 @@ export function convertExtractedToPeriodResults(
     periodStart: monthStart.toISOString().split("T")[0],
     periodEnd: monthEnd.toISOString().split("T")[0],
     prospection: {
-      contactsEntrants: fields.contactsEntrants ?? 0,
       contactsTotaux: fields.contactsTotaux ?? 0,
       rdvEstimation: fields.rdvEstimation ?? 0,
-      informationsVente: (arrays.informationsVente ?? []).map((iv) => ({
-        id: generateId(),
-        nom: iv.nom,
-        commentaire: iv.commentaire,
-        statut: "en_cours" as const,
-      })),
     },
     vendeurs: {
       rdvEstimation: fields.rdvEstimation ?? 0,
@@ -223,21 +216,15 @@ export function convertExtractedToPeriodResults(
       baissePrix: fields.baissePrix ?? 0,
     },
     acheteurs: {
-      acheteursChauds: (arrays.acheteursChauds ?? []).map((a) => ({
-        id: generateId(),
-        nom: a.nom,
-        commentaire: a.commentaire,
-        statut: "en_cours" as const,
-      })),
       acheteursSortisVisite: fields.acheteursSortisVisite ?? 0,
       nombreVisites: fields.nombreVisites ?? 0,
       offresRecues: fields.offresRecues ?? 0,
       compromisSignes: fields.compromisSignes ?? 0,
+      chiffreAffairesCompromis: fields.chiffreAffairesCompromis ?? 0,
     },
     ventes: {
       actesSignes: fields.actesSignes ?? 0,
       chiffreAffaires: fields.chiffreAffaires ?? 0,
-      delaiMoyenVente: fields.delaiMoyenVente ?? 0,
     },
     createdAt: iso,
     updatedAt: iso,

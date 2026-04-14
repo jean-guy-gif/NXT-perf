@@ -4,6 +4,12 @@ import type { PeriodResults } from "@/types/results";
 // =============================================================================
 // NXT Immobilier Lyon — Second agency for network-level demo
 // =============================================================================
+//
+// TODO(provisoire): placeholder dev, valeur à calibrer — CA compromis mock =
+// compromisSignes × 15 000€. Les valeurs `chiffreAffairesCompromis` de ce
+// fichier sont des placeholders dérivés de cette règle, pas des valeurs
+// issues du CRM. À remplacer par des données réelles ou une règle calibrée
+// quand le backend sera branché. Voir docs/TECH_DEBT.md.
 
 export const mockNetworkUsers: User[] = [
   // Directeur d'agence Lyon (also manages team-lyon-1)
@@ -142,10 +148,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 35,
       contactsTotaux: 52,
       rdvEstimation: 6,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 6,
@@ -162,16 +166,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 6,
       nombreVisites: 10,
       offresRecues: 3,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 28000,
-      delaiMoyenVente: 55,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-23T10:00:00Z",
@@ -184,10 +187,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 22,
       contactsTotaux: 38,
       rdvEstimation: 4,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 4,
@@ -203,16 +204,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 5,
       nombreVisites: 8,
       offresRecues: 3,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 18000,
-      delaiMoyenVente: 72,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-20T14:00:00Z",
@@ -225,10 +225,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 48,
       contactsTotaux: 70,
       rdvEstimation: 8,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 8,
@@ -247,16 +245,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 9,
       nombreVisites: 15,
       offresRecues: 5,
       compromisSignes: 3,
+      chiffreAffairesCompromis: 45000,
     },
     ventes: {
       actesSignes: 3,
       chiffreAffaires: 38000,
-      delaiMoyenVente: 48,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-25T16:00:00Z",
@@ -269,10 +266,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 10,
       contactsTotaux: 18,
       rdvEstimation: 2,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 2,
@@ -286,16 +281,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 2,
       nombreVisites: 4,
       offresRecues: 1,
       compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
     ventes: {
       actesSignes: 1,
       chiffreAffaires: 5000,
-      delaiMoyenVente: 95,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-18T11:00:00Z",
@@ -308,10 +302,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 20,
       contactsTotaux: 30,
       rdvEstimation: 3,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 3,
@@ -326,16 +318,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 3,
       nombreVisites: 6,
       offresRecues: 2,
       compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
     ventes: {
       actesSignes: 1,
       chiffreAffaires: 15000,
-      delaiMoyenVente: 65,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-22T09:00:00Z",
@@ -348,10 +339,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 28,
       contactsTotaux: 42,
       rdvEstimation: 5,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 5,
@@ -368,16 +357,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 5,
       nombreVisites: 9,
       offresRecues: 3,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 20000,
-      delaiMoyenVente: 58,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-24T15:00:00Z",
@@ -390,10 +378,8 @@ export const mockNetworkResults: PeriodResults[] = [
     periodStart: "2026-02-01",
     periodEnd: "2026-02-28",
     prospection: {
-      contactsEntrants: 8,
       contactsTotaux: 14,
       rdvEstimation: 1,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 1,
@@ -407,16 +393,15 @@ export const mockNetworkResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 1,
       nombreVisites: 3,
       offresRecues: 0,
       compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
     ventes: {
       actesSignes: 0,
       chiffreAffaires: 3000,
-      delaiMoyenVente: 0,
     },
     createdAt: "2026-02-01T08:00:00Z",
     updatedAt: "2026-02-15T10:00:00Z",
@@ -436,10 +421,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 30,
       contactsTotaux: 48,
       rdvEstimation: 5,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 5,
@@ -455,16 +438,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 5,
       nombreVisites: 9,
       offresRecues: 2,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 25000,
-      delaiMoyenVente: 60,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-28T10:00:00Z",
@@ -477,10 +459,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 18,
       contactsTotaux: 32,
       rdvEstimation: 3,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 3,
@@ -495,16 +475,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 4,
       nombreVisites: 7,
       offresRecues: 2,
       compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
     ventes: {
       actesSignes: 1,
       chiffreAffaires: 14000,
-      delaiMoyenVente: 78,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-27T14:00:00Z",
@@ -517,10 +496,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 44,
       contactsTotaux: 65,
       rdvEstimation: 7,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 7,
@@ -538,16 +515,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 8,
       nombreVisites: 14,
       offresRecues: 4,
       compromisSignes: 3,
+      chiffreAffairesCompromis: 45000,
     },
     ventes: {
       actesSignes: 3,
       chiffreAffaires: 35000,
-      delaiMoyenVente: 50,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-29T16:00:00Z",
@@ -560,10 +536,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 8,
       contactsTotaux: 15,
       rdvEstimation: 1,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 1,
@@ -577,16 +551,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 2,
       nombreVisites: 3,
       offresRecues: 1,
       compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
     ventes: {
       actesSignes: 0,
       chiffreAffaires: 0,
-      delaiMoyenVente: 0,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-20T11:00:00Z",
@@ -599,10 +572,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 18,
       contactsTotaux: 28,
       rdvEstimation: 3,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 3,
@@ -617,16 +588,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 3,
       nombreVisites: 5,
       offresRecues: 1,
       compromisSignes: 1,
+      chiffreAffairesCompromis: 15000,
     },
     ventes: {
       actesSignes: 1,
       chiffreAffaires: 12000,
-      delaiMoyenVente: 70,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-25T09:00:00Z",
@@ -639,10 +609,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 25,
       contactsTotaux: 38,
       rdvEstimation: 4,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 4,
@@ -658,16 +626,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 1,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 4,
       nombreVisites: 8,
       offresRecues: 2,
       compromisSignes: 2,
+      chiffreAffairesCompromis: 30000,
     },
     ventes: {
       actesSignes: 2,
       chiffreAffaires: 18000,
-      delaiMoyenVente: 62,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-28T15:00:00Z",
@@ -680,10 +647,8 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
     periodStart: "2026-01-01",
     periodEnd: "2026-01-31",
     prospection: {
-      contactsEntrants: 6,
       contactsTotaux: 10,
       rdvEstimation: 1,
-      informationsVente: [],
     },
     vendeurs: {
       rdvEstimation: 1,
@@ -695,16 +660,15 @@ export const mockNetworkJanuaryResults: PeriodResults[] = [
       baissePrix: 0,
     },
     acheteurs: {
-      acheteursChauds: [],
       acheteursSortisVisite: 1,
       nombreVisites: 2,
       offresRecues: 0,
       compromisSignes: 0,
+      chiffreAffairesCompromis: 0,
     },
     ventes: {
       actesSignes: 0,
       chiffreAffaires: 0,
-      delaiMoyenVente: 0,
     },
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-18T10:00:00Z",

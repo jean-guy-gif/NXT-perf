@@ -8,11 +8,21 @@ export interface VenteInfo {
   profiled?: boolean;
 }
 
+export interface AcheteurChaud {
+  id: string;
+  nom: string;
+  commentaire: string;
+  statut: ContactStatut;
+  profiled?: boolean;
+}
+
 export interface ProspectionData {
-  contactsEntrants: number;
   contactsTotaux: number;
   rdvEstimation: number;
-  informationsVente: VenteInfo[];
+  /** Extended: nombre de contacts entrants (subset de contactsTotaux) */
+  contactsEntrants?: number;
+  /** Extended: informations de vente en cours */
+  informationsVente?: VenteInfo[];
 }
 
 export interface MandatEntry {
@@ -32,26 +42,21 @@ export interface VendeursData {
   baissePrix: number;
 }
 
-export interface AcheteurChaud {
-  id: string;
-  nom: string;
-  commentaire: string;
-  statut: ContactStatut;
-  profiled?: boolean;
-}
-
 export interface AcheteursData {
-  acheteursChauds: AcheteurChaud[];
   acheteursSortisVisite: number;
   nombreVisites: number;
   offresRecues: number;
   compromisSignes: number;
+  chiffreAffairesCompromis: number;
+  /** Extended: acheteurs chauds en suivi */
+  acheteursChauds?: AcheteurChaud[];
 }
 
 export interface VentesData {
   actesSignes: number;
   chiffreAffaires: number;
-  delaiMoyenVente: number;
+  /** Extended: délai moyen de vente en jours */
+  delaiMoyenVente?: number;
 }
 
 export interface PeriodResults {

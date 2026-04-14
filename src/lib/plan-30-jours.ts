@@ -215,11 +215,11 @@ const exerciceMap: Record<FormationArea, string[]> = {
 
 const areaToRatioId: Record<FormationArea, RatioId> = {
   prospection: "contacts_rdv",
-  estimation: "estimations_mandats",
+  estimation: "rdv_mandats",
   exclusivite: "pct_mandats_exclusifs",
   accompagnement_acheteur: "visites_offre",
   negociation: "offres_compromis",
-  suivi_mandat: "mandats_simples_vente",
+  suivi_mandat: "compromis_actes",
 };
 
 const areaLabels: Record<FormationArea, string> = {

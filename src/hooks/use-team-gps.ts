@@ -15,8 +15,6 @@ function aggregateTeamResults(results: PeriodResults[]): PeriodResults | null {
   if (results.length === 0) return null;
 
   const allMandats = results.flatMap((r) => r?.vendeurs?.mandats ?? []);
-  const allInfosVente = results.flatMap((r) => r?.prospection?.informationsVente ?? []);
-  const allAcheteursChauds = results.flatMap((r) => r?.acheteurs?.acheteursChauds ?? []);
 
   return {
     id: "team-aggregate",
@@ -25,10 +23,8 @@ function aggregateTeamResults(results: PeriodResults[]): PeriodResults | null {
     periodStart: results[0].periodStart,
     periodEnd: results[0].periodEnd,
     prospection: {
-      contactsEntrants: results.reduce((s, r) => s + (r?.prospection?.contactsEntrants ?? 0), 0),
       contactsTotaux: results.reduce((s, r) => s + (r?.prospection?.contactsTotaux ?? 0), 0),
       rdvEstimation: results.reduce((s, r) => s + (r?.prospection?.rdvEstimation ?? 0), 0),
-      informationsVente: allInfosVente,
     },
     vendeurs: {
       rdvEstimation: results.reduce((s, r) => s + (r?.vendeurs?.rdvEstimation ?? 0), 0),
@@ -40,18 +36,15 @@ function aggregateTeamResults(results: PeriodResults[]): PeriodResults | null {
       baissePrix: results.reduce((s, r) => s + (r?.vendeurs?.baissePrix ?? 0), 0),
     },
     acheteurs: {
-      acheteursChauds: allAcheteursChauds,
       acheteursSortisVisite: results.reduce((s, r) => s + (r?.acheteurs?.acheteursSortisVisite ?? 0), 0),
       nombreVisites: results.reduce((s, r) => s + (r?.acheteurs?.nombreVisites ?? 0), 0),
       offresRecues: results.reduce((s, r) => s + (r?.acheteurs?.offresRecues ?? 0), 0),
       compromisSignes: results.reduce((s, r) => s + (r?.acheteurs?.compromisSignes ?? 0), 0),
+      chiffreAffairesCompromis: results.reduce((s, r) => s + (r?.acheteurs?.chiffreAffairesCompromis ?? 0), 0),
     },
     ventes: {
       actesSignes: results.reduce((s, r) => s + (r?.ventes?.actesSignes ?? 0), 0),
       chiffreAffaires: results.reduce((s, r) => s + (r?.ventes?.chiffreAffaires ?? 0), 0),
-      delaiMoyenVente: results.length > 0
-        ? Math.round(results.reduce((s, r) => s + (r?.ventes?.delaiMoyenVente ?? 0), 0) / results.length)
-        : 0,
     },
     createdAt: results[0].createdAt,
     updatedAt: results[0].updatedAt,

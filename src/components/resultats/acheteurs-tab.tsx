@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { UserCheck, Eye, FileText, Handshake, Banknote } from "lucide-react";

@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Align RatioId/PeriodResults types between branches
 "use client";
 
 import { useState, useMemo } from "react";
@@ -70,7 +68,7 @@ const niveauOptions: (NiveauOption & { disabled?: boolean; disabledReason?: stri
   },
 ];
 
-const ratioLabels: Record<RatioId, string> = {
+const ratioLabels: Partial<Record<RatioId, string>> = {
   contacts_rdv: "Contacts → RDV Estimation",
   rdv_mandats: "RDV → Mandats",
   pct_mandats_exclusifs: "% Mandats Exclusifs",

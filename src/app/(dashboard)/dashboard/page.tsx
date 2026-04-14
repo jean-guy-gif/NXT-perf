@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -6,17 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   Star,
   StarOff,
-  Clock,
-  Archive,
-  CheckCircle2,
-  XCircle,
-  Info,
-  Flame,
-  ExternalLink,
-  Check,
   LayoutDashboard,
-  Phone,
-  X,
   Link2,
   Calendar,
 } from "lucide-react";
@@ -41,7 +30,7 @@ import { DemoSaisieGate } from "@/components/saisie/demo-saisie-gate";
 
 // ── Types ──────────────────────────────────────────────────────
 
-type DashboardTab = "chaine" | "favoris" | "suivi";
+type DashboardTab = "chaine" | "favoris";
 type PeriodFilter = "ytd" | "mois" | "custom";
 
 // Favorite items: 12 volume steps + 7 ratio steps
@@ -152,13 +141,13 @@ function DashboardContent() {
   const [customMonthTo, setCustomMonthTo] = usePersistedState<string>("nxt-chain-mto", currentMonthKey);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
 
-  // Allow navigation via ?tab=suivi
+  // Allow navigation via ?tab=...
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "suivi" || tab === "favoris" || tab === "chaine") {
-      setActiveTab(tab as DashboardTab);
+    if (tab === "favoris" || tab === "chaine") {
+      setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, setActiveTab]);
 
   // Helper: count whole months between two "YYYY-MM" keys (inclusive)
   const countMonths = (from: string, to: string): number => {
@@ -216,9 +205,6 @@ function DashboardContent() {
 
   // Category (safe even when user is null)
   const category = user?.category ?? "confirme";
-
-  // Treated count for badge (listes supprimées du modèle — toujours 0)
-  const treatedCount = 0;
 
   // Favorite items data extraction from periodResults
   const favData = useMemo(() => {
@@ -349,23 +335,6 @@ function DashboardContent() {
           >
             <Star className="h-4 w-4" />
             Favoris
-          </button>
-          <button
-            onClick={() => setActiveTab("suivi")}
-            className={cn(
-              "relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-              activeTab === "suivi"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Archive className="h-4 w-4" />
-            Suivi contacts
-            {treatedCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                {treatedCount}
-              </span>
-            )}
           </button>
         </div>
         {showResumeButton && (
@@ -697,10 +666,6 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* ═══════ TAB: SUIVI CONTACTS ═══════ */}
-      {activeTab === "suivi" && (
-        <SuiviContactsPanel results={results} />
-      )}
     </div>
   );
 }
@@ -871,230 +836,3 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Suivi Contacts Panel                                               */
-/* ------------------------------------------------------------------ */
-
-function SuiviContactsPanel({ results: _results }: { results: PeriodResults | null }) {
-  // Listes de suivi (informationsVente / acheteursChauds) retirées du modèle socle.
-  // Le panneau est vidé pour ne plus dépendre de champs inexistants.
-  const activeInfoVente: Array<{ id: string; nom: string; commentaire: string; profiled?: boolean }> = [];
-  const activeAcheteurs: Array<{ id: string; nom: string; commentaire: string; profiled?: boolean }> = [];
-  const treatedItems: Array<{ id: string; nom: string; commentaire: string; statut: string; type: string }> = [];
-  const totalActifs = 0;
-  const totalProfiled = 0;
-  const totalDeale = 0;
-  const totalAbandonne = 0;
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const handleUpdateInfo = (_itemId: string, _statut: "deale" | "abandonne") => {};
-  const handleUpdateAcheteur = (_itemId: string, _statut: "deale" | "abandonne") => {};
-  const handleProfileInfo = (_itemId: string) => {};
-  const handleProfileAcheteur = (_itemId: string) => {};
-
-  return (
-    <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
-              <Phone className="h-5 w-5 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">En cours</p>
-              <p className="text-2xl font-bold text-blue-500">{totalActifs}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-              <Archive className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total traités</p>
-              <p className="text-2xl font-bold text-foreground">{treatedItems.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/20">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Dealés</p>
-              <p className="text-2xl font-bold text-green-500">{totalDeale}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
-              <XCircle className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Abandonnés</p>
-              <p className="text-2xl font-bold text-red-500">{totalAbandonne}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/20">
-              <Check className="h-5 w-5 text-violet-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Profilés</p>
-              <p className="text-2xl font-bold text-violet-500">{totalProfiled}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Contacts actifs : Informations de vente */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-blue-500" />
-          <h3 className="text-lg font-semibold text-foreground">Informations de vente en cours</h3>
-          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500">{activeInfoVente.length}</span>
-        </div>
-        {activeInfoVente.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">Aucune information de vente en cours.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {activeInfoVente.map((item) => (
-              <ActiveContactCard key={item.id} id={item.id} nom={item.nom} commentaire={item.commentaire} profiled={item.profiled}
-                confirmingId={confirmingId} setConfirmingId={setConfirmingId}
-                onRemove={(reason) => handleUpdateInfo(item.id, reason)} onProfile={() => handleProfileInfo(item.id)} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Contacts actifs : Acheteurs chauds */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Flame className="h-4 w-4 text-orange-500" />
-          <h3 className="text-lg font-semibold text-foreground">Acheteurs chauds en cours</h3>
-          <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">{activeAcheteurs.length}</span>
-        </div>
-        {activeAcheteurs.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">Aucun acheteur chaud en cours.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {activeAcheteurs.map((item) => (
-              <ActiveContactCard key={item.id} id={item.id} nom={item.nom} commentaire={item.commentaire} profiled={item.profiled}
-                confirmingId={confirmingId} setConfirmingId={setConfirmingId}
-                onRemove={(reason) => handleUpdateAcheteur(item.id, reason)} onProfile={() => handleProfileAcheteur(item.id)} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Historique */}
-      {treatedItems.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Archive className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold text-muted-foreground">Historique</h3>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{treatedItems.length}</span>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {treatedItems.map((item) => (
-              <TreatedItemCard key={item.id} item={item} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ActiveContactCard({
-  id, nom, commentaire, profiled, confirmingId, setConfirmingId, onRemove, onProfile,
-}: {
-  id: string; nom: string; commentaire: string; profiled?: boolean;
-  confirmingId: string | null; setConfirmingId: (id: string | null) => void;
-  onRemove: (reason: "deale" | "abandonne") => void; onProfile?: () => void;
-}) {
-  const isConfirming = confirmingId === id;
-  const isProfiled = profiled === true;
-
-  return (
-    <div className={cn("rounded-lg border border-border bg-muted/50 p-4 transition-colors", isConfirming && "border-primary/40 bg-primary/5")}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-foreground">{nom}</p>
-            {isProfiled && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-500">
-                <Check className="h-2.5 w-2.5" /> Profilé
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">{commentaire}</p>
-        </div>
-        {!isConfirming ? (
-          <button onClick={() => setConfirmingId(id)}
-            className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            Traiter
-          </button>
-        ) : (
-          <button onClick={() => setConfirmingId(null)}
-            className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      {isConfirming && (
-        <div className="mt-3 border-t border-border pt-3">
-          <p className="mb-2 text-sm font-medium text-foreground">Quelle est la raison ?</p>
-          <div className="flex gap-2">
-            <button onClick={() => onRemove("deale")}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500/15 px-3 py-2.5 text-sm font-medium text-green-600 transition-colors hover:bg-green-500/25 dark:text-green-400">
-              <CheckCircle2 className="h-4 w-4" /> Dealé
-            </button>
-            <button onClick={() => onRemove("abandonne")}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-500/15 px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/25 dark:text-red-400">
-              <XCircle className="h-4 w-4" /> Abandonné
-            </button>
-            {isProfiled ? (
-              <a href="https://nxt-profiling.fr/profiling" target="_blank" rel="noopener noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500/25 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-500/35 dark:text-violet-400">
-                <Check className="h-4 w-4" /> Déjà profilé
-              </a>
-            ) : (
-              <button onClick={() => onProfile?.()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500/15 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-500/25 dark:text-violet-400">
-                <ExternalLink className="h-4 w-4" /> Profiler
-              </button>
-            )}
-          </div>
-          {!isProfiled && (
-            <p className="mt-2 text-center text-[11px] text-violet-500/70">+34% transformation client avec NXT Profiling</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TreatedItemCard({ item }: { item: { nom: string; commentaire: string; statut: string } }) {
-  const isDeale = item.statut === "deale";
-  return (
-    <div className={cn("rounded-lg border p-4", isDeale ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5")}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{item.nom}</p>
-          <p className="mt-0.5 text-sm text-muted-foreground">{item.commentaire}</p>
-        </div>
-        <span className={cn("shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
-          isDeale ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-red-500/15 text-red-600 dark:text-red-400")}>
-          {isDeale ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-          {isDeale ? "Dealé" : "Abandonné"}
-        </span>
-      </div>
-    </div>
-  );
-}
