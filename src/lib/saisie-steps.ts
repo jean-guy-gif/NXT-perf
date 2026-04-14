@@ -12,7 +12,7 @@ import type { ExtractedFields } from "@/lib/saisie-ai-client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type StepInputMode = "count" | "money" | "detail_mandats";
+export type StepInputMode = "count" | "money" | "mandats_types";
 
 export type StepSection =
   | "Prospection vendeur"
@@ -71,15 +71,15 @@ export const SAISIE_STEPS: SaisieStep[] = [
     emptyValue: "zero",
   },
   {
-    id: "mandatsDetail",
+    id: "mandatsTypes",
     section: "Prospection vendeur",
-    prompt: "Donne les noms et le type de mandat.",
-    field: "mandatsDetail",
-    inputMode: "detail_mandats",
+    prompt: "Pour chaque mandat, indique son type.",
+    field: "mandatsTypes",
+    inputMode: "mandats_types",
     keyboardMode: "text",
-    placeholder: "Dupont exclusif, Martin simple",
-    exampleHint: "Nom + type (exclusif/simple), séparés par des virgules",
-    required: false,
+    placeholder: "",
+    exampleHint: "Tape le type de chaque mandat — simple ou exclusif",
+    required: true,
     condition: (f) => (f.mandatsSignes ?? 0) > 0,
     emptyValue: "empty_array",
   },

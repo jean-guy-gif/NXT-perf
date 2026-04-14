@@ -79,15 +79,6 @@ function RatioDetailContent({
             <Metric label="Estimations réalisées" value={vendeurs.estimationsRealisees} />
             <Metric label="Mandats signés" value={vendeurs.mandatsSignes} />
           </div>
-          <ItemList
-            title="Mandats"
-            items={vendeurs.mandats.map((m) => ({
-              id: m.id,
-              primary: m.nomVendeur,
-              secondary: m.type === "exclusif" ? "Exclusif" : "Simple",
-              badge: m.type,
-            }))}
-          />
         </div>
       );
 
@@ -101,15 +92,6 @@ function RatioDetailContent({
             <Metric label="Simples" value={simples.length} />
             <Metric label="Total" value={vendeurs.mandats.length} />
           </div>
-          <ItemList
-            title="Mandats"
-            items={vendeurs.mandats.map((m) => ({
-              id: m.id,
-              primary: m.nomVendeur,
-              secondary: m.type === "exclusif" ? "Exclusif" : "Simple",
-              badge: m.type,
-            }))}
-          />
         </div>
       );
     }

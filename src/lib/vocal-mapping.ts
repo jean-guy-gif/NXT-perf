@@ -19,24 +19,28 @@ export function mapVocalToResults(
         };
         break;
 
-      case "vendeurs":
+      case "vendeurs": {
+        const types =
+          (d.mandatsTypes as Array<"simple" | "exclusif">) ?? [];
+        const typedMandats = types.map((type, i) => ({
+          id: `m-vocal-${i}`,
+          type,
+        }));
         result.vendeurs = {
           rdvEstimation: (d.estimationsRealisees as number) ?? 0,
           estimationsRealisees: (d.estimationsRealisees as number) ?? 0,
-          mandatsSignes: (d.mandatsSignes as number) ?? 0,
-          mandats: (
-            (d.mandats as Array<{ nomVendeur: string; type: string }>) ?? []
-          ).map((m, i) => ({
-            id: `m-vocal-${i}`,
-            nomVendeur: m.nomVendeur,
-            type: m.type as "simple" | "exclusif",
-          })),
+          mandatsSignes:
+            typedMandats.length > 0
+              ? typedMandats.length
+              : (d.mandatsSignes as number) ?? 0,
+          mandats: typedMandats,
           rdvSuivi: (d.rdvSuivi as number) ?? 0,
           requalificationSimpleExclusif:
             (d.requalificationSimpleExclusif as number) ?? 0,
           baissePrix: (d.baissePrix as number) ?? 0,
         };
         break;
+      }
 
       case "acheteurs":
         result.acheteurs = {

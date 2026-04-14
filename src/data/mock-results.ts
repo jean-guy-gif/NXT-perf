@@ -23,10 +23,10 @@ export const mockResults: PeriodResults[] = [
       estimationsRealisees: 5,
       mandatsSignes: 4,
       mandats: [
-        { id: "mm1", nomVendeur: "M. Delacroix", type: "exclusif", profiled: true },
-        { id: "mm2", nomVendeur: "Mme Vasseur", type: "exclusif", profiled: true },
-        { id: "mm3", nomVendeur: "SCI Horizon", type: "exclusif" },
-        { id: "mm4", nomVendeur: "M. Prat", type: "simple" },
+        { id: "mm1", type: "exclusif" },
+        { id: "mm2", type: "exclusif" },
+        { id: "mm3", type: "exclusif" },
+        { id: "mm4", type: "simple" },
       ],
       rdvSuivi: 8,
       requalificationSimpleExclusif: 1,
@@ -66,11 +66,11 @@ export const mockResults: PeriodResults[] = [
       estimationsRealisees: 7,
       mandatsSignes: 5,
       mandats: [
-        { id: "m19", nomVendeur: "M. Lambert", type: "exclusif" },
-        { id: "m20", nomVendeur: "Mme Perrin", type: "exclusif" },
-        { id: "m21", nomVendeur: "SCI Patrimoine+", type: "exclusif" },
-        { id: "m22", nomVendeur: "M. André", type: "exclusif" },
-        { id: "m23", nomVendeur: "Mme Clément", type: "simple" },
+        { id: "m19", type: "exclusif" },
+        { id: "m20", type: "exclusif" },
+        { id: "m21", type: "exclusif" },
+        { id: "m22", type: "exclusif" },
+        { id: "m23", type: "simple" },
       ],
       rdvSuivi: 10,
       requalificationSimpleExclusif: 2,
@@ -110,10 +110,10 @@ export const mockResults: PeriodResults[] = [
       estimationsRealisees: 5,
       mandatsSignes: 4,
       mandats: [
-        { id: "m3", nomVendeur: "M. Moreau", type: "exclusif" },
-        { id: "m4", nomVendeur: "Mme Leroy", type: "exclusif" },
-        { id: "m5", nomVendeur: "M. Faure", type: "exclusif" },
-        { id: "m6", nomVendeur: "Mme Simon", type: "simple" },
+        { id: "m3", type: "exclusif" },
+        { id: "m4", type: "exclusif" },
+        { id: "m5", type: "exclusif" },
+        { id: "m6", type: "simple" },
       ],
       rdvSuivi: 8,
       requalificationSimpleExclusif: 2,
@@ -154,8 +154,8 @@ export const mockResults: PeriodResults[] = [
       estimationsRealisees: 3,
       mandatsSignes: 2,
       mandats: [
-        { id: "m1", nomVendeur: "Mme Dubois", type: "exclusif" },
-        { id: "m2", nomVendeur: "M. Garcia", type: "simple" },
+        { id: "m1", type: "exclusif" },
+        { id: "m2", type: "simple" },
       ],
       rdvSuivi: 5,
       requalificationSimpleExclusif: 0,
@@ -192,9 +192,9 @@ export const mockResults: PeriodResults[] = [
       estimationsRealisees: 4,
       mandatsSignes: 3,
       mandats: [
-        { id: "ms1", nomVendeur: "M. Duplessis", type: "exclusif" },
-        { id: "ms2", nomVendeur: "Mme Cartier", type: "exclusif" },
-        { id: "ms3", nomVendeur: "M. Roy", type: "simple" },
+        { id: "ms1", type: "exclusif" },
+        { id: "ms2", type: "exclusif" },
+        { id: "ms3", type: "simple" },
       ],
       rdvSuivi: 6,
       requalificationSimpleExclusif: 1,
@@ -223,7 +223,7 @@ export const mockResults: PeriodResults[] = [
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
-      mandats: [{ id: "mb1", nomVendeur: "M. Blanc", type: "exclusif" }, { id: "mb2", nomVendeur: "Mme Giraud", type: "simple" }],
+      mandats: [{ id: "mb1", type: "exclusif" }, { id: "mb2", type: "simple" }],
       rdvSuivi: 4, requalificationSimpleExclusif: 0, baissePrix: 1,
     },
     acheteurs: {
@@ -247,11 +247,11 @@ export const mockResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 7, estimationsRealisees: 6, mandatsSignes: 5,
       mandats: [
-        { id: "mb3", nomVendeur: "SCI Méridien", type: "exclusif" },
-        { id: "mb4", nomVendeur: "M. Pons", type: "exclusif" },
-        { id: "mb5", nomVendeur: "Mme Lepage", type: "exclusif" },
-        { id: "mb6", nomVendeur: "M. Collin", type: "exclusif" },
-        { id: "mb7", nomVendeur: "Mme Brun", type: "simple" },
+        { id: "mb3", type: "exclusif" },
+        { id: "mb4", type: "exclusif" },
+        { id: "mb5", type: "exclusif" },
+        { id: "mb6", type: "exclusif" },
+        { id: "mb7", type: "simple" },
       ],
       rdvSuivi: 10, requalificationSimpleExclusif: 2, baissePrix: 0,
     },
@@ -278,7 +278,7 @@ export const mockResults: PeriodResults[] = [
     },
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 1,
-      mandats: [{ id: "mt1", nomVendeur: "M. Renoir", type: "simple" }],
+      mandats: [{ id: "mt1", type: "simple" }],
       rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
@@ -304,10 +304,10 @@ export const mockResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 6, estimationsRealisees: 5, mandatsSignes: 4,
       mandats: [
-        { id: "mf1", nomVendeur: "M. Lefèvre", type: "exclusif" },
-        { id: "mf2", nomVendeur: "Mme Guérin", type: "exclusif" },
-        { id: "mf3", nomVendeur: "M. Bailly", type: "exclusif" },
-        { id: "mf4", nomVendeur: "Mme Caron", type: "simple" },
+        { id: "mf1", type: "exclusif" },
+        { id: "mf2", type: "exclusif" },
+        { id: "mf3", type: "exclusif" },
+        { id: "mf4", type: "simple" },
       ],
       rdvSuivi: 7, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
@@ -332,9 +332,9 @@ export const mockResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
       mandats: [
-        { id: "mg1", nomVendeur: "M. Picard", type: "exclusif" },
-        { id: "mg2", nomVendeur: "Mme Aubry", type: "exclusif" },
-        { id: "mg3", nomVendeur: "M. Leconte", type: "simple" },
+        { id: "mg1", type: "exclusif" },
+        { id: "mg2", type: "exclusif" },
+        { id: "mg3", type: "simple" },
       ],
       rdvSuivi: 5, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
@@ -362,8 +362,8 @@ export const mockResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 5, estimationsRealisees: 5, mandatsSignes: 2,
       mandats: [
-        { id: "mg4", nomVendeur: "M. Vernet", type: "exclusif" },
-        { id: "mg5", nomVendeur: "Mme Pascal", type: "simple" },
+        { id: "mg4", type: "exclusif" },
+        { id: "mg5", type: "simple" },
       ],
       rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
@@ -393,9 +393,9 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
       mandats: [
-        { id: "mmj1", nomVendeur: "Mme Arnaud", type: "exclusif", profiled: true },
-        { id: "mmj2", nomVendeur: "M. Chevalier", type: "exclusif" },
-        { id: "mmj3", nomVendeur: "M. Tessier", type: "simple" },
+        { id: "mmj1", type: "exclusif" },
+        { id: "mmj2", type: "exclusif" },
+        { id: "mmj3", type: "simple" },
       ],
       rdvSuivi: 6, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
@@ -420,10 +420,10 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 6, estimationsRealisees: 6, mandatsSignes: 4,
       mandats: [
-        { id: "m19j", nomVendeur: "M. Dubois", type: "exclusif" },
-        { id: "m20j", nomVendeur: "Mme Colin", type: "exclusif" },
-        { id: "m21j", nomVendeur: "M. Girard", type: "exclusif" },
-        { id: "m22j", nomVendeur: "Mme Petit", type: "simple" },
+        { id: "m19j", type: "exclusif" },
+        { id: "m20j", type: "exclusif" },
+        { id: "m21j", type: "exclusif" },
+        { id: "m22j", type: "simple" },
       ],
       rdvSuivi: 8, requalificationSimpleExclusif: 1, baissePrix: 1,
     },
@@ -448,9 +448,9 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 4, estimationsRealisees: 4, mandatsSignes: 3,
       mandats: [
-        { id: "m3j", nomVendeur: "M. Duval", type: "exclusif" },
-        { id: "m4j", nomVendeur: "Mme Roux", type: "exclusif" },
-        { id: "m5j", nomVendeur: "M. Noel", type: "simple" },
+        { id: "m3j", type: "exclusif" },
+        { id: "m4j", type: "exclusif" },
+        { id: "m5j", type: "simple" },
       ],
       rdvSuivi: 6, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
@@ -475,7 +475,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
       mandats: [
-        { id: "m1j", nomVendeur: "M. Fernandez", type: "exclusif" },
+        { id: "m1j", type: "exclusif" },
       ],
       rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
@@ -500,8 +500,8 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
       mandats: [
-        { id: "ms1j", nomVendeur: "Mme Boucher", type: "exclusif" },
-        { id: "ms2j", nomVendeur: "M. Picard", type: "simple" },
+        { id: "ms1j", type: "exclusif" },
+        { id: "ms2j", type: "simple" },
       ],
       rdvSuivi: 5, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
@@ -525,7 +525,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     },
     vendeurs: {
       rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
-      mandats: [{ id: "mb1j", nomVendeur: "M. Mercier", type: "exclusif" }],
+      mandats: [{ id: "mb1j", type: "exclusif" }],
       rdvSuivi: 3, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
@@ -549,10 +549,10 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 6, estimationsRealisees: 5, mandatsSignes: 4,
       mandats: [
-        { id: "mb3j", nomVendeur: "M. Laurent", type: "exclusif" },
-        { id: "mb4j", nomVendeur: "Mme Roussel", type: "exclusif" },
-        { id: "mb5j", nomVendeur: "M. Henry", type: "exclusif" },
-        { id: "mb6j", nomVendeur: "Mme David", type: "simple" },
+        { id: "mb3j", type: "exclusif" },
+        { id: "mb4j", type: "exclusif" },
+        { id: "mb5j", type: "exclusif" },
+        { id: "mb6j", type: "simple" },
       ],
       rdvSuivi: 8, requalificationSimpleExclusif: 1, baissePrix: 1,
     },
@@ -576,7 +576,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     },
     vendeurs: {
       rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1,
-      mandats: [{ id: "mt1j", nomVendeur: "Mme Morin", type: "simple" }],
+      mandats: [{ id: "mt1j", type: "simple" }],
       rdvSuivi: 1, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
     acheteurs: {
@@ -600,9 +600,9 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 5, estimationsRealisees: 4, mandatsSignes: 3,
       mandats: [
-        { id: "mf1j", nomVendeur: "Mme Fournier", type: "exclusif" },
-        { id: "mf2j", nomVendeur: "M. Masson", type: "exclusif" },
-        { id: "mf3j", nomVendeur: "Mme Clement", type: "simple" },
+        { id: "mf1j", type: "exclusif" },
+        { id: "mf2j", type: "exclusif" },
+        { id: "mf3j", type: "simple" },
       ],
       rdvSuivi: 5, requalificationSimpleExclusif: 1, baissePrix: 0,
     },
@@ -627,8 +627,8 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2,
       mandats: [
-        { id: "mg1j", nomVendeur: "M. Bonnet", type: "exclusif" },
-        { id: "mg2j", nomVendeur: "Mme Marchand", type: "simple" },
+        { id: "mg1j", type: "exclusif" },
+        { id: "mg2j", type: "simple" },
       ],
       rdvSuivi: 4, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
@@ -653,7 +653,7 @@ export const mockJanuaryResults: PeriodResults[] = [
     vendeurs: {
       rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 1,
       mandats: [
-        { id: "mg4j", nomVendeur: "Mme Lopez", type: "exclusif" },
+        { id: "mg4j", type: "exclusif" },
       ],
       rdvSuivi: 2, requalificationSimpleExclusif: 0, baissePrix: 0,
     },
@@ -718,10 +718,10 @@ export const mockYearlyResults: PeriodResults = {
     estimationsRealisees: 30,
     mandatsSignes: 18,
     mandats: [
-      { id: "m-y1", nomVendeur: "Mme Dubois", type: "exclusif" },
-      { id: "m-y2", nomVendeur: "M. Garcia", type: "simple" },
-      { id: "m-y3", nomVendeur: "Famille Petit", type: "exclusif" },
-      { id: "m-y4", nomVendeur: "M. Renaud", type: "exclusif" },
+      { id: "m-y1", type: "exclusif" },
+      { id: "m-y2", type: "simple" },
+      { id: "m-y3", type: "exclusif" },
+      { id: "m-y4", type: "exclusif" },
     ],
     rdvSuivi: 56,
     requalificationSimpleExclusif: 5,

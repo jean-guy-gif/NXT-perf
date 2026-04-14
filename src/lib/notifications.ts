@@ -24,8 +24,7 @@ function formatDays(days: number): string {
   return rounded <= 1 ? "1 jour" : `${rounded} jours`;
 }
 
-// NOTE: les listes informationsVente / acheteursChauds ont été retirées du modèle.
-// Les notifications "actions sur contacts" sont désormais désactivées (suivi déporté hors du KPI socle).
+// Note : la détection "actions sur contacts" a été retirée avec la refonte KPI v2.
 
 export function computeNotifications(
   user: User | null,

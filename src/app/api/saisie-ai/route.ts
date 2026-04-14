@@ -9,15 +9,14 @@ const MODEL = "google/gemini-2.0-flash-001";
 
 const ALIAS_DICTIONARY = `
 DICTIONNAIRE D'ALIAS — Mapping obligatoire :
-- "MS", "Mandat Simple", "M. Simple" → mandats[].type = "simple"
-- "ME", "Exclusif", "Mandat Exclusif", "MEx" → mandats[].type = "exclusif"
+- "MS", "Mandat Simple", "M. Simple" → mandatsTypes ajoute "simple"
+- "ME", "Exclusif", "Mandat Exclusif", "MEx" → mandatsTypes ajoute "exclusif"
 - "SSP", "Compromis", "Promesse", "CSSP" → compromisSignes
 - "CA compromis", "Honoraires compromis", "CA engagé" → chiffreAffairesCompromis
 - "AA", "Acte", "Acte Authentique", "Vente" (en tant que résultat final) → actesSignes
 - "CA", "HO", "Honoraires", "Comm.", "Commission" → chiffreAffaires
 - "Contacts", "Appels", "Prospects", "Leads", "Entrants", "Portail", "Vitrine" → contactsTotaux
 - "Estim", "RDV Estim", "Estimation", "Évaluation" → estimationsRealisees
-- "Mandat", "Prise de mandat", "Mandats" → mandatsSignes
 - "Visite", "Sortie visite", "Visites acquéreurs" → nombreVisites
 - "Offre", "OP", "Offre d'achat" → offresRecues
 - "Suivi", "RDV suivi", "Suivi vendeur" → rdvSuivi
@@ -25,6 +24,7 @@ DICTIONNAIRE D'ALIAS — Mapping obligatoire :
 - "Baisse", "Baisse de prix", "Baisses" → baissePrix
 - "Acheteurs sortis", "Sortis visite" → acheteursSortisVisite
 - "RDV estimation", "RDV estim" → rdvEstimation
+- Si "Mandats" est mentionné sans précision simple/exclusif → mettre tout en "simple" dans mandatsTypes
 `;
 
 // ── Prompt système partagé ───────────────────────────────────────────────────
@@ -34,11 +34,12 @@ const SYSTEM_PROMPT = `Tu es NXT Assistant, spécialiste en analyse de données 
 ${ALIAS_DICTIONARY}
 
 CHAMPS DE SORTIE (JSON) :
-Numériques :
+Numériques uniquement :
 - contactsTotaux (number) — tous contacts pris ou reçus (entrants + sortants)
 - rdvEstimation (number) — RDV estimation décrochés
 - estimationsRealisees (number) — estimations effectuées
-- mandatsSignes (number) — nombre total de mandats signés
+- mandatsSignes (number) — total des mandats signés
+- mandatsTypes (Array<"simple"|"exclusif">) — type de chaque mandat dans l'ordre, longueur = mandatsSignes
 - rdvSuivi (number) — RDV de suivi vendeurs
 - requalificationSimpleExclusif (number) — requalifications simple→exclusif
 - baissePrix (number) — baisses de prix obtenues
@@ -50,8 +51,7 @@ Numériques :
 - actesSignes (number) — actes signés chez le notaire
 - chiffreAffaires (number) — CA sur actes (en euros)
 
-Tableaux (si les noms/détails sont disponibles) :
-- mandats: [{ nomVendeur: string, type: "simple"|"exclusif" }]
+Aucun tableau de détail (pas de noms de vendeurs, pas de listes d'objets).
 
 RÈGLES :
 1. Si TABLEAU multi-lignes → SOMME les valeurs numériques par colonne sur TOUTES les lignes.
@@ -64,9 +64,7 @@ RÈGLES :
 FORMAT DE RÉPONSE — JSON strict, rien d'autre :
 {
   "extracted": { "nomDuChamp": valeurNumérique, ... },
-  "arrays": {
-    "mandats": [{ "nomVendeur": "...", "type": "simple"|"exclusif" }]
-  },
+  "arrays": {},
   "uncertain": ["liste des champs à valeur incertaine"],
   "unmapped": ["libellés trouvés dans le document mais non reconnus"],
   "description": "Description en 1 phrase (type de document + période si visible)",
@@ -177,10 +175,10 @@ ${targetFields.length > 0 ? `Champs recherchés en priorité pour ce bloc : ${ta
 
 Extrais TOUTES les valeurs numériques et qualitatives mentionnées dans cette réponse, même si elles ne correspondent pas directement à la question posée. Ne pas attendre une question de relance si la valeur est déjà dans la réponse.
 Exemples :
-- "3 mandats signés deux exclusivités" → mandatsSignes=3, mandats=[{type:"exclusif"},{type:"exclusif"},{type:"simple"}]
+- "3 mandats signés deux exclusivités" → mandatsSignes=3, mandatsTypes=["exclusif","exclusif","simple"]
 - "un acte pour 12000€" → actesSignes=1 ET chiffreAffaires=12000
 - "85 contacts au total" → contactsTotaux=85
-- "6 estimations 3 mandats" → estimationsRealisees=6 ET mandatsSignes=3
+- "6 estimations 3 mandats simples" → estimationsRealisees=6, mandatsSignes=3, mandatsTypes=["simple","simple","simple"]
 
 Si l'utilisateur donne uniquement un nombre sans contexte (ex: "5", "12"), associe-le au premier champ manquant de la liste des champs recherchés ci-dessus.
 Si l'utilisateur dit "non", "rien", "aucun", "zéro" ou "0", mets 0 pour les champs numériques concernés.

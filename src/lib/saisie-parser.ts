@@ -187,50 +187,11 @@ export function parseCountField(raw: string): number | null {
   return null; // ambiguous, yes, or invalid → relance
 }
 
-// ── Detail parsers (mandats, infos vente, acheteurs) ─────────────────────────
-
-export interface ParsedMandat {
-  nomVendeur: string;
-  type: "simple" | "exclusif";
-}
-
-export function parseMandatsText(text: string): ParsedMandat[] {
-  const cleaned = normalize(text);
-  if (!cleaned) return [];
-  const zero = parseNumericResponse(cleaned);
-  if (zero.type === "number" && zero.value === 0) return [];
-
-  let segments = cleaned.split(/[,;]+/).flatMap(s => s.split(/\s+et\s+/)).map(s => s.trim()).filter(Boolean);
-
-  // If 1 segment with multiple type keywords → split on type boundaries
-  if (segments.length === 1) {
-    const typePattern = /\b(exclusi\w*|exclu|ex|simple|sim)\b/g;
-    const matches = [...segments[0].matchAll(typePattern)];
-    if (matches.length >= 2) {
-      const parts: string[] = [];
-      let lastEnd = 0;
-      for (const m of matches) {
-        const end = (m.index ?? 0) + m[0].length;
-        parts.push(segments[0].slice(lastEnd, end).trim());
-        lastEnd = end;
-      }
-      const trailing = segments[0].slice(lastEnd).trim();
-      if (trailing) parts.push(trailing);
-      segments = parts.filter(Boolean);
-    }
-  }
-
-  return segments.map(seg => {
-    const words = seg.split(/\s+/);
-    const last = words[words.length - 1] || "";
-    const isExclu = /^(exclusi\w*|exclu|ex|me|mex)$/.test(last);
-    const isSimple = /^(simple|sim|ms)$/.test(last);
-    if (isExclu || isSimple) {
-      return { nomVendeur: words.slice(0, -1).join(" "), type: isExclu ? "exclusif" as const : "simple" as const };
-    }
-    return { nomVendeur: seg, type: "simple" as const };
-  }).filter(m => m.nomVendeur.length > 0);
-}
+// ── Detail parsers ──────────────────────────────────────────────────────────
+//
+// Note : le parser de mandats nommés a été retiré avec la refonte saisie v2.
+// Les mandats sont désormais saisis sous forme de deux compteurs (simples /
+// exclusifs), pas de noms.
 
 export interface ParsedDetail {
   nom: string;

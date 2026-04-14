@@ -67,9 +67,7 @@ SCHÉMA DE SORTIE :
 {
   "estimationsRealisees": number | null,
   "mandatsSignes": number | null,
-  "mandats": [
-    { "nomVendeur": string, "type": "simple" | "exclusif" }
-  ],
+  "mandatsTypes": Array<"simple" | "exclusif">,
   "rdvSuivi": number | null,
   "requalificationSimpleExclusif": number | null,
   "baissePrix": number | null,
@@ -80,22 +78,20 @@ SCHÉMA DE SORTIE :
 }
 
 RÈGLES SPÉCIFIQUES :
-- IMPORTANT : chaque mandat mentionné DOIT avoir un nomVendeur extrait du contexte vocal.
-- IMPORTANT : Si le type du mandat (simple ou exclusif) n'est PAS explicitement mentionné, mettre type: "simple" par défaut ET ajouter OBLIGATOIREMENT dans needs_clarification : { "field": "mandats[index].type", "question": "Le mandat [nom], c'est un simple ou un exclusif ?" }
+- mandatsSignes = nombre total de mandats. mandatsTypes = tableau de longueur identique listant le type de chaque mandat dans l'ordre.
+- AUCUN nom de vendeur — on ne capture jamais d'identité. Uniquement le type de chaque occurrence.
+- Si le type d'un mandat n'est PAS explicitement précisé, mettre "simple" par défaut ET ajouter dans needs_clarification : { "field": "mandatsTypes[index]", "question": "Le mandat n°{index+1}, c'est un simple ou un exclusif ?" }
 - "requalification", "passé en exclusif", "transformé en exclusif" → requalificationSimpleExclusif
 - "baisse de prix", "ajustement prix", "le vendeur a accepté de baisser" → baissePrix
 - "RDV suivi", "suivi vendeur", "point avec le vendeur" → rdvSuivi
-- mandatsSignes doit correspondre au nombre d'éléments dans mandats[]
 
 EXEMPLE :
-Entrée : "mandat exclusif signé avec le couple Durand, et un suivi chez M. Blanc"
+Entrée : "trois mandats signés, deux exclusifs un simple, et un suivi vendeur"
 Sortie :
 {
   "estimationsRealisees": null,
-  "mandatsSignes": 1,
-  "mandats": [
-    { "nomVendeur": "Couple Durand", "type": "exclusif" }
-  ],
+  "mandatsSignes": 3,
+  "mandatsTypes": ["exclusif", "exclusif", "simple"],
   "rdvSuivi": 1,
   "requalificationSimpleExclusif": null,
   "baissePrix": null,
@@ -183,32 +179,20 @@ export function generateMissingClarifications(
   const clarifications: Array<{ field: string; question: string }> = [];
 
   if (section === "vendeurs") {
-    const mandats = (extracted.mandats as Array<{ nomVendeur?: string; type?: string }>) || [];
+    const types =
+      (extracted.mandatsTypes as Array<"simple" | "exclusif" | undefined>) || [];
     const nbMandats = (extracted.mandatsSignes as number) || 0;
 
-    // mandatsSignes > nombre de mandats détaillés
-    if (nbMandats > mandats.length) {
-      for (let i = mandats.length; i < nbMandats; i++) {
+    // Demander le type pour chaque occurrence manquante (pas de noms)
+    for (let i = 0; i < nbMandats; i++) {
+      const t = types[i];
+      if (t !== "simple" && t !== "exclusif") {
         clarifications.push({
-          field: `mandats[${i}].nomVendeur`,
-          question: `Mandat ${i + 1} : quel est le nom du vendeur ?`,
-        });
-        clarifications.push({
-          field: `mandats[${i}].type`,
+          field: `mandatsTypes[${i}]`,
           question: `Mandat ${i + 1} : simple ou exclusif ?`,
         });
       }
     }
-
-    // Mandats existants mais nom vide
-    mandats.forEach((m, i) => {
-      if (!m.nomVendeur || m.nomVendeur.trim() === "") {
-        clarifications.push({
-          field: `mandats[${i}].nomVendeur`,
-          question: `Mandat ${i + 1} : quel est le nom du vendeur ?`,
-        });
-      }
-    });
   }
 
   return clarifications;

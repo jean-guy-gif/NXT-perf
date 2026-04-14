@@ -211,11 +211,11 @@ export function convertExtractedToPeriodResults(
     vendeurs: {
       rdvEstimation: fields.rdvEstimation ?? 0,
       estimationsRealisees: fields.estimationsRealisees ?? 0,
-      mandatsSignes: fields.mandatsSignes ?? 0,
-      mandats: (arrays.mandats ?? []).map((m) => ({
+      // mandatsSignes = nombre d'occurrences typées saisies
+      mandatsSignes: (fields.mandatsTypes ?? []).length,
+      mandats: (fields.mandatsTypes ?? []).map((type) => ({
         id: generateId(),
-        nomVendeur: m.nomVendeur,
-        type: m.type,
+        type,
       })),
       rdvSuivi: fields.rdvSuivi ?? 0,
       requalificationSimpleExclusif: fields.requalificationSimpleExclusif ?? 0,

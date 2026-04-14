@@ -1,17 +1,16 @@
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export interface MandatDetail {
-  nomVendeur: string;
-  type: "simple" | "exclusif";
-}
+/** Type d'un mandat — choix unitaire au moment de la saisie. */
+export type MandatType = "simple" | "exclusif";
 
-/** Champs numériques extraits */
+/** Champs extraits — numériques + types de mandats. */
 export interface ExtractedFields {
   // Prospection vendeur
   contactsTotaux?: number;
   rdvEstimation?: number;
   estimationsRealisees?: number;
   mandatsSignes?: number;
+  mandatsTypes?: MandatType[];
   // Pilotage portefeuille
   rdvSuivi?: number;
   requalificationSimpleExclusif?: number;
@@ -26,10 +25,8 @@ export interface ExtractedFields {
   chiffreAffaires?: number;
 }
 
-/** Tableaux structurés extraits (noms, détails) */
-export interface ExtractedArrays {
-  mandats: MandatDetail[];
-}
+/** Réservé pour futurs détails. */
+export type ExtractedArrays = Record<string, never>;
 
 /** Résultat complet d'une extraction */
 export interface ExtractionResult {
@@ -43,7 +40,7 @@ export interface ExtractionResult {
 
 const EMPTY_RESULT: ExtractionResult = {
   extracted: {},
-  arrays: { mandats: [] },
+  arrays: {},
   uncertain: [],
   unmapped: [],
   description: "",
@@ -57,18 +54,19 @@ function normalizeResult(data: Record<string, unknown>): ExtractionResult {
   const extracted: ExtractedFields = {};
 
   for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "number" && !isNaN(value)) {
+    if (key === "mandatsTypes" && Array.isArray(value)) {
+      const filtered = value.filter(
+        (v): v is MandatType => v === "simple" || v === "exclusif",
+      );
+      if (filtered.length > 0) extracted.mandatsTypes = filtered;
+    } else if (typeof value === "number" && !isNaN(value)) {
       (extracted as Record<string, number>)[key] = value;
     }
   }
 
-  const arrays = (data.arrays ?? {}) as Partial<ExtractedArrays>;
-
   return {
     extracted,
-    arrays: {
-      mandats: Array.isArray(arrays.mandats) ? arrays.mandats : [],
-    },
+    arrays: {},
     uncertain: Array.isArray(data.uncertain) ? (data.uncertain as string[]) : [],
     unmapped: Array.isArray(data.unmapped) ? (data.unmapped as string[]) : [],
     description: typeof data.description === "string" ? data.description : "",

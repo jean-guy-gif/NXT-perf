@@ -101,7 +101,6 @@ export interface DbPeriodResult {
       mandatsSignes: number;
       mandats: Array<{
         id: string;
-        nomVendeur: string;
         type: "simple" | "exclusif";
       }>;
       rdvSuivi: number;

@@ -165,15 +165,18 @@ function HistoriqueContent({
             <Metric label="Requalification" value={results.vendeurs.requalificationSimpleExclusif} />
             <Metric label="Baisse prix" value={results.vendeurs.baissePrix} />
           </div>
-          <ItemList
-            title="Mandats"
-            items={results.vendeurs.mandats.map((m) => ({
-              id: m.id,
-              primary: m.nomVendeur,
-              secondary: m.type === "exclusif" ? "Exclusif" : "Simple",
-              badge: m.type,
-            }))}
-          />
+          {results.vendeurs.mandats.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <Metric
+                label="Mandats simples"
+                value={results.vendeurs.mandats.filter((m) => m.type === "simple").length}
+              />
+              <Metric
+                label="Mandats exclusifs"
+                value={results.vendeurs.mandats.filter((m) => m.type === "exclusif").length}
+              />
+            </div>
+          )}
         </div>
       );
 

@@ -14,8 +14,8 @@ function makeResults(o: Partial<{
     rdvSuivi: 0, nombreVisites: 0, offresRecues: 0,
     compromisSignes: 0, actesSignes: 0, chiffreAffaires: 0, ...o };
   const mandats = [];
-  for (let i = 0; i < d.mandatsExclusifs; i++) mandats.push({ id: `e${i}`, nomVendeur: "", type: "exclusif" as const });
-  for (let i = 0; i < (d.mandatsSignes - d.mandatsExclusifs); i++) mandats.push({ id: `s${i}`, nomVendeur: "", type: "simple" as const });
+  for (let i = 0; i < d.mandatsExclusifs; i++) mandats.push({ id: `e${i}`, type: "exclusif" as const });
+  for (let i = 0; i < (d.mandatsSignes - d.mandatsExclusifs); i++) mandats.push({ id: `s${i}`, type: "simple" as const });
   return {
     id: "t", userId: "u1", periodType: "month", periodStart: "2026-04-01", periodEnd: "2026-04-30",
     prospection: { contactsTotaux: d.contactsTotaux, rdvEstimation: d.rdvEstimation },

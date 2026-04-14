@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCountField, parseNumericResponse, parseMandatsText, parseDetailsText, normalize, capitalizeFirst, capitalizeWords } from "../saisie-parser";
+import { parseCountField, parseNumericResponse, parseDetailsText, normalize, capitalizeFirst, capitalizeWords } from "../saisie-parser";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STRICT CONTROLE — single numeric intent only
@@ -108,36 +108,6 @@ describe("parseNumericResponse — decision tracing", () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DETAIL PARSERS
 // ═══════════════════════════════════════════════════════════════════════════════
-
-describe("parseMandatsText", () => {
-  it("'Dupont exclusif, Martin simple' => 2 mandats", () => {
-    const r = parseMandatsText("Dupont exclusif, Martin simple");
-    expect(r).toEqual([
-      { nomVendeur: "dupont", type: "exclusif" },
-      { nomVendeur: "martin", type: "simple" },
-    ]);
-  });
-
-  it("'Léo simple et Beltrand exclusif' => 2 mandats", () => {
-    const r = parseMandatsText("Léo simple et Beltrand exclusif");
-    expect(r).toHaveLength(2);
-  });
-
-  it("'Dupont exclusif Leroy simple' (no separator) => 2 mandats", () => {
-    const r = parseMandatsText("Dupont exclusif Leroy simple");
-    expect(r).toHaveLength(2);
-  });
-
-  it("defaults to simple if no type keyword", () => {
-    const r = parseMandatsText("Dupont");
-    expect(r).toEqual([{ nomVendeur: "dupont", type: "simple" }]);
-  });
-
-  it("returns empty for zero", () => {
-    expect(parseMandatsText("aucun")).toEqual([]);
-    expect(parseMandatsText("0")).toEqual([]);
-  });
-});
 
 describe("parseDetailsText", () => {
   it("'Brun retraite, Leroy divorce' => 2 details", () => {
