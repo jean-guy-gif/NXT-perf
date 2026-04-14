@@ -63,10 +63,11 @@ function getVolumeStatus(realise: number, objectif: number): Status {
   return "sousperf";
 }
 
+// Status colors — Tailwind classes for bg/text, CSS var for inline borderColor
 const STATUS_CONFIG = {
-  surperf: { borderColor: "#22c55e", bg: "bg-green-500/5", text: "text-green-500", label: "Surperf", arrow: "↑" },
-  stable:  { borderColor: "#f59e0b", bg: "bg-amber-500/5", text: "text-amber-500", label: "Stable", arrow: "=" },
-  sousperf:{ borderColor: "#ef4444", bg: "bg-red-500/5",   text: "text-red-500",   label: "Sous-perf", arrow: "↓" },
+  surperf: { borderColor: "var(--success)", bg: "bg-green-500/8", text: "text-green-500", label: "Surperf", arrow: "↑" },
+  stable:  { borderColor: "var(--warning)", bg: "bg-amber-500/8", text: "text-amber-500", label: "Stable", arrow: "=" },
+  sousperf:{ borderColor: "var(--danger)",  bg: "bg-red-500/8",   text: "text-red-500",   label: "Sous-perf", arrow: "↓" },
 };
 
 // ── Ratio → FormationArea mapping for action panels ─────────────────
@@ -741,16 +742,16 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
         {phases.map((phase, phaseIdx) => (
           <div key={phase.label}>
             {/* Phase header */}
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: phase.color }} />
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: phase.color }}>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: phase.color }} />
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: phase.color }}>
                 {phase.label}
               </span>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-border/50" />
             </div>
 
             {/* Horizontal scroll flow */}
-            <div className="flex gap-0 overflow-x-auto pb-3 -mx-1 px-1">
+            <div className="flex gap-0 overflow-x-auto pb-4 px-0.5">
               {phase.steps.map((step, stepIdx) => {
                 const { vol, ratio, volStatus } = step;
                 const sc = STATUS_CONFIG[showRatios && ratio ? ratio.status : volStatus];
@@ -761,45 +762,50 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                     {/* Step card */}
                     <div
                       className={cn(
-                        "relative rounded-xl border w-[160px] p-3 transition-all",
+                        "relative w-[176px] p-3.5 transition-all border",
                         sc.bg,
                       )}
-                      style={{ borderColor: sc.borderColor, borderLeftWidth: "3px" }}
+                      style={{
+                        borderColor: sc.borderColor,
+                        borderLeftWidth: "3px",
+                        borderRadius: "var(--radius-card)",
+                        boxShadow: "var(--shadow-1)",
+                      }}
                     >
                       {/* Status pill */}
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-bold text-muted-foreground/60">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground/50 tabular-nums">
                           {String(vol.num).padStart(2, "0")}
                         </span>
-                        <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold", sc.text, sc.bg)}>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide", sc.text, sc.bg)}>
                           {sc.label}
                         </span>
                       </div>
 
                       {/* Label */}
-                      <p className="text-[11px] font-semibold text-foreground leading-tight mb-2">
+                      <p className="text-xs font-semibold text-foreground leading-snug mb-2">
                         {vol.label}
                       </p>
 
                       {/* Volume */}
                       {showVolumes && (
-                        <div className="mb-1.5">
-                          <span className="text-lg font-bold text-foreground leading-none">
+                        <div className="mb-2">
+                          <span className="text-xl font-extrabold text-foreground leading-none tracking-tight">
                             {formatVal(vol.realise, vol.unit)}
                           </span>
-                          <div className="flex items-center justify-between mt-0.5">
-                            <span className="text-[9px] text-muted-foreground">
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] text-muted-foreground">
                               {objPeriodTag} {formatVal(vol.objectif, vol.unit)}
                             </span>
-                            <span className={cn("text-[9px] font-bold", sc.text)}>
+                            <span className={cn("text-[10px] font-bold tabular-nums", sc.text)}>
                               {vol.realise - vol.objectif >= 0 ? "+" : ""}
                               {formatVal(vol.realise - vol.objectif, vol.unit)}
                             </span>
                           </div>
-                          {/* Mini progress bar */}
-                          <div className="mt-1 h-1 rounded-full bg-border/50 overflow-hidden">
+                          {/* Progress bar */}
+                          <div className="mt-1.5 h-1.5 rounded-full bg-border/40 overflow-hidden">
                             <div
-                              className="h-full rounded-full transition-all"
+                              className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${Math.min(100, vol.objectif > 0 ? (vol.realise / vol.objectif) * 100 : 0)}%`,
                                 backgroundColor: sc.borderColor,
@@ -817,11 +823,12 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setExpandedAction(isOpen ? null : vol.num); setExpandedActionId(null); }}
                                 className={cn(
-                                  "mt-2 w-full rounded-lg py-1.5 text-[10px] font-bold transition-all",
+                                  "mt-3 w-full py-2 text-[11px] font-bold transition-all",
                                   isOpen ? "bg-muted text-foreground"
                                     : existingVolPlan ? "bg-primary text-primary-foreground hover:bg-primary/90"
                                       : "bg-red-500 text-white hover:bg-red-600"
                                 )}
+                                style={{ borderRadius: "var(--radius-button)" }}
                               >
                                 {isOpen ? "Fermer" : existingVolPlan ? "Reprendre mon plan" : "Booster ce volume"}
                               </button>
@@ -832,14 +839,14 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
 
                       {/* Ratio */}
                       {showRatios && ratio && (
-                        <div className={cn(showVolumes && "border-t border-border/30 pt-1.5 mt-1")}>
-                          <p className="text-[9px] text-foreground leading-snug">
-                            <span className="font-bold">{ratio.realise}</span> {ratio.from} → 1 {ratio.to}
+                        <div className={cn(showVolumes && "border-t border-border/20 pt-2 mt-1")}>
+                          <p className="text-[11px] text-foreground leading-snug">
+                            <span className="font-bold tabular-nums">{ratio.realise}</span> {ratio.from} → 1 {ratio.to}
                             {ratio.realisePct > 0 && (
                               <span className="text-muted-foreground"> · {ratio.realisePct}%</span>
                             )}
                           </p>
-                          <p className="text-[9px] text-muted-foreground leading-snug">
+                          <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
                             Obj. {objLabel} : {ratio.objectif} → 1
                             {ratio.objectifPct > 0 && <span> · {ratio.objectifPct}%</span>}
                           </p>
@@ -854,7 +861,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setExpandedAction(isOpen ? null : vol.num); setExpandedActionId(null); }}
                                 className={cn(
-                                  "mt-2 w-full rounded-lg py-1.5 text-[10px] font-bold transition-all",
+                                  "mt-3 w-full py-2 text-[11px] font-bold transition-all",
                                   isOpen
                                     ? "bg-muted text-foreground"
                                     : existingPlan
@@ -863,6 +870,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                         ? "bg-red-500 text-white hover:bg-red-600"
                                         : "bg-amber-500 text-white hover:bg-amber-600"
                                 )}
+                                style={{ borderRadius: "var(--radius-button)" }}
                               >
                                 {isOpen ? "Fermer" : existingPlan ? "Reprendre mon plan" : "Améliorer ce ratio"}
                               </button>
@@ -872,11 +880,11 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                       )}
                     </div>
 
-                    {/* Connector arrow between steps */}
+                    {/* Connector */}
                     {!isLast && (
-                      <div className="flex items-center px-0.5 shrink-0">
-                        <svg width="20" height="20" viewBox="0 0 20 20" className="text-border">
-                          <path d="M4 10 L14 10 M10 5 L15 10 L10 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <div className="flex items-center px-1 shrink-0">
+                        <svg width="16" height="16" viewBox="0 0 16 16" className="text-muted-foreground/30">
+                          <path d="M4 8 L10 8 M7 5 L11 8 L7 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     )}
@@ -1363,9 +1371,9 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
 
             {/* Phase connector */}
             {phaseIdx < phases.length - 1 && (
-              <div className="flex justify-center py-1">
-                <svg width="20" height="16" viewBox="0 0 20 16" className="text-border">
-                  <path d="M10 2 L10 12 M6 8 L10 13 L14 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <div className="flex justify-center py-2">
+                <svg width="16" height="16" viewBox="0 0 16 16" className="text-muted-foreground/25">
+                  <path d="M8 3 L8 11 M5 8 L8 12 L11 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             )}
@@ -1375,18 +1383,18 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
 
       {/* Summary bar */}
       {showRatios && (
-        <div className="flex items-center justify-center gap-6 rounded-lg bg-muted/50 py-2 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-green-500" />
-            <span className="font-medium text-green-500">Surperf : {surperfCount}</span>
+        <div className="flex items-center justify-center gap-8 py-3 text-xs" style={{ borderRadius: "var(--radius-card)", background: "var(--surface-2, var(--muted))" }}>
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className="font-semibold text-green-500 tabular-nums">Surperf : {surperfCount}</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span className="font-medium text-amber-500">Stable : {stableCount}</span>
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+            <span className="font-semibold text-amber-500 tabular-nums">Stable : {stableCount}</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-red-500" />
-            <span className="font-medium text-red-500">Sous-perf : {sousperfCount}</span>
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <span className="font-semibold text-red-500 tabular-nums">Sous-perf : {sousperfCount}</span>
           </span>
         </div>
       )}
