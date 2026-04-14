@@ -75,6 +75,14 @@ export function getFridayOfWeek(date: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+/** Returns the Sunday of the week containing `date`, as YYYY-MM-DD */
+export function getSundayOfWeek(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 7); // Monday + 6 = Sunday
+  return d.toISOString().split("T")[0];
+}
+
 /** Check if a submission date falls within the same ISO week as `reference` */
 function isSubmissionThisWeek(submissionDate: string | null, reference: Date): boolean {
   if (!submissionDate) return false;
@@ -188,16 +196,14 @@ export function convertExtractedToPeriodResults(
   arrays: ExtractedArrays,
 ): PeriodResults {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const iso = now.toISOString();
 
   return {
     id: generateId(),
     userId,
-    periodType: "month",
-    periodStart: monthStart.toISOString().split("T")[0],
-    periodEnd: monthEnd.toISOString().split("T")[0],
+    periodType: "week",
+    periodStart: getMondayOfWeek(now),
+    periodEnd: getSundayOfWeek(now),
     prospection: {
       contactsTotaux: fields.contactsTotaux ?? 0,
       rdvEstimation: fields.rdvEstimation ?? 0,
