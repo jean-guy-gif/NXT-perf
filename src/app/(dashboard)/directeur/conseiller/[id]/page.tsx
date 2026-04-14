@@ -25,12 +25,13 @@ import { cn } from "@/lib/utils";
 
 const RATIO_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   contacts_rdv: Phone,
-  estimations_mandats: FileSignature,
+  rdv_mandats: FileSignature,
   pct_mandats_exclusifs: ClipboardCheck,
+  acheteurs_visites: Users,
   visites_offre: Users,
   offres_compromis: FileCheck,
-  mandats_simples_vente: FileSignature,
-  mandats_exclusifs_vente: FileCheck,
+  compromis_actes: FileCheck,
+  honoraires_moyens: FileSignature,
 };
 
 export default function ConseillerDetailPage({
