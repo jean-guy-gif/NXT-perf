@@ -84,7 +84,11 @@
 
 ### Règles de session
 
-- Session resumable si `status = 'active'` ET `coach_draft_states.updated_at > now() - COACH_SESSION_TTL_MINUTES`.
+- Session resumable si :
+  - `status = 'active'` ET `coach_draft_states.updated_at > now() - COACH_SESSION_TTL_MINUTES`
+  - OU `status = 'saved'` ET `current_step IN ('reading', 'prescribing')` — lecture/prescription en cours au moment du refresh
+- Dans ce second cas, `/session/resume` renvoie le dernier message coach (lecture ou prescription) pour permettre à l'UX de continuer proprement.
+- Si `status = 'saved'` ET `current_step = 'closed'` → `can_resume: false`, session terminée.
 - Au rechargement, le client appelle `/api/coach/session/resume` avant de réafficher le dock.
 
 ### Mapping server_step → ui_state
@@ -204,7 +208,14 @@ CREATE TABLE coach_messages (
 );
 
 CREATE INDEX idx_coach_messages_session ON coach_messages(session_id, created_at);
+
+-- Contrainte d'idempotence /turn : un client_turn_id ne peut être traité qu'une fois par session
+CREATE UNIQUE INDEX idx_coach_messages_turn_idempotence
+  ON coach_messages(session_id, client_turn_id)
+  WHERE client_turn_id IS NOT NULL AND role = 'user';
 ```
+
+**Mécanisme d'idempotence `/turn`** : avant tout traitement, le serveur tente l'INSERT du message `role='user'`. Si la contrainte unique `(session_id, client_turn_id)` lève une violation, le tour a déjà été traité — le serveur récupère le `coach_text` du message `role='coach'` suivant pour ce `client_turn_id` et le renvoie sans retraitement.
 
 Un tour dont le patch draft a échoué n'est **pas** inscrit dans `coach_messages`. Il est marqué en erreur dans le log technique serveur uniquement.
 
@@ -264,7 +275,7 @@ SELECT
 FROM coach_sessions;
 ```
 
-### RLS
+### RLS et sécurité de la vue manager
 
 **Utilisateur :**
 - `SELECT / INSERT / UPDATE` sur ses propres `coach_sessions`, `coach_draft_states`, `coach_prescriptions`
@@ -273,6 +284,21 @@ FROM coach_sessions;
 **Manager / Directeur :**
 - Accès via `coach_sessions_manager_view` uniquement
 - Aucun accès direct à `coach_messages`, `coach_draft_states`
+
+**SQL de sécurisation explicite (à inclure dans la migration) :**
+```sql
+-- Révoquer l'accès direct aux tables sensibles pour le rôle authenticated
+REVOKE SELECT ON coach_messages     FROM authenticated;
+REVOKE SELECT ON coach_draft_states FROM authenticated;
+
+-- Accorder l'accès à la vue manager uniquement
+GRANT SELECT ON coach_sessions_manager_view TO authenticated;
+
+-- Les RLS policies garantissent que chaque utilisateur ne voit que ses propres lignes
+-- Le manager/directeur voit les lignes de son org_id via la vue (filtre org_id à ajouter dans la view)
+```
+
+> Note : la vue `coach_sessions_manager_view` doit filtrer par `org_id` en production. En V1, le filtre est géré côté applicatif via `requireAuth()` + vérification `org_id`.
 
 ---
 
@@ -444,6 +470,16 @@ Sortie : { "coach_text": "..." }
 // Entrée : { session_id, prescription_id, response: 'accepted' | 'refused' }
 // Met à jour coach_prescriptions.user_response
 // Log message coach de clôture dans coach_messages
+```
+
+#### `POST /api/coach/session/abandon`
+
+```typescript
+// Entrée : { session_id }
+// 1. requireAuth() + vérifier que session appartient au user
+// 2. Si status in ('saved','closed') → no-op, renvoie état courant
+// 3. Sinon → coach_sessions.status = 'abandoned', ended_at = now()
+// Réponse : { session_id, status: 'abandoned' }
 ```
 
 ---
@@ -690,6 +726,7 @@ src/components/coach/coach-dock.tsx     dock conversationnel
 src/components/coach/persona-selector.tsx  sélecteur premier lancement
 src/app/api/coach/session/start/route.ts
 src/app/api/coach/session/resume/route.ts
+src/app/api/coach/session/abandon/route.ts
 src/app/api/coach/turn/route.ts
 src/app/api/coach/confirm/route.ts
 src/app/api/coach/prescription/respond/route.ts
