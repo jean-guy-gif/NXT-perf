@@ -14,6 +14,9 @@ import { GuidedTour } from "@/components/tour/guided-tour";
 import { getTourStatus, getTourSteps, getTourRole, persistTourCompleted } from "@/lib/guided-tour";
 import { applyAgencyTheme, resetToDefaultTheme } from "@/lib/agency-theme";
 import { BadgeCelebration } from "@/components/badges/badge-celebration";
+import { CoachBubble } from "@/components/coach/coach-bubble";
+import { CoachDock } from "@/components/coach/coach-dock";
+import { useCoachSession } from "@/stores/coach-session-store";
 
 const SIDEBAR_KEY = "nxt-sidebar-collapsed";
 
@@ -29,6 +32,17 @@ export default function DashboardLayout({
   const setProfile = useAppStore((s) => s.setProfile);
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
   const setOrgLogoUrl = useAppStore((s) => s.setOrgLogoUrl);
+
+  // NXT Coach — rehydration au mount
+  const resumeSession = useCoachSession((s) => s.resumeSession);
+
+  // NXT Coach — tenter reprise de session active au mount
+  useEffect(() => {
+    if (isAuthenticated && !isDemo) {
+      resumeSession();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Re-hydrate demo mode from cookie if store was lost (page reload on Vercel)
   useEffect(() => {
@@ -231,6 +245,10 @@ export default function DashboardLayout({
       )}
 
       <BadgeCelebration />
+
+      {/* NXT Coach — surcouche overlay */}
+      <CoachBubble />
+      <CoachDock />
     </div>
   );
 }

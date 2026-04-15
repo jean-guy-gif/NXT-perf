@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -22,6 +23,7 @@ import {
   Navigation,
   ClipboardCheck,
   Building2,
+  Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -30,6 +32,8 @@ import { LockedNavItem } from "@/components/subscription/locked-nav-item";
 import { useBadges } from "@/hooks/use-badges";
 import { BADGES } from "@/lib/badges";
 import type { BadgeKey } from "@/lib/badges";
+import { useCoachSession } from "@/stores/coach-session-store";
+import { PersonaSelector } from "@/components/coach/persona-selector";
 
 interface NavItem {
   href: string;
@@ -94,6 +98,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const { earnedBadges } = useBadges();
   const recentBadgeEmojis = earnedBadges.slice(0, 3).map((b) => BADGES[b.badge_key as BadgeKey]?.emoji).filter(Boolean);
+
+  // NXT Coach — bouton permanent
+  const startSession = useCoachSession((s) => s.startSession);
+  const [showPersonaSelector, setShowPersonaSelector] = useState(false);
+
+  const handleCoachClick = () => {
+    if (!(profile as any)?.coach_onboarded) {
+      setShowPersonaSelector(true);
+    } else {
+      startSession({ trigger_type: 'bouton_manuel' });
+    }
+  };
 
   const avatarUrl = profile?.avatar_url;
   const initials = user
@@ -203,6 +219,37 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Spacer */}
       <div className="mt-auto" />
+
+      {/* NXT Coach — bouton permanent */}
+      {showPersonaSelector && (
+        <PersonaSelector
+          onSelected={() => {
+            setShowPersonaSelector(false);
+            startSession({ trigger_type: 'bouton_manuel' });
+          }}
+        />
+      )}
+
+      {collapsed ? (
+        <button
+          onClick={handleCoachClick}
+          title="Parler à mon coach"
+          className="group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-[var(--transition-fast)] mb-1"
+        >
+          <Mic className="h-5 w-5" />
+          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
+            Parler à mon coach
+          </span>
+        </button>
+      ) : (
+        <button
+          onClick={handleCoachClick}
+          className="flex items-center gap-3 w-full h-10 px-3 mb-1 text-sm font-medium rounded-[var(--radius-button)] text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-[var(--transition-fast)]"
+        >
+          <Mic className="h-5 w-5 flex-shrink-0" />
+          <span className="truncate">Parler à mon coach</span>
+        </button>
+      )}
 
       {/* Settings */}
       <SidebarItem item={settingsItem} pathname={pathname} collapsed={collapsed} />

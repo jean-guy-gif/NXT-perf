@@ -26,7 +26,10 @@ export interface PersonaConfig {
   emoji: string;
   label: string;
   description: string;
-  example: string;
+  example: string;        // existant — conservé pour compatibilité VocalFlow
+  signature: string;      // phrase courte pour PersonaSelector NXT Coach
+  voiceEnvKey: string;    // ex: 'ELEVENLABS_WARRIOR_VOICE_ID'
+  geminiVoice: string;    // ex: 'Charon'
 }
 
 export const PERSONAS: PersonaConfig[] = [
@@ -36,6 +39,9 @@ export const PERSONAS: PersonaConfig[] = [
     label: "Le Sergent",
     description: "Direct, cadrant, factuel. Phrases courtes.",
     example: "Prospection. Donne-moi tes chiffres.",
+    signature: "Je ne te ménage pas. Je te fais progresser.",
+    voiceEnvKey: "ELEVENLABS_WARRIOR_VOICE_ID",
+    geminiVoice: "Charon",
   },
   {
     id: "sport_coach",
@@ -43,6 +49,9 @@ export const PERSONAS: PersonaConfig[] = [
     label: "Coach sportif",
     description: "Énergique, entraînant, orienté action.",
     example: "On attaque la prospection, donne-moi ton volume !",
+    signature: "On analyse, on s'entraîne, on gagne.",
+    voiceEnvKey: "ELEVENLABS_SPORT_COACH_VOICE_ID",
+    geminiVoice: "Fenrir",
   },
   {
     id: "kind_coach",
@@ -50,6 +59,9 @@ export const PERSONAS: PersonaConfig[] = [
     label: "Coach bienveillant",
     description: "Rassurant, encourageant, orienté progression.",
     example: "On regarde ta prospection ensemble.",
+    signature: "Je suis là, quoi qu'il arrive dans ta semaine.",
+    voiceEnvKey: "ELEVENLABS_KIND_COACH_VOICE_ID",
+    geminiVoice: "Zephyr",
   },
 ];
 
