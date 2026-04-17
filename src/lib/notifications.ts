@@ -24,25 +24,7 @@ function formatDays(days: number): string {
   return rounded <= 1 ? "1 jour" : `${rounded} jours`;
 }
 
-/** Check if any results for a user contain treated contacts (statut !== "en_cours") */
-function hasTreatedContacts(userResults: PeriodResults[]): boolean {
-  return userResults.some(
-    (r) =>
-      r.prospection.informationsVente.some((i) => i.statut !== "en_cours") ||
-      r.acheteurs.acheteursChauds.some((i) => i.statut !== "en_cours")
-  );
-}
-
-/** Latest updatedAt among results that have treated contacts */
-function latestTreatedAt(userResults: PeriodResults[]): string | null {
-  return userResults.reduce<string | null>((latest, r) => {
-    const hasTreated =
-      r.prospection.informationsVente.some((i) => i.statut !== "en_cours") ||
-      r.acheteurs.acheteursChauds.some((i) => i.statut !== "en_cours");
-    if (hasTreated && (!latest || r.updatedAt > latest)) return r.updatedAt;
-    return latest;
-  }, null);
-}
+// Note : la détection "actions sur contacts" a été retirée avec la refonte KPI v2.
 
 export function computeNotifications(
   user: User | null,
@@ -87,25 +69,6 @@ function computeConseillerNotifications(
         ? `Dernière saisie il y a ${formatDays(days)}`
         : "Aucune saisie enregistrée",
       link: "/dashboard",
-    });
-  }
-
-  // Check last contact action (deal/abandon) — derived from treated contacts in results
-  const lastTreated = latestTreatedAt(userResults);
-
-  if (!lastTreated || Date.now() - new Date(lastTreated).getTime() > SEVEN_DAYS_MS) {
-    const hasTreated = hasTreatedContacts(userResults);
-    const days = lastTreated ? daysSince(lastTreated) : null;
-    notifs.push({
-      id: "contacts-retard",
-      type: "warning",
-      message: "Pas d'action sur vos contacts depuis plus d'une semaine",
-      detail: days
-        ? `Dernière action il y a ${formatDays(days)}`
-        : hasTreated
-          ? "Aucune action récente"
-          : "Aucune action dealé/abandonné enregistrée",
-      link: "/dashboard?tab=suivi",
     });
   }
 
@@ -211,19 +174,6 @@ function computeManagerNotifications(
       message: `Saisie manquante : ${overdueFriday.length} agent${overdueFriday.length > 1 ? "s" : ""}`,
       detail: `${names} — saisie de la semaine passée non complétée`,
       link: "/manager/cockpit",
-    });
-  }
-
-  // Check global contact actions — derived from results
-  const lastTreated = latestTreatedAt(results);
-
-  if (!lastTreated || Date.now() - new Date(lastTreated).getTime() > SEVEN_DAYS_MS) {
-    notifs.push({
-      id: "manager-contacts-retard",
-      type: "warning",
-      message: "Aucune action récente sur les contacts",
-      detail: "Aucun deal ou abandon enregistré cette semaine",
-      link: "/dashboard?tab=suivi",
     });
   }
 

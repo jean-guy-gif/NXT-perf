@@ -199,16 +199,23 @@ export function ImportPerformance({ isDemo }: ImportPerformanceProps) {
                 for (const r of results.filter(r => r.status === "extracted" && r.data)) {
                   for (const period of r.data!.periods) {
                     const m = period.metrics;
+                    // CSV legacy ne porte pas la répartition simple/exclusif :
+                    // tous les mandats importés sont typés "simple" par défaut,
+                    // l'utilisateur ajuste dans l'écran de confirmation.
+                    const mandatsCount = m.mandats_signes ?? 0;
                     const fields: ExtractedFields = {
-                      contactsEntrants: m.contacts_entrants ?? undefined,
-                      mandatsSignes: m.mandats_signes ?? undefined,
+                      contactsTotaux: m.contacts_entrants ?? undefined,
+                      mandatsSignes: mandatsCount > 0 ? mandatsCount : undefined,
+                      mandatsTypes: mandatsCount > 0
+                        ? Array<"simple">(mandatsCount).fill("simple")
+                        : undefined,
                       nombreVisites: m.visites_realisees ?? undefined,
                       offresRecues: m.offres_recues ?? undefined,
                       compromisSignes: m.compromis_signes ?? undefined,
                       actesSignes: m.actes_signes ?? undefined,
                       chiffreAffaires: m.ca_encaisse ?? undefined,
                     };
-                    const arrays: ExtractedArrays = { mandats: [], informationsVente: [], acheteursChauds: [] };
+                    const arrays: ExtractedArrays = {};
                     const userId = user?.id ?? "unknown";
                     const periodResult = convertExtractedToPeriodResults(userId, fields, arrays);
                     addResults(periodResult);

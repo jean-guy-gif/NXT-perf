@@ -1,25 +1,27 @@
-export type ContactStatut = "en_cours" | "deale" | "abandonne";
-
-export interface VenteInfo {
-  id: string;
-  nom: string;
-  commentaire: string;
-  statut: ContactStatut;
-  profiled?: boolean;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Modèle métier KPI conseiller — source de vérité unique.
+//
+// ⚠️ NE JAMAIS RÉINTRODUIRE les champs / types suivants (supprimés du socle) :
+//   - VenteInfo, AcheteurChaud, ContactStatut
+//   - ProspectionData.contactsEntrants
+//   - ProspectionData.informationsVente
+//   - AcheteursData.acheteursChauds
+//   - VentesData.delaiMoyenVente
+//   - MandatEntry.nomVendeur (saisie sans nom — uniquement type)
+//   - MandatEntry.profiled (fonctionnalité retirée)
+//
+// Toute réintroduction (même optionnelle, même commentée) constitue une
+// régression de la refonte KPI v2 — voir docs/TECH_DEBT.md.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProspectionData {
-  contactsEntrants: number;
   contactsTotaux: number;
   rdvEstimation: number;
-  informationsVente: VenteInfo[];
 }
 
 export interface MandatEntry {
   id: string;
-  nomVendeur: string;
   type: "simple" | "exclusif";
-  profiled?: boolean;
 }
 
 export interface VendeursData {
@@ -32,26 +34,17 @@ export interface VendeursData {
   baissePrix: number;
 }
 
-export interface AcheteurChaud {
-  id: string;
-  nom: string;
-  commentaire: string;
-  statut: ContactStatut;
-  profiled?: boolean;
-}
-
 export interface AcheteursData {
-  acheteursChauds: AcheteurChaud[];
   acheteursSortisVisite: number;
   nombreVisites: number;
   offresRecues: number;
   compromisSignes: number;
+  chiffreAffairesCompromis: number;
 }
 
 export interface VentesData {
   actesSignes: number;
   chiffreAffaires: number;
-  delaiMoyenVente: number;
 }
 
 export interface PeriodResults {

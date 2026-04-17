@@ -36,8 +36,9 @@ Réponds UNIQUEMENT en JSON valide sans markdown avec cette structure :
 // ── Known column name aliases for direct Excel mapping ──────────────────────
 
 const METRIC_ALIASES: Record<string, string> = {
-  // contacts_entrants
-  "contacts entrants": "contacts_entrants", "contacts": "contacts_entrants",
+  // contacts_entrants (champ d'import legacy, mappé côté client vers contactsTotaux)
+  "contacts entrants": "contacts_entrants", "contacts totaux": "contacts_entrants",
+  "contacts": "contacts_entrants",
   "leads": "contacts_entrants", "prospects": "contacts_entrants",
   "appels entrants": "contacts_entrants", "portail": "contacts_entrants",
   // mandats_signes

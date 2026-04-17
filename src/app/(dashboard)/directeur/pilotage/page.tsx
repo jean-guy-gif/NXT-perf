@@ -19,6 +19,7 @@ import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { TrendIndicator } from "@/components/dashboard/trend-indicator";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
+import { ProductionChain } from "@/components/dashboard/production-chain";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { NXT_COLORS } from "@/lib/constants";
@@ -292,6 +293,9 @@ export default function PilotageAgencePage() {
         </div>
       </div>
 
+      {/* ═══ 1b. Production Chain ═══ */}
+      <ProductionChain scope="agency" />
+
       {/* ═══ 2. Saisie objectif (collapsible) ═══ */}
       <div className="rounded-lg border border-border bg-card">
         <button
@@ -367,11 +371,11 @@ export default function PilotageAgencePage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
             <p className="text-xs text-muted-foreground">{periodObjLabel}</p>
-            <p className="text-xl font-bold">{fmt(gps.objectif, theme)}</p>
+            <p className="text-xl font-bold tabular-nums">{fmt(gps.objectif, theme)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Réalisé {periodLabel}</p>
-            <p className="text-xl font-bold">{fmt(gps.realise, theme)}</p>
+            <p className="text-xl font-bold tabular-nums">{fmt(gps.realise, theme)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Écart</p>
@@ -381,7 +385,7 @@ export default function PilotageAgencePage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Projection annuelle</p>
-            <p className="text-xl font-bold">{fmt(gps.projection, theme)}</p>
+            <p className="text-xl font-bold tabular-nums">{fmt(gps.projection, theme)}</p>
           </div>
         </div>
         <div className="mt-4">
@@ -474,7 +478,7 @@ export default function PilotageAgencePage() {
       </div>
 
       {/* ═══ 6b. Écarts d'objectifs CA ═══ */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div className="rounded-[14px] border border-border bg-card p-6 shadow-[var(--shadow-1)] space-y-4">
         <div className="flex items-center gap-2">
           <DollarSign className="h-5 w-5 text-primary" />
           <div>
@@ -560,7 +564,7 @@ export default function PilotageAgencePage() {
           ] as const).map((card) => {
             const status = card.data.pct >= 100 ? "ok" : card.data.pct >= 80 ? "warning" : "danger";
             return (
-              <div key={card.label} className="rounded-xl border border-border bg-card p-5">
+              <div key={card.label} className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-foreground">{card.label}</p>
                   <span className={cn(
@@ -595,7 +599,7 @@ export default function PilotageAgencePage() {
 
         {/* Global comparison chart */}
         {multiNiveauView === "global" && (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
             <h3 className="mb-4 text-sm font-semibold">Avancement par thème — Conseillers vs Managers vs Agence</h3>
             <LineChart
               data={multiNiveauData.chartData}
@@ -614,7 +618,7 @@ export default function PilotageAgencePage() {
         {multiNiveauView === "equipe" && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {multiNiveauData.perTeamCharts.map((tc) => (
-              <div key={tc.teamId} className="rounded-xl border border-border bg-card p-5">
+              <div key={tc.teamId} className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
                 <div className="mb-3">
                   <h3 className="text-sm font-semibold">{tc.teamName}</h3>
                   <p className="text-xs text-muted-foreground">Manager : {tc.managerName}</p>

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { isValidPersona, DEFAULT_PERSONA } from '@/lib/personas'
 import { loadUserCoachContext } from '@/lib/coach-context'
 import type { CoachTriggerType } from '@/types/coach-session'
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const trigger_type: CoachTriggerType = body.trigger_type ?? 'bouton_manuel'
   const trigger_context = body.trigger_context ?? null
 
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
   const ctx = await loadUserCoachContext(supabase, auth.user.id)
 
   const persona = isValidPersona(ctx.profile?.coach_persona)

@@ -15,9 +15,9 @@ export function computeRatioValue(
         ? prospection.contactsTotaux / prospection.rdvEstimation
         : 0;
 
-    case "estimations_mandats":
+    case "rdv_mandats":
       return vendeurs.mandatsSignes > 0
-        ? vendeurs.estimationsRealisees / vendeurs.mandatsSignes
+        ? vendeurs.rdvEstimation / vendeurs.mandatsSignes
         : 0;
 
     case "pct_mandats_exclusifs": {
@@ -25,6 +25,11 @@ export function computeRatioValue(
       const exclusifs = vendeurs.mandats.filter((m) => m.type === "exclusif").length;
       return totalMandats > 0 ? (exclusifs / totalMandats) * 100 : 0;
     }
+
+    case "acheteurs_visites":
+      return acheteurs.acheteursSortisVisite > 0
+        ? acheteurs.nombreVisites / acheteurs.acheteursSortisVisite
+        : 0;
 
     case "visites_offre":
       return acheteurs.offresRecues > 0
@@ -36,15 +41,15 @@ export function computeRatioValue(
         ? acheteurs.offresRecues / acheteurs.compromisSignes
         : 0;
 
-    case "mandats_simples_vente": {
-      const simples = vendeurs.mandats.filter((m) => m.type === "simple").length;
-      return ventes.actesSignes > 0 ? simples / ventes.actesSignes : 0;
-    }
+    case "compromis_actes":
+      return ventes.actesSignes > 0
+        ? acheteurs.compromisSignes / ventes.actesSignes
+        : 0;
 
-    case "mandats_exclusifs_vente": {
-      const exclusifs = vendeurs.mandats.filter((m) => m.type === "exclusif").length;
-      return ventes.actesSignes > 0 ? exclusifs / ventes.actesSignes : 0;
-    }
+    case "honoraires_moyens":
+      return ventes.actesSignes > 0
+        ? ventes.chiffreAffaires / ventes.actesSignes
+        : 0;
 
     default:
       return 0;

@@ -1,50 +1,32 @@
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export interface MandatDetail {
-  nomVendeur: string;
-  type: "simple" | "exclusif";
-}
+/** Type d'un mandat — choix unitaire au moment de la saisie. */
+export type MandatType = "simple" | "exclusif";
 
-export interface InfoVenteDetail {
-  nom: string;
-  commentaire: string;
-}
-
-export interface AcheteurDetail {
-  nom: string;
-  commentaire: string;
-}
-
-/** Champs numériques extraits — PRD section 9 mapping complet */
+/** Champs extraits — numériques + types de mandats. */
 export interface ExtractedFields {
-  // Prospection
+  // Prospection vendeur
   contactsTotaux?: number;
-  contactsEntrants?: number;
   rdvEstimation?: number;
-  // Vendeurs
   estimationsRealisees?: number;
   mandatsSignes?: number;
+  mandatsTypes?: MandatType[];
+  // Pilotage portefeuille
   rdvSuivi?: number;
   requalificationSimpleExclusif?: number;
   baissePrix?: number;
-  // Acheteurs
-  acheteursChaudsCount?: number;
+  // Transaction acheteur
   acheteursSortisVisite?: number;
   nombreVisites?: number;
   offresRecues?: number;
   compromisSignes?: number;
-  // Ventes
+  chiffreAffairesCompromis?: number;
   actesSignes?: number;
   chiffreAffaires?: number;
-  delaiMoyenVente?: number;
 }
 
-/** Tableaux structurés extraits (noms, détails) */
-export interface ExtractedArrays {
-  mandats: MandatDetail[];
-  informationsVente: InfoVenteDetail[];
-  acheteursChauds: AcheteurDetail[];
-}
+/** Réservé pour futurs détails. */
+export type ExtractedArrays = Record<string, never>;
 
 /** Résultat complet d'une extraction */
 export interface ExtractionResult {
@@ -58,7 +40,7 @@ export interface ExtractionResult {
 
 const EMPTY_RESULT: ExtractionResult = {
   extracted: {},
-  arrays: { mandats: [], informationsVente: [], acheteursChauds: [] },
+  arrays: {},
   uncertain: [],
   unmapped: [],
   description: "",
@@ -71,26 +53,20 @@ function normalizeResult(data: Record<string, unknown>): ExtractionResult {
   const raw = (data.extracted ?? {}) as Record<string, unknown>;
   const extracted: ExtractedFields = {};
 
-  // Ne garder que les champs numériques valides
   for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "number" && !isNaN(value)) {
+    if (key === "mandatsTypes" && Array.isArray(value)) {
+      const filtered = value.filter(
+        (v): v is MandatType => v === "simple" || v === "exclusif",
+      );
+      if (filtered.length > 0) extracted.mandatsTypes = filtered;
+    } else if (typeof value === "number" && !isNaN(value)) {
       (extracted as Record<string, number>)[key] = value;
     }
   }
 
-  const arrays = (data.arrays ?? {}) as Partial<ExtractedArrays>;
-
   return {
     extracted,
-    arrays: {
-      mandats: Array.isArray(arrays.mandats) ? arrays.mandats : [],
-      informationsVente: Array.isArray(arrays.informationsVente)
-        ? arrays.informationsVente
-        : [],
-      acheteursChauds: Array.isArray(arrays.acheteursChauds)
-        ? arrays.acheteursChauds
-        : [],
-    },
+    arrays: {},
     uncertain: Array.isArray(data.uncertain) ? (data.uncertain as string[]) : [],
     unmapped: Array.isArray(data.unmapped) ? (data.unmapped as string[]) : [],
     description: typeof data.description === "string" ? data.description : "",

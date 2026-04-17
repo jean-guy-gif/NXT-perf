@@ -122,8 +122,13 @@ function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
-      setError("Tous les champs sont obligatoires.");
+    const missing: string[] = [];
+    if (!firstName.trim()) missing.push("Prénom");
+    if (!lastName.trim()) missing.push("Nom");
+    if (!email.trim()) missing.push("Email");
+    if (!password.trim()) missing.push("Mot de passe");
+    if (missing.length > 0) {
+      setError(`Champ(s) manquant(s) : ${missing.join(", ")}`);
       return;
     }
 
@@ -276,7 +281,6 @@ function RegisterForm() {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               className={inputClassName}
-              required
             />
           </div>
           <div>
@@ -288,7 +292,6 @@ function RegisterForm() {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               className={inputClassName}
-              required
             />
           </div>
         </div>
@@ -302,7 +305,6 @@ function RegisterForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={inputClassName}
-            required
           />
         </div>
 
@@ -329,7 +331,6 @@ function RegisterForm() {
               onChange={(e) => setPassword(e.target.value)}
               className="h-10 w-full rounded-lg border border-input bg-background px-3 pr-10 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
               placeholder="Minimum 8 caractères"
-              required
             />
             <button
               type="button"

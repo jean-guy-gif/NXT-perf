@@ -12,7 +12,7 @@ export const mockTeamStats: TeamStats = {
       type: "danger",
       message: "Théo Vasseur : 0 mandat signé sur 1 estimation — aucune conversion ce mois",
       relatedUserId: "u-demo-b3",
-      relatedRatioId: "estimations_mandats",
+      relatedRatioId: "rdv_mandats",
     },
     {
       id: "a2",

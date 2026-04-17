@@ -68,12 +68,13 @@ export function getRatioLabel(ratioId: string): string {
  */
 const RATIO_DEFAULTS: Record<string, { frequency: string; channel: string; proof: string }> = {
   contacts_rdv: { frequency: "quotidien", channel: "téléphone", proof: "CRM mis à jour" },
-  estimations_mandats: { frequency: "2x/semaine", channel: "terrain", proof: "CR estimation" },
+  rdv_mandats: { frequency: "2x/semaine", channel: "terrain", proof: "CR estimation" },
   pct_mandats_exclusifs: { frequency: "par RDV", channel: "terrain", proof: "Mandat signé" },
+  acheteurs_visites: { frequency: "par acheteur", channel: "terrain", proof: "CR visites" },
   visites_offre: { frequency: "par visite", channel: "terrain", proof: "CR visite" },
   offres_compromis: { frequency: "par offre", channel: "bureau", proof: "Offre transmise" },
-  mandats_simples_vente: { frequency: "hebdomadaire", channel: "téléphone", proof: "Rapport vendeur" },
-  mandats_exclusifs_vente: { frequency: "hebdomadaire", channel: "mixte", proof: "Rapport marketing" },
+  compromis_actes: { frequency: "hebdomadaire", channel: "mixte", proof: "Suivi notaire" },
+  honoraires_moyens: { frequency: "par mandat", channel: "bureau", proof: "Mandat signé" },
 };
 
 /**
@@ -222,12 +223,13 @@ export function generateDiagnostic(
   // Sort danger ratios by funnel order
   const funnelOrder: RatioId[] = [
     "contacts_rdv",
-    "estimations_mandats",
+    "rdv_mandats",
     "pct_mandats_exclusifs",
+    "acheteurs_visites",
     "visites_offre",
     "offres_compromis",
-    "mandats_simples_vente",
-    "mandats_exclusifs_vente",
+    "compromis_actes",
+    "honoraires_moyens",
   ];
 
   const dangerRatios = ratios.filter((r) => r.status === "danger");
@@ -273,12 +275,13 @@ export function generateDiagnostic(
 function getDiagnosticLabel(ratioId: RatioId): string {
   const labels: Record<RatioId, string> = {
     contacts_rdv: "Prospection insuffisante",
-    estimations_mandats: "Conversion estimation → mandat trop faible",
+    rdv_mandats: "Conversion RDV → mandat trop faible",
     pct_mandats_exclusifs: "Taux d'exclusivité insuffisant",
+    acheteurs_visites: "Pas assez de visites par acheteur",
     visites_offre: "Trop de visites par offre",
     offres_compromis: "Transformation offre → compromis insuffisante",
-    mandats_simples_vente: "Trop de mandats simples par vente",
-    mandats_exclusifs_vente: "Manque d'efficacité mandats exclusifs",
+    compromis_actes: "Trop de compromis qui ne se concrétisent pas",
+    honoraires_moyens: "Honoraires moyens sous l'objectif",
   };
   return labels[ratioId] ?? "Point d'attention identifié";
 }

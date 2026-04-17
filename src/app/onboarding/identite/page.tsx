@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import AvatarEditor from "react-avatar-editor";
-import { Camera, Building2, Upload, Loader2, Check, ArrowRight, ZoomIn } from "lucide-react";
+import { Camera, Building2, Upload, Loader2, Check, ArrowRight, ZoomIn, Volume2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import { compressImage, ImageCompressionError } from "@/lib/compress-image";
@@ -21,6 +21,12 @@ const COACH_VOICES: { id: CoachVoice; emoji: string; label: string; desc: string
   { id: "sergent", emoji: "\u{1F396}\uFE0F", label: "Sergent", desc: "Direct, exigeant, sans filtre. Les r\u00e9sultats d\u2019abord, les excuses dehors." },
   { id: "bienveillant", emoji: "\u{1F91D}", label: "Coach Bienveillant", desc: "Doux, encourageant, \u00e0 l\u2019\u00e9coute. Il t\u2019accompagne sans pression." },
 ];
+
+const VOICE_DEMOS: Record<CoachVoice, { text: string; persona: string }> = {
+  sport: { text: "Allez, on y va ! Tu as les résultats pour performer, maintenant il faut s'y mettre !", persona: "sport_coach" },
+  sergent: { text: "Résultats insuffisants. On rectifie ça immédiatement. Pas d'excuses.", persona: "warrior" },
+  bienveillant: { text: "Très bien, tu avances à ton rythme. Je suis là pour t'accompagner.", persona: "kind_coach" },
+};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -40,6 +46,8 @@ export default function OnboardingIdentitePage() {
   const [logoDone, setLogoDone] = useState(false);
   const [avatarZoom, setAvatarZoom] = useState(1.2);
   const [coachVoice, setCoachVoice] = useState<CoachVoice>("bienveillant");
+  const [playingVoice, setPlayingVoice] = useState<CoachVoice | null>(null);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const [error, setError] = useState("");
   const [completing, setCompleting] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -52,6 +60,34 @@ export default function OnboardingIdentitePage() {
   const hasOrg = !!profile?.org_id;
   const isCoachExterne = profile?.profile_type === "COACH" && !hasOrg;
   const firstName = user?.firstName || "Conseiller";
+
+  // ── Voice preview handler ──────────────────────────────────────────────
+  const handleListenVoice = async (voice: CoachVoice) => {
+    // Stop any currently playing audio
+    if (voiceAudioRef.current) {
+      voiceAudioRef.current.pause();
+      voiceAudioRef.current = null;
+    }
+    if (playingVoice === voice) { setPlayingVoice(null); return; }
+
+    setPlayingVoice(voice);
+    const demo = VOICE_DEMOS[voice];
+    try {
+      const res = await fetch("/api/voice/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: demo.text, persona: demo.persona }),
+      });
+      if (!res.ok) { setPlayingVoice(null); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); setPlayingVoice(null); voiceAudioRef.current = null; };
+      audio.onerror = () => { URL.revokeObjectURL(url); setPlayingVoice(null); voiceAudioRef.current = null; };
+      voiceAudioRef.current = audio;
+      audio.play();
+    } catch { setPlayingVoice(null); }
+  };
 
   // ── Init coachVoice from profile ──────────────────────────────────────
   useEffect(() => {
@@ -278,17 +314,8 @@ export default function OnboardingIdentitePage() {
       }
     }
 
-    // Role-based redirect: manager → equipe, directeur → agence, coach → coach, others → dashboard
-    const role = profile?.role;
-    if (role === "manager") {
-      window.location.href = "/onboarding/equipe";
-    } else if (role === "directeur") {
-      window.location.href = "/onboarding/agence";
-    } else if (role === "coach") {
-      window.location.href = "/onboarding/coach";
-    } else {
-      window.location.href = "/dashboard";
-    }
+    // All roles go through DPI → GPS → role-specific destination
+    window.location.href = "/onboarding/dpi";
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -444,11 +471,10 @@ export default function OnboardingIdentitePage() {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 {COACH_VOICES.map((v) => (
-                  <button
+                  <div
                     key={v.id}
-                    type="button"
                     onClick={() => setCoachVoice(v.id)}
-                    className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-center transition-all ${
+                    className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-center transition-all cursor-pointer ${
                       coachVoice === v.id
                         ? "border-[var(--agency-primary,#6C5CE7)] bg-[var(--agency-primary,#6C5CE7)]/5 shadow-sm"
                         : "border-border bg-card/50 hover:border-primary/30 hover:bg-primary/5"
@@ -462,7 +488,16 @@ export default function OnboardingIdentitePage() {
                     <span className="text-2xl">{v.emoji}</span>
                     <p className="text-sm font-semibold text-foreground">{v.label}</p>
                     <p className="text-[11px] leading-snug text-muted-foreground">{v.desc}</p>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleListenVoice(v.id); }}
+                      disabled={playingVoice !== null && playingVoice !== v.id}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                    >
+                      {playingVoice === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-3 w-3" />}
+                      {playingVoice === v.id ? "Lecture…" : "Écouter"}
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -491,12 +526,12 @@ export default function OnboardingIdentitePage() {
             className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-            Accéder à mon dashboard
+            Suivant
           </button>
 
           <button
             type="button"
-            onClick={completeOnboarding}
+            onClick={() => { window.location.href = "/onboarding/dpi"; }}
             className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
           >
             Passer cette étape

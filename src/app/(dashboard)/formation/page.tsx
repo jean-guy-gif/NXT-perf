@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAppStore } from "@/stores/app-store";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
@@ -21,8 +22,9 @@ import {
   Wallet,
   FileText,
 } from "lucide-react";
+import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 
-type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement";
+type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement" | "catalogue";
 
 const priorityConfig = {
   1: { label: "P1", color: "bg-red-500/20 text-red-500", border: "border-red-500/30" },
@@ -94,6 +96,12 @@ export default function FormationPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Ma Formation</h1>
 
+      {/* Outils pour progresser */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Outils pour progresser</h2>
+        <ImprovementCatalogue />
+      </section>
+
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">
         <button
@@ -144,6 +152,18 @@ export default function FormationPage() {
           <Wallet className="h-4 w-4" />
           Financement
         </button>
+        <button
+          onClick={() => setActiveTab("catalogue")}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            activeTab === "catalogue"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <ExternalLink className="h-4 w-4" />
+          Catalogue
+        </button>
       </div>
 
       {/* ========== DIAGNOSTIC ========== */}
@@ -152,12 +172,12 @@ export default function FormationPage() {
           {/* Diagnostic Summary */}
           <div
             className={cn(
-              "rounded-xl border p-6",
+              "rounded-[14px] border p-6 shadow-[var(--shadow-1)]",
               diagnostic.overallStatus === "ok"
-                ? "border-green-500/30 bg-green-500/5"
+                ? "border-green-500/30 bg-green-500/8"
                 : diagnostic.overallStatus === "warning"
-                  ? "border-orange-500/30 bg-orange-500/5"
-                  : "border-red-500/30 bg-red-500/5"
+                  ? "border-orange-500/30 bg-orange-500/8"
+                  : "border-red-500/30 bg-red-500/8"
             )}
           >
             <div className="flex items-center gap-4">
@@ -200,7 +220,7 @@ export default function FormationPage() {
                     <div
                       key={rec.area}
                       className={cn(
-                        "rounded-xl border bg-card p-5",
+                        "rounded-[14px] border bg-card p-5 shadow-[var(--shadow-1)]",
                         pConfig.border
                       )}
                     >
@@ -225,7 +245,7 @@ export default function FormationPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Actuel</span>
                           <span className="font-medium text-foreground">
-                            {rec.currentRatio.toFixed(1)}
+                            <span className="tabular-nums">{rec.currentRatio.toFixed(1)}</span>
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -268,7 +288,7 @@ export default function FormationPage() {
       {activeTab === "entrainer" && (
         <div className="space-y-6">
           {/* Header */}
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5">
+          <div className="rounded-[14px] border border-orange-500/30 bg-orange-500/8 p-5 shadow-[var(--shadow-1)]">
             <div className="flex items-center gap-3">
               <Dumbbell className="h-5 w-5 text-orange-500" />
               <div>
@@ -297,7 +317,7 @@ export default function FormationPage() {
                     <div
                       key={rec.area}
                       className={cn(
-                        "rounded-xl border bg-card p-5",
+                        "rounded-[14px] border bg-card p-5 shadow-[var(--shadow-1)]",
                         pConfig.border
                       )}
                     >
@@ -340,7 +360,7 @@ export default function FormationPage() {
                         onClick={() =>
                           window.open("https://train-my-agent.vercel.app/", "_blank")
                         }
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--radius-button)] bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                       >
                         <Dumbbell className="h-4 w-4" />
                         S&apos;entraîner sur NXT
@@ -358,7 +378,7 @@ export default function FormationPage() {
             <h3 className="text-lg font-semibold text-foreground">
               Vue complète de vos ratios
             </h3>
-            <div className="rounded-xl border border-border bg-card divide-y divide-border">
+            <div className="rounded-[14px] border border-border bg-card shadow-[var(--shadow-1)] divide-y divide-border">
               {computedRatios.map((ratio) => {
                 const config = ratioConfigs[ratio.ratioId as keyof typeof ratioConfigs];
                 const isWeak = ratio.status !== "ok";
@@ -393,7 +413,7 @@ export default function FormationPage() {
                               : "text-red-500"
                         )}
                       >
-                        {ratio.percentageOfTarget}%
+                        <span className="tabular-nums">{ratio.percentageOfTarget}%</span>
                       </span>
                       {isWeak && (
                         <button
@@ -414,7 +434,7 @@ export default function FormationPage() {
           </div>
 
           {/* NXT Connection banner */}
-          <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-6">
+          <div className="rounded-[14px] border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-6 shadow-[var(--shadow-1)]">
             <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
                 <Dumbbell className="h-7 w-7 text-indigo-500" />
@@ -432,7 +452,7 @@ export default function FormationPage() {
                 onClick={() =>
                   window.open("https://train-my-agent.vercel.app/", "_blank")
                 }
-                className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-600"
+                className="flex shrink-0 items-center gap-2 rounded-[var(--radius-button)] bg-indigo-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-600"
               >
                 Accéder à NXT
                 <ExternalLink className="h-4 w-4" />
@@ -446,7 +466,7 @@ export default function FormationPage() {
       {activeTab === "financement" && (
         <div className="space-y-6">
           {/* Banner AGEFICE */}
-          <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6">
+          <div className="rounded-[14px] border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6 shadow-[var(--shadow-1)]">
             <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20">
                 <Wallet className="h-7 w-7 text-emerald-500" />
@@ -466,19 +486,19 @@ export default function FormationPage() {
 
           {/* Infos clés */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-5 text-center">
-              <p className="text-2xl font-bold text-emerald-500">100%</p>
+            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
+              <p className="text-2xl font-bold text-emerald-500 tabular-nums">100%</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Prise en charge possible
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-5 text-center">
+            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
               <p className="text-2xl font-bold text-emerald-500">3 min</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Pour constituer le dossier
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-5 text-center">
+            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
               <p className="text-2xl font-bold text-emerald-500">0 €</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Reste à charge estimé
@@ -487,7 +507,7 @@ export default function FormationPage() {
           </div>
 
           {/* CTA */}
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
+          <div className="flex flex-col items-center rounded-[14px] border border-dashed border-border bg-card px-6 py-10 text-center shadow-[var(--shadow-1)]">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
               <FileText className="h-7 w-7 text-emerald-500" />
             </div>
@@ -500,13 +520,18 @@ export default function FormationPage() {
             </p>
             <button
               onClick={() => setShowAgeficeWizard(true)}
-              className="mt-6 flex items-center gap-2 rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+              className="mt-6 flex items-center gap-2 rounded-[var(--radius-button)] bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-600"
             >
               <FileText className="h-4 w-4" />
               Constituer mon dossier
             </button>
           </div>
         </div>
+      )}
+
+      {/* ========== CATALOGUE ========== */}
+      {activeTab === "catalogue" && (
+        <CatalogueTab />
       )}
 
       {/* AGEFICE Wizard Modal */}
@@ -518,5 +543,68 @@ export default function FormationPage() {
       )}
     </div>
     </LockedFeature>
+  );
+}
+
+function CatalogueTab() {
+  const profile = useAppStore((s) => s.profile);
+  const networks = useAppStore((s) => s.networks);
+  const [iframeError, setIframeError] = useState(false);
+
+  // Find catalogue URL from user's network if available
+  const userNetwork = networks.find((n) =>
+    n.institutionIds.includes(profile?.org_id ?? "")
+  );
+  const catalogueUrl = (userNetwork as { catalogue_url?: string } | undefined)?.catalogue_url
+    || "https://www.start-academy.fr/consultez-catalogue-formation-immobiliere/";
+
+  if (iframeError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+        <BookOpen className="h-10 w-10 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">
+          Le catalogue ne peut pas être affiché directement.
+        </p>
+        <a
+          href={catalogueUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ouvrir le catalogue
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Catalogue de formations professionnelles</p>
+        <a href={catalogueUrl} target="_blank" rel="noopener noreferrer"
+          className="text-xs text-primary hover:text-primary/80 flex items-center gap-1">
+          Ouvrir dans un nouvel onglet <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+      <div className="rounded-[14px] border border-border overflow-hidden shadow-[var(--shadow-1)]">
+        <iframe
+          src={catalogueUrl}
+          className="w-full border-0"
+          style={{ height: "calc(100vh - 280px)", minHeight: 400 }}
+          onError={() => setIframeError(true)}
+          onLoad={(e) => {
+            // Detect X-Frame-Options block (iframe loads but content is blank)
+            try {
+              const frame = e.currentTarget;
+              if (frame.contentDocument?.title === "") setIframeError(true);
+            } catch {
+              // Cross-origin — iframe loaded successfully (can't access contentDocument)
+            }
+          }}
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+        />
+      </div>
+    </div>
   );
 }

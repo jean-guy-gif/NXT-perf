@@ -20,12 +20,13 @@ const CHANNEL_OPTIONS = [
 
 const ALL_RATIO_IDS: RatioId[] = [
   "contacts_rdv",
-  "estimations_mandats",
+  "rdv_mandats",
   "pct_mandats_exclusifs",
+  "acheteurs_visites",
   "visites_offre",
   "offres_compromis",
-  "mandats_simples_vente",
-  "mandats_exclusifs_vente",
+  "compromis_actes",
+  "honoraires_moyens",
 ];
 
 const MAX_ACTIONS_PER_WEEK = 6;

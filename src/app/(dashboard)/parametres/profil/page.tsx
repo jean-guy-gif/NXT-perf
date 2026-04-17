@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { awardBadgeIfEarned } from "@/lib/badge-service";
 import { useBadges } from "@/hooks/use-badges";
 import { BadgeGrid } from "@/components/badges/badge-grid";
+import { PerformanceBadgeGrid } from "@/components/badges/performance-badge-grid";
 
 type CoachVoice = "sport" | "sergent" | "bienveillant";
 
@@ -133,7 +134,10 @@ export default function ProfilParametresPage() {
         )}
       </section>
 
-      {/* Badges */}
+      {/* Performance Badges */}
+      <PerformanceBadgeGrid />
+
+      {/* Gamification Badges */}
       <BadgeGridSection />
     </div>
   );

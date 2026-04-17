@@ -10,8 +10,8 @@ import { CoachingDebriefScreen } from "@/components/saisie/coaching-debrief";
 import { extractFromDocument, extractFromImage } from "@/lib/saisie-ai-client";
 import { convertExtractedToPeriodResults } from "@/lib/weekly-gate";
 import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
-import { parseCountField, parseMandatsText, parseDetailsText, capitalizeFirst } from "@/lib/saisie-parser";
-import type { ExtractedFields, ExtractedArrays, ExtractionResult, MandatDetail, AcheteurDetail, InfoVenteDetail } from "@/lib/saisie-ai-client";
+import { parseCountField } from "@/lib/saisie-parser";
+import type { ExtractedFields, ExtractedArrays, ExtractionResult, MandatType } from "@/lib/saisie-ai-client";
 
 // ─── Personas (centralized in src/lib/personas.ts) ──────────────────────────
 
@@ -55,6 +55,8 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   // Manual flow state — uses SAISIE_STEPS as source of truth
   const [stepIdx, setStepIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Per-mandat type selections (length = mandatsSignes, null = not yet chosen)
+  const [mandatsTypeChoices, setMandatsTypeChoices] = useState<Array<MandatType | null>>([]);
   const [slideDir, setSlideDir] = useState<"right" | "left">("right");
   const [animating, setAnimating] = useState(false);
   const [detailError, setDetailError] = useState("");
@@ -64,9 +66,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
 
   // Confirmation state
   const [extractedFields, setExtractedFields] = useState<ExtractedFields>({});
-  const [extractedArrays, setExtractedArrays] = useState<ExtractedArrays>({
-    mandats: [], informationsVente: [], acheteursChauds: [],
-  });
+  const [extractedArrays, setExtractedArrays] = useState<ExtractedArrays>({});
   const [isSaving, setIsSaving] = useState(false);
   const [confirmDesc, setConfirmDesc] = useState("");
   const [confirmUncertain, setConfirmUncertain] = useState<string[]>([]);
@@ -125,30 +125,24 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
 
   const buildExtractedData = useCallback(() => {
     const fields: ExtractedFields = {};
-    let mandatsArr: MandatDetail[] = [];
-    let infosArr: InfoVenteDetail[] = [];
-    let acheteursArr: AcheteurDetail[] = [];
 
     for (const step of SAISIE_STEPS) {
+      if (step.inputMode === "mandats_types") continue;
       const raw = answers[step.id] ?? "";
-
-      if (step.inputMode === "count" || step.inputMode === "money") {
-        const val = raw === "" ? 0 : (parseCountField(raw) ?? 0);
-        (fields as Record<string, number>)[step.field] = val;
-      } else if (step.inputMode === "detail_mandats") {
-        mandatsArr = parseMandatsText(raw).map(m => ({ nomVendeur: capitalizeFirst(m.nomVendeur), type: m.type }));
-      } else if (step.inputMode === "detail_infos") {
-        infosArr = parseDetailsText(raw).map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }));
-      } else if (step.inputMode === "detail_acheteurs") {
-        acheteursArr = parseDetailsText(raw).map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }));
-      }
+      const val = raw === "" ? 0 : (parseCountField(raw) ?? 0);
+      (fields as Record<string, number>)[step.field] = val;
     }
+
+    const typed = mandatsTypeChoices.filter(
+      (t): t is MandatType => t !== null,
+    );
+    if (typed.length > 0) fields.mandatsTypes = typed;
 
     return {
       fields,
-      arrays: { mandats: mandatsArr, informationsVente: infosArr, acheteursChauds: acheteursArr },
+      arrays: {} as ExtractedArrays,
     };
-  }, [answers]);
+  }, [answers, mandatsTypeChoices]);
 
   // ── Get the current applicable step ────────────────────────────────────────
 
@@ -162,26 +156,28 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   const processAndAdvance = () => {
     if (animating || !currentStep) return;
 
-    const raw = answers[currentStep.id] ?? "";
     setDetailError("");
 
-    // Parse count/money → store in ref for condition evaluation
-    if (currentStep.inputMode === "count" || currentStep.inputMode === "money") {
+    if (currentStep.inputMode === "mandats_types") {
+      const expected = manualFieldsRef.current.mandatsSignes ?? 0;
+      const allChosen =
+        mandatsTypeChoices.length === expected &&
+        mandatsTypeChoices.every((t) => t !== null);
+      if (!allChosen) {
+        setDetailError("Choisis le type pour chaque mandat.");
+        return;
+      }
+    } else {
+      const raw = answers[currentStep.id] ?? "";
       const val = raw === "" ? 0 : (parseCountField(raw) ?? 0);
       (manualFieldsRef.current as Record<string, number>)[currentStep.field] = val;
-    }
-
-    // Validate detail fields — reject non-exploitable input
-    if (currentStep.inputMode === "detail_mandats" || currentStep.inputMode === "detail_infos" || currentStep.inputMode === "detail_acheteurs") {
-      const trimmed = raw.trim();
-      if (trimmed && trimmed !== "0" && trimmed.toLowerCase() !== "aucun" && trimmed.toLowerCase() !== "rien") {
-        const isJustNumber = /^\d+$/.test(trimmed);
-        const isJustYes = /^(oui|ok|ouais|non)$/i.test(trimmed);
-        const isTooShort = trimmed.length > 0 && trimmed.length < 3 && !isJustNumber;
-        if (isJustNumber || isJustYes || isTooShort) {
-          setDetailError("Indique un nom + contexte, ou laisse vide.");
-          return;
-        }
+      // Resize mandatsTypeChoices when the count changes
+      if (currentStep.field === "mandatsSignes") {
+        setMandatsTypeChoices((prev) => {
+          const next = Array<MandatType | null>(val).fill(null);
+          for (let i = 0; i < Math.min(prev.length, val); i++) next[i] = prev[i];
+          return next;
+        });
       }
     }
 
@@ -482,7 +478,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   // ── Écran 3 : Saisie manuelle question par question ──────────────────────
   if (screen === "manual" && currentStep) {
     const progress = totalApplicable > 0 ? ((applicableIdx + 1) / totalApplicable) * 100 : 0;
-    const isDetail = currentStep.inputMode === "detail_mandats" || currentStep.inputMode === "detail_infos" || currentStep.inputMode === "detail_acheteurs";
+    const isMandatsTypes = currentStep.inputMode === "mandats_types";
 
     return (
       <div className={fullscreen}>
@@ -534,18 +530,55 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
               {currentStep.prompt}
             </h2>
 
-            <input
-              ref={inputRef}
-              type={currentStep.keyboardMode === "numeric" ? "number" : "text"}
-              min={currentStep.keyboardMode === "numeric" ? 0 : undefined}
-              inputMode={currentStep.keyboardMode}
-              value={answers[currentStep.id] ?? ""}
-              onChange={(e) => updateAnswer(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={currentStep.placeholder}
-              autoFocus
-              className={`w-full ${isDetail ? "max-w-md" : "max-w-xs"} mx-auto block rounded-xl border border-input bg-card px-5 py-4 ${isDetail ? "text-left text-base" : "text-center text-2xl font-semibold"} text-foreground outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/40`}
-            />
+            {isMandatsTypes ? (
+              <div className="mx-auto flex w-full max-w-md flex-col gap-2.5">
+                {mandatsTypeChoices.map((choice, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+                  >
+                    <span className="w-20 text-left text-sm font-semibold text-foreground">
+                      Mandat {i + 1}
+                    </span>
+                    {(["simple", "exclusif"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() =>
+                          setMandatsTypeChoices((prev) => {
+                            const next = [...prev];
+                            next[i] = t;
+                            return next;
+                          })
+                        }
+                        className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+                          choice === t
+                            ? t === "exclusif"
+                              ? "bg-emerald-500 text-white"
+                              : "bg-amber-500 text-white"
+                            : "border border-border text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {t === "exclusif" ? "Exclusif" : "Simple"}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <input
+                ref={inputRef}
+                type={currentStep.keyboardMode === "numeric" ? "number" : "text"}
+                min={currentStep.keyboardMode === "numeric" ? 0 : undefined}
+                inputMode={currentStep.keyboardMode}
+                value={answers[currentStep.id] ?? ""}
+                onChange={(e) => updateAnswer(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={currentStep.placeholder}
+                autoFocus
+                className="w-full max-w-xs mx-auto block rounded-xl border border-input bg-card px-5 py-4 text-center text-2xl font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-muted-foreground/40"
+              />
+            )}
 
             {detailError && (
               <p className="mt-2 text-xs text-amber-500">{detailError}</p>
@@ -555,9 +588,19 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
               <p className="mt-3 text-xs text-muted-foreground/60">{currentStep.exampleHint}</p>
             )}
 
-            <p className="mt-4 text-xs text-muted-foreground">
-              {isDetail ? "Entrée pour valider · Vide = aucun" : "Entrée pour continuer"}
-            </p>
+            {!isMandatsTypes && (
+              <p className="mt-4 text-xs text-muted-foreground">Entrée pour continuer</p>
+            )}
+
+            {isMandatsTypes && (
+              <button
+                type="button"
+                onClick={processAndAdvance}
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Continuer
+              </button>
+            )}
           </div>
 
           {/* Passer */}

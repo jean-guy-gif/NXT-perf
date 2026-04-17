@@ -5,7 +5,7 @@ import {
   CheckCircle, RotateCcw, AlertTriangle, FileCheck, Loader2,
 } from "lucide-react";
 import type {
-  ExtractedFields, ExtractedArrays, MandatDetail, AcheteurDetail,
+  ExtractedFields, ExtractedArrays, MandatType,
 } from "@/lib/saisie-ai-client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -23,49 +23,44 @@ interface ImportConfirmationProps {
 
 // ── Field definitions ────────────────────────────────────────────────────────
 
-type FieldKey = keyof ExtractedFields;
+type NumericFieldKey = Exclude<keyof ExtractedFields, "mandatsTypes">;
 
-const FIELD_LABELS: Record<FieldKey, string> = {
+const FIELD_LABELS: Record<NumericFieldKey, string> = {
   contactsTotaux:              "Contacts totaux",
-  contactsEntrants:            "Contacts entrants",
   rdvEstimation:               "RDV estimations",
   estimationsRealisees:        "Estimations réalisées",
   mandatsSignes:               "Mandats signés",
   rdvSuivi:                    "RDV suivi vendeurs",
-  requalificationSimpleExclusif: "Requalifications S→E",
+  requalificationSimpleExclusif: "Requalif simple → exclu",
   baissePrix:                  "Baisses de prix",
-  acheteursChaudsCount:        "Acheteurs chauds",
   acheteursSortisVisite:       "Acheteurs sortis en visite",
   nombreVisites:               "Visites réalisées",
   offresRecues:                "Offres reçues",
   compromisSignes:             "Compromis signés",
+  chiffreAffairesCompromis:    "CA compromis (€)",
   actesSignes:                 "Actes signés",
   chiffreAffaires:             "Chiffre d'affaires (€)",
-  delaiMoyenVente:             "Délai moyen vente (jours)",
 };
 
-const SECTIONS: { title: string; fields: FieldKey[] }[] = [
+const SECTIONS: { title: string; fields: NumericFieldKey[] }[] = [
   {
-    title: "Prospection",
-    fields: ["contactsTotaux", "contactsEntrants", "rdvEstimation"],
-  },
-  {
-    title: "Vendeurs",
+    title: "Prospection vendeur",
     fields: [
-      "estimationsRealisees", "mandatsSignes", "rdvSuivi",
-      "requalificationSimpleExclusif", "baissePrix",
+      "contactsTotaux", "rdvEstimation", "estimationsRealisees",
+      "mandatsSignes",
     ],
   },
   {
-    title: "Acheteurs",
-    fields: [
-      "acheteursChaudsCount", "acheteursSortisVisite", "nombreVisites",
-      "offresRecues", "compromisSignes",
-    ],
+    title: "Pilotage portefeuille",
+    fields: ["rdvSuivi", "baissePrix", "requalificationSimpleExclusif"],
   },
   {
-    title: "Ventes",
-    fields: ["actesSignes", "chiffreAffaires", "delaiMoyenVente"],
+    title: "Transaction acheteur",
+    fields: [
+      "acheteursSortisVisite", "nombreVisites", "offresRecues",
+      "compromisSignes", "chiffreAffairesCompromis",
+      "actesSignes", "chiffreAffaires",
+    ],
   },
 ];
 
@@ -75,7 +70,7 @@ const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
 
 export function ImportConfirmation({
   extracted,
-  arrays,
+  arrays: _arrays,
   uncertain,
   unmapped,
   description,
@@ -84,14 +79,26 @@ export function ImportConfirmation({
   isSaving = false,
 }: ImportConfirmationProps) {
   const [fields, setFields] = useState<ExtractedFields>({ ...extracted });
-  const [mandats, setMandats] = useState<MandatDetail[]>([...arrays.mandats]);
-  const [acheteurs, setAcheteurs] = useState<AcheteurDetail[]>([...arrays.acheteursChauds]);
+
+  // Sync mandatsTypes length with mandatsSignes
+  const mandatsCount = fields.mandatsSignes ?? 0;
+  const mandatsTypes: Array<MandatType | null> = (() => {
+    const provided = fields.mandatsTypes ?? [];
+    const out: Array<MandatType | null> = Array(mandatsCount).fill(null);
+    for (let i = 0; i < Math.min(provided.length, mandatsCount); i++) {
+      out[i] = provided[i];
+    }
+    return out;
+  })();
+
+  const allMandatsTyped =
+    mandatsCount === 0 || mandatsTypes.every((t) => t !== null);
 
   const filledCount = ALL_FIELDS.filter((f) => fields[f] !== undefined).length;
   const totalCount = ALL_FIELDS.length;
   const missingCount = totalCount - filledCount;
 
-  const updateField = (key: FieldKey, value: string) => {
+  const updateField = (key: NumericFieldKey, value: string) => {
     setFields((prev) => {
       const next = { ...prev };
       if (value === "") {
@@ -103,8 +110,21 @@ export function ImportConfirmation({
     });
   };
 
+  const setMandatType = (index: number, type: MandatType) => {
+    setFields((prev) => {
+      const current = prev.mandatsTypes ?? [];
+      const total = prev.mandatsSignes ?? 0;
+      const next: MandatType[] = Array(total).fill("simple");
+      for (let i = 0; i < total; i++) {
+        next[i] = i === index ? type : (current[i] ?? "simple");
+      }
+      return { ...prev, mandatsTypes: next };
+    });
+  };
+
   const handleConfirm = () => {
-    onConfirm(fields, { mandats, informationsVente: arrays.informationsVente, acheteursChauds: acheteurs });
+    if (!allMandatsTyped) return;
+    onConfirm(fields, {});
   };
 
   return (
@@ -180,7 +200,7 @@ export function ImportConfirmation({
                     <input
                       type="number"
                       min={0}
-                      step={f === "chiffreAffaires" ? 100 : 1}
+                      step={f === "chiffreAffaires" || f === "chiffreAffairesCompromis" ? 100 : 1}
                       value={fields[f] ?? ""}
                       onChange={(e) => updateField(f, e.target.value)}
                       placeholder="—"
@@ -193,92 +213,51 @@ export function ImportConfirmation({
           </div>
         ))}
 
-        {/* Mandats detail */}
-        {mandats.length > 0 && (
+        {mandatsCount > 0 && (
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Détails mandats
+              Type de chaque mandat
             </p>
-            {mandats.map((m, i) => (
-              <div
-                key={i}
-                className="mb-2 rounded-xl border border-border bg-card p-3 space-y-2"
-              >
-                <p className="text-xs font-medium text-foreground">
-                  Mandat {i + 1}
-                </p>
-                <input
-                  type="text"
-                  placeholder="Nom du vendeur"
-                  value={m.nomVendeur}
-                  onChange={(e) => {
-                    const next = [...mandats];
-                    next[i] = { ...next[i], nomVendeur: e.target.value };
-                    setMandats(next);
-                  }}
-                  className="w-full rounded-lg border border-input bg-muted px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-                />
-                <div className="flex gap-2">
+            <div className="space-y-2">
+              {mandatsTypes.map((choice, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+                    choice === null
+                      ? "border-amber-500/40 bg-amber-500/5"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <span className="w-20 text-sm font-semibold text-foreground">
+                    Mandat {i + 1}
+                  </span>
                   {(["simple", "exclusif"] as const).map((t) => (
                     <button
                       key={t}
-                      onClick={() => {
-                        const next = [...mandats];
-                        next[i] = { ...next[i], type: t };
-                        setMandats(next);
-                      }}
-                      className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${
-                        m.type === t
-                          ? "bg-primary text-primary-foreground"
+                      type="button"
+                      onClick={() => setMandatType(i, t)}
+                      className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
+                        choice === t
+                          ? t === "exclusif"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-amber-500 text-white"
                           : "border border-border text-muted-foreground hover:bg-muted"
                       }`}
                     >
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                      {t === "exclusif" ? "Exclusif" : "Simple"}
                     </button>
                   ))}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {!allMandatsTyped && (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Choisis le type pour chaque mandat.
+              </p>
+            )}
           </div>
         )}
 
-        {/* Acheteurs detail */}
-        {acheteurs.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Acheteurs chauds
-            </p>
-            {acheteurs.map((a, i) => (
-              <div
-                key={i}
-                className="mb-2 rounded-xl border border-border bg-card p-3 space-y-2"
-              >
-                <input
-                  type="text"
-                  placeholder="Nom"
-                  value={a.nom}
-                  onChange={(e) => {
-                    const next = [...acheteurs];
-                    next[i] = { ...next[i], nom: e.target.value };
-                    setAcheteurs(next);
-                  }}
-                  className="w-full rounded-lg border border-input bg-muted px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-                />
-                <input
-                  type="text"
-                  placeholder="Commentaire"
-                  value={a.commentaire}
-                  onChange={(e) => {
-                    const next = [...acheteurs];
-                    next[i] = { ...next[i], commentaire: e.target.value };
-                    setAcheteurs(next);
-                  }}
-                  className="w-full rounded-lg border border-input bg-muted px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Actions */}
@@ -293,7 +272,7 @@ export function ImportConfirmation({
         </button>
         <button
           onClick={handleConfirm}
-          disabled={isSaving}
+          disabled={isSaving || !allMandatsTyped}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           {isSaving ? (

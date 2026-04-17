@@ -1,7 +1,7 @@
 // src/app/api/coach/confirm/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { selectReadingSignal, evaluatePrescription } from '@/lib/coach-decision-engine'
 import { PERSONA_COACHING_TONE, isValidPersona, DEFAULT_PERSONA } from '@/lib/personas'
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   const { session_id, confirmed } = await request.json()
   if (!session_id || !confirmed) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   // Idempotence
   const { data: session } = await supabase

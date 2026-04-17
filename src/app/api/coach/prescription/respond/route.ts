@@ -1,7 +1,7 @@
 // src/app/api/coach/prescription/respond/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth()
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   await supabase.from('coach_prescriptions').update({ user_response: response })
     .eq('id', prescription_id).eq('user_id', auth.user.id)

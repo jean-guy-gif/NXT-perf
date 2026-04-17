@@ -6,6 +6,7 @@ import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
+import { calculateDynamicProfile } from "@/lib/profile-calculator";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -33,23 +34,23 @@ function formatRelativeDate(iso: string): string {
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Tableau de bord",
-  "/resultats": "Mes Résultats",
-  "/performance": "Ma Performance",
-  "/comparaison": "Comparaison",
+  "/resultats": "Mon Volume d'Activité",
+  "/performance": "Mes Ratios de Transformation",
+  "/comparaison": "Ma Comparaison",
   "/formation": "Ma Formation",
-  "/objectifs": "Mes Objectifs",
-  "/manager/cockpit": "Cockpit Manager",
-  "/manager/gps": "GPS Équipe",
-  "/manager/equipe": "Équipe",
-  "/manager/classement": "Classement",
+  "/manager/cockpit": "Mon Tableau de Bord",
+  "/manager/equipe": "Mon Volume d'Activité",
+  "/manager/classement": "Mes Ratios de Transformation",
+  "/manager/comparaison": "Me Comparer",
+  "/manager/alertes": "Alertes",
   "/parametres": "Paramètres",
-  "/manager/formation-collective": "Formation Collective",
-  "/directeur/pilotage": "Pilotage Agence",
-  "/directeur/gps": "GPS Directeur",
-  "/directeur/equipes": "Équipes",
-  "/directeur/projection": "Projection",
-  "/directeur/pilotage-financier": "Pilotage financier",
-  "/directeur/formation-collective": "Formation Collective Agence",
+  "/manager/formation-collective": "Ma Formation Collective",
+  "/directeur/pilotage": "Mon Tableau de Bord",
+  "/directeur/equipes": "Mon Volume d'Activité",
+  "/directeur/performance": "Mes Ratios de Transformation",
+  "/directeur/comparaison": "Me Comparer",
+  "/directeur/formation-collective": "Ma Formation Collective",
+  "/directeur/pilotage-financier": "Pilotage Financier",
   "/coach/cockpit": "Cockpit Coach",
   "/reseau/dashboard": "Tableau de bord Réseau",
   "/admin/dpi": "Leads DPI",
@@ -143,16 +144,28 @@ export function Header() {
       <div className="flex h-16 items-center justify-between px-3 sm:px-6">
       <div className="flex items-center gap-4">
         <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-agency-primary">{pageTitle}</h1>
-        {user && (
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
-              CATEGORY_COLORS[user.category]
-            )}
-          >
-            {CATEGORY_LABELS[user.category]}
-          </span>
-        )}
+        {user && (() => {
+          const userResults = results.filter((r) => r.userId === user.id);
+          const dynamicLevel = calculateDynamicProfile(userResults, user.category);
+          const creationLevel = user.category;
+          const evolved = dynamicLevel !== creationLevel;
+          const progression = dynamicLevel === "expert" ? 2 : dynamicLevel === "confirme" ? 1 : 0;
+          const creation = creationLevel === "expert" ? 2 : creationLevel === "confirme" ? 1 : 0;
+
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", CATEGORY_COLORS[dynamicLevel])}>
+                {CATEGORY_LABELS[dynamicLevel]}
+                {evolved && (progression > creation ? " ↑" : " ↓")}
+              </span>
+              {evolved && (
+                <span className="text-[10px] text-muted-foreground italic">
+                  Inscrit en {CATEGORY_LABELS[creationLevel]}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="flex items-center gap-3">

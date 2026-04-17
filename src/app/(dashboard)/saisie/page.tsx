@@ -7,6 +7,7 @@ import { useWeeklyGate } from "@/hooks/use-weekly-gate";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { checkAndAwardBadges } from "@/lib/badge-service";
+import { updatePerformanceBadges } from "@/lib/performance-badge-service";
 import { useBadgeStore } from "@/stores/badge-store";
 
 export default function SaisiePage() {
@@ -47,11 +48,17 @@ export default function SaisiePage() {
             { avatar_url: profile?.avatar_url, agency_logo_url: profile?.agency_logo_url, coach_voice: profile?.coach_voice },
             { actesSignes: latestResult.ventes.actesSignes, chiffreAffaires: latestResult.ventes.chiffreAffaires },
             { mandatsSignes: latestResult.vendeurs.mandatsSignes },
-            { contactsEntrants: latestResult.prospection.contactsEntrants },
+            { contactsTotaux: latestResult.prospection.contactsTotaux },
           );
           if (newBadges.length > 0) {
             useBadgeStore.getState().queueCelebrations(newBadges);
           }
+        }
+
+        // Update performance badges (monthly, reversible)
+        const latestForPerf = results.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+        if (latestForPerf && user.category) {
+          await updatePerformanceBadges(supabase, user.id, latestForPerf, user.category);
         }
       } catch { /* best-effort */ }
     }

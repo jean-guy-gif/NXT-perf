@@ -65,17 +65,6 @@ export function deriveAvailableRoles(role: UserRole): UserRole[] {
   }
 }
 
-export type RemovalReason = "deale" | "abandonne";
-
-export interface RemovedItem {
-  id: string;
-  nom: string;
-  commentaire: string;
-  type: "info_vente" | "acheteur_chaud";
-  reason: RemovalReason;
-  removedAt: string;
-}
-
 export interface Institution {
   id: string;
   name: string;
@@ -112,7 +101,6 @@ interface AppState {
   users: User[];
   results: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
-  removedItems: RemovedItem[];
 
   // ── Onboarding (demo mode) ──
   institutions: Institution[];
@@ -175,11 +163,6 @@ interface AppState {
   unassignAgent: (agentId: string) => void;
   addResults: (result: PeriodResults) => void;
   setResults: (results: PeriodResults[]) => void;
-  updateInfoVenteStatut: (resultId: string, itemId: string, statut: "deale" | "abandonne") => void;
-  updateAcheteurChaudStatut: (resultId: string, itemId: string, statut: "deale" | "abandonne") => void;
-  markInfoVenteProfiled: (resultId: string, itemId: string) => void;
-  markAcheteurChaudProfiled: (resultId: string, itemId: string) => void;
-  markMandatProfiled: (resultId: string, itemId: string) => void;
   setRatioConfigs: (configs: Record<RatioId, RatioConfig>) => void;
   updateRatioThreshold: (
     ratioId: RatioId,
@@ -226,7 +209,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   users: [],
   results: [],
   ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
-  removedItems: [],
   institutions: [],
   teamInfos: [],
   networks: [],
@@ -321,7 +303,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       users: [],
       results: [],
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
-      removedItems: [],
       institutions: [],
       teamInfos: [],
       networks: [],
@@ -481,96 +462,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setResults: (results) => set({ results }),
-
-  updateInfoVenteStatut: (resultId, itemId, statut) => {
-    set((state) => ({
-      results: state.results.map((r) =>
-        r.id === resultId
-          ? {
-              ...r,
-              prospection: {
-                ...r.prospection,
-                informationsVente: (r.prospection?.informationsVente ?? []).map((i) =>
-                  i.id === itemId ? { ...i, statut } : i
-                ),
-              },
-            }
-          : r
-      ),
-    }));
-  },
-
-  updateAcheteurChaudStatut: (resultId, itemId, statut) => {
-    set((state) => ({
-      results: state.results.map((r) =>
-        r.id === resultId
-          ? {
-              ...r,
-              acheteurs: {
-                ...r.acheteurs,
-                acheteursChauds: (r.acheteurs?.acheteursChauds ?? []).map((i) =>
-                  i.id === itemId ? { ...i, statut } : i
-                ),
-              },
-            }
-          : r
-      ),
-    }));
-  },
-
-  markInfoVenteProfiled: (resultId, itemId) => {
-    set((state) => ({
-      results: state.results.map((r) =>
-        r.id === resultId
-          ? {
-              ...r,
-              prospection: {
-                ...r.prospection,
-                informationsVente: (r.prospection?.informationsVente ?? []).map((i) =>
-                  i.id === itemId ? { ...i, profiled: true } : i
-                ),
-              },
-            }
-          : r
-      ),
-    }));
-  },
-
-  markAcheteurChaudProfiled: (resultId, itemId) => {
-    set((state) => ({
-      results: state.results.map((r) =>
-        r.id === resultId
-          ? {
-              ...r,
-              acheteurs: {
-                ...r.acheteurs,
-                acheteursChauds: (r.acheteurs?.acheteursChauds ?? []).map((i) =>
-                  i.id === itemId ? { ...i, profiled: true } : i
-                ),
-              },
-            }
-          : r
-      ),
-    }));
-  },
-
-  markMandatProfiled: (resultId, itemId) => {
-    set((state) => ({
-      results: state.results.map((r) =>
-        r.id === resultId
-          ? {
-              ...r,
-              vendeurs: {
-                ...r.vendeurs,
-                mandats: (r.vendeurs?.mandats ?? []).map((m) =>
-                  m.id === itemId ? { ...m, profiled: true } : m
-                ),
-              },
-            }
-          : r
-      ),
-    }));
-  },
 
   setRatioConfigs: (configs) => set({ ratioConfigs: configs }),
 

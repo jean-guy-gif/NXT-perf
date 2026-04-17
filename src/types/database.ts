@@ -92,15 +92,8 @@ export interface DbPeriodResult {
   period_end: string;
   data: {
     prospection: {
-      contactsEntrants: number;
       contactsTotaux: number;
       rdvEstimation: number;
-      informationsVente: Array<{
-        id: string;
-        nom: string;
-        commentaire: string;
-        statut: "en_cours" | "deale" | "abandonne";
-      }>;
     };
     vendeurs: {
       rdvEstimation: number;
@@ -108,7 +101,6 @@ export interface DbPeriodResult {
       mandatsSignes: number;
       mandats: Array<{
         id: string;
-        nomVendeur: string;
         type: "simple" | "exclusif";
       }>;
       rdvSuivi: number;
@@ -116,21 +108,15 @@ export interface DbPeriodResult {
       baissePrix: number;
     };
     acheteurs: {
-      acheteursChauds: Array<{
-        id: string;
-        nom: string;
-        commentaire: string;
-        statut: "en_cours" | "deale" | "abandonne";
-      }>;
       acheteursSortisVisite: number;
       nombreVisites: number;
       offresRecues: number;
       compromisSignes: number;
+      chiffreAffairesCompromis: number;
     };
     ventes: {
       actesSignes: number;
       chiffreAffaires: number;
-      delaiMoyenVente: number;
     };
   };
   created_at: string;

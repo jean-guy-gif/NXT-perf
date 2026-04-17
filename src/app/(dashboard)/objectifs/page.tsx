@@ -68,24 +68,26 @@ const niveauOptions: (NiveauOption & { disabled?: boolean; disabledReason?: stri
   },
 ];
 
-const ratioLabels: Record<RatioId, string> = {
+const ratioLabels: Partial<Record<RatioId, string>> = {
   contacts_rdv: "Contacts → RDV Estimation",
-  estimations_mandats: "Estimations → Mandats",
+  rdv_mandats: "RDV → Mandats",
   pct_mandats_exclusifs: "% Mandats Exclusifs",
+  acheteurs_visites: "Acheteurs → Visites",
   visites_offre: "Visites → Offre",
   offres_compromis: "Offres → Compromis",
-  mandats_simples_vente: "Mandats simples / Vente",
-  mandats_exclusifs_vente: "Mandats exclusifs / Vente",
+  compromis_actes: "Compromis → Acte",
+  honoraires_moyens: "Honoraires moyens",
 };
 
 const ratioIds: RatioId[] = [
   "contacts_rdv",
-  "estimations_mandats",
+  "rdv_mandats",
   "pct_mandats_exclusifs",
+  "acheteurs_visites",
   "visites_offre",
   "offres_compromis",
-  "mandats_simples_vente",
-  "mandats_exclusifs_vente",
+  "compromis_actes",
+  "honoraires_moyens",
 ];
 
 const funnelSteps = [

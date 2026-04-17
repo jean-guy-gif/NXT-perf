@@ -3,160 +3,112 @@
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  ClipboardCheck,
-  FileSignature,
-  Handshake,
-  DollarSign,
-  TrendingUp,
-  Clock,
   Star,
   StarOff,
-  Eye,
-  FileText,
-  Gauge,
-  Phone,
-  X,
-  Archive,
-  CheckCircle2,
-  XCircle,
-  Info,
-  Flame,
-  ExternalLink,
-  Check,
   LayoutDashboard,
+  Link2,
+  Calendar,
 } from "lucide-react";
-import { KpiCard } from "@/components/dashboard/kpi-card";
-import { DonutChart } from "@/components/charts/donut-chart";
-import { LineChart } from "@/components/charts/line-chart";
-import { BarChart } from "@/components/charts/bar-chart";
+import { ProductionChain } from "@/components/dashboard/production-chain";
 import { ProgressBar } from "@/components/charts/progress-bar";
+import { usePlans, generatePlanFeedback } from "@/hooks/use-plans";
+import type { PlanWithMeta } from "@/hooks/use-plans";
 import { useUser } from "@/hooks/use-user";
-import { useResults } from "@/hooks/use-results";
+import { useResults, useAllResults } from "@/hooks/use-results";
 import { useYTDResults } from "@/hooks/use-ytd-results";
-import { useRatios } from "@/hooks/use-ratios";
 import { formatCurrency } from "@/lib/formatters";
-import { CATEGORY_LABELS, CATEGORY_COLORS, NXT_COLORS } from "@/lib/constants";
-import {
-  mockMonthlyCA,
-  mockWeeklyActivity,
-  mockMonthlyEstimations,
-  mockMonthlyMandats,
-  mockMonthlyCompromis,
-  mockMonthlyCAAnnuel,
-} from "@/data/mock-results";
-
-const emptyMonthlyData: Array<{ month: string; value: number }> = [];
-const emptyCAData: Array<{ month: string; ca: number }> = [];
-const emptyActivityData: Array<{ day: string; contacts: number; visites: number }> = [];
+import { CATEGORY_LABELS } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
 import { useWeeklyGate } from "@/hooks/use-weekly-gate";
 import { WeeklyGateWrapper } from "@/components/dashboard/weekly-gate-wrapper";
 import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
-import type { RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import { generateFormationDiagnostic } from "@/lib/formation";
-import { RecommandationBanner } from "@/components/dashboard/recommandation-banner";
-import { TrendIndicator } from "@/components/dashboard/trend-indicator";
-import { useAllResults } from "@/hooks/use-results";
-import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
-import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
-import { useDPIEvolution } from "@/hooks/use-dpi-evolution";
-import { initDemoDPISnapshot } from "@/lib/demo-dpi-init";
+import { aggregateResults } from "@/lib/aggregate-results";
 import { DemoSaisieGate } from "@/components/saisie/demo-saisie-gate";
 
-type DashboardTab = "overview" | "favoris" | "mois" | "suivi";
+// ── Types ──────────────────────────────────────────────────────
 
-// Widgets que le conseiller peut ajouter/retirer de ses favoris
-type WidgetId =
-  | "kpi_estimations"
-  | "kpi_mandats"
-  | "kpi_compromis"
-  | "kpi_ca"
-  | "donut_mandats"
-  | "stats_ca"
-  | "stats_exclusivite"
-  | "chart_evolution"
-  | "chart_activite"
-  | "profil"
-  | "performance";
+type DashboardTab = "chaine" | "favoris";
+type PeriodFilter = "ytd" | "mois" | "custom";
 
-interface WidgetConfig {
-  id: WidgetId;
+// Favorite items: 12 volume steps + 7 ratio steps
+type FavoriteId =
+  | "vol_1" | "vol_2" | "vol_3" | "vol_4" | "vol_5" | "vol_6"
+  | "vol_7" | "vol_8" | "vol_9" | "vol_10" | "vol_11" | "vol_12"
+  | "ratio_contacts_rdv" | "ratio_rdv_estim" | "ratio_estim_mandat"
+  | "ratio_exclusivite" | "ratio_visites_offre" | "ratio_offres_compromis"
+  | "ratio_compromis_acte";
+
+interface FavoriteConfig {
+  id: FavoriteId;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  zone: "kpi" | "left" | "right";
+  group: "volume" | "ratio";
 }
 
-const allWidgets: WidgetConfig[] = [
-  { id: "kpi_estimations", label: "Estimations réalisées", icon: ClipboardCheck, zone: "kpi" },
-  { id: "kpi_mandats", label: "Mandats signés", icon: FileSignature, zone: "kpi" },
-  { id: "kpi_compromis", label: "Compromis signés", icon: Handshake, zone: "kpi" },
-  { id: "kpi_ca", label: "Chiffre d'affaires", icon: DollarSign, zone: "kpi" },
-  { id: "donut_mandats", label: "Répartition mandats", icon: FileSignature, zone: "left" },
-  { id: "stats_ca", label: "CA Mensuel", icon: DollarSign, zone: "left" },
-  { id: "stats_exclusivite", label: "Taux exclusivité", icon: FileSignature, zone: "left" },
-  { id: "chart_evolution", label: "Évolution CA", icon: TrendingUp, zone: "left" },
-  { id: "chart_activite", label: "Activité hebdomadaire", icon: Eye, zone: "right" },
-  { id: "profil", label: "Mon profil", icon: Star, zone: "right" },
-  { id: "performance", label: "Performance globale", icon: Gauge, zone: "right" },
+const allFavoriteItems: FavoriteConfig[] = [
+  { id: "vol_1", label: "Contacts entrants", group: "volume" },
+  { id: "vol_2", label: "RDV Estimation", group: "volume" },
+  { id: "vol_3", label: "Estimations réalisées", group: "volume" },
+  { id: "vol_4", label: "Mandats signés", group: "volume" },
+  { id: "vol_5", label: "% Exclusivité", group: "volume" },
+  { id: "vol_6", label: "Acheteurs chauds", group: "volume" },
+  { id: "vol_7", label: "Visites réalisées", group: "volume" },
+  { id: "vol_8", label: "Offres reçues", group: "volume" },
+  { id: "vol_9", label: "Compromis signés", group: "volume" },
+  { id: "vol_10", label: "Actes signés", group: "volume" },
+  { id: "vol_11", label: "CA Compromis", group: "volume" },
+  { id: "vol_12", label: "CA Acte", group: "volume" },
+  { id: "ratio_contacts_rdv", label: "Contacts → RDV", group: "ratio" },
+  { id: "ratio_rdv_estim", label: "RDV → Estimation", group: "ratio" },
+  { id: "ratio_estim_mandat", label: "Estim. → Mandat", group: "ratio" },
+  { id: "ratio_exclusivite", label: "% Exclusivité", group: "ratio" },
+  { id: "ratio_visites_offre", label: "Visites → Offre", group: "ratio" },
+  { id: "ratio_offres_compromis", label: "Offres → Compromis", group: "ratio" },
+  { id: "ratio_compromis_acte", label: "Compromis → Acte", group: "ratio" },
 ];
 
-// KPI expansion config for monthly progression charts
-type ExpandableKpi = "estimations" | "mandats" | "compromis" | "ca";
-
-interface KpiChartConfig {
-  title: string;
-  data: Array<{ month: string; value: number }>;
-  color: string;
-  valueLabel: string;
-  isCurrency?: boolean;
-}
-
-function getKpiChartConfigs(isDemo: boolean): Record<ExpandableKpi, KpiChartConfig> {
-  return {
-    estimations: {
-      title: "Progression des Estimations — Mois par mois",
-      data: isDemo ? mockMonthlyEstimations : emptyMonthlyData,
-      color: NXT_COLORS.green,
-      valueLabel: "Estimations",
-    },
-    mandats: {
-      title: "Progression des Mandats signés — Mois par mois",
-      data: isDemo ? mockMonthlyMandats : emptyMonthlyData,
-      color: NXT_COLORS.blue,
-      valueLabel: "Mandats",
-    },
-    compromis: {
-      title: "Progression des Compromis signés — Mois par mois",
-      data: isDemo ? mockMonthlyCompromis : emptyMonthlyData,
-      color: NXT_COLORS.orange,
-      valueLabel: "Compromis",
-    },
-    ca: {
-      title: "Progression du Chiffre d'affaires — Mois par mois",
-      data: isDemo ? mockMonthlyCAAnnuel : emptyMonthlyData,
-      color: NXT_COLORS.green,
-      valueLabel: "CA (€)",
-      isCurrency: true,
-    },
-  };
-}
-
-const defaultFavorites: WidgetId[] = [
-  "kpi_estimations",
-  "kpi_mandats",
-  "kpi_compromis",
-  "kpi_ca",
-  "donut_mandats",
-  "stats_ca",
-  "stats_exclusivite",
-  "chart_evolution",
-  "chart_activite",
-  "profil",
-  "performance",
+const defaultFavorites: FavoriteId[] = [
+  "vol_3", "vol_4", "vol_9", "vol_12",
+  "ratio_estim_mandat", "ratio_visites_offre", "ratio_offres_compromis",
 ];
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+function safeDiv(a: number, b: number): number {
+  return b === 0 ? 0 : Math.round((a / b) * 10) / 10;
+}
+
+type RatioStatus = "surperf" | "stable" | "sousperf";
+
+function getRatioStatus(realise: number, objectif: number, isLowerBetter: boolean): RatioStatus {
+  if (objectif === 0) return "stable";
+  if (isLowerBetter) {
+    if (realise < objectif * 0.9) return "surperf";
+    if (realise > objectif * 1.1) return "sousperf";
+    return "stable";
+  }
+  if (realise > objectif * 1.1) return "surperf";
+  if (realise < objectif * 0.9) return "sousperf";
+  return "stable";
+}
+
+function getVolumeStatus(realise: number, objectif: number): RatioStatus {
+  if (objectif === 0) return "stable";
+  const pct = realise / objectif;
+  if (pct >= 1.1) return "surperf";
+  if (pct >= 0.9) return "stable";
+  return "sousperf";
+}
+
+const STATUS_STYLE = {
+  surperf: { text: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/30", label: "Surperf" },
+  stable: { text: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/30", label: "Stable" },
+  sousperf: { text: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30", label: "Sous-perf" },
+};
+
+// ── Page ──────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   return (
@@ -170,61 +122,152 @@ function DashboardContent() {
   const { user } = useUser();
   const results = useResults();
   const ytdResults = useYTDResults();
-  const { computedRatios, ratioConfigs } = useRatios();
-  const isDemo = useAppStore((s) => s.isDemo);
-  const { currentAxes: dpiAxes, currentGlobalScore: dpiScore } = useDPIEvolution();
-  const activeTools = useAppStore((s) => s.activeTools);
-  const { showGate, context: gateContext, isLoading: gateLoading, dismissGate, markSaisieDone, showResumeButton, reopenGate } = useWeeklyGate();
-  const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = usePersistedState<DashboardTab>(
-    "nxt-dashboard-tab",
-    "overview"
-  );
-  const [favorites, setFavorites] = usePersistedState<WidgetId[]>(
-    "nxt-dashboard-favorites",
-    defaultFavorites
-  );
-  const [editingFavorites, setEditingFavorites] = useState(false);
-  const [expandedKpi, setExpandedKpi] = useState<ExpandableKpi | null>(null);
-
-  const diagnostic = user
-    ? generateFormationDiagnostic(computedRatios, ratioConfigs, user.id)
-    : null;
-
   const allResultsData = useAllResults();
-  const previousResults = useMemo(() => {
-    if (!user) return null;
-    const userResults = allResultsData
-      .filter((r) => r.userId === user.id)
-      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
-    return userResults.length >= 2 ? userResults[1] : null;
-  }, [allResultsData, user]);
+  const isDemo = useAppStore((s) => s.isDemo);
+  const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const { showGate, context: gateContext, isLoading: gateLoading, dismissGate, markSaisieDone, showResumeButton, reopenGate } = useWeeklyGate();
+  const { allPlans, activePlans, terminatedPlans, expiredPlans, totalActions, doneActions, inProgressActions } = usePlans();
+  const searchParams = useSearchParams();
 
-  const kpiChartConfigs = useMemo(() => getKpiChartConfigs(isDemo), [isDemo]);
-  const monthlyCAData = isDemo ? mockMonthlyCA : emptyCAData;
-  const weeklyActivityData = isDemo ? mockWeeklyActivity : emptyActivityData;
+  const [activeTab, setActiveTab] = usePersistedState<DashboardTab>("nxt-dashboard-tab-v2", "chaine");
+  const [showPlansPanel, setShowPlansPanel] = useState(false);
+  const [periodFilter, setPeriodFilter] = usePersistedState<PeriodFilter>("nxt-chain-period", "mois");
+  const [favorites, setFavorites] = usePersistedState<FavoriteId[]>("nxt-dashboard-favorites-v2", defaultFavorites);
+  const [editingFavorites, setEditingFavorites] = useState(false);
 
-  const treatedCount = useMemo(() => {
-    if (!results) return 0;
-    const infoTraites = results.prospection.informationsVente.filter((i) => i.statut !== "en_cours").length;
-    const achetTraites = results.acheteurs.acheteursChauds.filter((i) => i.statut !== "en_cours").length;
-    return infoTraites + achetTraites;
-  }, [results]);
+  // Custom month range for "Par période" (whole months only)
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`; // "2026-04"
+  const [customMonthFrom, setCustomMonthFrom] = usePersistedState<string>("nxt-chain-mfrom", currentMonthKey);
+  const [customMonthTo, setCustomMonthTo] = usePersistedState<string>("nxt-chain-mto", currentMonthKey);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
 
-  // Allow navigation via ?tab=suivi (from notifications, etc.)
+  // Allow navigation via ?tab=...
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "suivi" || tab === "favoris" || tab === "mois" || tab === "overview") {
+    if (tab === "favoris" || tab === "chaine") {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, setActiveTab]);
 
-  // Init DPI demo snapshot
-  useEffect(() => {
-    if (isDemo && user?.id) {
-      initDemoDPISnapshot(user.id);
+  // Helper: count whole months between two "YYYY-MM" keys (inclusive)
+  const countMonths = (from: string, to: string): number => {
+    const [fy, fm] = from.split("-").map(Number);
+    const [ty, tm] = to.split("-").map(Number);
+    return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
+  };
+
+  // Helper: format "YYYY-MM" → "janvier 2026"
+  const fmtMonth = (key: string): string => {
+    const [y, m] = key.split("-").map(Number);
+    return new Date(y, m - 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  };
+
+  // Resolve period results
+  const periodResults = useMemo((): PeriodResults | null => {
+    if (!user) return null;
+    if (periodFilter === "ytd") return ytdResults;
+    if (periodFilter === "mois") return results;
+    // Custom: aggregate whole months in [customMonthFrom, customMonthTo]
+    const matching = allResultsData.filter((r) => {
+      if (r.userId !== user.id || r.periodType !== "month") return false;
+      const monthKey = r.periodStart.substring(0, 7); // "2026-02"
+      return monthKey >= customMonthFrom && monthKey <= customMonthTo;
+    });
+    return aggregateResults(matching);
+  }, [periodFilter, user, results, ytdResults, allResultsData, customMonthFrom, customMonthTo]);
+
+  // Period label
+  const periodLabel = useMemo(() => {
+    if (periodFilter === "ytd") return `Depuis le 1er janvier ${new Date().getFullYear()}`;
+    if (periodFilter === "mois") {
+      return new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
     }
-  }, [isDemo, user?.id]);
+    const n = countMonths(customMonthFrom, customMonthTo);
+    if (n === 1) return fmtMonth(customMonthFrom);
+    return `${fmtMonth(customMonthFrom)} → ${fmtMonth(customMonthTo)}`;
+  }, [periodFilter, customMonthFrom, customMonthTo]);
+
+  // Custom period month count for display
+  const customMonthCount = periodFilter === "custom" ? countMonths(customMonthFrom, customMonthTo) : 0;
+
+  // Month progress (for "mois" filter)
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const currentDay = now.getDate();
+  const monthProgressPct = Math.round((currentDay / daysInMonth) * 100);
+
+  // Number of months for objective scaling (whole months, no prorata)
+  const periodMonthCount = useMemo(() => {
+    if (periodFilter === "mois") return 1;
+    if (periodFilter === "ytd") return now.getMonth() + 1;
+    return countMonths(customMonthFrom, customMonthTo);
+  }, [periodFilter, customMonthFrom, customMonthTo]);
+
+  // Category (safe even when user is null)
+  const category = user?.category ?? "confirme";
+
+  // Favorite items data extraction from periodResults
+  const favData = useMemo(() => {
+    const r = periodResults;
+    const contacts = r?.prospection.contactsTotaux ?? 0;
+    const rdvEstim = r?.prospection.rdvEstimation ?? 0;
+    const estimations = r?.vendeurs.estimationsRealisees ?? 0;
+    const mandats = r?.vendeurs.mandatsSignes ?? 0;
+    const mandatsExclu = r?.vendeurs.mandats.filter((m) => m.type === "exclusif").length ?? 0;
+    const pctExclu = mandats > 0 ? Math.round((mandatsExclu / mandats) * 100) : 0;
+    const acheteursSortis = r?.acheteurs.acheteursSortisVisite ?? 0;
+    const visites = r?.acheteurs.nombreVisites ?? 0;
+    const offres = r?.acheteurs.offresRecues ?? 0;
+    const compromis = r?.acheteurs.compromisSignes ?? 0;
+    const actes = r?.ventes.actesSignes ?? 0;
+    const ca = r?.ventes.chiffreAffaires ?? 0;
+
+    const catObj = { debutant: { estimations: 8, mandats: 4, exclusivite: 30, visites: 20, offres: 3, compromis: 1, actes: 1, ca: 8000 }, confirme: { estimations: 15, mandats: 8, exclusivite: 50, visites: 30, offres: 5, compromis: 3, actes: 2, ca: 20000 }, expert: { estimations: 20, mandats: 12, exclusivite: 70, visites: 40, offres: 8, compromis: 5, actes: 4, ca: 40000 } }[category] ?? { estimations: 15, mandats: 8, exclusivite: 50, visites: 30, offres: 5, compromis: 3, actes: 2, ca: 20000 };
+
+    const m = periodMonthCount;
+
+    const volumes: Record<string, { label: string; realise: number; objectif: number; unit?: string }> = {
+      vol_1: { label: "Contacts totaux", realise: contacts, objectif: catObj.estimations * 15 * m },
+      vol_2: { label: "RDV Estimation", realise: rdvEstim, objectif: catObj.estimations * m },
+      vol_3: { label: "Estimations réalisées", realise: estimations, objectif: catObj.estimations * m },
+      vol_4: { label: "Mandats signés", realise: mandats, objectif: catObj.mandats * m },
+      vol_5: { label: "% Exclusivité", realise: pctExclu, objectif: catObj.exclusivite, unit: "%" },
+      vol_6: { label: "Acheteurs sortis", realise: acheteursSortis, objectif: catObj.mandats * 2 * m },
+      vol_7: { label: "Visites réalisées", realise: visites, objectif: catObj.visites * m },
+      vol_8: { label: "Offres reçues", realise: offres, objectif: catObj.offres * m },
+      vol_9: { label: "Compromis signés", realise: compromis, objectif: catObj.compromis * m },
+      vol_10: { label: "Actes signés", realise: actes, objectif: catObj.actes * m },
+      vol_11: { label: "CA Compromis", realise: compromis > 0 ? Math.round(ca * (compromis / Math.max(1, actes))) : 0, objectif: catObj.ca * m, unit: "€" },
+      vol_12: { label: "CA Acte", realise: ca, objectif: catObj.ca * m, unit: "€" },
+    };
+
+    const ratioThresholds = ratioConfigs;
+    const t = (id: string) => ratioThresholds[id as keyof typeof ratioThresholds]?.thresholds?.[category] ?? 0;
+
+    const ratios: Record<string, { label: string; realise: number; objectif: number; realisePct: number; objectifPct: number; isLowerBetter: boolean }> = {
+      ratio_contacts_rdv: { label: "Contacts → RDV", realise: safeDiv(contacts, rdvEstim), objectif: t("contacts_rdv"), realisePct: rdvEstim > 0 ? Math.round((rdvEstim / contacts) * 100) : 0, objectifPct: t("contacts_rdv") > 0 ? Math.round((1 / t("contacts_rdv")) * 100) : 0, isLowerBetter: true },
+      ratio_rdv_estim: { label: "RDV → Estimation", realise: safeDiv(rdvEstim, estimations), objectif: 1.5, realisePct: estimations > 0 ? Math.round((estimations / rdvEstim) * 100) : 0, objectifPct: 67, isLowerBetter: true },
+      ratio_estim_mandat: { label: "RDV → Mandat", realise: safeDiv(rdvEstim, mandats), objectif: t("rdv_mandats"), realisePct: mandats > 0 ? Math.round((mandats / rdvEstim) * 100) : 0, objectifPct: t("rdv_mandats") > 0 ? Math.round((1 / t("rdv_mandats")) * 100) : 0, isLowerBetter: true },
+      ratio_exclusivite: { label: "% Exclusivité", realise: pctExclu, objectif: t("pct_mandats_exclusifs"), realisePct: pctExclu, objectifPct: t("pct_mandats_exclusifs"), isLowerBetter: false },
+      ratio_visites_offre: { label: "Visites → Offre", realise: safeDiv(visites, offres), objectif: t("visites_offre"), realisePct: offres > 0 ? Math.round((offres / visites) * 100) : 0, objectifPct: t("visites_offre") > 0 ? Math.round((1 / t("visites_offre")) * 100) : 0, isLowerBetter: true },
+      ratio_offres_compromis: { label: "Offres → Compromis", realise: safeDiv(offres, compromis), objectif: t("offres_compromis"), realisePct: compromis > 0 ? Math.round((compromis / offres) * 100) : 0, objectifPct: t("offres_compromis") > 0 ? Math.round((1 / t("offres_compromis")) * 100) : 0, isLowerBetter: true },
+      ratio_compromis_acte: { label: "Compromis → Acte", realise: safeDiv(compromis, actes), objectif: 1.5, realisePct: actes > 0 ? Math.round((actes / compromis) * 100) : 0, objectifPct: 67, isLowerBetter: true },
+    };
+
+    return { volumes, ratios };
+  }, [periodResults, category, periodMonthCount, ratioConfigs]);
+
+  const toggleFavorite = (id: FavoriteId) => {
+    setFavorites((prev) => prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]);
+  };
+
+  // Demo saisie gate
+  const showDemoGate = isDemo
+    && searchParams.get("gate") === "1"
+    && typeof document !== "undefined"
+    && !document.cookie.includes("nxt-demo-saisie=true");
+
+  // ── Early returns (AFTER all hooks) ──
 
   if (!user) {
     return (
@@ -234,7 +277,17 @@ function DashboardContent() {
     );
   }
 
-  // Empty state for new users with no data
+  if (showDemoGate) {
+    return (
+      <DemoSaisieGate onComplete={() => { window.location.href = "/dashboard"; }} />
+    );
+  }
+
+  if (!gateLoading && showGate) {
+    return <WeeklyGateWrapper context={gateContext} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />;
+  }
+
+  // Empty state
   if (!results) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center px-4">
@@ -247,580 +300,247 @@ function DashboardContent() {
         <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-6">
           Commencez par saisir vos premiers résultats pour voir votre dashboard prendre vie.
         </p>
-        <a
-          href="/saisie"
-          className="inline-block rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
+        <a href="/saisie" className="inline-block rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
           Faire ma première saisie
         </a>
       </div>
     );
   }
 
-  const { prospection, vendeurs, acheteurs, ventes } = results;
-
-  const mandatData = [
-    {
-      name: "Exclusifs",
-      value: vendeurs.mandats.filter((m) => m.type === "exclusif").length,
-      color: NXT_COLORS.green,
-    },
-    {
-      name: "Simples",
-      value: vendeurs.mandats.filter((m) => m.type === "simple").length,
-      color: NXT_COLORS.yellow,
-    },
-  ];
-
-  const overallPerformance =
-    computedRatios.length > 0
-      ? Math.round(
-          computedRatios.reduce((acc, r) => acc + r.percentageOfTarget, 0) /
-            computedRatios.length
-        )
-      : 0;
-
-  const exclusiviteRate =
-    vendeurs.mandats.length > 0
-      ? Math.round(
-          (vendeurs.mandats.filter((m) => m.type === "exclusif").length /
-            vendeurs.mandats.length) *
-            100
-        )
-      : 0;
-
-  // ── YTD (year-to-date) data for Vue d'ensemble ──
-  const ytd = ytdResults ?? results;
-  const ytdVendeurs = ytd.vendeurs;
-  const ytdAcheteurs = ytd.acheteurs;
-  const ytdVentes = ytd.ventes;
-
-  const ytdMandatData = [
-    {
-      name: "Exclusifs",
-      value: ytdVendeurs.mandats.filter((m) => m.type === "exclusif").length,
-      color: NXT_COLORS.green,
-    },
-    {
-      name: "Simples",
-      value: ytdVendeurs.mandats.filter((m) => m.type === "simple").length,
-      color: NXT_COLORS.yellow,
-    },
-  ];
-
-  const ytdExclusiviteRate =
-    ytdVendeurs.mandats.length > 0
-      ? Math.round(
-          (ytdVendeurs.mandats.filter((m) => m.type === "exclusif").length /
-            ytdVendeurs.mandats.length) *
-            100
-        )
-      : 0;
-
-  const isVisible = (id: WidgetId) => favorites.includes(id);
-
-  const toggleFavorite = (id: WidgetId) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-    );
-  };
-
-  // For "Ce mois" tab: compute current month data
-  const now = new Date();
-  const currentMonthLabel = now.toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  });
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const currentDay = now.getDate();
-  const monthProgressPct = Math.round((currentDay / daysInMonth) * 100);
-
-  // Projected values based on current pace
-  const projectedCA =
-    currentDay > 0
-      ? Math.round((ventes.chiffreAffaires / currentDay) * daysInMonth)
-      : 0;
-  const projectedActes =
-    currentDay > 0
-      ? Math.round(((ventes.actesSignes / currentDay) * daysInMonth) * 10) / 10
-      : 0;
-
-  // Demo saisie simulation — shown when ?gate=1 in demo mode
-  const showDemoGate = isDemo
-    && searchParams.get("gate") === "1"
-    && typeof document !== "undefined"
-    && !document.cookie.includes("nxt-demo-saisie=true");
-
-  if (showDemoGate) {
-    return (
-      <DemoSaisieGate onComplete={() => {
-        // Remove ?gate=1 from URL and reload
-        window.location.href = "/dashboard";
-      }} />
-    );
-  }
-
-  // WeeklyGate fullscreen — rendu AVANT le dashboard, bloque tout le reste
-  if (!gateLoading && showGate) {
-    return (
-      <WeeklyGateWrapper context={gateContext} onDismiss={dismissGate} onSaisieDone={markSaisieDone} />
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Top navigation tabs */}
-      <div className="flex items-center border-b border-border pb-3">
-        <div className="flex items-center gap-6">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={cn(
-            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-            activeTab === "overview"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <TrendingUp className="h-4 w-4" />
-          Vue d&apos;ensemble
-        </button>
-        <button
-          onClick={() => setActiveTab("favoris")}
-          className={cn(
-            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-            activeTab === "favoris"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Star className="h-4 w-4" />
-          Favoris
-        </button>
-        <button
-          onClick={() => setActiveTab("mois")}
-          className={cn(
-            "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-            activeTab === "mois"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Clock className="h-4 w-4" />
-          Ce mois
-        </button>
-        <button
-          onClick={() => setActiveTab("suivi")}
-          className={cn(
-            "relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-            activeTab === "suivi"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Archive className="h-4 w-4" />
-          Suivi contacts
-          {treatedCount > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-              {treatedCount}
-            </span>
-          )}
-        </button>
+      {/* ── Top tabs ── */}
+      <div className="flex items-center border-b border-border/50 pb-3">
+        <div className="flex items-center gap-8">
+          <button
+            onClick={() => setActiveTab("chaine")}
+            className={cn(
+              "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+              activeTab === "chaine"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Link2 className="h-4 w-4" />
+            Chaîne de production
+          </button>
+          <button
+            onClick={() => setActiveTab("favoris")}
+            className={cn(
+              "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+              activeTab === "favoris"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Star className="h-4 w-4" />
+            Favoris
+          </button>
         </div>
         {showResumeButton && (
-          <button
-            type="button"
-            onClick={reopenGate}
-            className="ml-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-          >
+          <button type="button" onClick={reopenGate}
+            className="ml-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors">
             Compléter ma saisie
           </button>
         )}
       </div>
 
-      {/* ========== RECOMMANDATION BANNER ========== */}
-      {diagnostic && diagnostic.recommendations.length > 0 && (
-        <RecommandationBanner
-          recommendations={diagnostic.recommendations}
-          ratioConfigs={ratioConfigs}
-          maxItems={2}
-          variant="compact"
-          scope="conseiller"
-        />
-      )}
-
-      {/* ========== KPI EXPANSION PANEL ========== */}
-      {expandedKpi && (
-        <div className="rounded-xl border border-primary/30 bg-card p-6 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">
-              {kpiChartConfigs[expandedKpi].title}
-            </h3>
-            <button
-              onClick={() => setExpandedKpi(null)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <BarChart
-            data={kpiChartConfigs[expandedKpi].data}
-            xKey="month"
-            bars={[
-              {
-                dataKey: "value",
-                color: kpiChartConfigs[expandedKpi].color,
-                name: kpiChartConfigs[expandedKpi].valueLabel,
-              },
-            ]}
-            height={300}
-          />
-          {/* Summary stats */}
-          {kpiChartConfigs[expandedKpi].data.length > 0 ? (
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              <div className="rounded-lg bg-muted/50 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Moyenne 12 mois</p>
-                <p className="mt-1 text-lg font-bold text-foreground">
-                  {kpiChartConfigs[expandedKpi].isCurrency
-                    ? formatCurrency(
-                        Math.round(
-                          kpiChartConfigs[expandedKpi].data.reduce((s, d) => s + d.value, 0) /
-                            kpiChartConfigs[expandedKpi].data.length
-                        )
-                      )
-                    : (
-                        kpiChartConfigs[expandedKpi].data.reduce((s, d) => s + d.value, 0) /
-                        kpiChartConfigs[expandedKpi].data.length
-                      ).toFixed(1)}
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Maximum</p>
-                <p className="mt-1 text-lg font-bold text-green-500">
-                  {kpiChartConfigs[expandedKpi].isCurrency
-                    ? formatCurrency(
-                        Math.max(...kpiChartConfigs[expandedKpi].data.map((d) => d.value))
-                      )
-                    : Math.max(...kpiChartConfigs[expandedKpi].data.map((d) => d.value))}
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Mois en cours</p>
-                <p className="mt-1 text-lg font-bold text-primary">
-                  {kpiChartConfigs[expandedKpi].isCurrency
-                    ? formatCurrency(
-                        kpiChartConfigs[expandedKpi].data[kpiChartConfigs[expandedKpi].data.length - 1].value
-                      )
-                    : kpiChartConfigs[expandedKpi].data[kpiChartConfigs[expandedKpi].data.length - 1].value}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Aucune donnée historique disponible.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ========== TAB: VUE D'ENSEMBLE ========== */}
-      {activeTab === "overview" && (
+      {/* ═══ Bandeau Mes plans — cliquable ═══ */}
+      {allPlans.length > 0 && (
         <>
-          {/* YTD period label */}
-          <p className="text-sm text-muted-foreground">
-            Cumul depuis le 1er janvier {new Date().getFullYear()}
-          </p>
-
-          {/* KPI Cards Row */}
-          <div data-tour="kpi-cards" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              title="Estimations réalisées"
-              value={ytdVendeurs.estimationsRealisees}
-              trend={{ value: 12.5, isPositive: true }}
-              icon={ClipboardCheck}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "estimations" ? null : "estimations")}
-            />
-            <KpiCard
-              title="Mandats signés"
-              value={ytdVendeurs.mandatsSignes}
-              trend={{ value: 8.3, isPositive: true }}
-              icon={FileSignature}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "mandats" ? null : "mandats")}
-            />
-            <KpiCard
-              title="Compromis signés"
-              value={ytdAcheteurs.compromisSignes}
-              trend={{ value: 4.5, isPositive: true }}
-              icon={Handshake}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "compromis" ? null : "compromis")}
-            />
-            <KpiCard
-              title="Chiffre d'affaires"
-              value={formatCurrency(ytdVentes.chiffreAffaires)}
-              trend={{ value: 15.2, isPositive: true }}
-              icon={DollarSign}
-              status="ok"
-              onExpand={() => setExpandedKpi(expandedKpi === "ca" ? null : "ca")}
-            />
-          </div>
-
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Left Column */}
-            <div className="space-y-6 lg:col-span-2">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {/* Donut */}
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <h3 className="mb-4 font-semibold text-foreground">
-                    Répartition des mandats
-                  </h3>
-                  <DonutChart
-                    data={ytdMandatData}
-                    centerValue={`${ytdVendeurs.mandatsSignes}`}
-                    centerLabel="Mandats"
-                    height={220}
-                  />
-                  <div className="mt-3 flex justify-center gap-4">
-                    {ytdMandatData.map((d) => (
-                      <div key={d.name} className="flex items-center gap-2">
-                        <div
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: d.color }}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {d.name}: {d.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Stats cards */}
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-border bg-card p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/20">
-                        <DollarSign className="h-5 w-5 text-green-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          CA Cumulé
-                        </p>
-                        <p className="text-xl font-bold text-foreground">
-                          {formatCurrency(ytdVentes.chiffreAffaires)}
-                        </p>
-                      </div>
-                      <span className="ml-auto rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-500">
-                        +4,5%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-card p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/20">
-                        <FileSignature className="h-5 w-5 text-yellow-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Taux d&apos;exclusivité
-                        </p>
-                        <p className="text-xl font-bold text-foreground">
-                          {ytdExclusiviteRate}%
-                        </p>
-                      </div>
-                    </div>
-                    <ProgressBar
-                      value={ytdExclusiviteRate}
-                      status="ok"
-                      size="sm"
-                      showValue={false}
-                      className="mt-3"
-                    />
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Evolution CA */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <h3 className="mb-4 font-semibold text-foreground">
-                  Évolution du CA
-                </h3>
-                <LineChart
-                  data={monthlyCAData}
-                  xKey="month"
-                  lines={[
-                    { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
-                  ]}
-                  height={200}
-                  showGrid
-                />
+          <button
+            type="button"
+            onClick={() => setShowPlansPanel(!showPlansPanel)}
+            className="w-full flex items-center justify-between border border-primary/20 bg-primary/5 px-5 py-3 hover:bg-primary/8 transition-all text-left"
+            style={{ borderRadius: "var(--radius-card)" }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-base">{"\uD83D\uDCC5"}</span>
+              <div>
+                <p className="text-xs font-bold text-foreground">
+                  {activePlans.length > 0 && <>{activePlans.length} plan{activePlans.length > 1 ? "s" : ""} actif{activePlans.length > 1 ? "s" : ""}</>}
+                  {activePlans.length > 0 && (terminatedPlans.length > 0 || expiredPlans.length > 0) && " · "}
+                  {terminatedPlans.length > 0 && <span className="text-green-500">{terminatedPlans.length} {"terminé"}{terminatedPlans.length > 1 ? "s" : ""}</span>}
+                  {expiredPlans.length > 0 && <span className="text-amber-500"> · {expiredPlans.length} {"expiré"}{expiredPlans.length > 1 ? "s" : ""}</span>}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {doneActions}/{totalActions} actions · {showPlansPanel ? "Cliquez pour fermer" : "Cliquez pour voir tous vos plans"}
+                </p>
               </div>
             </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* Profile */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 text-lg font-bold text-primary">
-                    {user.firstName[0]}
-                    {user.lastName[0]}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">
-                      {user.firstName} {user.lastName}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Dernière activité : aujourd&apos;hui
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      CATEGORY_COLORS[user.category]
-                    )}
-                  >
-                    {CATEGORY_LABELS[user.category]}
-                  </span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-green-500/10 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      <span className="text-green-500">CA cumulé</span>
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-green-500">
-                      {formatCurrency(ytdVentes.chiffreAffaires)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-red-500/10 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      <span className="text-red-500">Objectif annuel</span>
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-red-500">
-                      {formatCurrency(120000)}
-                    </p>
-                  </div>
+            <div className="flex items-center gap-4">
+              <div className="w-28">
+                <div className="h-2 rounded-full bg-border/30 overflow-hidden">
+                  <div className="h-full rounded-full bg-green-500 transition-all duration-500" style={{ width: `${totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%` }} />
                 </div>
               </div>
-
-              {/* Activity */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <h3 className="mb-4 font-semibold text-foreground">
-                  Activité hebdomadaire
-                </h3>
-                <LineChart
-                  data={weeklyActivityData}
-                  xKey="day"
-                  lines={[
-                    { dataKey: "contacts", color: NXT_COLORS.green, name: "Contacts" },
-                    { dataKey: "visites", color: NXT_COLORS.yellow, name: "Visites" },
-                  ]}
-                  height={180}
-                />
-                <div className="mt-3 flex justify-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <span className="text-xs text-muted-foreground">
-                      Contacts
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                    <span className="text-xs text-muted-foreground">
-                      Visites
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Performance */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <h3 className="mb-4 font-semibold text-foreground">
-                  Performance globale
-                </h3>
-                <div className="mb-2 text-center">
-                  <span className="text-3xl font-bold text-primary">
-                    {overallPerformance}%
-                  </span>
-                  <p className="text-xs text-muted-foreground">
-                    de vos objectifs
-                  </p>
-                </div>
-                <ProgressBar
-                  value={overallPerformance}
-                  status={
-                    overallPerformance >= 80
-                      ? "ok"
-                      : overallPerformance >= 60
-                        ? "warning"
-                        : "danger"
-                  }
-                  showValue={false}
-                  size="lg"
-                />
-                <div className="mt-4 space-y-2">
-                  {computedRatios.slice(0, 4).map((ratio) => {
-                    const config = ratioConfigs[ratio.ratioId as RatioId];
-                    return (
-                      <div
-                        key={ratio.ratioId}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-muted-foreground truncate mr-2">
-                          {config?.name ?? ratio.ratioId}
-                        </span>
-                        <span
-                          className={cn(
-                            "font-medium shrink-0",
-                            ratio.status === "ok"
-                              ? "text-green-500"
-                              : ratio.status === "warning"
-                                ? "text-orange-500"
-                                : "text-red-500"
-                          )}
-                        >
-                          {ratio.percentageOfTarget}%
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <span className="text-xs font-bold text-primary tabular-nums">
+                {totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%
+              </span>
             </div>
-          </div>
+          </button>
 
-          {/* ═══ DPI Évolution ═══ */}
-          {(user?.role === "conseiller" || isDemo) && (
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="text-lg">{"\u{1F3AF}"}</span>
-                <h2 className="font-semibold text-foreground">Mon Diagnostic de Performance</h2>
-              </div>
-              <DPIEvolutionCard />
-              {dpiAxes.length > 0 && (
-                <DPIProjectionsCard currentAxes={dpiAxes} currentGlobalScore={dpiScore} activeTools={activeTools} />
+          {/* ═══ Panneau Mes plans ═══ */}
+          {showPlansPanel && (
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-sm font-bold text-foreground">Mes plans 30 jours</h3>
+
+              {/* Plans actifs */}
+              {activePlans.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{"Actifs"}</p>
+                  {activePlans.map((m) => <PlanCard key={m.ratioId} meta={m} />)}
+                </div>
+              )}
+
+              {/* Plans terminés */}
+              {terminatedPlans.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-green-500 uppercase tracking-wider">{"Terminés"}</p>
+                  {terminatedPlans.map((m) => <PlanCard key={m.ratioId} meta={m} />)}
+                </div>
+              )}
+
+              {/* Plans expirés */}
+              {expiredPlans.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">{"Expirés"}</p>
+                  {expiredPlans.map((m) => <PlanCard key={m.ratioId} meta={m} />)}
+                </div>
               )}
             </div>
           )}
         </>
       )}
 
-      {/* ========== TAB: FAVORIS ========== */}
+      {/* ═══════ TAB: CHAÎNE DE PRODUCTION ═══════ */}
+      {activeTab === "chaine" && (
+        <div className="space-y-4">
+          {/* Period selector + context bar */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-primary/15 bg-primary/5 px-5 py-3.5" style={{ borderRadius: "var(--radius-card)" }}>
+            <div className="flex items-center gap-3">
+              <Calendar className="h-4.5 w-4.5 text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground capitalize">{periodLabel}</p>
+                {periodFilter === "mois" && (
+                  <p className="text-xs text-muted-foreground">
+                    Jour {currentDay}/{daysInMonth} — {monthProgressPct}% du mois
+                  </p>
+                )}
+                {periodFilter === "ytd" && (
+                  <p className="text-xs text-muted-foreground">
+                    {now.getMonth() + 1} mois cumulés — profil {CATEGORY_LABELS[category]}
+                  </p>
+                )}
+                {periodFilter === "custom" && (
+                  <p className="text-xs text-muted-foreground">
+                    {customMonthCount} mois — profil {CATEGORY_LABELS[category]}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {/* Period pills */}
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
+                <button
+                  onClick={() => { setPeriodFilter("ytd"); setShowCustomPicker(false); }}
+                  className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    periodFilter === "ytd" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                >
+                  Depuis le début de l&apos;année
+                </button>
+                <button
+                  onClick={() => { setPeriodFilter("mois"); setShowCustomPicker(false); }}
+                  className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    periodFilter === "mois" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                >
+                  Ce mois-ci
+                </button>
+                <button
+                  onClick={() => { setPeriodFilter("custom"); setShowCustomPicker((v) => !v); }}
+                  className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    periodFilter === "custom" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                >
+                  Par période
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom month range picker */}
+          {periodFilter === "custom" && showCustomPicker && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                De
+                <input
+                  type="month"
+                  value={customMonthFrom}
+                  onChange={(e) => {
+                    setCustomMonthFrom(e.target.value);
+                    if (e.target.value > customMonthTo) setCustomMonthTo(e.target.value);
+                  }}
+                  className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                à
+                <input
+                  type="month"
+                  value={customMonthTo}
+                  onChange={(e) => setCustomMonthTo(e.target.value)}
+                  min={customMonthFrom}
+                  className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+                {customMonthCount} mois
+              </span>
+            </div>
+          )}
+
+          {/* Month progress bar for "mois" */}
+          {periodFilter === "mois" && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground shrink-0">Progression du mois</span>
+              <div className="flex-1">
+                <ProgressBar value={monthProgressPct} status="ok" showValue size="sm" />
+              </div>
+            </div>
+          )}
+
+          {/* ═══ PRODUCTION CHAIN ═══ */}
+          <ProductionChain
+            scope="individual"
+            userId={user.id}
+            resultsOverride={periodResults}
+            periodMonths={periodMonthCount}
+            periodMode={periodFilter === "ytd" ? "ytd" : periodFilter === "mois" ? "mois" : "custom"}
+          />
+        </div>
+      )}
+
+      {/* ═══════ TAB: FAVORIS ═══════ */}
       {activeTab === "favoris" && (
         <div className="space-y-6">
-          {/* Edit toggle */}
+          {/* Period selector (same as chain) */}
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {editingFavorites
-                ? "Cliquez sur les widgets pour les ajouter ou retirer"
-                : "Votre tableau de bord personnalisé"}
-            </p>
+            <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <button onClick={() => { setPeriodFilter("ytd"); setShowCustomPicker(false); }}
+                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  periodFilter === "ytd" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                Depuis le début de l&apos;année
+              </button>
+              <button onClick={() => { setPeriodFilter("mois"); setShowCustomPicker(false); }}
+                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  periodFilter === "mois" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                Ce mois-ci
+              </button>
+              <button onClick={() => { setPeriodFilter("custom"); setShowCustomPicker((v) => !v); }}
+                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  periodFilter === "custom" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                Par période
+              </button>
+            </div>
             <button
               onClick={() => setEditingFavorites(!editingFavorites)}
               className={cn(
@@ -830,720 +550,285 @@ function DashboardContent() {
                   : "border border-border text-foreground hover:bg-muted"
               )}
             >
-              {editingFavorites ? (
-                <>
-                  <Star className="h-4 w-4" />
-                  Terminer
-                </>
-              ) : (
-                <>
-                  <Star className="h-4 w-4" />
-                  Personnaliser
-                </>
-              )}
+              {editingFavorites ? <><Star className="h-4 w-4" /> Terminer</> : <><Star className="h-4 w-4" /> Personnaliser</>}
             </button>
           </div>
 
-          {/* Editing mode: widget picker */}
+          {/* Edit mode: picker */}
           {editingFavorites && (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-foreground">
-                Sélectionnez vos widgets ({favorites.length}/{allWidgets.length})
-              </h3>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {allWidgets.map((w) => {
-                  const active = favorites.includes(w.id);
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-4">
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Volumes ({favorites.filter((f) => f.startsWith("vol_")).length}/12)
+                </h3>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {allFavoriteItems.filter((f) => f.group === "volume").map((w) => {
+                    const active = favorites.includes(w.id);
+                    return (
+                      <button key={w.id} onClick={() => toggleFavorite(w.id)}
+                        className={cn("flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors",
+                          active ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted")}>
+                        {active ? <Star className="h-3.5 w-3.5 shrink-0 text-primary fill-primary" /> : <StarOff className="h-3.5 w-3.5 shrink-0" />}
+                        <span className="truncate">{w.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Ratios ({favorites.filter((f) => f.startsWith("ratio_")).length}/7)
+                </h3>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {allFavoriteItems.filter((f) => f.group === "ratio").map((w) => {
+                    const active = favorites.includes(w.id);
+                    return (
+                      <button key={w.id} onClick={() => toggleFavorite(w.id)}
+                        className={cn("flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors",
+                          active ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted")}>
+                        {active ? <Star className="h-3.5 w-3.5 shrink-0 text-primary fill-primary" /> : <StarOff className="h-3.5 w-3.5 shrink-0" />}
+                        <span className="truncate">{w.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Period label */}
+          <p className="text-xs text-muted-foreground capitalize">{periodLabel} — profil {CATEGORY_LABELS[category]}</p>
+
+          {/* Favorite cards */}
+          {favorites.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {favorites.map((fid) => {
+                const isVolume = fid.startsWith("vol_");
+                if (isVolume) {
+                  const vol = favData.volumes[fid];
+                  if (!vol) return null;
+                  const status = vol.unit === "%" ? getRatioStatus(vol.realise, vol.objectif, false) : getVolumeStatus(vol.realise, vol.objectif);
+                  const s = STATUS_STYLE[status];
+                  const delta = vol.realise - vol.objectif;
+                  const fmtVal = (v: number) => vol.unit === "€" ? formatCurrency(v) : vol.unit === "%" ? `${v}%` : String(v);
+
                   return (
-                    <button
-                      key={w.id}
-                      onClick={() => toggleFavorite(w.id)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors",
-                        active
-                          ? "border-primary/50 bg-primary/10 text-foreground"
-                          : "border-border bg-card text-muted-foreground hover:border-border hover:bg-muted"
-                      )}
-                    >
-                      {active ? (
-                        <Star className="h-4 w-4 shrink-0 text-primary fill-primary" />
-                      ) : (
-                        <StarOff className="h-4 w-4 shrink-0" />
-                      )}
-                      <span className="truncate">{w.label}</span>
-                    </button>
+                    <div key={fid} className={cn("border p-4 space-y-2.5", s.border, s.bg)} style={{ borderRadius: "var(--radius-card)", boxShadow: "var(--shadow-1)" }}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-foreground">{vol.label}</p>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", s.text, s.bg)}>{s.label}</span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-2xl font-extrabold text-foreground tracking-tight tabular-nums">{fmtVal(vol.realise)}</span>
+                        <div className="text-right">
+                          <span className="text-[10px] text-muted-foreground">obj. {fmtVal(vol.objectif)}</span>
+                          <p className={cn("text-xs font-bold tabular-nums", s.text)}>
+                            {delta >= 0 ? "+" : ""}{fmtVal(delta)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   );
-                })}
-              </div>
-            </div>
-          )}
+                }
 
-          {/* Favorite KPIs */}
-          {(isVisible("kpi_estimations") ||
-            isVisible("kpi_mandats") ||
-            isVisible("kpi_compromis") ||
-            isVisible("kpi_ca")) && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {isVisible("kpi_estimations") && (
-                <KpiCard
-                  title="Estimations réalisées"
-                  value={vendeurs.estimationsRealisees}
-                  icon={ClipboardCheck}
-                  status="ok"
-                  onExpand={() => setExpandedKpi(expandedKpi === "estimations" ? null : "estimations")}
-                />
-              )}
-              {isVisible("kpi_mandats") && (
-                <KpiCard
-                  title="Mandats signés"
-                  value={vendeurs.mandatsSignes}
-                  icon={FileSignature}
-                  status="ok"
-                  onExpand={() => setExpandedKpi(expandedKpi === "mandats" ? null : "mandats")}
-                />
-              )}
-              {isVisible("kpi_compromis") && (
-                <KpiCard
-                  title="Compromis signés"
-                  value={acheteurs.compromisSignes}
-                  icon={Handshake}
-                  status="ok"
-                  onExpand={() => setExpandedKpi(expandedKpi === "compromis" ? null : "compromis")}
-                />
-              )}
-              {isVisible("kpi_ca") && (
-                <KpiCard
-                  title="Chiffre d'affaires"
-                  value={formatCurrency(ventes.chiffreAffaires)}
-                  icon={DollarSign}
-                  status="ok"
-                  onExpand={() => setExpandedKpi(expandedKpi === "ca" ? null : "ca")}
-                />
-              )}
-            </div>
-          )}
+                // Ratio card
+                const ratio = favData.ratios[fid];
+                if (!ratio) return null;
+                const status = getRatioStatus(ratio.realise, ratio.objectif, ratio.isLowerBetter);
+                const s = STATUS_STYLE[status];
 
-          {/* Favorite widgets grid */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              {isVisible("donut_mandats") && (
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <h3 className="mb-4 font-semibold text-foreground">
-                    Répartition des mandats
-                  </h3>
-                  <DonutChart
-                    data={mandatData}
-                    centerValue={`${vendeurs.mandatsSignes}`}
-                    centerLabel="Mandats"
-                    height={220}
-                  />
-                  <div className="mt-3 flex justify-center gap-4">
-                    {mandatData.map((d) => (
-                      <div key={d.name} className="flex items-center gap-2">
-                        <div
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: d.color }}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {d.name}: {d.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {isVisible("chart_evolution") && (
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <h3 className="mb-4 font-semibold text-foreground">
-                    Évolution du CA
-                  </h3>
-                  <LineChart
-                    data={monthlyCAData}
-                    xKey="month"
-                    lines={[
-                      { dataKey: "ca", color: NXT_COLORS.green, name: "CA (€)" },
-                    ]}
-                    height={200}
-                    showGrid
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {isVisible("stats_ca") && (
-                  <div className="rounded-xl border border-border bg-card p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/20">
-                        <DollarSign className="h-5 w-5 text-green-500" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">CA</p>
-                        <p className="text-lg font-bold text-foreground">
-                          {formatCurrency(ventes.chiffreAffaires)}
-                        </p>
-                      </div>
+                return (
+                  <div key={fid} className={cn("border p-4 space-y-2.5", s.border, s.bg)} style={{ borderRadius: "var(--radius-card)", boxShadow: "var(--shadow-1)" }}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-foreground">{ratio.label}</p>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", s.text, s.bg)}>{s.label}</span>
                     </div>
-                  </div>
-                )}
-                {isVisible("stats_exclusivite") && (
-                  <div className="rounded-xl border border-border bg-card p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/20">
-                        <FileSignature className="h-5 w-5 text-yellow-500" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Exclusivité
-                        </p>
-                        <p className="text-lg font-bold text-foreground">
-                          {exclusiviteRate}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {isVisible("chart_activite") && (
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <h3 className="mb-4 font-semibold text-foreground">
-                    Activité hebdomadaire
-                  </h3>
-                  <LineChart
-                    data={weeklyActivityData}
-                    xKey="day"
-                    lines={[
-                      {
-                        dataKey: "contacts",
-                        color: NXT_COLORS.green,
-                        name: "Contacts",
-                      },
-                      {
-                        dataKey: "visites",
-                        color: NXT_COLORS.yellow,
-                        name: "Visites",
-                      },
-                    ]}
-                    height={180}
-                  />
-                </div>
-              )}
-
-              {isVisible("performance") && (
-                <div className="rounded-xl border border-border bg-card p-5">
-                  <h3 className="mb-4 font-semibold text-foreground">
-                    Performance globale
-                  </h3>
-                  <div className="mb-2 text-center">
-                    <span className="text-3xl font-bold text-primary">
-                      {overallPerformance}%
-                    </span>
+                    <p className="text-sm text-foreground">
+                      {"Réalisé : "}<span className="font-bold tabular-nums">{ratio.realise}</span> pour 1
+                      {ratio.realisePct > 0 && <span className="text-muted-foreground"> · {ratio.realisePct}%</span>}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      de vos objectifs
+                      Obj. {CATEGORY_LABELS[category]} : {ratio.objectif} pour 1
+                      {ratio.objectifPct > 0 && <span> · {ratio.objectifPct}%</span>}
                     </p>
                   </div>
-                  <ProgressBar
-                    value={overallPerformance}
-                    status={
-                      overallPerformance >= 80
-                        ? "ok"
-                        : overallPerformance >= 60
-                          ? "warning"
-                          : "danger"
-                    }
-                    showValue={false}
-                    size="lg"
-                  />
-                </div>
-              )}
+                );
+              })}
             </div>
-          </div>
-
-          {favorites.length === 0 && !editingFavorites && (
+          ) : (
             <div className="rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
               <StarOff className="mx-auto h-8 w-8 text-muted-foreground" />
               <p className="mt-3 text-sm text-muted-foreground">
-                Aucun widget sélectionné. Cliquez sur{" "}
-                <strong>Personnaliser</strong> pour composer votre tableau de
-                bord.
+                Aucun favori sélectionné. Cliquez sur <strong>Personnaliser</strong> pour choisir vos indicateurs.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* ========== TAB: CE MOIS ========== */}
-      {activeTab === "mois" && (
-        <div className="space-y-6">
-          {/* Month header */}
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold capitalize text-foreground">
-                  {currentMonthLabel}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Jour {currentDay}/{daysInMonth} — {monthProgressPct}% du mois
-                  écoulé
-                </p>
-              </div>
-              <div className="w-48">
-                <ProgressBar
-                  value={monthProgressPct}
-                  status="ok"
-                  showValue
-                  size="md"
-                />
-              </div>
-            </div>
-          </div>
+    </div>
+  );
+}
 
-          {/* Monthly KPIs */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1">
-              <KpiCard
-                title="Estimations ce mois"
-                value={vendeurs.estimationsRealisees}
-                icon={ClipboardCheck}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "estimations" ? null : "estimations")}
-              />
-              {previousResults && (
-                <TrendIndicator current={vendeurs.estimationsRealisees} previous={previousResults.vendeurs.estimationsRealisees} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <KpiCard
-                title="Mandats ce mois"
-                value={vendeurs.mandatsSignes}
-                icon={FileSignature}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "mandats" ? null : "mandats")}
-              />
-              {previousResults && (
-                <TrendIndicator current={vendeurs.mandatsSignes} previous={previousResults.vendeurs.mandatsSignes} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <KpiCard
-                title="Compromis ce mois"
-                value={acheteurs.compromisSignes}
-                icon={Handshake}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "compromis" ? null : "compromis")}
-              />
-              {previousResults && (
-                <TrendIndicator current={acheteurs.compromisSignes} previous={previousResults.acheteurs.compromisSignes} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <KpiCard
-                title="CA ce mois"
-                value={formatCurrency(ventes.chiffreAffaires)}
-                icon={DollarSign}
-                status="ok"
-                onExpand={() => setExpandedKpi(expandedKpi === "ca" ? null : "ca")}
-              />
-              {previousResults && (
-                <TrendIndicator current={ventes.chiffreAffaires} previous={previousResults.ventes.chiffreAffaires} />
-              )}
-            </div>
-          </div>
+/* ------------------------------------------------------------------ */
+/*  Plan Card (for "Mes plans" panel)                                  */
+/* ------------------------------------------------------------------ */
 
-          {/* Detailed breakdown */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Left: Monthly numbers */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Activité du mois
-              </h3>
+function PlanCard({ meta }: { meta: PlanWithMeta }) {
+  const [showDetail, setShowDetail] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const { getPlan, updateActionStatus } = usePlans();
+  // Read fresh plan data from hook (not just from prop snapshot)
+  const freshPlan = getPlan(meta.ratioId) ?? meta.plan;
+  const area = freshPlan.priorities[0]?.label ?? "Performance";
+  const created = meta.createdAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  const ends = meta.endsAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  const canFeedback = meta.status === "termine" || meta.status === "expire";
+  // Recompute fresh stats for feedback
+  const freshAllActions = freshPlan.weeks.flatMap((w) => w.actions);
+  const freshDone = freshAllActions.filter((a) => a.status === "done").length;
+  const freshTotal = freshAllActions.length;
+  const freshPct = freshTotal > 0 ? Math.round((freshDone / freshTotal) * 100) : 0;
+  const freshMeta = { ...meta, plan: freshPlan, doneActions: freshDone, totalActions: freshTotal, progressPct: freshPct };
+  const feedback = canFeedback ? generatePlanFeedback(freshMeta) : null;
 
-              <div className="rounded-xl border border-border bg-card divide-y divide-border">
-                {[
-                  {
-                    label: "Contacts entrants",
-                    value: prospection.contactsEntrants,
-                    icon: Phone,
-                  },
-                  {
-                    label: "Contacts totaux",
-                    value: prospection.contactsTotaux,
-                    icon: Phone,
-                  },
-                  {
-                    label: "RDV Estimation",
-                    value: prospection.rdvEstimation,
-                    icon: ClipboardCheck,
-                  },
-                  {
-                    label: "Estimations réalisées",
-                    value: vendeurs.estimationsRealisees,
-                    icon: ClipboardCheck,
-                  },
-                  {
-                    label: "Mandats signés",
-                    value: vendeurs.mandatsSignes,
-                    icon: FileSignature,
-                  },
-                  {
-                    label: "Visites réalisées",
-                    value: acheteurs.nombreVisites,
-                    icon: Eye,
-                  },
-                  {
-                    label: "Offres reçues",
-                    value: acheteurs.offresRecues,
-                    icon: FileText,
-                  },
-                  {
-                    label: "Compromis signés",
-                    value: acheteurs.compromisSignes,
-                    icon: Handshake,
-                  },
-                  {
-                    label: "Actes signés",
-                    value: ventes.actesSignes,
-                    icon: DollarSign,
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between px-4 py-3"
+  const RATIO_LABELS: Record<string, string> = {
+    contacts_rdv: "Contacts \u2192 RDV", rdv_mandats: "RDV \u2192 Mandats",
+    pct_mandats_exclusifs: "% Exclusivit\u00E9", acheteurs_visites: "Acheteurs \u2192 Visites",
+    visites_offre: "Visites \u2192 Offre", offres_compromis: "Offres \u2192 Compromis",
+    compromis_actes: "Compromis \u2192 Acte", honoraires_moyens: "Honoraires moyens",
+  };
+
+  const statusStyle = {
+    actif: { bg: "bg-primary/10", text: "text-primary", label: "Actif" },
+    termine: { bg: "bg-green-500/10", text: "text-green-500", label: "Terminé" },
+    expire: { bg: "bg-amber-500/10", text: "text-amber-500", label: "Expiré" },
+  }[meta.status];
+
+  const cycleStatus = (actionId: string, current: string) => {
+    const next = current === "todo" ? "in_progress" : current === "in_progress" ? "done" : "todo";
+    updateActionStatus(meta.ratioId, actionId, next as "todo" | "in_progress" | "done");
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-bold text-foreground">{area}</p>
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold", statusStyle.bg, statusStyle.text)}>
+            {statusStyle.label}
+          </span>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {RATIO_LABELS[meta.ratioId] ?? meta.ratioId}
+        </span>
+      </div>
+
+      {/* Dates */}
+      <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+        <span>{"Créé le"} {created}</span>
+        <span>{"Fin le"} {ends}</span>
+        {meta.status === "actif" && (
+          <span className="font-bold text-primary">{meta.daysRemaining}j restants</span>
+        )}
+      </div>
+
+      {/* Progress */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
+          <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${freshPct}%` }} />
+        </div>
+        <span className="text-[10px] font-bold text-foreground">{freshPct}%</span>
+        <span className="text-[10px] text-muted-foreground">{freshDone}/{freshTotal}</span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setShowDetail(!showDetail)}
+          className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition-colors">
+          {showDetail ? "Masquer les actions" : "Voir les actions"}
+        </button>
+        {canFeedback && (
+          <button type="button" onClick={() => { setShowFeedback(!showFeedback); setShowDetail(false); }}
+            className="flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-[10px] font-bold text-green-600 hover:bg-green-500/20 transition-colors">
+            {showFeedback ? "Masquer le bilan" : "Bilan NXT Coaching — Offert"}
+          </button>
+        )}
+      </div>
+
+      {/* Detail: actions with clickable statuses */}
+      {showDetail && (
+        <div className="space-y-2 pt-1">
+          {freshPlan.weeks.map((week) => (
+            <div key={week.weekNumber} className="rounded-lg bg-card border border-border/50 p-2.5">
+              <p className="text-[9px] font-bold text-primary uppercase mb-1.5">Semaine {week.weekNumber}</p>
+              <div className="space-y-1">
+                {week.actions.map((action) => (
+                  <button key={action.id} type="button"
+                    onClick={() => cycleStatus(action.id, action.status)}
+                    className={cn("flex w-full items-start gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-muted/50",
+                      action.status === "done" && "opacity-60")}
                   >
-                    <div className="flex items-center gap-3">
-                      <item.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-foreground">
-                        {item.label}
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-foreground">
-                      {item.value}
+                    <span className="shrink-0 text-sm mt-0.5">
+                      {action.status === "done" ? "\u2705" : action.status === "in_progress" ? "\uD83D\uDD04" : "\u2B1C"}
                     </span>
-                  </div>
+                    <span className={cn("text-[10px] leading-snug flex-1",
+                      action.status === "done" ? "text-muted-foreground line-through" : "text-foreground")}>
+                      {action.label}
+                    </span>
+                    <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold",
+                      action.status === "done" ? "bg-green-500/15 text-green-500"
+                        : action.status === "in_progress" ? "bg-amber-500/15 text-amber-500"
+                          : "bg-muted text-muted-foreground")}>
+                      {action.status === "done" ? "Terminé" : action.status === "in_progress" ? "En cours" : "À faire"}
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
-
-            {/* Right: Projections */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Projections fin de mois
-              </h3>
-
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm text-muted-foreground">CA projeté</p>
-                <p className="mt-1 text-3xl font-bold text-primary">
-                  {formatCurrency(projectedCA)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Basé sur le rythme actuel ({formatCurrency(ventes.chiffreAffaires)}{" "}
-                  en {currentDay} jours)
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm text-muted-foreground">Actes projetés</p>
-                <p className="mt-1 text-3xl font-bold text-foreground">
-                  {projectedActes}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Basé sur {ventes.actesSignes} acte(s) en {currentDay} jours
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm text-muted-foreground">
-                  Performance globale
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-3xl font-bold",
-                    overallPerformance >= 80
-                      ? "text-green-500"
-                      : overallPerformance >= 60
-                        ? "text-orange-500"
-                        : "text-red-500"
-                  )}
-                >
-                  {overallPerformance}%
-                </p>
-                <ProgressBar
-                  value={overallPerformance}
-                  status={
-                    overallPerformance >= 80
-                      ? "ok"
-                      : overallPerformance >= 60
-                        ? "warning"
-                        : "danger"
-                  }
-                  showValue={false}
-                  size="sm"
-                  className="mt-2"
-                />
-              </div>
-
-              {/* Mandats breakdown */}
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="mb-3 text-sm font-medium text-foreground">
-                  Mandats du mois
-                </p>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Exclusifs</span>
-                      <span className="font-bold text-green-500">
-                        {vendeurs.mandats.filter((m) => m.type === "exclusif").length}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Simples</span>
-                      <span className="font-bold text-yellow-500">
-                        {vendeurs.mandats.filter((m) => m.type === "simple").length}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-foreground">
-                      {exclusiviteRate}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">exclusivité</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* ========== TAB: SUIVI CONTACTS ========== */}
-      {activeTab === "suivi" && (
-        <SuiviContactsPanel results={results} />
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Suivi Contacts Panel                                               */
-/* ------------------------------------------------------------------ */
-
-function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
-  const updateInfoVenteStatut = useAppStore((s) => s.updateInfoVenteStatut);
-  const updateAcheteurChaudStatut = useAppStore((s) => s.updateAcheteurChaudStatut);
-  const markInfoVenteProfiled = useAppStore((s) => s.markInfoVenteProfiled);
-  const markAcheteurChaudProfiled = useAppStore((s) => s.markAcheteurChaudProfiled);
-  const { persistResult } = useSupabaseResults();
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  const allInfoVente = results?.prospection.informationsVente ?? [];
-  const allAcheteurs = results?.acheteurs.acheteursChauds ?? [];
-
-  const activeInfoVente = allInfoVente.filter((i) => i.statut === "en_cours");
-  const activeAcheteurs = allAcheteurs.filter((i) => i.statut === "en_cours");
-  const totalActifs = activeInfoVente.length + activeAcheteurs.length;
-  const totalProfiled = [...allInfoVente, ...allAcheteurs].filter((i) => i.profiled).length;
-
-  const treatedItems = [
-    ...allInfoVente.filter((i) => i.statut !== "en_cours").map((i) => ({ ...i, type: "info_vente" as const })),
-    ...allAcheteurs.filter((i) => i.statut !== "en_cours").map((i) => ({ ...i, type: "acheteur_chaud" as const })),
-  ];
-  const totalDeale = treatedItems.filter((i) => i.statut === "deale").length;
-  const totalAbandonne = treatedItems.filter((i) => i.statut === "abandonne").length;
-
-  const handleUpdateInfo = (itemId: string, statut: "deale" | "abandonne") => {
-    if (results) {
-      updateInfoVenteStatut(results.id, itemId, statut);
-      setConfirmingId(null);
-      // Persist: read fresh result from store after state update
-      setTimeout(() => {
-        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
-        if (fresh) persistResult(fresh);
-      }, 0);
-    }
-  };
-
-  const handleUpdateAcheteur = (itemId: string, statut: "deale" | "abandonne") => {
-    if (results) {
-      updateAcheteurChaudStatut(results.id, itemId, statut);
-      setConfirmingId(null);
-      setTimeout(() => {
-        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
-        if (fresh) persistResult(fresh);
-      }, 0);
-    }
-  };
-
-  const handleProfileInfo = (itemId: string) => {
-    if (results) {
-      markInfoVenteProfiled(results.id, itemId);
-      setTimeout(() => {
-        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
-        if (fresh) persistResult(fresh);
-      }, 0);
-      window.open("https://nxt-profiling.fr/profiling", "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const handleProfileAcheteur = (itemId: string) => {
-    if (results) {
-      markAcheteurChaudProfiled(results.id, itemId);
-      setTimeout(() => {
-        const fresh = useAppStore.getState().results.find((r) => r.id === results.id);
-        if (fresh) persistResult(fresh);
-      }, 0);
-      window.open("https://nxt-profiling.fr/profiling", "_blank", "noopener,noreferrer");
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
-              <Phone className="h-5 w-5 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">En cours</p>
-              <p className="text-2xl font-bold text-blue-500">{totalActifs}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-              <Archive className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total traités</p>
-              <p className="text-2xl font-bold text-foreground">{treatedItems.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/20">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Dealés</p>
-              <p className="text-2xl font-bold text-green-500">{totalDeale}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
-              <XCircle className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Abandonnés</p>
-              <p className="text-2xl font-bold text-red-500">{totalAbandonne}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/20">
-              <Check className="h-5 w-5 text-violet-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Profilés</p>
-              <p className="text-2xl font-bold text-violet-500">{totalProfiled}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Contacts actifs : Informations de vente ── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-blue-500" />
-          <h3 className="text-lg font-semibold text-foreground">
-            Informations de vente en cours
-          </h3>
-          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500">
-            {activeInfoVente.length}
-          </span>
-        </div>
-
-        {activeInfoVente.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-            Aucune information de vente en cours.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {activeInfoVente.map((item) => (
-              <ActiveContactCard
-                key={item.id}
-                id={item.id}
-                nom={item.nom}
-                commentaire={item.commentaire}
-                profiled={item.profiled}
-                confirmingId={confirmingId}
-                setConfirmingId={setConfirmingId}
-                onRemove={(reason) => handleUpdateInfo(item.id, reason)}
-                onProfile={() => handleProfileInfo(item.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Contacts actifs : Acheteurs chauds ── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Flame className="h-4 w-4 text-orange-500" />
-          <h3 className="text-lg font-semibold text-foreground">
-            Acheteurs chauds en cours
-          </h3>
-          <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">
-            {activeAcheteurs.length}
-          </span>
-        </div>
-
-        {activeAcheteurs.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-            Aucun acheteur chaud en cours.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {activeAcheteurs.map((item) => (
-              <ActiveContactCard
-                key={item.id}
-                id={item.id}
-                nom={item.nom}
-                commentaire={item.commentaire}
-                profiled={item.profiled}
-                confirmingId={confirmingId}
-                setConfirmingId={setConfirmingId}
-                onRemove={(reason) => handleUpdateAcheteur(item.id, reason)}
-                onProfile={() => handleProfileAcheteur(item.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Historique des contacts traités ── */}
-      {treatedItems.length > 0 && (
-        <div className="space-y-3">
+      {/* Feedback NXT Coaching */}
+      {showFeedback && feedback && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Archive className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold text-muted-foreground">
-              Historique
-            </h3>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {treatedItems.length}
-            </span>
+            <span className="text-base">{"\uD83C\uDFAF"}</span>
+            <p className="text-xs font-bold text-foreground">{feedback.title}</p>
+            <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[8px] font-bold text-green-600 uppercase">Offert</span>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {treatedItems.map((item) => (
-              <TreatedItemCard key={item.id} item={item} />
-            ))}
+          <p className="text-[10px] text-muted-foreground">{feedback.summary}</p>
+          {feedback.doneList.length > 0 && (
+            <div>
+              <p className="text-[9px] font-bold text-green-600 uppercase mb-1">{"Réalisé"}</p>
+              <ul className="space-y-0.5">
+                {feedback.doneList.slice(0, 5).map((a, i) => (
+                  <li key={i} className="text-[10px] text-foreground flex items-start gap-1.5">
+                    <span className="text-green-500 shrink-0">{"✓"}</span>{a}
+                  </li>
+                ))}
+                {feedback.doneList.length > 5 && <li className="text-[10px] text-muted-foreground">+{feedback.doneList.length - 5} autres</li>}
+              </ul>
+            </div>
+          )}
+          {feedback.missedList.length > 0 && (
+            <div>
+              <p className="text-[9px] font-bold text-amber-500 uppercase mb-1">{"Non réalisé"}</p>
+              <ul className="space-y-0.5">
+                {feedback.missedList.slice(0, 3).map((a, i) => (
+                  <li key={i} className="text-[10px] text-muted-foreground flex items-start gap-1.5">
+                    <span className="text-amber-500 shrink-0">{"○"}</span>{a}
+                  </li>
+                ))}
+                {feedback.missedList.length > 3 && <li className="text-[10px] text-muted-foreground">+{feedback.missedList.length - 3} autres</li>}
+              </ul>
+            </div>
+          )}
+          <div className="rounded-lg bg-card border border-border p-2.5">
+            <p className="text-[9px] font-bold text-primary uppercase mb-1">{"Recommandation NXT Coaching"}</p>
+            <p className="text-[10px] text-foreground">{feedback.recommendation}</p>
           </div>
         </div>
       )}
@@ -1551,151 +836,3 @@ function SuiviContactsPanel({ results }: { results: PeriodResults | null }) {
   );
 }
 
-function ActiveContactCard({
-  id,
-  nom,
-  commentaire,
-  profiled,
-  confirmingId,
-  setConfirmingId,
-  onRemove,
-  onProfile,
-}: {
-  id: string;
-  nom: string;
-  commentaire: string;
-  profiled?: boolean;
-  confirmingId: string | null;
-  setConfirmingId: (id: string | null) => void;
-  onRemove: (reason: "deale" | "abandonne") => void;
-  onProfile?: () => void;
-}) {
-  const isConfirming = confirmingId === id;
-  const isProfiled = profiled === true;
-
-  return (
-    <div
-      className={cn(
-        "rounded-lg border border-border bg-muted/50 p-4 transition-colors",
-        isConfirming && "border-primary/40 bg-primary/5"
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-foreground">{nom}</p>
-            {isProfiled && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-500">
-                <Check className="h-2.5 w-2.5" />
-                Profilé
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">{commentaire}</p>
-        </div>
-        {!isConfirming ? (
-          <button
-            onClick={() => setConfirmingId(id)}
-            className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Traiter
-          </button>
-        ) : (
-          <button
-            onClick={() => setConfirmingId(null)}
-            className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {isConfirming && (
-        <div className="mt-3 border-t border-border pt-3">
-          <p className="mb-2 text-sm font-medium text-foreground">
-            Quelle est la raison ?
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onRemove("deale")}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500/15 px-3 py-2.5 text-sm font-medium text-green-600 transition-colors hover:bg-green-500/25 dark:text-green-400"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Dealé
-            </button>
-            <button
-              onClick={() => onRemove("abandonne")}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-500/15 px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/25 dark:text-red-400"
-            >
-              <XCircle className="h-4 w-4" />
-              Abandonné
-            </button>
-            {isProfiled ? (
-              <a
-                href="https://nxt-profiling.fr/profiling"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500/25 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-500/35 dark:text-violet-400"
-              >
-                <Check className="h-4 w-4" />
-                Déjà profilé
-              </a>
-            ) : (
-              <button
-                onClick={() => onProfile?.()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500/15 px-3 py-2.5 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-500/25 dark:text-violet-400"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Profiler
-              </button>
-            )}
-          </div>
-          {!isProfiled && (
-            <p className="mt-2 text-center text-[11px] text-violet-500/70">
-              +34% transformation client avec NXT Profiling
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TreatedItemCard({ item }: { item: { nom: string; commentaire: string; statut: string } }) {
-  const isDeale = item.statut === "deale";
-
-  return (
-    <div
-      className={cn(
-        "rounded-lg border p-4",
-        isDeale
-          ? "border-green-500/30 bg-green-500/5"
-          : "border-red-500/30 bg-red-500/5"
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{item.nom}</p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {item.commentaire}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
-            isDeale
-              ? "bg-green-500/15 text-green-600 dark:text-green-400"
-              : "bg-red-500/15 text-red-600 dark:text-red-400"
-          )}
-        >
-          {isDeale ? (
-            <CheckCircle2 className="h-3 w-3" />
-          ) : (
-            <XCircle className="h-3 w-3" />
-          )}
-          {isDeale ? "Dealé" : "Abandonné"}
-        </span>
-      </div>
-    </div>
-  );
-}

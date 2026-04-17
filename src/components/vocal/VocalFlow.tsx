@@ -90,37 +90,33 @@ const SECTION_COLORS: Record<VocalSection, { border: string; bg: string; text: s
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  contactsEntrants: "Contacts entrants",
   contactsTotaux: "Contacts totaux",
   rdvEstimation: "RDV estimation",
-  informationsVente: "Informations vente",
   estimationsRealisees: "Estimations réalisées",
   mandatsSignes: "Mandats signés",
-  mandats: "Détail mandats",
   rdvSuivi: "RDV suivi",
-  requalificationSimpleExclusif: "Requalifications",
+  requalificationSimpleExclusif: "Requalif simple → exclu",
   baissePrix: "Baisses de prix",
-  acheteursChauds: "Acheteurs chauds",
   acheteursSortisVisite: "Acheteurs en visite",
   nombreVisites: "Nombre de visites",
   offresRecues: "Offres reçues",
   compromisSignes: "Compromis signés",
+  chiffreAffairesCompromis: "CA compromis",
   actesSignes: "Actes signés",
   chiffreAffaires: "Chiffre d'affaires",
-  delaiMoyenVente: "Délai moyen de vente",
 };
 
 const SECTION_NUMERIC_FIELDS: Record<VocalSection, string[]> = {
-  prospection: ["contactsEntrants", "contactsTotaux", "rdvEstimation"],
+  prospection: ["contactsTotaux", "rdvEstimation"],
   vendeurs: ["estimationsRealisees", "mandatsSignes", "rdvSuivi", "requalificationSimpleExclusif", "baissePrix"],
-  acheteurs: ["acheteursSortisVisite", "nombreVisites", "offresRecues", "compromisSignes"],
-  ventes: ["actesSignes", "chiffreAffaires", "delaiMoyenVente"],
+  acheteurs: ["acheteursSortisVisite", "nombreVisites", "offresRecues", "compromisSignes", "chiffreAffairesCompromis"],
+  ventes: ["actesSignes", "chiffreAffaires"],
 };
 
 const SECTION_ARRAY_FIELDS: Record<VocalSection, string[]> = {
-  prospection: ["informationsVente"],
-  vendeurs: ["mandats"],
-  acheteurs: ["acheteursChauds"],
+  prospection: [],
+  vendeurs: [],
+  acheteurs: [],
   ventes: [],
 };
 
@@ -561,18 +557,15 @@ function ClarificationScreen({
       const nc = result.needsClarification[Number(idxStr)];
       if (!nc || !answer.trim()) continue;
 
-      const mandatMatch = nc.field.match(/^mandats\[(\d+)\]\.type$/);
-      if (mandatMatch) {
-        const mandatIdx = Number(mandatMatch[1]);
-        const mandats = [...((updatedExtracted.mandats as Array<{ nomVendeur: string; type: string }>) || [])];
-        if (mandats[mandatIdx]) {
-          const normalized = answer.toLowerCase().trim();
-          mandats[mandatIdx] = {
-            ...mandats[mandatIdx],
-            type: normalized.includes("exclusif") ? "exclusif" : "simple",
-          };
-          updatedExtracted.mandats = mandats;
-        }
+      const mandatTypeMatch = nc.field.match(/^mandatsTypes\[(\d+)\]$/);
+      if (mandatTypeMatch) {
+        const mandatIdx = Number(mandatTypeMatch[1]);
+        const types = [
+          ...((updatedExtracted.mandatsTypes as Array<"simple" | "exclusif">) || []),
+        ];
+        const normalized = answer.toLowerCase().trim();
+        types[mandatIdx] = normalized.includes("exclusif") ? "exclusif" : "simple";
+        updatedExtracted.mandatsTypes = types;
       } else {
         updatedExtracted[nc.field] = answer.trim();
       }
@@ -654,11 +647,7 @@ function ReviewScreen({
   const handleAddArrayItem = (arrayField: string) => {
     setEditData((prev) => {
       const arr = [...((prev[arrayField] as Array<Record<string, unknown>>) || [])];
-      if (arrayField === "mandats") {
-        arr.push({ nomVendeur: "", type: "simple" });
-      } else {
-        arr.push({ nom: "", commentaire: "" });
-      }
+      arr.push({ nom: "", commentaire: "" });
       return { ...prev, [arrayField]: arr };
     });
   };
@@ -672,11 +661,7 @@ function ReviewScreen({
   };
 
   const handleNext = () => {
-    const updatedData = { ...editData };
-    if (updatedData.mandats && Array.isArray(updatedData.mandats)) {
-      updatedData.mandatsSignes = (updatedData.mandats as unknown[]).length;
-    }
-    onUpdateResult({ ...result, extracted: updatedData });
+    onUpdateResult({ ...result, extracted: { ...editData } });
     onNext();
   };
 
@@ -724,7 +709,6 @@ function ReviewScreen({
       {arrayFields.map((arrayField) => {
         const items = (editData[arrayField] as Array<Record<string, unknown>>) || [];
         const label = FIELD_LABELS[arrayField] || arrayField;
-        const isMandat = arrayField === "mandats";
 
         return (
           <div key={arrayField}>
@@ -746,42 +730,20 @@ function ReviewScreen({
               {items.map((item, idx) => (
                 <div key={idx} className="flex items-start gap-2 rounded-lg bg-muted/30 p-3">
                   <div className="flex-1 space-y-1.5">
-                    {isMandat ? (
-                      <>
-                        <input
-                          type="text"
-                          value={String(item.nomVendeur || "")}
-                          onChange={(e) => handleArrayItemChange(arrayField, idx, "nomVendeur", e.target.value)}
-                          placeholder="Nom vendeur"
-                          className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none sm:text-sm"
-                        />
-                        <select
-                          value={String(item.type || "simple")}
-                          onChange={(e) => handleArrayItemChange(arrayField, idx, "type", e.target.value)}
-                          className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-base text-foreground focus:border-primary focus:outline-none sm:text-sm"
-                        >
-                          <option value="simple">Simple</option>
-                          <option value="exclusif">Exclusif</option>
-                        </select>
-                      </>
-                    ) : (
-                      <>
-                        <input
-                          type="text"
-                          value={String(item.nom || "")}
-                          onChange={(e) => handleArrayItemChange(arrayField, idx, "nom", e.target.value)}
-                          placeholder="Nom"
-                          className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none sm:text-sm"
-                        />
-                        <input
-                          type="text"
-                          value={String(item.commentaire || "")}
-                          onChange={(e) => handleArrayItemChange(arrayField, idx, "commentaire", e.target.value)}
-                          placeholder="Commentaire"
-                          className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none sm:text-sm"
-                        />
-                      </>
-                    )}
+                    <input
+                      type="text"
+                      value={String(item.nom || "")}
+                      onChange={(e) => handleArrayItemChange(arrayField, idx, "nom", e.target.value)}
+                      placeholder="Nom"
+                      className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none sm:text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={String(item.commentaire || "")}
+                      onChange={(e) => handleArrayItemChange(arrayField, idx, "commentaire", e.target.value)}
+                      placeholder="Commentaire"
+                      className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none sm:text-sm"
+                    />
                   </div>
                   <button
                     onClick={() => handleRemoveArrayItem(arrayField, idx)}

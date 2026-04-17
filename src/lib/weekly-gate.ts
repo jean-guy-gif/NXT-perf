@@ -75,6 +75,14 @@ export function getFridayOfWeek(date: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+/** Returns the Sunday of the week containing `date`, as YYYY-MM-DD */
+export function getSundayOfWeek(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 7); // Monday + 6 = Sunday
+  return d.toISOString().split("T")[0];
+}
+
 /** Check if a submission date falls within the same ISO week as `reference` */
 function isSubmissionThisWeek(submissionDate: string | null, reference: Date): boolean {
   if (!submissionDate) return false;
@@ -188,56 +196,41 @@ export function convertExtractedToPeriodResults(
   arrays: ExtractedArrays,
 ): PeriodResults {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const iso = now.toISOString();
 
   return {
     id: generateId(),
     userId,
-    periodType: "month",
-    periodStart: monthStart.toISOString().split("T")[0],
-    periodEnd: monthEnd.toISOString().split("T")[0],
+    periodType: "week",
+    periodStart: getMondayOfWeek(now),
+    periodEnd: getSundayOfWeek(now),
     prospection: {
-      contactsEntrants: fields.contactsEntrants ?? 0,
       contactsTotaux: fields.contactsTotaux ?? 0,
       rdvEstimation: fields.rdvEstimation ?? 0,
-      informationsVente: (arrays.informationsVente ?? []).map((iv) => ({
-        id: generateId(),
-        nom: iv.nom,
-        commentaire: iv.commentaire,
-        statut: "en_cours" as const,
-      })),
     },
     vendeurs: {
       rdvEstimation: fields.rdvEstimation ?? 0,
       estimationsRealisees: fields.estimationsRealisees ?? 0,
-      mandatsSignes: fields.mandatsSignes ?? 0,
-      mandats: (arrays.mandats ?? []).map((m) => ({
+      // mandatsSignes = nombre d'occurrences typées saisies
+      mandatsSignes: (fields.mandatsTypes ?? []).length,
+      mandats: (fields.mandatsTypes ?? []).map((type) => ({
         id: generateId(),
-        nomVendeur: m.nomVendeur,
-        type: m.type,
+        type,
       })),
       rdvSuivi: fields.rdvSuivi ?? 0,
       requalificationSimpleExclusif: fields.requalificationSimpleExclusif ?? 0,
       baissePrix: fields.baissePrix ?? 0,
     },
     acheteurs: {
-      acheteursChauds: (arrays.acheteursChauds ?? []).map((a) => ({
-        id: generateId(),
-        nom: a.nom,
-        commentaire: a.commentaire,
-        statut: "en_cours" as const,
-      })),
       acheteursSortisVisite: fields.acheteursSortisVisite ?? 0,
       nombreVisites: fields.nombreVisites ?? 0,
       offresRecues: fields.offresRecues ?? 0,
       compromisSignes: fields.compromisSignes ?? 0,
+      chiffreAffairesCompromis: fields.chiffreAffairesCompromis ?? 0,
     },
     ventes: {
       actesSignes: fields.actesSignes ?? 0,
       chiffreAffaires: fields.chiffreAffaires ?? 0,
-      delaiMoyenVente: fields.delaiMoyenVente ?? 0,
     },
     createdAt: iso,
     updatedAt: iso,

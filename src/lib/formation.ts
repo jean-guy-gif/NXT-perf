@@ -9,12 +9,13 @@ import type {
 
 const ratioToFormationArea: Record<RatioId, FormationArea> = {
   contacts_rdv: "prospection",
-  estimations_mandats: "estimation",
+  rdv_mandats: "estimation",
   pct_mandats_exclusifs: "exclusivite",
+  acheteurs_visites: "accompagnement_acheteur",
   visites_offre: "accompagnement_acheteur",
   offres_compromis: "negociation",
-  mandats_simples_vente: "suivi_mandat",
-  mandats_exclusifs_vente: "exclusivite",
+  compromis_actes: "negociation",
+  honoraires_moyens: "negociation",
 };
 
 const formationAreaLabels: Record<FormationArea, string> = {
@@ -51,16 +52,20 @@ export function getActionsForRatio(
       { label: "Qualifier les leads entrants", description: "Classer chaque contact par niveau d'urgence et potentiel de conversion." },
       { label: "Diversifier les canaux de prospection", description: "Explorer de nouveaux canaux : réseaux sociaux, partenariats locaux, événements." },
     ],
-    estimations_mandats: [
+    rdv_mandats: [
       { label: "Revoir l'argumentation prix", description: "Préparer des arguments solides basés sur les comparables récents du secteur." },
       { label: "Préparer un dossier comparatif", description: "Constituer un book de ventes récentes à présenter lors de chaque estimation." },
-      { label: "Former à la présentation exclusivité", description: "Travailler le pitch de transformation d'estimation en mandat signé." },
-      { label: "Améliorer le suivi post-estimation", description: "Mettre en place un protocole de relance systématique après chaque RDV estimation." },
+      { label: "Former à la présentation exclusivité", description: "Travailler le pitch de transformation de RDV en mandat signé." },
+      { label: "Améliorer le suivi post-RDV", description: "Mettre en place un protocole de relance systématique après chaque RDV estimation." },
     ],
     pct_mandats_exclusifs: [
       { label: "Renforcer l'argumentaire exclusivité", description: "Valoriser les avantages concrets de l'exclusivité : visibilité, engagement, résultats." },
       { label: "Préparer des témoignages clients", description: "Collecter des retours de vendeurs satisfaits ayant choisi l'exclusivité." },
       { label: "Proposer des garanties exclusivité", description: "Offrir des engagements concrets : plan marketing dédié, reporting hebdomadaire." },
+    ],
+    acheteurs_visites: [
+      { label: "Multiplier les visites par acheteur", description: "Proposer plusieurs biens pertinents à chaque acheteur qualifié pour augmenter le volume de visites." },
+      { label: "Mieux matcher bien et acheteur", description: "Affiner la qualification du besoin pour éviter les visites de pure courtoisie." },
     ],
     visites_offre: [
       { label: "Mieux qualifier les acheteurs avant visite", description: "Vérifier budget, financement et critères avant de programmer une visite." },
@@ -73,15 +78,14 @@ export function getActionsForRatio(
       { label: "Sécuriser le financement acheteur", description: "Vérifier la solidité du dossier financier avant de formaliser l'offre." },
       { label: "Maintenir le lien avec les parties", description: "Communiquer régulièrement avec acheteur et vendeur pour éviter les désistements." },
     ],
-    mandats_simples_vente: [
-      { label: "Intensifier le suivi des mandats simples", description: "Planifier des points réguliers avec les vendeurs pour maintenir leur confiance." },
-      { label: "Revoir la stratégie de prix", description: "Analyser les mandats simples sans offre et proposer un ajustement de prix." },
-      { label: "Augmenter la visibilité des biens", description: "Multiplier les canaux de diffusion et améliorer la qualité des annonces." },
+    compromis_actes: [
+      { label: "Sécuriser les dossiers de financement", description: "Vérifier la solidité du financement acheteur dès le compromis pour éviter les désistements." },
+      { label: "Accélérer la levée des conditions suspensives", description: "Maintenir un contact hebdomadaire avec le notaire et la banque pour fluidifier le dossier." },
+      { label: "Anticiper les blocages", description: "Identifier dès le compromis les risques potentiels (diagnostics, mitoyenneté, indivision)." },
     ],
-    mandats_exclusifs_vente: [
-      { label: "Maximiser le plan marketing exclusif", description: "Déployer le plan marketing complet prévu pour chaque mandat exclusif." },
-      { label: "Organiser des visites groupées", description: "Créer un effet de rareté en regroupant les visites sur des créneaux serrés." },
-      { label: "Faire un reporting vendeur hebdomadaire", description: "Envoyer un compte-rendu détaillé chaque semaine au vendeur exclusif." },
+    honoraires_moyens: [
+      { label: "Renforcer l'argumentation honoraires", description: "Travailler le pitch de valeur pour justifier un barème premium." },
+      { label: "Cibler les biens haut de gamme", description: "Diriger la prospection vers des segments avec des honoraires plus élevés." },
     ],
   };
 

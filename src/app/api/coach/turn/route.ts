@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { computeNextStep, validateKpiPatch } from '@/lib/coach-decision-engine'
 import { PERSONA_COACHING_TONE, isValidPersona, DEFAULT_PERSONA } from '@/lib/personas'
 import type { ExtractedKpis, KpiField } from '@/types/coach-session'
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   // Vérifier que la session appartient à l'utilisateur
   const { data: session } = await supabase

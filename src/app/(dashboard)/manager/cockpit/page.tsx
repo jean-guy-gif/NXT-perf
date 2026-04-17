@@ -12,11 +12,7 @@ import {
   TrendingUp,
   ClipboardCheck,
   Calendar,
-  Phone,
-  Flame,
-  ExternalLink,
 } from "lucide-react";
-import type { ContactStatut } from "@/types/results";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -38,161 +34,7 @@ import type { FormationArea } from "@/types/formation";
 import { getGlobalScore, globalScoreToHumanScore } from "@/lib/scoring";
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { AlertesPrioritaires } from "@/components/dashboard/alertes-prioritaires";
-
-/* ────── Clickable badge with popover ────── */
-type StatutGroupData = {
-  en_cours: { count: number; noms: string[] };
-  deale: { count: number; noms: string[] };
-  abandonne: { count: number; noms: string[] };
-  profile: { count: number; noms: string[] };
-  total: number;
-};
-
-const STATUT_STYLES = {
-  en_cours: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/30" },
-  deale: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500/30" },
-  abandonne: { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500/30" },
-  profile: { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/30" },
-} as const;
-
-function ClickableBadge({
-  count,
-  noms,
-  statut,
-  popoverKey,
-  openPopover,
-  setOpenPopover,
-}: {
-  count: number;
-  noms: string[];
-  statut: "en_cours" | "deale" | "abandonne" | "profile";
-  popoverKey: string;
-  openPopover: string | null;
-  setOpenPopover: (key: string | null) => void;
-}) {
-  const style = STATUT_STYLES[statut];
-  const isOpen = openPopover === popoverKey;
-
-  if (count === 0) {
-    return (
-      <span className={cn("inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-2 text-xs font-semibold", style.bg, style.text)}>
-        0
-      </span>
-    );
-  }
-
-  return (
-    <div className="relative inline-block">
-      <button
-        onClick={() => setOpenPopover(isOpen ? null : popoverKey)}
-        className={cn(
-          "inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-2 text-xs font-semibold cursor-pointer transition-all",
-          style.bg, style.text,
-          "hover:ring-2 hover:ring-offset-1 hover:ring-current/30",
-          isOpen && "ring-2 ring-offset-1 ring-current/30"
-        )}
-      >
-        {count}
-      </button>
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpenPopover(null)} />
-          <div className={cn(
-            "absolute z-50 mt-1 left-1/2 -translate-x-1/2 min-w-[180px] rounded-lg border bg-card p-2 shadow-lg",
-            style.border
-          )}>
-            {noms.map((nom, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 px-2 py-1">
-                <span className="whitespace-nowrap text-xs text-foreground">{nom}</span>
-                <a
-                  href="https://nxt-profiling.fr/profiling"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 rounded p-0.5 text-violet-500 transition-colors hover:bg-violet-500/15"
-                  title="Profiler ce client"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            ))}
-            <p className="mt-1 border-t border-border/50 pt-1 text-center text-[10px] text-violet-500/70">
-              +34% avec NXT Profiling
-            </p>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function TrackingRow({
-  id,
-  name,
-  data,
-  section,
-  openPopover,
-  setOpenPopover,
-}: {
-  id: string;
-  name: string;
-  data: StatutGroupData;
-  section: string;
-  openPopover: string | null;
-  setOpenPopover: (key: string | null) => void;
-}) {
-  return (
-    <tr className="border-b border-border/50">
-      <td className="py-2.5 pr-4 font-medium text-foreground max-w-[140px]">
-        <span className="block truncate" title={name}>{name}</span>
-      </td>
-      {(["en_cours", "deale", "abandonne", "profile"] as const).map((statut) => (
-        <td key={statut} className="py-2.5 px-4 text-center">
-          <ClickableBadge
-            count={data[statut].count}
-            noms={data[statut].noms}
-            statut={statut}
-            popoverKey={`${section}-${id}-${statut}`}
-            openPopover={openPopover}
-            setOpenPopover={setOpenPopover}
-          />
-        </td>
-      ))}
-      <td className="py-2.5 pl-4 text-center font-semibold text-foreground">{data.total}</td>
-    </tr>
-  );
-}
-
-function TrackingTotalRow({
-  data,
-  section,
-  openPopover,
-  setOpenPopover,
-}: {
-  data: StatutGroupData;
-  section: string;
-  openPopover: string | null;
-  setOpenPopover: (key: string | null) => void;
-}) {
-  return (
-    <tr className="bg-muted/30 font-semibold">
-      <td className="py-2.5 pr-4 text-foreground">Équipe</td>
-      {(["en_cours", "deale", "abandonne", "profile"] as const).map((statut) => (
-        <td key={statut} className="py-2.5 px-4 text-center">
-          <ClickableBadge
-            count={data[statut].count}
-            noms={data[statut].noms}
-            statut={statut}
-            popoverKey={`${section}-${statut}`}
-            openPopover={openPopover}
-            setOpenPopover={setOpenPopover}
-          />
-        </td>
-      ))}
-      <td className="py-2.5 pl-4 text-center text-foreground">{data.total}</td>
-    </tr>
-  );
-}
+import { ProductionChain } from "@/components/dashboard/production-chain";
 
 /* ────── Period types ────── */
 type PeriodMode = "semaine" | "mois" | "annee" | "personnalise";
@@ -309,72 +151,6 @@ export default function CockpitPage() {
       totalCompromisCA: Math.round(totalCompromisCA * periodMultiplier),
     };
   }, [allResults, conseillers, ratioConfigs, periodMultiplier]);
-
-  /* ── Contact & buyer tracking per advisor ── */
-  const trackingData = useMemo(() => {
-    const groupByStatut = (items: { nom: string; statut: ContactStatut; profiled?: boolean }[]): StatutGroupData => ({
-      en_cours: {
-        count: items.filter((i) => i.statut === "en_cours").length,
-        noms: items.filter((i) => i.statut === "en_cours").map((i) => i.nom),
-      },
-      deale: {
-        count: items.filter((i) => i.statut === "deale").length,
-        noms: items.filter((i) => i.statut === "deale").map((i) => i.nom),
-      },
-      abandonne: {
-        count: items.filter((i) => i.statut === "abandonne").length,
-        noms: items.filter((i) => i.statut === "abandonne").map((i) => i.nom),
-      },
-      profile: {
-        count: items.filter((i) => i.profiled).length,
-        noms: items.filter((i) => i.profiled).map((i) => i.nom),
-      },
-      total: items.length,
-    });
-
-    const empty: StatutGroupData = {
-      en_cours: { count: 0, noms: [] },
-      deale: { count: 0, noms: [] },
-      abandonne: { count: 0, noms: [] },
-      profile: { count: 0, noms: [] },
-      total: 0,
-    };
-
-    const perAdvisor = conseillers.map((user) => {
-      const results = allResults.find((r) => r.userId === user.id);
-      return {
-        userId: user.id,
-        name: `${user.firstName} ${user.lastName}`,
-        contacts: results ? groupByStatut(results.prospection.informationsVente) : empty,
-        acheteurs: results ? groupByStatut(results.acheteurs.acheteursChauds) : empty,
-      };
-    });
-
-    const mergeTotals = (key: "contacts" | "acheteurs"): StatutGroupData => ({
-      en_cours: {
-        count: perAdvisor.reduce((s, a) => s + a[key].en_cours.count, 0),
-        noms: perAdvisor.flatMap((a) => a[key].en_cours.noms),
-      },
-      deale: {
-        count: perAdvisor.reduce((s, a) => s + a[key].deale.count, 0),
-        noms: perAdvisor.flatMap((a) => a[key].deale.noms),
-      },
-      abandonne: {
-        count: perAdvisor.reduce((s, a) => s + a[key].abandonne.count, 0),
-        noms: perAdvisor.flatMap((a) => a[key].abandonne.noms),
-      },
-      profile: {
-        count: perAdvisor.reduce((s, a) => s + a[key].profile.count, 0),
-        noms: perAdvisor.flatMap((a) => a[key].profile.noms),
-      },
-      total: perAdvisor.reduce((s, a) => s + a[key].total, 0),
-    });
-
-    return { perAdvisor, totals: { contacts: mergeTotals("contacts"), acheteurs: mergeTotals("acheteurs") } };
-  }, [conseillers, allResults]);
-
-  // Popover state: "contacts-userId-statut" or "acheteurs-userId-statut"
-  const [openPopover, setOpenPopover] = useState<string | null>(null);
 
   // Monthly evolution data (team-wide)
   const teamMonthlyCA = isDemo
@@ -522,16 +298,21 @@ export default function CockpitPage() {
     );
   }
 
+  const [gpsView, setGpsView] = usePersistedState<"equipe" | "individuel">(
+    "nxt-manager-gps-view", "equipe"
+  );
+  const [selectedUserId, setSelectedUserId] = useState(conseillers[0]?.id ?? "");
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Cockpit Manager
+            Mon Tableau de Bord
           </h1>
           <p className="text-sm text-muted-foreground">
-            Vue synthétique de la performance de votre équipe
+            Performance de votre équipe
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5">
@@ -540,6 +321,39 @@ export default function CockpitPage() {
             {teamData.advisorCount} conseillers
           </span>
         </div>
+      </div>
+
+      {/* GPS Pilotage toggle */}
+      <div className="space-y-3">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
+          <button type="button" onClick={() => setGpsView("equipe")}
+            className={cn("rounded-md px-4 py-2 text-sm font-medium transition-colors", gpsView === "equipe" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            Équipe
+          </button>
+          <button type="button" onClick={() => setGpsView("individuel")}
+            className={cn("rounded-md px-4 py-2 text-sm font-medium transition-colors", gpsView === "individuel" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            Par collaborateur
+          </button>
+        </div>
+
+        {gpsView === "equipe" && (
+          <ProductionChain scope="team" teamId={currentUser?.teamId ?? undefined} />
+        )}
+
+        {gpsView === "individuel" && (
+          <div className="space-y-3">
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            >
+              {conseillers.map((c) => (
+                <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+              ))}
+            </select>
+            {selectedUserId && <ProductionChain scope="individual" userId={selectedUserId} />}
+          </div>
+        )}
       </div>
 
       {/* ── Team Recommendations ── */}
@@ -557,7 +371,7 @@ export default function CockpitPage() {
       <AlertesPrioritaires alerts={priorityAlerts} maxItems={5} />
 
       {/* ── Period Selector ── */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-[14px] border border-border bg-card p-4 shadow-[var(--shadow-1)]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
             {periodButtons.map((btn) => (
@@ -662,7 +476,7 @@ export default function CockpitPage() {
           <div
             key={alert.id}
             className={cn(
-              "flex items-start gap-3 rounded-xl border p-4",
+              "flex items-start gap-3 rounded-[14px] border p-4 shadow-[var(--shadow-1)]",
               alert.type === "danger"
                 ? "border-red-500/30 bg-red-500/5"
                 : "border-orange-500/30 bg-orange-500/5"
@@ -680,7 +494,7 @@ export default function CockpitPage() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
           <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
             <TrendingUp className="h-4 w-4 text-primary" />
             Évolution CA Équipe (mensuel)
@@ -696,7 +510,7 @@ export default function CockpitPage() {
           />
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
           <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
             <Gauge className="h-4 w-4 text-primary" />
             Performance par conseiller
@@ -717,20 +531,20 @@ export default function CockpitPage() {
       </div>
 
       {/* Team Summary Grid */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
         <h3 className="mb-4 font-semibold text-foreground">
           Résumé de l&apos;équipe
         </h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground">Conseillers actifs</p>
-            <p className="mt-1 text-xl font-bold text-foreground">
+            <p className="mt-1 text-xl font-bold text-foreground tabular-nums">
               {teamData.advisorCount}
             </p>
           </div>
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground">CA moyen/conseiller</p>
-            <p className="mt-1 text-xl font-bold text-foreground">
+            <p className="mt-1 text-xl font-bold text-foreground tabular-nums">
               {formatCurrency(
                 teamData.advisorCount > 0
                   ? Math.round(teamData.totalCA / teamData.advisorCount)
@@ -740,7 +554,7 @@ export default function CockpitPage() {
           </div>
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground">Mandats totaux</p>
-            <p className="mt-1 text-xl font-bold text-foreground">
+            <p className="mt-1 text-xl font-bold text-foreground tabular-nums">
               {teamData.totalMandats}
             </p>
           </div>
@@ -748,7 +562,7 @@ export default function CockpitPage() {
             <p className="text-xs text-muted-foreground">
               Actes moyen/conseiller
             </p>
-            <p className="mt-1 text-xl font-bold text-foreground">
+            <p className="mt-1 text-xl font-bold text-foreground tabular-nums">
               {teamData.advisorCount > 0
                 ? (teamData.totalActes / teamData.advisorCount).toFixed(1)
                 : "0"}
@@ -826,94 +640,8 @@ export default function CockpitPage() {
         </div>
       </div>
 
-      {/* ── Suivi des contacts (informations vente) ── */}
-      <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-        <div className="shrink-0 px-5 pt-5 pb-3">
-          <h3 className="flex items-center gap-2 font-semibold text-foreground">
-            <Phone className="h-4 w-4 text-primary" />
-            Suivi des contacts
-          </h3>
-        </div>
-        <div className="min-h-0 overflow-x-auto overflow-y-auto px-5 pb-6" style={{ maxHeight: "clamp(260px, 45vh, 520px)", scrollPaddingBottom: "24px" }}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border text-left">
-                <th className="pb-3 pr-4 font-medium text-muted-foreground">Conseiller</th>
-                <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
-                <th className="pb-3 px-4 text-center font-medium text-green-500">Dealés</th>
-                <th className="pb-3 px-4 text-center font-medium text-red-500">Abandonnés</th>
-                <th className="pb-3 px-4 text-center font-medium text-violet-500">Profilés</th>
-                <th className="pb-3 pl-4 text-center font-medium text-muted-foreground">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trackingData.perAdvisor.map((advisor) => (
-                <TrackingRow
-                  key={advisor.userId}
-                  id={advisor.userId}
-                  name={advisor.name}
-                  data={advisor.contacts}
-                  section="contacts"
-                  openPopover={openPopover}
-                  setOpenPopover={setOpenPopover}
-                />
-              ))}
-              <TrackingTotalRow
-                data={trackingData.totals.contacts}
-                section="contacts-equipe"
-                openPopover={openPopover}
-                setOpenPopover={setOpenPopover}
-              />
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Suivi des acheteurs chauds ── */}
-      <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-        <div className="shrink-0 px-5 pt-5 pb-3">
-          <h3 className="flex items-center gap-2 font-semibold text-foreground">
-            <Flame className="h-4 w-4 text-orange-500" />
-            Suivi des acheteurs chauds
-          </h3>
-        </div>
-        <div className="min-h-0 overflow-x-auto overflow-y-auto px-5 pb-6" style={{ maxHeight: "clamp(260px, 45vh, 520px)", scrollPaddingBottom: "24px" }}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border text-left">
-                <th className="pb-3 pr-4 font-medium text-muted-foreground">Conseiller</th>
-                <th className="pb-3 px-4 text-center font-medium text-blue-500">En cours</th>
-                <th className="pb-3 px-4 text-center font-medium text-green-500">Dealés</th>
-                <th className="pb-3 px-4 text-center font-medium text-red-500">Abandonnés</th>
-                <th className="pb-3 px-4 text-center font-medium text-violet-500">Profilés</th>
-                <th className="pb-3 pl-4 text-center font-medium text-muted-foreground">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trackingData.perAdvisor.map((advisor) => (
-                <TrackingRow
-                  key={advisor.userId}
-                  id={advisor.userId}
-                  name={advisor.name}
-                  data={advisor.acheteurs}
-                  section="acheteurs"
-                  openPopover={openPopover}
-                  setOpenPopover={setOpenPopover}
-                />
-              ))}
-              <TrackingTotalRow
-                data={trackingData.totals.acheteurs}
-                section="acheteurs-equipe"
-                openPopover={openPopover}
-                setOpenPopover={setOpenPopover}
-              />
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* DPI Équipe */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-[14px] border border-border bg-card p-5 shadow-[var(--shadow-1)]">
         <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
           <span className="text-lg">{"\u{1F3AF}"}</span>
           DPI de l&apos;équipe

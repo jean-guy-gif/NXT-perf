@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, MessageCircle, Mic, Volume2, VolumeX, Keyboard } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { useGeminiLive } from "@/hooks/use-gemini-live";
-import { parseCountField, parseNumericResponse, parseMandatsText, parseDetailsText, normalize, capitalizeFirst } from "@/lib/saisie-parser";
+import { parseCountField, parseNumericResponse, parseDetailsText, normalize } from "@/lib/saisie-parser";
 import { normalizeSpokenNumbers } from "@/lib/normalize-spoken-numbers";
 import { SAISIE_STEPS, getNextApplicableStep } from "@/lib/saisie-steps";
 import type { ExtractedFields, ExtractedArrays } from "@/lib/saisie-ai-client";
@@ -247,7 +247,7 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
 
   // Refs for closure safety — THE critical fix
   const fieldsRef = useRef<ExtractedFields>({});
-  const arraysRef = useRef<ExtractedArrays>({ mandats: [], informationsVente: [], acheteursChauds: [] });
+  const arraysRef = useRef<ExtractedArrays>({});
   const stepIdxRef = useRef(-1);
   const isDoneRef = useRef(false);
   const awaitingRelanceRef = useRef(false);
@@ -464,39 +464,8 @@ export function VoiceConversation({ persona, startInTextMode, onDismiss, onCompl
       return;
     }
 
-    // ── Detail fields — parse + wait for user to confirm ──────────
-    let parsedCount = 0;
-    let expectedCount = 0;
-
-    if (step.inputMode === "detail_mandats") {
-      const mandats = parseMandatsText(text);
-      expectedCount = fieldsRef.current.mandatsSignes ?? 0;
-      parsedCount = mandats.length;
-      arraysRef.current = { ...arraysRef.current, mandats: [...arraysRef.current.mandats, ...mandats.map(m => ({ ...m, nomVendeur: capitalizeFirst(m.nomVendeur) }))] };
-      devLog("[VOICE] MANDATS_PARSED:", parsedCount, "expected:", expectedCount);
-    } else if (step.inputMode === "detail_infos") {
-      const infos = parseDetailsText(text);
-      expectedCount = (fieldsRef.current as Record<string, number>)["infosVenteCount"] ?? 0;
-      parsedCount = infos.length;
-      arraysRef.current = { ...arraysRef.current, informationsVente: [...arraysRef.current.informationsVente, ...infos.map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }))] };
-      devLog("[VOICE] INFOS_PARSED:", parsedCount, "expected:", expectedCount);
-    } else if (step.inputMode === "detail_acheteurs") {
-      const acheteurs = parseDetailsText(text);
-      expectedCount = fieldsRef.current.acheteursChaudsCount ?? 0;
-      parsedCount = acheteurs.length;
-      arraysRef.current = { ...arraysRef.current, acheteursChauds: [...arraysRef.current.acheteursChauds, ...acheteurs.map(d => ({ nom: capitalizeFirst(d.nom), commentaire: d.commentaire }))] };
-      devLog("[VOICE] ACHETEURS_PARSED:", parsedCount, "expected:", expectedCount);
-    }
-
-    // Coherence check: if count mismatch, notify user
-    if (expectedCount > 0 && parsedCount < expectedCount) {
-      addMsg("assistant", `J'ai noté ${parsedCount} élément${parsedCount > 1 ? "s" : ""} sur ${expectedCount} annoncé${expectedCount > 1 ? "s" : ""}. Tu pourras compléter dans le résumé.`);
-    }
-
-    // Don't auto-advance on detail fields — wait for user to click "Suivant"
-    setAwaitingDetailConfirm(true);
-    setMicState("idle");
-    devLog("[VOICE] DETAIL_AWAITING_CONFIRM");
+    // No detail steps in the current saisie flow.
+    devLog("[VOICE] UNHANDLED_STEP_KIND", step.inputMode);
   };
 
   // ── Gemini Live: handle transcript from model ──────────────────────────

@@ -3,10 +3,14 @@ import type { FormationArea, FormationDiagnostic } from "@/types/formation";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
+export type ActionStatus = "todo" | "in_progress" | "done";
+
 export interface PlanAction {
   id: string;
   label: string;
   done: boolean;
+  status: ActionStatus;
+  note?: string;
 }
 
 export interface WeekPlan {
@@ -211,11 +215,11 @@ const exerciceMap: Record<FormationArea, string[]> = {
 
 const areaToRatioId: Record<FormationArea, RatioId> = {
   prospection: "contacts_rdv",
-  estimation: "estimations_mandats",
+  estimation: "rdv_mandats",
   exclusivite: "pct_mandats_exclusifs",
   accompagnement_acheteur: "visites_offre",
   negociation: "offres_compromis",
-  suivi_mandat: "mandats_simples_vente",
+  suivi_mandat: "compromis_actes",
 };
 
 const areaLabels: Record<FormationArea, string> = {
@@ -259,6 +263,7 @@ export function generatePlan30Days(
           id: `w${weekNumber}-${priority.area}-${actions.length}`,
           label,
           done: false,
+          status: "todo",
         });
       }
 

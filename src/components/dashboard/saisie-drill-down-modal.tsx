@@ -146,20 +146,10 @@ function HistoriqueContent({
     case "prospection":
       return (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <Metric label="Contacts entrants" value={results.prospection.contactsEntrants} />
+          <div className="grid grid-cols-2 gap-3">
             <Metric label="Contacts totaux" value={results.prospection.contactsTotaux} />
             <Metric label="RDV estimation" value={results.prospection.rdvEstimation} />
           </div>
-          <ItemList
-            title="Informations vente"
-            items={results.prospection.informationsVente.map((v) => ({
-              id: v.id,
-              primary: v.nom,
-              secondary: v.statut === "en_cours" ? "En cours" : v.statut === "deale" ? "Dealé" : "Abandonné",
-              badge: v.statut,
-            }))}
-          />
         </div>
       );
 
@@ -175,15 +165,18 @@ function HistoriqueContent({
             <Metric label="Requalification" value={results.vendeurs.requalificationSimpleExclusif} />
             <Metric label="Baisse prix" value={results.vendeurs.baissePrix} />
           </div>
-          <ItemList
-            title="Mandats"
-            items={results.vendeurs.mandats.map((m) => ({
-              id: m.id,
-              primary: m.nomVendeur,
-              secondary: m.type === "exclusif" ? "Exclusif" : "Simple",
-              badge: m.type,
-            }))}
-          />
+          {results.vendeurs.mandats.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <Metric
+                label="Mandats simples"
+                value={results.vendeurs.mandats.filter((m) => m.type === "simple").length}
+              />
+              <Metric
+                label="Mandats exclusifs"
+                value={results.vendeurs.mandats.filter((m) => m.type === "exclusif").length}
+              />
+            </div>
+          )}
         </div>
       );
 
@@ -194,19 +187,11 @@ function HistoriqueContent({
             <Metric label="Sortis en visite" value={results.acheteurs.acheteursSortisVisite} />
             <Metric label="Nombre de visites" value={results.acheteurs.nombreVisites} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Metric label="Offres reçues" value={results.acheteurs.offresRecues} />
             <Metric label="Compromis signés" value={results.acheteurs.compromisSignes} />
+            <Metric label="CA compromis" value={formatCurrency(results.acheteurs.chiffreAffairesCompromis)} />
           </div>
-          <ItemList
-            title="Acheteurs chauds"
-            items={results.acheteurs.acheteursChauds.map((a) => ({
-              id: a.id,
-              primary: a.nom,
-              secondary: a.statut === "en_cours" ? "En cours" : a.statut === "deale" ? "Dealé" : "Abandonné",
-              badge: a.statut,
-            }))}
-          />
         </div>
       );
 

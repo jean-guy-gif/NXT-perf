@@ -90,5 +90,23 @@ export function useNotifications() {
     }
   }, [supabase, isDemo, user?.id]);
 
-  return { notifications, unreadCount, loading, markAsRead, markAllAsRead };
+  const markAsResolved = useCallback(
+    async (id: string) => {
+      const now = new Date().toISOString();
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true, resolved_at: now } : n)),
+      );
+      if (!isDemo) {
+        await supabase
+          .from("notifications")
+          .update({ read: true, resolved_at: now })
+          .eq("id", id);
+      }
+    },
+    [supabase, isDemo],
+  );
+
+  const unresolvedCount = notifications.filter((n) => !n.resolved_at).length;
+
+  return { notifications, unreadCount, unresolvedCount, loading, markAsRead, markAllAsRead, markAsResolved };
 }

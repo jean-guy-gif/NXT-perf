@@ -37,7 +37,7 @@ export async function checkAndAwardBadges(
   profile: { avatar_url?: string | null; agency_logo_url?: string | null; coach_voice?: string | null },
   latestVentes: { actesSignes: number; chiffreAffaires: number },
   latestVendeurs: { mandatsSignes: number },
-  latestProspection: { contactsEntrants: number },
+  latestProspection: { contactsTotaux: number },
 ): Promise<BadgeKey[]> {
   const newBadges: BadgeKey[] = [];
 
@@ -57,8 +57,8 @@ export async function checkAndAwardBadges(
   if (latestVentes.actesSignes >= 3 && await awardBadgeIfEarned(supabase, userId, "hat_trick")) newBadges.push("hat_trick");
 
   // sniper: taux transformation > 30%
-  if (latestVendeurs.mandatsSignes > 0 && latestProspection.contactsEntrants > 0) {
-    const taux = latestVendeurs.mandatsSignes / latestProspection.contactsEntrants;
+  if (latestVendeurs.mandatsSignes > 0 && latestProspection.contactsTotaux > 0) {
+    const taux = latestVendeurs.mandatsSignes / latestProspection.contactsTotaux;
     if (taux > 0.3 && await awardBadgeIfEarned(supabase, userId, "sniper")) newBadges.push("sniper");
   }
 

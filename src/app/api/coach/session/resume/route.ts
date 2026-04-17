@@ -1,7 +1,7 @@
 // src/app/api/coach/session/resume/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { createClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 const TTL_MINUTES = parseInt(process.env.COACH_SESSION_TTL_MINUTES ?? '30')
 
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth()
   if (auth.error) return auth.error
 
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
   const body = await request.json().catch(() => ({}))
 
   const ttlCutoff = new Date(Date.now() - TTL_MINUTES * 60 * 1000).toISOString()

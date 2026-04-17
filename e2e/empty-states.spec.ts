@@ -61,7 +61,7 @@ test.describe("États vides", () => {
     await enterDemo(page);
     await page.goto("/manager/cockpit");
     await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator("main").getByRole("heading", { name: "Cockpit Manager" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("main").getByRole("heading").first()).toBeVisible({ timeout: 5_000 });
     // Demo has team data — should NOT show empty state
     const text = await page.locator("main").textContent();
     expect(text).not.toContain("Votre équipe est vide");

@@ -29,38 +29,38 @@ export type ExportFieldId =
   | "categorie"
   | "equipe"
   | "periode"
-  // Volumes — prospection
-  | "contacts_entrants"
+  // Prospection vendeur
   | "contacts_totaux"
   | "rdv_estimation"
-  // Volumes — vendeurs
   | "estimations"
   | "mandats_signes"
   | "mandats_exclusifs"
   | "mandats_simples"
+  // Pilotage portefeuille
   | "rdv_suivi"
   | "requalifications"
   | "baisses_prix"
-  // Volumes — acheteurs
-  | "acheteurs_chauds"
+  // Transaction acheteur
   | "acheteurs_sortis_visite"
   | "visites"
   | "offres"
   | "compromis"
-  // Volumes — ventes
+  | "ca_compromis"
   | "actes"
   | "chiffre_affaires"
   // Computed
   | "score_global"
   | "pct_exclusivite"
-  // Ratios (each ratio is a field)
+  | "honoraires_moyens_val"
+  // Ratios
   | "ratio_contacts_rdv"
-  | "ratio_estimations_mandats"
+  | "ratio_rdv_mandats"
   | "ratio_pct_mandats_exclusifs"
+  | "ratio_acheteurs_visites"
   | "ratio_visites_offre"
   | "ratio_offres_compromis"
-  | "ratio_mandats_simples_vente"
-  | "ratio_mandats_exclusifs_vente";
+  | "ratio_compromis_actes"
+  | "ratio_honoraires_moyens";
 
 export interface ExportFieldDef {
   id: ExportFieldId;
@@ -76,38 +76,38 @@ const ALL_FIELDS: ExportFieldDef[] = [
   { id: "categorie", label: "Catégorie", group: "identity", dataType: "both" },
   { id: "equipe", label: "Équipe", group: "identity", dataType: "both" },
   { id: "periode", label: "Période", group: "identity", dataType: "both" },
-  // Volumes — prospection
-  { id: "contacts_entrants", label: "Contacts entrants", group: "volumes", dataType: "volumes" },
+  // Prospection vendeur
   { id: "contacts_totaux", label: "Contacts totaux", group: "volumes", dataType: "volumes" },
   { id: "rdv_estimation", label: "RDV Estimation", group: "volumes", dataType: "volumes" },
-  // Volumes — vendeurs
   { id: "estimations", label: "Estimations", group: "volumes", dataType: "volumes" },
   { id: "mandats_signes", label: "Mandats signés", group: "volumes", dataType: "volumes" },
   { id: "mandats_exclusifs", label: "Mandats exclusifs", group: "volumes", dataType: "volumes" },
   { id: "mandats_simples", label: "Mandats simples", group: "volumes", dataType: "volumes" },
+  // Pilotage portefeuille
   { id: "rdv_suivi", label: "RDV Suivi", group: "volumes", dataType: "volumes" },
-  { id: "requalifications", label: "Requalifications", group: "volumes", dataType: "volumes" },
+  { id: "requalifications", label: "Requalif simple → exclu", group: "volumes", dataType: "volumes" },
   { id: "baisses_prix", label: "Baisses de prix", group: "volumes", dataType: "volumes" },
-  // Volumes — acheteurs
-  { id: "acheteurs_chauds", label: "Acheteurs chauds", group: "volumes", dataType: "volumes" },
-  { id: "acheteurs_sortis_visite", label: "Acheteurs sortis visite", group: "volumes", dataType: "volumes" },
-  { id: "visites", label: "Visites", group: "volumes", dataType: "volumes" },
+  // Transaction acheteur
+  { id: "acheteurs_sortis_visite", label: "Acheteurs sortis en visite", group: "volumes", dataType: "volumes" },
+  { id: "visites", label: "Nombre de visites", group: "volumes", dataType: "volumes" },
   { id: "offres", label: "Offres", group: "volumes", dataType: "volumes" },
-  { id: "compromis", label: "Compromis", group: "volumes", dataType: "volumes" },
-  // Volumes — ventes
-  { id: "actes", label: "Actes", group: "volumes", dataType: "volumes" },
-  { id: "chiffre_affaires", label: "Chiffre d'affaires", group: "volumes", dataType: "volumes" },
+  { id: "compromis", label: "Volume compromis", group: "volumes", dataType: "volumes" },
+  { id: "ca_compromis", label: "CA compromis", group: "volumes", dataType: "volumes" },
+  { id: "actes", label: "Volume acte", group: "volumes", dataType: "volumes" },
+  { id: "chiffre_affaires", label: "CA acte", group: "volumes", dataType: "volumes" },
   // Computed
   { id: "pct_exclusivite", label: "% Exclusivité", group: "computed", dataType: "both" },
+  { id: "honoraires_moyens_val", label: "Honoraires moyens", group: "computed", dataType: "both" },
   { id: "score_global", label: "Score global", group: "computed", dataType: "both" },
   // Ratios
-  { id: "ratio_contacts_rdv", label: "Contacts \u2192 RDV", group: "ratios", dataType: "ratios" },
-  { id: "ratio_estimations_mandats", label: "Estimations \u2192 Mandats", group: "ratios", dataType: "ratios" },
-  { id: "ratio_pct_mandats_exclusifs", label: "% Mandats exclusifs", group: "ratios", dataType: "ratios" },
-  { id: "ratio_visites_offre", label: "Visites \u2192 Offre", group: "ratios", dataType: "ratios" },
-  { id: "ratio_offres_compromis", label: "Offres \u2192 Compromis", group: "ratios", dataType: "ratios" },
-  { id: "ratio_mandats_simples_vente", label: "Mandats simples / vente", group: "ratios", dataType: "ratios" },
-  { id: "ratio_mandats_exclusifs_vente", label: "Mandats exclusifs / vente", group: "ratios", dataType: "ratios" },
+  { id: "ratio_contacts_rdv", label: "Contacts → RDV Estimation", group: "ratios", dataType: "ratios" },
+  { id: "ratio_rdv_mandats", label: "RDV Estimation → Mandat", group: "ratios", dataType: "ratios" },
+  { id: "ratio_pct_mandats_exclusifs", label: "% Exclusivité", group: "ratios", dataType: "ratios" },
+  { id: "ratio_acheteurs_visites", label: "Acheteurs sortis → Visites", group: "ratios", dataType: "ratios" },
+  { id: "ratio_visites_offre", label: "Visites → Offres", group: "ratios", dataType: "ratios" },
+  { id: "ratio_offres_compromis", label: "Offres → Compromis", group: "ratios", dataType: "ratios" },
+  { id: "ratio_compromis_actes", label: "Compromis → Acte", group: "ratios", dataType: "ratios" },
+  { id: "ratio_honoraires_moyens", label: "Honoraires moyens", group: "ratios", dataType: "ratios" },
 ];
 
 /** Get available fields based on selected data type */
@@ -248,7 +248,6 @@ function buildVolumeRow(user: User, r: PeriodResults, fields: Set<ExportFieldId>
   if (has(fields, "categorie")) row["Catégorie"] = CATEGORY_LABELS[user.category] ?? user.category;
   if (has(fields, "equipe")) row["Équipe"] = getUserTeamLabel(user, allUsers);
   if (has(fields, "periode")) row["Période"] = r.periodStart.slice(0, 7);
-  if (has(fields, "contacts_entrants")) row["Contacts entrants"] = r?.prospection?.contactsEntrants ?? 0;
   if (has(fields, "contacts_totaux")) row["Contacts totaux"] = r?.prospection?.contactsTotaux ?? 0;
   if (has(fields, "rdv_estimation")) row["RDV Estimation"] = r?.prospection?.rdvEstimation ?? 0;
   if (has(fields, "estimations")) row["Estimations"] = r?.vendeurs?.estimationsRealisees ?? 0;
@@ -256,18 +255,23 @@ function buildVolumeRow(user: User, r: PeriodResults, fields: Set<ExportFieldId>
   if (has(fields, "mandats_exclusifs")) row["Mandats exclusifs"] = exclusifs;
   if (has(fields, "mandats_simples")) row["Mandats simples"] = simples;
   if (has(fields, "rdv_suivi")) row["RDV Suivi"] = r?.vendeurs?.rdvSuivi ?? 0;
-  if (has(fields, "requalifications")) row["Requalifications"] = r?.vendeurs?.requalificationSimpleExclusif ?? 0;
+  if (has(fields, "requalifications")) row["Requalif simple → exclu"] = r?.vendeurs?.requalificationSimpleExclusif ?? 0;
   if (has(fields, "baisses_prix")) row["Baisses de prix"] = r?.vendeurs?.baissePrix ?? 0;
-  if (has(fields, "acheteurs_chauds")) row["Acheteurs chauds"] = (r?.acheteurs?.acheteursChauds ?? []).length;
-  if (has(fields, "acheteurs_sortis_visite")) row["Acheteurs sortis visite"] = r?.acheteurs?.acheteursSortisVisite ?? 0;
-  if (has(fields, "visites")) row["Visites"] = r?.acheteurs?.nombreVisites ?? 0;
+  if (has(fields, "acheteurs_sortis_visite")) row["Acheteurs sortis en visite"] = r?.acheteurs?.acheteursSortisVisite ?? 0;
+  if (has(fields, "visites")) row["Nombre de visites"] = r?.acheteurs?.nombreVisites ?? 0;
   if (has(fields, "offres")) row["Offres"] = r?.acheteurs?.offresRecues ?? 0;
-  if (has(fields, "compromis")) row["Compromis"] = r?.acheteurs?.compromisSignes ?? 0;
-  if (has(fields, "actes")) row["Actes"] = r?.ventes?.actesSignes ?? 0;
-  if (has(fields, "chiffre_affaires")) row["Chiffre d'affaires"] = r?.ventes?.chiffreAffaires ?? 0;
+  if (has(fields, "compromis")) row["Volume compromis"] = r?.acheteurs?.compromisSignes ?? 0;
+  if (has(fields, "ca_compromis")) row["CA compromis"] = r?.acheteurs?.chiffreAffairesCompromis ?? 0;
+  if (has(fields, "actes")) row["Volume acte"] = r?.ventes?.actesSignes ?? 0;
+  if (has(fields, "chiffre_affaires")) row["CA acte"] = r?.ventes?.chiffreAffaires ?? 0;
   if (has(fields, "pct_exclusivite")) {
     const total = (r?.vendeurs?.mandats ?? []).length;
     row["% Exclusivité"] = total > 0 ? Math.round((exclusifs / total) * 100) : 0;
+  }
+  if (has(fields, "honoraires_moyens_val")) {
+    const actes = r?.ventes?.actesSignes ?? 0;
+    const ca = r?.ventes?.chiffreAffaires ?? 0;
+    row["Honoraires moyens"] = actes > 0 ? Math.round(ca / actes) : 0;
   }
 
   return row;
@@ -341,7 +345,7 @@ function buildSynthèseRow(user: User, userResults: PeriodResults[], ratioConfig
   if (has(fields, "nom")) row["Collaborateur"] = `${user.firstName} ${user.lastName}`;
   if (has(fields, "categorie")) row["Catégorie"] = CATEGORY_LABELS[user.category] ?? user.category;
   if (has(fields, "equipe")) row["Équipe"] = getUserTeamLabel(user, allUsers);
-  if (has(fields, "contacts_totaux") || has(fields, "contacts_entrants")) row["Contacts"] = contacts;
+  if (has(fields, "contacts_totaux")) row["Contacts"] = contacts;
   if (has(fields, "estimations")) row["Estimations"] = estimations;
   if (has(fields, "mandats_signes") || has(fields, "mandats_exclusifs") || has(fields, "mandats_simples")) row["Mandats"] = mandats;
   if (has(fields, "pct_exclusivite") || has(fields, "mandats_exclusifs")) row["% Exclusivité"] = mandats > 0 ? Math.round((exclusifs / mandats) * 100) : 0;
