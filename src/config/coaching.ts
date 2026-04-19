@@ -120,10 +120,14 @@ export interface Plan30jWeek {
   exercice?: string;
 }
 
+export type Plan30jActionStatus = "todo" | "in_progress" | "done";
+
 export interface Plan30jAction {
   id: string;
   label: string;
   done: boolean;
+  /** Tri-état (nouveau) — si absent, on dérive depuis `done` */
+  status?: Plan30jActionStatus;
 }
 
 /**

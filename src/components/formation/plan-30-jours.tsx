@@ -10,9 +10,14 @@ import { useRatios } from "@/hooks/use-ratios";
 import { useResults } from "@/hooks/use-results";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
-import { createClient } from "@/lib/supabase/client";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
-import type { Plan30jPayload, Plan30jWeek } from "@/config/coaching";
+import type {
+  Plan30jPayload,
+  Plan30jWeek,
+  Plan30jAction,
+  Plan30jActionStatus,
+} from "@/config/coaching";
+import type { PeriodResults } from "@/types/results";
 import {
   CalendarCheck,
   ChevronDown,
@@ -24,6 +29,8 @@ import {
   CheckCircle2,
   XCircle,
   FastForward,
+  Circle,
+  CircleDashed,
 } from "lucide-react";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
@@ -45,6 +52,7 @@ export function Plan30Jours() {
     getActivePlan,
     createPlan30j,
     refresh,
+    updateResource,
   } = useImprovementResources();
 
   const [expandedWeek, setExpandedWeek] = useState<number>(1);
@@ -128,6 +136,32 @@ export function Plan30Jours() {
     if (!user?.id) return;
     if (typeof window === "undefined") return;
 
+    // 1) Calculer le progrès par semaine depuis les actions réelles du plan
+    const payload = activePlan.payload as unknown as Plan30jPayload | null;
+    const weeks = payload?.weeks ?? [];
+    const progressByWeek = weeks.map((w) => {
+      const total = w.actions.length;
+      const done = w.actions.filter(
+        (a) => a.status === "done" || a.done === true
+      ).length;
+      return total > 0 ? done / total : 0;
+    });
+    while (progressByWeek.length < 4) progressByWeek.push(0);
+
+    // 2) Simuler 4 saisies hebdo et les injecter dans le store
+    const painRatioId = (activePlan.pain_ratio_id as string) ?? "contacts_estimations";
+    const simulated = buildSimulatedResults(
+      user.id,
+      activePlan.created_at,
+      painRatioId,
+      progressByWeek
+    );
+    const addResults = useAppStore.getState().addResults;
+    for (const r of simulated) {
+      addResults(r);
+    }
+
+    // 3) Forcer l'expiration du plan en localStorage (demo uniquement)
     const key = `demo_improvement_resources_${user.id}`;
     const raw = window.localStorage.getItem(key);
     if (!raw) {
@@ -147,7 +181,10 @@ export function Plan30Jours() {
     }
 
     await refresh();
-    setToast({ type: "success", message: "Plan expiré, debrief gratuit débloqué !" });
+    setToast({
+      type: "success",
+      message: "Plan expiré, 4 saisies simulées ajoutées, debrief gratuit débloqué !",
+    });
   }, [getActivePlan, user?.id, refresh]);
 
   const toggleAction = useCallback(
@@ -159,21 +196,27 @@ export function Plan30Jours() {
           w.week_number === weekNumber
             ? {
                 ...w,
-                actions: w.actions.map((a) =>
-                  a.id === actionId ? { ...a, done: !a.done } : a
-                ),
+                actions: w.actions.map((a) => {
+                  if (a.id !== actionId) return a;
+                  const current: Plan30jActionStatus =
+                    a.status ?? (a.done ? "done" : "todo");
+                  const nextStatus = cycleStatus(current);
+                  return {
+                    ...a,
+                    status: nextStatus,
+                    done: nextStatus === "done",
+                  };
+                }),
               }
             : w
         ),
       };
       setLocalPayload(nextPayload);
-      const supabase = createClient();
-      await supabase
-        .from("user_improvement_resources")
-        .update({ payload: nextPayload as unknown as Record<string, unknown> })
-        .eq("id", activePlan.id);
+      await updateResource(activePlan.id, {
+        payload: nextPayload as unknown as Record<string, unknown>,
+      });
     },
-    [localPayload, activePlan]
+    [localPayload, activePlan, updateResource]
   );
 
   if (loading) {
@@ -225,7 +268,9 @@ export function Plan30Jours() {
     : Math.max(0, 30 - daysElapsed);
   const xOfThirty = Math.min(30, daysElapsed);
   const allActions = localPayload.weeks.flatMap((w) => w.actions);
-  const doneCount = allActions.filter((a) => a.done).length;
+  const doneCount = allActions.filter(
+    (a) => a.status === "done" || a.done === true
+  ).length;
   const globalProgress =
     allActions.length > 0 ? (doneCount / allActions.length) * 100 : 0;
   const painExpertise = RATIO_EXPERTISE[localPayload.pain_ratio_id as keyof typeof RATIO_EXPERTISE];
@@ -324,7 +369,9 @@ function WeekAccordion({
   onToggle: () => void;
   onToggleAction: (actionId: string) => void;
 }) {
-  const weekDone = week.actions.filter((a) => a.done).length;
+  const weekDone = week.actions.filter(
+    (a) => a.status === "done" || a.done === true
+  ).length;
   const weekTotal = week.actions.length;
   const weekProgress = weekTotal > 0 ? (weekDone / weekTotal) * 100 : 0;
 
@@ -377,26 +424,11 @@ function WeekAccordion({
         <div className="border-t border-border px-5 pb-5 pt-3">
           <ul className="space-y-2">
             {week.actions.map((action) => (
-              <li key={action.id}>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted/50">
-                  <input
-                    type="checkbox"
-                    checked={action.done}
-                    onChange={() => onToggleAction(action.id)}
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
-                  />
-                  <span
-                    className={cn(
-                      "text-sm",
-                      action.done
-                        ? "text-muted-foreground line-through"
-                        : "text-foreground"
-                    )}
-                  >
-                    {action.label}
-                  </span>
-                </label>
-              </li>
+              <ActionRow
+                key={action.id}
+                action={action}
+                onToggle={() => onToggleAction(action.id)}
+              />
             ))}
           </ul>
 
@@ -419,6 +451,145 @@ function WeekAccordion({
       )}
     </div>
   );
+}
+
+function ActionRow({
+  action,
+  onToggle,
+}: {
+  action: Plan30jAction;
+  onToggle: () => void;
+}) {
+  const status: Plan30jActionStatus =
+    action.status ?? (action.done ? "done" : "todo");
+
+  const config =
+    status === "done"
+      ? { Icon: CheckCircle2, iconClass: "text-green-500", labelClass: "text-muted-foreground line-through", aria: "Terminé" }
+      : status === "in_progress"
+      ? { Icon: CircleDashed, iconClass: "text-amber-500", labelClass: "text-foreground", aria: "En cours" }
+      : { Icon: Circle, iconClass: "text-muted-foreground/60", labelClass: "text-foreground", aria: "À faire" };
+  const Icon = config.Icon;
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={`${config.aria} — cliquer pour changer l'état`}
+        className="flex w-full cursor-pointer items-start gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted/50"
+      >
+        <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", config.iconClass)} />
+        <span className={cn("text-sm", config.labelClass)}>{action.label}</span>
+      </button>
+    </li>
+  );
+}
+
+function cycleStatus(current: Plan30jActionStatus): Plan30jActionStatus {
+  if (current === "todo") return "in_progress";
+  if (current === "in_progress") return "done";
+  return "todo";
+}
+
+function buildSimulatedResults(
+  userId: string,
+  planCreatedAtIso: string,
+  painRatioId: string,
+  progressByWeek: number[]
+): PeriodResults[] {
+  const createdAt = new Date(planCreatedAtIso);
+  const results: PeriodResults[] = [];
+
+  for (let week = 1; week <= 4; week++) {
+    const progress = Math.max(0, Math.min(1, progressByWeek[week - 1] ?? 0));
+    const boost = 1 + progress * 0.3; // jusqu'à +30 % avec 100 % done
+
+    // Baselines réalistes (perf moyenne/faible)
+    let contactsTotaux = 50;
+    let rdvEstimation = 6;
+    let estimationsRealisees = 6;
+    let mandatsSignes = 3;
+    let pctExclusif = 0.5;
+    let nombreVisites = 15;
+    let acheteursSortisVisite = 5;
+    let offresRecues = 2;
+    let compromisSignes = 2;
+    let actesSignes = 2;
+
+    switch (painRatioId) {
+      case "contacts_estimations":
+        // ratio contactsTotaux / rdvEstimation doit BAISSER → + de RDV pour les mêmes contacts
+        rdvEstimation = Math.round(rdvEstimation * boost);
+        estimationsRealisees = Math.round(estimationsRealisees * boost);
+        break;
+      case "estimations_mandats":
+        // ratio rdvEstim / mandats → + de mandats
+        mandatsSignes = Math.round(mandatsSignes * boost);
+        break;
+      case "pct_exclusivite":
+        pctExclusif = Math.min(0.9, 0.3 + 0.5 * progress); // 30 % → 80 %
+        break;
+      case "acheteurs_tournee":
+      case "visites_par_acheteur":
+        // ratio nombreVisites / acheteursSortisVisite → + d'acheteurs sortis
+        acheteursSortisVisite = Math.round(acheteursSortisVisite * boost);
+        break;
+      case "visites_offres":
+        // ratio visites / offres → + d'offres
+        offresRecues = Math.round(offresRecues * boost);
+        break;
+      case "offres_compromis":
+        compromisSignes = Math.round(compromisSignes * boost);
+        break;
+      case "compromis_actes":
+        actesSignes = Math.round(actesSignes * boost);
+        break;
+    }
+
+    const numExclu = Math.max(0, Math.min(mandatsSignes, Math.floor(mandatsSignes * pctExclusif)));
+    const weekStart = new Date(createdAt.getTime() + (week - 1) * 7 * 24 * 3600 * 1000);
+    const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 3600 * 1000);
+
+    results.push({
+      id: `sim-result-${week}-${createdAt.getTime()}`,
+      userId,
+      periodType: "week",
+      periodStart: weekStart.toISOString(),
+      periodEnd: weekEnd.toISOString(),
+      prospection: {
+        contactsTotaux,
+        rdvEstimation,
+      },
+      vendeurs: {
+        rdvEstimation,
+        estimationsRealisees,
+        mandatsSignes,
+        mandats: Array.from({ length: mandatsSignes }, (_, i) => ({
+          id: `sim-mandat-${week}-${i}-${createdAt.getTime()}`,
+          type: i < numExclu ? ("exclusif" as const) : ("simple" as const),
+        })),
+        rdvSuivi: 2,
+        requalificationSimpleExclusif: 1,
+        baissePrix: 0,
+      },
+      acheteurs: {
+        acheteursSortisVisite,
+        nombreVisites,
+        offresRecues,
+        compromisSignes,
+        chiffreAffairesCompromis: compromisSignes * 10000,
+      },
+      ventes: {
+        actesSignes,
+        chiffreAffaires: actesSignes * 9000,
+      },
+      createdAt: weekEnd.toISOString(),
+      updatedAt: weekEnd.toISOString(),
+    });
+  }
+
+  return results;
 }
 
 function FastForwardButton({ onClick }: { onClick: () => void }) {
