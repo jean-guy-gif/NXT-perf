@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { calculateObjectiveBreakdown } from "@/lib/objectifs";
 import { useAppStore } from "@/stores/app-store";
 import { formatCurrency } from "@/lib/formatters";
+import { RATIO_ID_TO_EXPERTISE_ID, buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
 import type { UserCategory } from "@/types/user";
@@ -23,9 +27,13 @@ import {
   FileCheck,
   Save,
   CheckCircle,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
   Navigation,
   UserCog,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 /* ────── Types ────── */
@@ -125,6 +133,68 @@ export default function ObjectifsPage() {
 
   /* ── Ratios actuels (depuis Ma Performance) ── */
   const { computedRatios } = useRatios();
+
+  /* ── Plan 30j (hook flywheel) ── */
+  const router = useRouter();
+  const currentUser = useAppStore((s) => s.user);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const allResults = useAppStore((s) => s.results);
+  const { getActivePlan, getActivePlanForRatio, createPlan30j } =
+    useImprovementResources();
+  const [improveToast, setImproveToast] = useState<
+    { type: "success" | "error" | "info"; message: string } | null
+  >(null);
+  const [improving, setImproving] = useState(false);
+
+  const daysElapsedSince = (iso: string) =>
+    Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)));
+
+  const navigateToPlan = () => router.push("/formation?tab=plan30");
+
+  const handleImprove = async (ratioId: RatioId) => {
+    const expertiseId = RATIO_ID_TO_EXPERTISE_ID[ratioId];
+    if (!expertiseId) return;
+    if (improving) return;
+    if (!results) {
+      setImproveToast({ type: "error", message: "Données de performance introuvables" });
+      return;
+    }
+    setImproving(true);
+    setImproveToast(null);
+    try {
+      const userHistory = allResults.filter((r) => r.userId === currentUser?.id);
+      const measuredRatios = buildMeasuredRatios(computedRatios, results);
+      const profile = deriveProfileLevel(category);
+      const avgCommissionEur = getAvgCommissionEur(
+        agencyObjective?.avgActValue,
+        userHistory
+      );
+      await createPlan30j({
+        mode: "targeted",
+        ratioId: expertiseId,
+        measuredRatios,
+        profile,
+        avgCommissionEur,
+      });
+      setImproveToast({ type: "success", message: "Plan 30 jours généré" });
+      router.push("/formation?tab=plan30");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith("PLAN_ACTIVE_ALREADY")) {
+        setImproveToast({
+          type: "info",
+          message: "Vous avez déjà un plan actif, voici votre plan actuel",
+        });
+        router.push("/formation?tab=plan30");
+      } else if (msg.startsWith("NO_PAIN_POINT")) {
+        setImproveToast({ type: "info", message: "Aucun ratio en sous-performance détecté" });
+      } else {
+        setImproveToast({ type: "error", message: "Erreur lors de la création du plan" });
+      }
+    } finally {
+      setImproving(false);
+    }
+  };
 
   /* ── Build custom ratioConfigs when "actuel" is selected ── */
   const effectiveRatioConfigs = useMemo(() => {
@@ -504,22 +574,81 @@ export default function ObjectifsPage() {
                 {niveauOptions.find((n) => n.value === selectedNiveau)?.label}
               </span>
             </h3>
+            {improveToast && (
+              <div
+                className={cn(
+                  "mb-3 flex items-start gap-3 rounded-lg border px-4 py-3",
+                  improveToast.type === "success" && "border-green-500/30 bg-green-500/5",
+                  improveToast.type === "error" && "border-red-500/30 bg-red-500/5",
+                  improveToast.type === "info" && "border-amber-500/30 bg-amber-500/5"
+                )}
+              >
+                {improveToast.type === "success" ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
+                ) : improveToast.type === "error" ? (
+                  <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+                ) : (
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+                )}
+                <p className="flex-1 text-sm text-foreground">{improveToast.message}</p>
+                <button
+                  type="button"
+                  onClick={() => setImproveToast(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Fermer
+                </button>
+              </div>
+            )}
             <div className="space-y-3">
               {ratioIds.map((id) => {
                 const config = ratioConfigs[id];
                 const threshold = thresholdsForLevel[id];
+                const expertiseId = RATIO_ID_TO_EXPERTISE_ID[id];
+                const planForThis = expertiseId ? getActivePlanForRatio(expertiseId) : null;
+                const anyActivePlan = getActivePlan();
+                const hasPlanForThis = !!planForThis;
+                const hasPlanForOther = !hasPlanForThis && !!anyActivePlan;
+                const jPlus = planForThis
+                  ? Math.min(30, daysElapsedSince(planForThis.created_at))
+                  : 0;
+                const ctaLabel = hasPlanForThis
+                  ? `Reprendre (J+${jPlus}/30)`
+                  : hasPlanForOther
+                  ? "Voir mon plan actif"
+                  : "Améliorer";
 
                 return (
                   <div
                     key={id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
                   >
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-foreground flex-1 min-w-0 truncate">
                       {ratioLabels[id]}
                     </p>
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary shrink-0">
                       {config.isPercentage ? `${Math.round(threshold)}%` : Number(threshold).toFixed(1)}
                     </span>
+                    {expertiseId && (
+                      <button
+                        type="button"
+                        disabled={improving}
+                        onClick={() => {
+                          if (hasPlanForThis || hasPlanForOther) navigateToPlan();
+                          else handleImprove(id);
+                        }}
+                        className={cn(
+                          "shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                          hasPlanForThis || hasPlanForOther
+                            ? "bg-primary/15 text-primary hover:bg-primary/25"
+                            : "bg-primary text-primary-foreground hover:bg-primary/90",
+                          improving && "opacity-60 cursor-not-allowed"
+                        )}
+                      >
+                        {!(hasPlanForThis || hasPlanForOther) && <Sparkles className="h-3 w-3" />}
+                        {ctaLabel}
+                      </button>
+                    )}
                   </div>
                 );
               })}
