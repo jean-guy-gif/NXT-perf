@@ -4,13 +4,21 @@ import { useState, useMemo } from "react";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
-import { useResults, useAllResults } from "@/hooks/use-results";
+import { useAllResults } from "@/hooks/use-results";
 import { useAppStore } from "@/stores/app-store";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ComparisonRadar } from "@/components/charts/comparison-radar";
+import { PeriodSelector } from "@/components/ui/period-selector";
 import { DPIComparisonView } from "@/components/dpi/dpi-comparison-view";
 import { CATEGORY_LABELS, CATEGORY_OBJECTIVES } from "@/lib/constants";
 import { formatCurrency } from "@/lib/formatters";
+import { aggregateResults } from "@/lib/aggregate-results";
+import {
+  getPeriodBounds,
+  formatPeriodRange,
+  COMPARISON_PERIOD_OPTIONS,
+  type ComparisonPeriod,
+} from "@/lib/date-periods";
 import type { User, UserCategory } from "@/types/user";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
@@ -26,35 +34,60 @@ export default function ComparaisonPage() {
     useState<UserCategory>("expert");
 
   const { user } = useUser();
-  const myResults = useResults();
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const users = useAppStore((s) => s.users);
 
-  const realOtherResults =
-    mode === "advisor"
-      ? allResults.find((r) => r.userId === selectedAdvisorId) ?? null
-      : null;
+  const [period, setPeriod] = useState<ComparisonPeriod>("mois");
+  const periodBounds = useMemo(() => getPeriodBounds(period), [period]);
+
+  const myAggregatedResults = useMemo(() => {
+    if (!user) return null;
+    const startMs = periodBounds.start.getTime();
+    const endMs = periodBounds.end.getTime();
+    const inPeriod = allResults.filter((r) => {
+      if (r.userId !== user.id) return false;
+      const ts = new Date(r.periodStart).getTime();
+      return ts >= startMs && ts <= endMs;
+    });
+    return aggregateResults(inPeriod);
+  }, [user, allResults, periodBounds]);
+
+  const otherAggregatedResults = useMemo(() => {
+    if (mode !== "advisor") return null;
+    const startMs = periodBounds.start.getTime();
+    const endMs = periodBounds.end.getTime();
+    const inPeriod = allResults.filter((r) => {
+      if (r.userId !== selectedAdvisorId) return false;
+      const ts = new Date(r.periodStart).getTime();
+      return ts >= startMs && ts <= endMs;
+    });
+    return aggregateResults(inPeriod);
+  }, [mode, allResults, selectedAdvisorId, periodBounds]);
 
   const effectiveOther = useMemo<PeriodResults | null>(() => {
-    if (mode === "advisor") return realOtherResults;
-    return buildProfileResults(selectedProfile, ratioConfigs);
-  }, [mode, realOtherResults, selectedProfile, ratioConfigs]);
+    if (mode === "advisor") return otherAggregatedResults;
+    return buildProfileResults(selectedProfile, ratioConfigs, periodBounds.monthsInPeriod);
+  }, [mode, otherAggregatedResults, selectedProfile, ratioConfigs, periodBounds]);
 
-  const myVerdict = extractVerdict(myResults);
+  const myVerdict = extractVerdict(myAggregatedResults);
   const otherVerdict = extractVerdict(effectiveOther);
   const caDelta = myVerdict.ca - otherVerdict.ca;
   const caDeltaPct =
     otherVerdict.ca > 0 ? Math.round((caDelta / otherVerdict.ca) * 100) : 0;
 
   const volumeAxes = useMemo(
-    () => buildVolumeAxes(myResults, effectiveOther),
-    [myResults, effectiveOther]
+    () => buildVolumeAxes(myAggregatedResults, effectiveOther),
+    [myAggregatedResults, effectiveOther]
   );
   const efficiencyAxes = useMemo(
-    () => buildEfficiencyAxes(myResults, effectiveOther),
-    [myResults, effectiveOther]
+    () => buildEfficiencyAxes(myAggregatedResults, effectiveOther),
+    [myAggregatedResults, effectiveOther]
   );
+
+  const hasData =
+    myAggregatedResults !== null &&
+    (mode !== "advisor" || otherAggregatedResults !== null);
 
   const volumeRadarMax =
     Math.max(1, ...volumeAxes.flatMap((a) => [a.me, a.other])) * 1.1;
@@ -194,6 +227,30 @@ export default function ComparaisonPage() {
             )}
           </div>
 
+          {/* Période */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-muted-foreground">Période :</span>
+            <PeriodSelector
+              options={COMPARISON_PERIOD_OPTIONS}
+              value={period}
+              onChange={setPeriod}
+            />
+            <span className="text-xs text-muted-foreground">
+              ({formatPeriodRange(periodBounds)})
+            </span>
+          </div>
+
+          {!hasData ? (
+            <div className="rounded-xl border border-border bg-card p-12 text-center">
+              <div className="text-sm text-muted-foreground">
+                Aucune donnée disponible pour cette période.
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Essaye d&apos;élargir la période (Trimestre, Semestre, Année).
+              </div>
+            </div>
+          ) : (
+          <>
           {/* ═══ BLOC 1 — VERDICT ═══ */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="mb-4">
@@ -333,6 +390,8 @@ export default function ComparaisonPage() {
               unit="percent"
             />
           </div>
+          </>
+          )}
         </div>
       )}
 
@@ -459,18 +518,30 @@ function buildEfficiencyAxes(
 
 function buildProfileResults(
   profile: UserCategory,
-  ratioConfigs: Record<RatioId, RatioConfig>
+  ratioConfigs: Record<RatioId, RatioConfig>,
+  monthsInPeriod: number
 ): PeriodResults {
   const obj = CATEGORY_OBJECTIVES[profile];
+  const mult = Math.max(1, monthsInPeriod);
+
+  const estimations = obj.estimations * mult;
+  const mandats = obj.mandats * mult;
+  const visites = obj.visites * mult;
+  const offres = obj.offres * mult;
+  const compromis = obj.compromis * mult;
+  const actes = obj.actes * mult;
+  const ca = obj.ca * mult;
+
   const contactsTarget = Math.round(
-    obj.estimations * ratioConfigs.contacts_rdv.thresholds[profile]
+    estimations * ratioConfigs.contacts_rdv.thresholds[profile]
   );
-  const numExclu = Math.floor((obj.mandats * obj.exclusivite) / 100);
+  // % d'exclusivité reste un pourcentage (non cumulable)
+  const numExclu = Math.floor((mandats * obj.exclusivite) / 100);
   const acheteursTarget = Math.max(
     1,
-    Math.ceil(obj.visites / ratioConfigs.acheteurs_visites.thresholds[profile])
+    Math.ceil(visites / ratioConfigs.acheteurs_visites.thresholds[profile])
   );
-  const avgAct = obj.actes > 0 ? obj.ca / obj.actes : 0;
+  const avgAct = actes > 0 ? ca / actes : 0;
   const now = new Date().toISOString();
   return {
     id: "profile-synth",
@@ -480,13 +551,13 @@ function buildProfileResults(
     periodEnd: now,
     prospection: {
       contactsTotaux: contactsTarget,
-      rdvEstimation: obj.estimations,
+      rdvEstimation: estimations,
     },
     vendeurs: {
-      rdvEstimation: obj.estimations,
-      estimationsRealisees: obj.estimations,
-      mandatsSignes: obj.mandats,
-      mandats: Array.from({ length: obj.mandats }, (_, i) => ({
+      rdvEstimation: estimations,
+      estimationsRealisees: estimations,
+      mandatsSignes: mandats,
+      mandats: Array.from({ length: mandats }, (_, i) => ({
         id: `profile-mandat-${i}`,
         type: i < numExclu ? ("exclusif" as const) : ("simple" as const),
       })),
@@ -496,14 +567,14 @@ function buildProfileResults(
     },
     acheteurs: {
       acheteursSortisVisite: acheteursTarget,
-      nombreVisites: obj.visites,
-      offresRecues: obj.offres,
-      compromisSignes: obj.compromis,
-      chiffreAffairesCompromis: Math.round(obj.compromis * avgAct),
+      nombreVisites: visites,
+      offresRecues: offres,
+      compromisSignes: compromis,
+      chiffreAffairesCompromis: Math.round(compromis * avgAct),
     },
     ventes: {
-      actesSignes: obj.actes,
-      chiffreAffaires: obj.ca,
+      actesSignes: actes,
+      chiffreAffaires: ca,
     },
     createdAt: now,
     updatedAt: now,
