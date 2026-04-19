@@ -1,7 +1,235 @@
+/**
+ * Génération des plans 30 jours NXT Performance — V2 (flywheel)
+ *
+ * Nouvelle logique (Philosophie B — focus unique) :
+ * Chaque plan cible UNE seule douleur (le ratio le plus coûteux en €
+ * via pain-point-detector.ts), pas une liste de priorités.
+ *
+ * Le contenu des semaines est tiré directement du doc d'expertise Jean-Guy
+ * (ratio-expertise.ts), section Q3 (best practices) et Q4 (first action).
+ */
+
+import {
+  RATIO_EXPERTISE,
+  type ExpertiseRatioId,
+  type RatioExpertise,
+} from "@/data/ratio-expertise";
+import type { PainPointResult } from "@/lib/pain-point-detector";
+import type {
+  Plan30jAction,
+  Plan30jPayload,
+  Plan30jWeek,
+} from "@/config/coaching";
+
+// Types publics
+
+export interface GeneratedPlan30j {
+  painRatioId: ExpertiseRatioId;
+  painScore: number;
+  estimatedCaLossEur: number;
+  weeks: Plan30jWeek[];
+  diagnosis: string;
+  bestPractices: string;
+  expectedImpactDelayDays: number;
+  generatedAt: string;
+}
+
+// Génération du plan focalisé sur 1 douleur
+
+/**
+ * Génère un plan 30 jours focalisé exclusivement sur le plus gros point de
+ * douleur du conseiller, avec un contenu tiré du doc d'expertise.
+ *
+ * Structure narrative (4 semaines) :
+ *   S1 — Diagnostic personnel + première action (Q4)
+ *   S2 — Ancrage des meilleures pratiques (Q3 partie 1)
+ *   S3 — Mise en pratique avancée (Q3 partie 2)
+ *   S4 — Consolidation + mesure d\'impact
+ */
+export function generatePlan30j(painPoint: PainPointResult): GeneratedPlan30j {
+  const expertise = painPoint.expertise;
+
+  const weeks: Plan30jWeek[] = [
+    buildWeek1Diagnostic(expertise),
+    buildWeek2Ancrage(expertise),
+    buildWeek3MisePratique(expertise),
+    buildWeek4Consolidation(expertise),
+  ];
+
+  return {
+    painRatioId: painPoint.expertiseId,
+    painScore: painPoint.painScore,
+    estimatedCaLossEur: painPoint.estimatedCaLossEur,
+    weeks,
+    diagnosis: expertise.diagnosis,
+    bestPractices: expertise.bestPractices,
+    expectedImpactDelayDays: expertise.expectedImpactDelayDays,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+// Semaine 1 - Diagnostic + premiere action
+
+function buildWeek1Diagnostic(expertise: RatioExpertise): Plan30jWeek {
+  const actions: Plan30jAction[] = [
+    {
+      id: "w1-action-1",
+      label: `Identifier precisement les 3 derniers cas ou vous avez constate ce probleme sur ${expertise.label}`,
+      done: false,
+    },
+    {
+      id: "w1-action-2",
+      label: `Appliquer la premiere action recommandee : ${expertise.firstAction}`,
+      done: false,
+    },
+    {
+      id: "w1-action-3",
+      label: "Tenir un journal de bord : noter chaque situation rencontree cette semaine liee a ce ratio",
+      done: false,
+    },
+  ];
+
+  return {
+    week_number: 1,
+    focus: `Diagnostic et premiere action sur ${expertise.label}`,
+    actions,
+    exercice: `Exercice NXT - Analyse personnelle : pourquoi ce ratio se degrade chez vous`,
+  };
+}
+
+// Semaine 2 - Ancrage des meilleures pratiques
+
+function buildWeek2Ancrage(expertise: RatioExpertise): Plan30jWeek {
+  const firstBestPracticeSentence = extractFirstSentence(expertise.bestPractices);
+
+  const actions: Plan30jAction[] = [
+    {
+      id: "w2-action-1",
+      label: firstBestPracticeSentence,
+      done: false,
+    },
+    {
+      id: "w2-action-2",
+      label: "Preparer 3 situations professionnelles cette semaine ou vous appliquerez la methode des meilleurs",
+      done: false,
+    },
+    {
+      id: "w2-action-3",
+      label: "Demander un retour a un collegue ou a votre manager apres chaque tentative",
+      done: false,
+    },
+  ];
+
+  return {
+    week_number: 2,
+    focus: "Ancrage : adopter les reflexes des meilleurs",
+    actions,
+    exercice: `Exercice NXT - Jeu de role sur ${expertise.label}`,
+  };
+}
+
+// Semaine 3 - Mise en pratique avancee
+
+function buildWeek3MisePratique(_expertise: RatioExpertise): Plan30jWeek {
+  const actions: Plan30jAction[] = [
+    {
+      id: "w3-action-1",
+      label: "Appliquer la methode complete sur au moins 5 dossiers reels cette semaine",
+      done: false,
+    },
+    {
+      id: "w3-action-2",
+      label: "Documenter chaque application : ce qui a fonctionne, ce qui a resiste",
+      done: false,
+    },
+    {
+      id: "w3-action-3",
+      label: "Ajuster votre approche en cours de route selon les retours terrain",
+      done: false,
+    },
+  ];
+
+  return {
+    week_number: 3,
+    focus: "Mise en pratique intensive et ajustements",
+    actions,
+    exercice: "Exercice NXT - Debrief hebdomadaire avec analyse des resistances",
+  };
+}
+
+// Semaine 4 - Consolidation + mesure
+
+function buildWeek4Consolidation(expertise: RatioExpertise): Plan30jWeek {
+  const actions: Plan30jAction[] = [
+    {
+      id: "w4-action-1",
+      label: `Mesurer l\'evolution de votre ratio ${expertise.label} sur les 30 derniers jours`,
+      done: false,
+    },
+    {
+      id: "w4-action-2",
+      label: "Identifier 2 comportements a conserver definitivement",
+      done: false,
+    },
+    {
+      id: "w4-action-3",
+      label: "Preparer le debrief NXT Coaching offert pour affiner la suite",
+      done: false,
+    },
+  ];
+
+  return {
+    week_number: 4,
+    focus: "Consolidation des acquis et preparation du debrief",
+    actions,
+    exercice: "Exercice NXT - Bilan personnel de progression",
+  };
+}
+
+// Helpers
+
+/** Extrait la premiere phrase d\'un texte multi-phrases pour affichage compact */
+function extractFirstSentence(text: string): string {
+  const match = text.match(/^[^.!?]+[.!?]/);
+  return match ? match[0].trim() : text.slice(0, 200);
+}
+
+// Conversion vers payload JSONB pour stockage Supabase
+
+/**
+ * Prepare le payload JSONB a stocker dans user_improvement_resources.payload
+ * pour une ressource de type plan_30j.
+ */
+export function planToPayload(plan: GeneratedPlan30j): Plan30jPayload {
+  return {
+    pain_ratio_id: plan.painRatioId,
+    pain_score: plan.painScore,
+    estimated_ca_loss_eur: plan.estimatedCaLossEur,
+    weeks: plan.weeks,
+  };
+}
+
+// Re-export des types expertise pour compat
+
+export type { ExpertiseRatioId } from "@/data/ratio-expertise";
+export { RATIO_EXPERTISE } from "@/data/ratio-expertise";
+// ═══════════════════════════════════════════════════════════════════════════
+// COUCHE LEGACY — Adaptateur pour composants UI existants
+// ═══════════════════════════════════════════════════════════════════════════
+// Ces exports maintiennent l'ancienne API (multi-priorités, PlanPriority[])
+// alimentée en interne par la nouvelle logique V2 (1 douleur max).
+//
+// Utilisé par : hooks/use-plans.ts, components/formation/plan-30-jours.tsx,
+//               components/dashboard/production-chain.tsx, dashboard/page.tsx
+//
+// À migrer progressivement via tickets dédiés pour consommer directement
+// l'API V2 (generatePlan30j, GeneratedPlan30j).
+// ═══════════════════════════════════════════════════════════════════════════
+
 import type { RatioId, RatioConfig } from "@/types/ratios";
 import type { FormationArea, FormationDiagnostic } from "@/types/formation";
 
-// ─── Types ───────────────────────────────────────────────────────────
+// ─── Types legacy ────────────────────────────────────────────────────
 
 export type ActionStatus = "todo" | "in_progress" | "done";
 
@@ -25,193 +253,25 @@ export interface PlanPriority {
   label: string;
   currentValue: number;
   targetValue: number;
-  status: "warning" | "danger";
+  status: "danger" | "warning";
 }
 
 export interface Plan30Days {
-  id: string;
-  generatedAt: string;
   priorities: PlanPriority[];
   weeks: WeekPlan[];
+  generatedAt: string;
 }
 
-// ─── Actions terrain par FormationArea, réparties sur 4 semaines ─────
+// ─── Mappings FormationArea ↔ ExpertiseRatioId ───────────────────────
 
-const weeklyActionsMap: Record<FormationArea, string[][]> = {
-  prospection: [
-    [
-      "Lister 20 contacts non relancés et les rappeler",
-      "Rédiger un script d'appel structuré",
-      "Planifier 5 créneaux de prospection téléphonique",
-    ],
-    [
-      "Tester le script sur 10 appels et noter les retours",
-      "Identifier 3 nouveaux canaux de prospection",
-      "Qualifier tous les leads entrants de la semaine",
-    ],
-    [
-      "Organiser une session de prospection terrain (porte-à-porte)",
-      "Mettre à jour le CRM avec tous les contacts en cours",
-      "Relancer les prospects chauds non convertis",
-    ],
-    [
-      "Analyser le taux de conversion appels → RDV du mois",
-      "Ajuster le script selon les retours terrain",
-      "Planifier le planning prospection du mois suivant",
-    ],
-  ],
-  estimation: [
-    [
-      "Préparer un book de 5 comparables récents du secteur",
-      "Revoir la méthodologie ACV pour les estimations",
-      "Analyser 2 estimations passées non converties",
-    ],
-    [
-      "Pratiquer le pitch estimation avec un collègue",
-      "Préparer un dossier de présentation vendeur type",
-      "Lister les objections fréquentes et préparer les réponses",
-    ],
-    [
-      "Réaliser 2 RDV estimation avec le nouveau dossier",
-      "Mettre en place un protocole de relance post-estimation",
-      "Collecter les retours vendeurs sur la présentation",
-    ],
-    [
-      "Analyser le taux estimation → mandat du mois",
-      "Affiner le book comparables avec les dernières ventes",
-      "Consolider la routine de suivi post-estimation",
-    ],
-  ],
-  exclusivite: [
-    [
-      "Rédiger l'argumentaire exclusivité en 5 points clés",
-      "Lister les avantages concrets pour le vendeur",
-      "Préparer un plan marketing type pour mandat exclusif",
-    ],
-    [
-      "Collecter 2 témoignages de vendeurs satisfaits",
-      "Pratiquer le pitch exclusivité avec un collègue",
-      "Identifier 3 mandats simples requalifiables",
-    ],
-    [
-      "Proposer la requalification aux 3 vendeurs identifiés",
-      "Présenter le plan marketing exclusif lors d'un RDV",
-      "Envoyer un reporting hebdomadaire à un vendeur exclusif",
-    ],
-    [
-      "Mesurer le taux de requalification du mois",
-      "Ajuster l'argumentaire selon les retours terrain",
-      "Formaliser le process exclusivité pour le mois suivant",
-    ],
-  ],
-  suivi_mandat: [
-    [
-      "Lister tous les mandats en cours sans action récente",
-      "Planifier un appel de suivi pour chaque mandat > 30 jours",
-      "Préparer un template de compte-rendu vendeur",
-    ],
-    [
-      "Réaliser les appels de suivi planifiés",
-      "Analyser les mandats sans visite et proposer un ajustement prix",
-      "Améliorer la qualité des annonces des 3 mandats les plus anciens",
-    ],
-    [
-      "Envoyer un reporting vendeur pour chaque mandat actif",
-      "Organiser un point stratégie avec les vendeurs en difficulté",
-      "Multiplier les canaux de diffusion pour les mandats stagnants",
-    ],
-    [
-      "Analyser le taux de vente des mandats simples du mois",
-      "Identifier les mandats à renouveler ou abandonner",
-      "Mettre en place une routine de suivi hebdomadaire",
-    ],
-  ],
-  accompagnement_acheteur: [
-    [
-      "Revoir la fiche de qualification acheteur",
-      "Vérifier le financement de chaque acheteur actif",
-      "Préparer un dossier de visite complet pour 3 biens",
-    ],
-    [
-      "Qualifier 5 acheteurs avec la nouvelle fiche",
-      "Organiser des visites groupées sur un créneau serré",
-      "Appeler chaque visiteur sous 24h après la visite",
-    ],
-    [
-      "Relancer les acheteurs chauds n'ayant pas fait d'offre",
-      "Proposer des biens alternatifs aux acheteurs indécis",
-      "Travailler la présentation de l'offre avec un collègue",
-    ],
-    [
-      "Analyser le taux visites → offres du mois",
-      "Ajuster les critères de qualification acheteur",
-      "Consolider le suivi post-visite systématique",
-    ],
-  ],
-  negociation: [
-    [
-      "Réviser les techniques de closing (SPIN, ancrage)",
-      "Analyser 2 négociations récentes perdues",
-      "Préparer un argumentaire offre type",
-    ],
-    [
-      "Pratiquer une simulation de négociation avec un collègue",
-      "Réduire le délai de présentation offre → vendeur à 24h",
-      "Vérifier la solidité financière de chaque offre en cours",
-    ],
-    [
-      "Appliquer les techniques sur une vraie négociation",
-      "Maintenir un contact quotidien acheteur/vendeur pendant la négo",
-      "Anticiper les objections et préparer les contre-arguments",
-    ],
-    [
-      "Analyser le taux offres → compromis du mois",
-      "Identifier les causes de chute entre offre et compromis",
-      "Formaliser un process de négociation standardisé",
-    ],
-  ],
+const areaToExpertiseId: Record<FormationArea, ExpertiseRatioId> = {
+  prospection: "contacts_estimations",
+  estimation: "estimations_mandats",
+  exclusivite: "pct_exclusivite",
+  accompagnement_acheteur: "visites_offres",
+  negociation: "offres_compromis",
+  suivi_mandat: "compromis_actes",
 };
-
-const exerciceMap: Record<FormationArea, string[]> = {
-  prospection: [
-    "Exercice NXT : Simulation d'appel de prospection",
-    "Exercice NXT : Qualification de lead en live",
-    "Exercice NXT : Gestion des objections au téléphone",
-    "Exercice NXT : Bilan prospection et plan d'action",
-  ],
-  estimation: [
-    "Exercice NXT : Présentation d'estimation au vendeur",
-    "Exercice NXT : Argumentation prix face aux objections",
-    "Exercice NXT : Pitch de transformation estimation → mandat",
-    "Exercice NXT : Analyse critique d'un dossier estimation",
-  ],
-  exclusivite: [
-    "Exercice NXT : Pitch exclusivité en situation réelle",
-    "Exercice NXT : Réponse aux objections « mandat simple »",
-    "Exercice NXT : Simulation de requalification",
-    "Exercice NXT : Présentation du plan marketing exclusif",
-  ],
-  suivi_mandat: [
-    "Exercice NXT : Appel de suivi vendeur difficile",
-    "Exercice NXT : Présentation d'une baisse de prix",
-    "Exercice NXT : Rédaction de reporting vendeur efficace",
-    "Exercice NXT : Gestion d'un mandat sans visite",
-  ],
-  accompagnement_acheteur: [
-    "Exercice NXT : Qualification approfondie d'un acheteur",
-    "Exercice NXT : Conduite de visite et présentation du bien",
-    "Exercice NXT : Relance post-visite et closing",
-    "Exercice NXT : Gestion d'un acheteur indécis",
-  ],
-  negociation: [
-    "Exercice NXT : Simulation de négociation complète",
-    "Exercice NXT : Présentation d'offre au vendeur",
-    "Exercice NXT : Closing sous pression et objections",
-    "Exercice NXT : Sécurisation du compromis",
-  ],
-};
-
-// ─── Fonctions publiques ─────────────────────────────────────────────
 
 const areaToRatioId: Record<FormationArea, RatioId> = {
   prospection: "contacts_rdv",
@@ -225,20 +285,25 @@ const areaToRatioId: Record<FormationArea, RatioId> = {
 const areaLabels: Record<FormationArea, string> = {
   prospection: "Prospection",
   estimation: "Estimation",
-  exclusivite: "Exclusivité",
+  exclusivite: "Exclusivite",
   suivi_mandat: "Suivi Mandat",
   accompagnement_acheteur: "Accompagnement Acheteur",
-  negociation: "Négociation",
+  negociation: "Negociation",
 };
 
+// ─── Fonctions legacy ────────────────────────────────────────────────
+
+/**
+ * LEGACY — Retourne la priorite principale (Philosophie B : focus unique).
+ */
 export function computeTopPriorities(
   diagnostic: FormationDiagnostic
 ): PlanPriority[] {
-  const highPriority = diagnostic.recommendations
+  const topRec = diagnostic.recommendations
     .filter((r) => r.priority <= 2)
-    .slice(0, 2);
+    .slice(0, 1);
 
-  return highPriority.map((rec) => ({
+  return topRec.map((rec) => ({
     ratioId: areaToRatioId[rec.area],
     area: rec.area,
     label: areaLabels[rec.area],
@@ -248,38 +313,61 @@ export function computeTopPriorities(
   }));
 }
 
+/**
+ * LEGACY — Genere un Plan30Days au format ancien a partir de priorites.
+ * En interne, delegue a generatePlan30j pour le contenu des semaines.
+ */
 export function generatePlan30Days(
   priorities: PlanPriority[],
   _ratioConfigs: Record<RatioId, RatioConfig>
 ): Plan30Days {
-  const weeks: WeekPlan[] = ([1, 2, 3, 4] as const).map((weekNumber) => {
-    const actions: PlanAction[] = [];
-    let exercice = "";
+  const mainPriority = priorities[0];
 
-    for (const priority of priorities) {
-      const areaActions = weeklyActionsMap[priority.area]?.[weekNumber - 1] ?? [];
-      for (const label of areaActions) {
-        actions.push({
-          id: `w${weekNumber}-${priority.area}-${actions.length}`,
-          label,
-          done: false,
-          status: "todo",
-        });
-      }
+  if (!mainPriority) {
+    return {
+      priorities: [],
+      weeks: [
+        { weekNumber: 1, actions: [], exercice: "" },
+        { weekNumber: 2, actions: [], exercice: "" },
+        { weekNumber: 3, actions: [], exercice: "" },
+        { weekNumber: 4, actions: [], exercice: "" },
+      ],
+      generatedAt: new Date().toISOString(),
+    };
+  }
 
-      const areaExercice = exerciceMap[priority.area]?.[weekNumber - 1];
-      if (areaExercice) {
-        exercice = exercice ? `${exercice} | ${areaExercice}` : areaExercice;
-      }
-    }
+  const expertiseId = areaToExpertiseId[mainPriority.area];
+  const expertise = RATIO_EXPERTISE[expertiseId];
 
-    return { weekNumber, actions, exercice };
-  });
+  const fakePainPoint = {
+    expertiseId,
+    expertise,
+    currentValue: mainPriority.currentValue,
+    targetValue: mainPriority.targetValue,
+    normalizedGap:
+      Math.abs(mainPriority.currentValue - mainPriority.targetValue) /
+      (mainPriority.targetValue || 1),
+    estimatedCaLossEur: 0,
+    painScore: 0,
+  };
+
+  const newPlan = generatePlan30j(fakePainPoint);
+
+  const legacyWeeks: WeekPlan[] = newPlan.weeks.map((w) => ({
+    weekNumber: w.week_number,
+    actions: w.actions.map((a) => ({
+      id: a.id,
+      label: a.label,
+      done: a.done,
+      status: (a.done ? "done" : "todo") as ActionStatus,
+      note: undefined,
+    })),
+    exercice: w.exercice ?? "",
+  }));
 
   return {
-    id: `plan-${Date.now()}`,
-    generatedAt: new Date().toISOString(),
-    priorities,
-    weeks,
+    priorities: [mainPriority],
+    weeks: legacyWeeks,
+    generatedAt: newPlan.generatedAt,
   };
 }
