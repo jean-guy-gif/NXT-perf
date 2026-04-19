@@ -310,6 +310,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       agencyObjective: null,
       directorCosts: null,
       financialData: {},
+      // Purge coach state (aligné sur enterDemo)
+      coachAssignments: [],
+      coachActions: [],
+      coachPlans: [],
+      coachNotes: [],
+      coachSessions: [],
+      coachQuickPlans: [],
     });
   },
 
@@ -327,7 +334,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, orgLogoUrl: null, hiddenViews: [], users: [], results: [] });
+      set({
+      user: null, isAuthenticated: false, profile: null,
+      orgInviteCode: null, orgLogoUrl: null, hiddenViews: [],
+      users: [], results: [],
+      coachAssignments: [], coachActions: [], coachPlans: [],
+      coachNotes: [], coachSessions: [], coachQuickPlans: [],
+    });
     }
   },
 
