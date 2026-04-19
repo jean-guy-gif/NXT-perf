@@ -18,6 +18,19 @@ interface PlanDebriefScreenProps {
   onRequestHumanCoach: () => Promise<void>;
 }
 
+function hasFieldGains(debrief: PlanDebriefResult): boolean {
+  const g = debrief.fieldGains;
+  return (
+    g.contacts > 0 ||
+    g.estimations > 0 ||
+    g.mandats > 0 ||
+    g.visites > 0 ||
+    g.offres > 0 ||
+    g.compromis > 0 ||
+    g.actes > 0
+  );
+}
+
 function formatEur(amount: number): string {
   return (
     new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(
@@ -126,6 +139,37 @@ export function PlanDebriefScreen({
             Le plan n&apos;a pas encore produit d&apos;amélioration mesurable. Pas d&apos;inquiétude,
             un coach humain peut t&apos;aider à débloquer la situation.
           </p>
+        )}
+
+        {hasFieldGains(debrief) && (
+          <div className="space-y-1.5 border-t border-green-500/20 pt-3">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              📊 Grâce au plan, tu as réalisé :
+            </div>
+            <div className="space-y-1 pl-1 text-sm text-foreground">
+              {debrief.fieldGains.contacts > 0 && (
+                <div>✅ +{debrief.fieldGains.contacts} contacts supplémentaires</div>
+              )}
+              {debrief.fieldGains.estimations > 0 && (
+                <div>✅ +{debrief.fieldGains.estimations} estimations de plus</div>
+              )}
+              {debrief.fieldGains.mandats > 0 && (
+                <div>✅ +{debrief.fieldGains.mandats} mandats signés en plus</div>
+              )}
+              {debrief.fieldGains.visites > 0 && (
+                <div>✅ +{debrief.fieldGains.visites} visites en plus</div>
+              )}
+              {debrief.fieldGains.offres > 0 && (
+                <div>✅ +{debrief.fieldGains.offres} offres reçues en plus</div>
+              )}
+              {debrief.fieldGains.compromis > 0 && (
+                <div>✅ +{debrief.fieldGains.compromis} compromis signés</div>
+              )}
+              {debrief.fieldGains.actes > 0 && (
+                <div>✅ +{debrief.fieldGains.actes} actes supplémentaires</div>
+              )}
+            </div>
+          </div>
         )}
       </section>
 

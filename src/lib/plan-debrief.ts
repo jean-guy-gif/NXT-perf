@@ -4,6 +4,7 @@ import type { ImprovementResource } from "@/lib/improvement-resources-adapters";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import { computeAllRatios } from "@/lib/ratios";
+import { PLAN_30J_DURATION_DAYS } from "@/config/coaching";
 
 // Facteurs produit validés D4
 const ALONE_6M_FACTOR = 0.7;
@@ -36,6 +37,16 @@ const CONVERSION_TO_ACTE: Record<ExpertiseRatioId, number> = {
   compromis_actes: 1.0,
 };
 
+export interface FieldGains {
+  contacts: number;
+  estimations: number;
+  mandats: number;
+  visites: number;
+  offres: number;
+  compromis: number;
+  actes: number;
+}
+
 export interface PlanDebriefResult {
   // Section 1 — Ton plan en chiffres
   actionsStats: {
@@ -55,6 +66,7 @@ export interface PlanDebriefResult {
   annualProjectedEur: number;
   additionalEstimationsPerMonth: number | null;
   additionalActesPerMonth: number;
+  fieldGains: FieldGains;
 
   // Section 3 — Et après
   sixMonthsAloneEur: number;
@@ -90,13 +102,20 @@ export function computePlanDebrief(
   // ── Baseline : priorité payload → 1re période avant plan → seuil confirmé × 0.7 ──
   const baselineFromPayload = payload.baseline_ratio_value as number | undefined;
   const planCreatedAt = plan.created_at;
-  const planExpiresAt = plan.expires_at;
+
+  // Fenêtre théorique de 30 jours depuis la création du plan.
+  // On n'utilise PAS expires_at car il peut être forcé dans le passé
+  // (fast-forward démo) et casser le filtre des saisies.
+  const theoreticalWindowEnd = new Date(
+    new Date(planCreatedAt).getTime() +
+      PLAN_30J_DURATION_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString();
 
   const duringPlanResults = periodResults
-    .filter((r) => {
-      if (!planExpiresAt) return false;
-      return r.periodStart >= planCreatedAt && r.periodStart <= planExpiresAt;
-    })
+    .filter(
+      (r) =>
+        r.periodStart >= planCreatedAt && r.periodStart <= theoreticalWindowEnd
+    )
     .sort((a, b) => a.periodStart.localeCompare(b.periodStart));
 
   const weeksWithSaisie = duringPlanResults.length;
@@ -200,6 +219,8 @@ export function computePlanDebrief(
     additionalEstimationsPerMonth = Math.max(0, estimApres - estimAvant);
   }
 
+  const fieldGains = computeFieldGains(duringPlanResults, periodResults, planCreatedAt);
+
   return {
     actionsStats: { done, total, percentDone },
     weeksWithSaisie,
@@ -215,9 +236,96 @@ export function computePlanDebrief(
         ? Math.round(additionalEstimationsPerMonth * 10) / 10
         : null,
     additionalActesPerMonth: Math.round(additionalActesPerMonth * 10) / 10,
+    fieldGains,
     sixMonthsAloneEur: Math.round(sixMonthsAloneEur),
     sixMonthsWithCoachEur: Math.round(sixMonthsWithCoachEur),
     upsideCoachEur: Math.round(upsideCoachEur),
+  };
+}
+
+// ─── Gains terrain cumulés (cumul saisies plan vs projection baseline) ──────
+
+function computeFieldGains(
+  duringPlanResults: PeriodResults[],
+  periodResults: PeriodResults[],
+  planCreatedAt: string
+): FieldGains {
+  const empty: FieldGains = {
+    contacts: 0,
+    estimations: 0,
+    mandats: 0,
+    visites: 0,
+    offres: 0,
+    compromis: 0,
+    actes: 0,
+  };
+
+  if (duringPlanResults.length === 0) return empty;
+
+  const duringTotals = duringPlanResults.reduce<FieldGains>(
+    (acc, r) => ({
+      contacts: acc.contacts + r.prospection.contactsTotaux,
+      estimations: acc.estimations + r.vendeurs.estimationsRealisees,
+      mandats: acc.mandats + r.vendeurs.mandatsSignes,
+      visites: acc.visites + r.acheteurs.nombreVisites,
+      offres: acc.offres + r.acheteurs.offresRecues,
+      compromis: acc.compromis + r.acheteurs.compromisSignes,
+      actes: acc.actes + r.ventes.actesSignes,
+    }),
+    { ...empty }
+  );
+
+  const beforePlan = periodResults
+    .filter((r) => r.periodStart < planCreatedAt)
+    .sort((a, b) => b.periodStart.localeCompare(a.periodStart))
+    .slice(0, 3);
+
+  // Pas d'historique → les volumes pendant le plan sont tous "nouveaux"
+  if (beforePlan.length === 0) {
+    return {
+      contacts: Math.round(duringTotals.contacts),
+      estimations: Math.round(duringTotals.estimations),
+      mandats: Math.round(duringTotals.mandats),
+      visites: Math.round(duringTotals.visites),
+      offres: Math.round(duringTotals.offres),
+      compromis: Math.round(duringTotals.compromis),
+      actes: Math.round(duringTotals.actes),
+    };
+  }
+
+  const baselineTotals = beforePlan.reduce<FieldGains>(
+    (acc, r) => ({
+      contacts: acc.contacts + r.prospection.contactsTotaux,
+      estimations: acc.estimations + r.vendeurs.estimationsRealisees,
+      mandats: acc.mandats + r.vendeurs.mandatsSignes,
+      visites: acc.visites + r.acheteurs.nombreVisites,
+      offres: acc.offres + r.acheteurs.offresRecues,
+      compromis: acc.compromis + r.acheteurs.compromisSignes,
+      actes: acc.actes + r.ventes.actesSignes,
+    }),
+    { ...empty }
+  );
+
+  const n = beforePlan.length;
+  const nbSaisies = duringPlanResults.length;
+  const avg = {
+    contacts: baselineTotals.contacts / n,
+    estimations: baselineTotals.estimations / n,
+    mandats: baselineTotals.mandats / n,
+    visites: baselineTotals.visites / n,
+    offres: baselineTotals.offres / n,
+    compromis: baselineTotals.compromis / n,
+    actes: baselineTotals.actes / n,
+  };
+
+  return {
+    contacts: Math.max(0, Math.round(duringTotals.contacts - avg.contacts * nbSaisies)),
+    estimations: Math.max(0, Math.round(duringTotals.estimations - avg.estimations * nbSaisies)),
+    mandats: Math.max(0, Math.round(duringTotals.mandats - avg.mandats * nbSaisies)),
+    visites: Math.max(0, Math.round(duringTotals.visites - avg.visites * nbSaisies)),
+    offres: Math.max(0, Math.round(duringTotals.offres - avg.offres * nbSaisies)),
+    compromis: Math.max(0, Math.round(duringTotals.compromis - avg.compromis * nbSaisies)),
+    actes: Math.max(0, Math.round(duringTotals.actes - avg.actes * nbSaisies)),
   };
 }
 
