@@ -10,6 +10,9 @@ import {
   Calendar,
 } from "lucide-react";
 import { ProductionChain } from "@/components/dashboard/production-chain";
+import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
+import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
+import { useDPIEvolution } from "@/hooks/use-dpi-evolution";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { usePlans, generatePlanFeedback } from "@/hooks/use-plans";
 import type { PlanWithMeta } from "@/hooks/use-plans";
@@ -125,6 +128,8 @@ function DashboardContent() {
   const allResultsData = useAllResults();
   const isDemo = useAppStore((s) => s.isDemo);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const { currentAxes, currentGlobalScore } = useDPIEvolution();
   const { showGate, context: gateContext, isLoading: gateLoading, dismissGate, markSaisieDone, showResumeButton, reopenGate } = useWeeklyGate();
   const { allPlans, activePlans, terminatedPlans, expiredPlans, totalActions, doneActions, inProgressActions } = usePlans();
   const searchParams = useSearchParams();
@@ -507,6 +512,18 @@ function DashboardContent() {
               </div>
             </div>
           )}
+
+          {/* ═══ DPI — Diagnostic de Performance Immobilière ═══ */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <DPIEvolutionCard />
+            {currentAxes.length > 0 && (
+              <DPIProjectionsCard
+                currentAxes={currentAxes}
+                currentGlobalScore={currentGlobalScore}
+                caBase={agencyObjective?.annualCA}
+              />
+            )}
+          </div>
 
           {/* ═══ PRODUCTION CHAIN ═══ */}
           <ProductionChain
