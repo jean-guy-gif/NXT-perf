@@ -5,14 +5,15 @@ import { LockedFeature } from "@/components/subscription/locked-feature";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
-import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ComparisonRadar } from "@/components/charts/comparison-radar";
 import { DPIComparisonView } from "@/components/dpi/dpi-comparison-view";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_OBJECTIVES } from "@/lib/constants";
+import { formatCurrency } from "@/lib/formatters";
 import type { User, UserCategory } from "@/types/user";
-import type { RatioId } from "@/types/ratios";
+import type { RatioConfig, RatioId } from "@/types/ratios";
+import type { PeriodResults } from "@/types/results";
 
 type CompareMode = "advisor" | "profile";
 type TabType = "interne" | "classement" | "dpi";
@@ -24,44 +25,41 @@ export default function ComparaisonPage() {
   const [selectedProfile, setSelectedProfile] =
     useState<UserCategory>("expert");
 
-  const { user, category } = useUser();
+  const { user } = useUser();
   const myResults = useResults();
   const allResults = useAllResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const users = useAppStore((s) => s.users);
 
-  const otherResults =
+  const realOtherResults =
     mode === "advisor"
       ? allResults.find((r) => r.userId === selectedAdvisorId) ?? null
       : null;
 
-  const myRatios = useMemo(() => {
-    if (!myResults) return [];
-    return computeAllRatios(myResults, category, ratioConfigs);
-  }, [myResults, category, ratioConfigs]);
+  const effectiveOther = useMemo<PeriodResults | null>(() => {
+    if (mode === "advisor") return realOtherResults;
+    return buildProfileResults(selectedProfile, ratioConfigs);
+  }, [mode, realOtherResults, selectedProfile, ratioConfigs]);
 
-  const otherRatios = useMemo(() => {
-    if (mode === "advisor" && otherResults) {
-      const otherUser = users.find((u) => u.id === selectedAdvisorId);
-      const otherCat = otherUser?.category ?? "confirme";
-      return computeAllRatios(otherResults, otherCat, ratioConfigs);
-    }
-    if (mode === "profile") {
-      if (!myResults) return [];
-      return computeAllRatios(myResults, selectedProfile, ratioConfigs);
-    }
-    return [];
-  }, [mode, otherResults, myResults, selectedAdvisorId, selectedProfile, ratioConfigs, users]);
+  const myVerdict = extractVerdict(myResults);
+  const otherVerdict = extractVerdict(effectiveOther);
+  const caDelta = myVerdict.ca - otherVerdict.ca;
+  const caDeltaPct =
+    otherVerdict.ca > 0 ? Math.round((caDelta / otherVerdict.ca) * 100) : 0;
 
-  const comparisonData = myRatios.map((r, idx) => {
-    const config = ratioConfigs[r.ratioId as RatioId];
-    return {
-      key: r.ratioId,
-      label: config?.name ?? r.ratioId,
-      me: r.percentageOfTarget,
-      other: otherRatios[idx]?.percentageOfTarget ?? 0,
-    };
-  });
+  const volumeAxes = useMemo(
+    () => buildVolumeAxes(myResults, effectiveOther),
+    [myResults, effectiveOther]
+  );
+  const efficiencyAxes = useMemo(
+    () => buildEfficiencyAxes(myResults, effectiveOther),
+    [myResults, effectiveOther]
+  );
+
+  const volumeRadarMax =
+    Math.max(1, ...volumeAxes.flatMap((a) => [a.me, a.other])) * 1.1;
+  const efficiencyRadarMax =
+    Math.max(100, ...efficiencyAxes.flatMap((a) => [a.me, a.other])) * 1.1;
 
   const otherUsers = users.filter(
     (u) => u.id !== user?.id && u.role === "conseiller"
@@ -82,9 +80,6 @@ export default function ComparaisonPage() {
   const meDisplayName = user
     ? `${user.firstName} ${user.lastName}`.trim() || "Moi"
     : "Moi";
-
-  const radarMaxValue =
-    Math.max(150, ...comparisonData.flatMap((d) => [d.me, d.other])) + 10;
 
   return (
     <LockedFeature feature="comparaison" featureName="Comparaison N-1" featureDescription="Comparez vos résultats avec l'année précédente">
@@ -199,107 +194,144 @@ export default function ComparaisonPage() {
             )}
           </div>
 
+          {/* ═══ BLOC 1 — VERDICT ═══ */}
           <div className="rounded-xl border border-border bg-card p-6">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-foreground">
-                Performance comparée
-              </h3>
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-foreground">Le résultat</h3>
+              <p className="text-sm text-muted-foreground">
+                Qui a produit le plus sur la période
+              </p>
             </div>
 
-            {/* Légende avec avatars */}
-            <div className="mb-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-              <div className="flex items-center gap-2">
-                <UserAvatar src={user?.avatarUrl} name={meDisplayName} size="sm" />
-                <span className="text-sm font-semibold text-foreground">
-                  {meDisplayName}
-                </span>
-                <span className="inline-block h-2 w-2 rounded-full bg-[#3375FF]" />
-              </div>
-              <div className="flex items-center gap-2">
-                <UserAvatar
-                  src={selectedOtherUser?.avatarUrl}
-                  name={otherDisplayName}
-                  size="sm"
-                />
-                <span className="text-sm font-semibold text-foreground">
-                  {otherDisplayName}
-                </span>
-                <span className="inline-block h-2 w-2 rounded-full bg-[#FF8A3D]" />
-              </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <VerdictCard
+                name={meDisplayName}
+                avatar={user?.avatarUrl}
+                color="#3375FF"
+                bgClass="bg-[#3375FF]/5 border-[#3375FF]/20"
+                ca={myVerdict.ca}
+                actes={myVerdict.actes}
+                mandats={myVerdict.mandats}
+              />
+              <VerdictCard
+                name={otherDisplayName}
+                avatar={selectedOtherUser?.avatarUrl}
+                color="#FF8A3D"
+                bgClass="bg-[#FF8A3D]/5 border-[#FF8A3D]/20"
+                ca={otherVerdict.ca}
+                actes={otherVerdict.actes}
+                mandats={otherVerdict.mandats}
+              />
             </div>
 
-            {/* Radar overlay */}
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <span className="text-sm text-muted-foreground">Écart final :</span>
+                <span
+                  className={cn(
+                    "text-lg font-bold",
+                    caDelta > 0
+                      ? "text-emerald-500"
+                      : caDelta < 0
+                      ? "text-red-500"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {caDelta > 0 ? "+" : ""}
+                  {formatCurrency(caDelta)}
+                  {" "}({caDeltaPct > 0 ? "+" : ""}
+                  {caDeltaPct}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ BLOC 2 — INTENSITÉ COMMERCIALE ═══ */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-foreground">Intensité commerciale</h3>
+              <p className="text-sm text-muted-foreground">
+                Volumes absolus sur la période — plus le polygone est grand, plus
+                l&apos;activité est intense
+              </p>
+            </div>
+
+            <Legend
+              meName={meDisplayName}
+              meAvatar={user?.avatarUrl}
+              otherName={otherDisplayName}
+              otherAvatar={selectedOtherUser?.avatarUrl}
+            />
+
             <div className="mb-6 flex justify-center">
               <ComparisonRadar
-                axes={comparisonData.map((r) => ({
-                  id: r.key,
-                  label: r.label,
-                  score: r.me,
-                }))}
-                overlayAxes={comparisonData.map((r) => ({
-                  id: r.key,
-                  label: r.label,
-                  score: r.other,
+                axes={volumeAxes.map((a) => ({ id: a.id, label: a.label, score: a.me }))}
+                overlayAxes={volumeAxes.map((a) => ({
+                  id: a.id,
+                  label: a.label,
+                  score: a.other,
                 }))}
                 primaryLabel={meDisplayName}
                 overlayLabel={otherDisplayName}
                 primaryColor="#3375FF"
                 overlayColor="#FF8A3D"
                 size={420}
-                maxValue={radarMaxValue}
+                maxValue={volumeRadarMax}
               />
             </div>
 
-            {/* Tableau des valeurs précises */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="py-2 text-left font-medium text-muted-foreground">
-                      Ratio
-                    </th>
-                    <th className="py-2 text-right font-medium text-muted-foreground">
-                      {meDisplayName}
-                    </th>
-                    <th className="py-2 text-right font-medium text-muted-foreground">
-                      {otherDisplayName}
-                    </th>
-                    <th className="py-2 text-right font-medium text-muted-foreground">
-                      Écart
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonData.map((row) => {
-                    const delta = row.me - row.other;
-                    return (
-                      <tr key={row.key} className="border-b border-border/50 last:border-0">
-                        <td className="py-2.5 text-foreground">{row.label}</td>
-                        <td className="py-2.5 text-right font-semibold text-[#3375FF] tabular-nums">
-                          {row.me}%
-                        </td>
-                        <td className="py-2.5 text-right font-semibold text-[#FF8A3D] tabular-nums">
-                          {row.other}%
-                        </td>
-                        <td
-                          className={cn(
-                            "py-2.5 text-right font-semibold tabular-nums",
-                            delta > 0
-                              ? "text-emerald-500"
-                              : delta < 0
-                              ? "text-red-500"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {delta > 0 ? "+" : ""}
-                          {delta}%
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <DeltaTable
+              rows={volumeAxes}
+              meName={meDisplayName}
+              otherName={otherDisplayName}
+              unit="absolute"
+            />
+          </div>
+
+          {/* ═══ BLOC 3 — EFFICACITÉ MÉTIER ═══ */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-foreground">Efficacité métier</h3>
+              <p className="text-sm text-muted-foreground">
+                Taux de transformation à chaque étape — plus le polygone est grand,
+                mieux tu convertis
+              </p>
             </div>
+
+            <Legend
+              meName={meDisplayName}
+              meAvatar={user?.avatarUrl}
+              otherName={otherDisplayName}
+              otherAvatar={selectedOtherUser?.avatarUrl}
+            />
+
+            <div className="mb-6 flex justify-center">
+              <ComparisonRadar
+                axes={efficiencyAxes.map((a) => ({
+                  id: a.id,
+                  label: a.label,
+                  score: a.me,
+                }))}
+                overlayAxes={efficiencyAxes.map((a) => ({
+                  id: a.id,
+                  label: a.label,
+                  score: a.other,
+                }))}
+                primaryLabel={meDisplayName}
+                overlayLabel={otherDisplayName}
+                primaryColor="#3375FF"
+                overlayColor="#FF8A3D"
+                size={420}
+                maxValue={efficiencyRadarMax}
+              />
+            </div>
+
+            <DeltaTable
+              rows={efficiencyAxes}
+              meName={meDisplayName}
+              otherName={otherDisplayName}
+              unit="percent"
+            />
           </div>
         </div>
       )}
@@ -310,6 +342,300 @@ export default function ComparaisonPage() {
       )}
     </div>
     </LockedFeature>
+  );
+}
+
+// ── Helpers : extraction de données ────────────────────────────────────────
+
+interface VerdictData {
+  ca: number;
+  actes: number;
+  mandats: number;
+}
+
+function extractVerdict(r: PeriodResults | null): VerdictData {
+  if (!r) return { ca: 0, actes: 0, mandats: 0 };
+  return {
+    ca: r.ventes.chiffreAffaires,
+    actes: r.ventes.actesSignes,
+    mandats: r.vendeurs.mandatsSignes,
+  };
+}
+
+interface Axis {
+  id: string;
+  label: string;
+  me: number;
+  other: number;
+}
+
+function buildVolumeAxes(
+  me: PeriodResults | null,
+  other: PeriodResults | null
+): Axis[] {
+  const safe = (r: PeriodResults | null) => ({
+    contacts: r?.prospection.contactsTotaux ?? 0,
+    estimations: r?.vendeurs.estimationsRealisees ?? 0,
+    mandats: r?.vendeurs.mandatsSignes ?? 0,
+    visites: r?.acheteurs.nombreVisites ?? 0,
+    offres: r?.acheteurs.offresRecues ?? 0,
+    compromis: r?.acheteurs.compromisSignes ?? 0,
+    actes: r?.ventes.actesSignes ?? 0,
+  });
+  const m = safe(me);
+  const o = safe(other);
+  return [
+    { id: "contacts", label: "Contacts", me: m.contacts, other: o.contacts },
+    { id: "estimations", label: "Estimations", me: m.estimations, other: o.estimations },
+    { id: "mandats", label: "Mandats", me: m.mandats, other: o.mandats },
+    { id: "visites", label: "Visites", me: m.visites, other: o.visites },
+    { id: "offres", label: "Offres", me: m.offres, other: o.offres },
+    { id: "compromis", label: "Compromis", me: m.compromis, other: o.compromis },
+    { id: "actes", label: "Actes", me: m.actes, other: o.actes },
+  ];
+}
+
+function pctRatio(num: number, den: number): number {
+  return den > 0 ? Math.round((num / den) * 100) : 0;
+}
+
+function computeExclusivityRate(r: PeriodResults | null): number {
+  if (!r) return 0;
+  const total = r.vendeurs.mandats.length;
+  if (total === 0) return 0;
+  const exclu = r.vendeurs.mandats.filter((m) => m.type === "exclusif").length;
+  return Math.round((exclu / total) * 100);
+}
+
+function buildEfficiencyAxes(
+  me: PeriodResults | null,
+  other: PeriodResults | null
+): Axis[] {
+  return [
+    {
+      id: "contactsToEstim",
+      label: "Contact → Estim",
+      me: pctRatio(me?.vendeurs.estimationsRealisees ?? 0, me?.prospection.contactsTotaux ?? 0),
+      other: pctRatio(other?.vendeurs.estimationsRealisees ?? 0, other?.prospection.contactsTotaux ?? 0),
+    },
+    {
+      id: "estimToMandat",
+      label: "Estim → Mandat",
+      me: pctRatio(me?.vendeurs.mandatsSignes ?? 0, me?.vendeurs.estimationsRealisees ?? 0),
+      other: pctRatio(other?.vendeurs.mandatsSignes ?? 0, other?.vendeurs.estimationsRealisees ?? 0),
+    },
+    {
+      id: "exclu",
+      label: "% Exclusivité",
+      me: computeExclusivityRate(me),
+      other: computeExclusivityRate(other),
+    },
+    {
+      id: "acheteursToVisite",
+      label: "Acheteur → Visite",
+      me: pctRatio(me?.acheteurs.nombreVisites ?? 0, me?.acheteurs.acheteursSortisVisite ?? 0),
+      other: pctRatio(other?.acheteurs.nombreVisites ?? 0, other?.acheteurs.acheteursSortisVisite ?? 0),
+    },
+    {
+      id: "visiteToOffre",
+      label: "Visite → Offre",
+      me: pctRatio(me?.acheteurs.offresRecues ?? 0, me?.acheteurs.nombreVisites ?? 0),
+      other: pctRatio(other?.acheteurs.offresRecues ?? 0, other?.acheteurs.nombreVisites ?? 0),
+    },
+    {
+      id: "offreToCompromis",
+      label: "Offre → Compromis",
+      me: pctRatio(me?.acheteurs.compromisSignes ?? 0, me?.acheteurs.offresRecues ?? 0),
+      other: pctRatio(other?.acheteurs.compromisSignes ?? 0, other?.acheteurs.offresRecues ?? 0),
+    },
+    {
+      id: "compromisToActe",
+      label: "Compromis → Acte",
+      me: pctRatio(me?.ventes.actesSignes ?? 0, me?.acheteurs.compromisSignes ?? 0),
+      other: pctRatio(other?.ventes.actesSignes ?? 0, other?.acheteurs.compromisSignes ?? 0),
+    },
+  ];
+}
+
+function buildProfileResults(
+  profile: UserCategory,
+  ratioConfigs: Record<RatioId, RatioConfig>
+): PeriodResults {
+  const obj = CATEGORY_OBJECTIVES[profile];
+  const contactsTarget = Math.round(
+    obj.estimations * ratioConfigs.contacts_rdv.thresholds[profile]
+  );
+  const numExclu = Math.floor((obj.mandats * obj.exclusivite) / 100);
+  const acheteursTarget = Math.max(
+    1,
+    Math.ceil(obj.visites / ratioConfigs.acheteurs_visites.thresholds[profile])
+  );
+  const avgAct = obj.actes > 0 ? obj.ca / obj.actes : 0;
+  const now = new Date().toISOString();
+  return {
+    id: "profile-synth",
+    userId: "profile-synth",
+    periodType: "month",
+    periodStart: now,
+    periodEnd: now,
+    prospection: {
+      contactsTotaux: contactsTarget,
+      rdvEstimation: obj.estimations,
+    },
+    vendeurs: {
+      rdvEstimation: obj.estimations,
+      estimationsRealisees: obj.estimations,
+      mandatsSignes: obj.mandats,
+      mandats: Array.from({ length: obj.mandats }, (_, i) => ({
+        id: `profile-mandat-${i}`,
+        type: i < numExclu ? ("exclusif" as const) : ("simple" as const),
+      })),
+      rdvSuivi: 0,
+      requalificationSimpleExclusif: 0,
+      baissePrix: 0,
+    },
+    acheteurs: {
+      acheteursSortisVisite: acheteursTarget,
+      nombreVisites: obj.visites,
+      offresRecues: obj.offres,
+      compromisSignes: obj.compromis,
+      chiffreAffairesCompromis: Math.round(obj.compromis * avgAct),
+    },
+    ventes: {
+      actesSignes: obj.actes,
+      chiffreAffaires: obj.ca,
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+// ── Sous-composants internes ───────────────────────────────────────────────
+
+function VerdictCard({
+  name,
+  avatar,
+  color,
+  bgClass,
+  ca,
+  actes,
+  mandats,
+}: {
+  name: string;
+  avatar?: string;
+  color: string;
+  bgClass: string;
+  ca: number;
+  actes: number;
+  mandats: number;
+}) {
+  return (
+    <div className={cn("rounded-lg border p-5", bgClass)}>
+      <div className="mb-4 flex items-center gap-2">
+        <UserAvatar src={avatar} name={name} size="sm" />
+        <span className="text-sm font-semibold text-foreground">{name}</span>
+      </div>
+      <div className="text-3xl font-bold tabular-nums" style={{ color }}>
+        {formatCurrency(ca)}
+      </div>
+      <div className="mb-3 text-xs text-muted-foreground">de CA généré</div>
+      <div className="flex gap-4 text-sm">
+        <div>
+          <div className="font-semibold text-foreground tabular-nums">{actes}</div>
+          <div className="text-xs text-muted-foreground">actes</div>
+        </div>
+        <div>
+          <div className="font-semibold text-foreground tabular-nums">{mandats}</div>
+          <div className="text-xs text-muted-foreground">mandats</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Legend({
+  meName,
+  meAvatar,
+  otherName,
+  otherAvatar,
+}: {
+  meName: string;
+  meAvatar?: string;
+  otherName: string;
+  otherAvatar?: string;
+}) {
+  return (
+    <div className="mb-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+      <div className="flex items-center gap-2">
+        <UserAvatar src={meAvatar} name={meName} size="sm" />
+        <span className="text-sm font-semibold text-foreground">{meName}</span>
+        <span className="inline-block h-2 w-2 rounded-full bg-[#3375FF]" />
+      </div>
+      <div className="flex items-center gap-2">
+        <UserAvatar src={otherAvatar} name={otherName} size="sm" />
+        <span className="text-sm font-semibold text-foreground">{otherName}</span>
+        <span className="inline-block h-2 w-2 rounded-full bg-[#FF8A3D]" />
+      </div>
+    </div>
+  );
+}
+
+function DeltaTable({
+  rows,
+  meName,
+  otherName,
+  unit,
+}: {
+  rows: Axis[];
+  meName: string;
+  otherName: string;
+  unit: "absolute" | "percent";
+}) {
+  const fmt = (v: number) => (unit === "percent" ? `${Math.round(v)}%` : `${Math.round(v)}`);
+  const deltaSuffix = unit === "percent" ? " pts" : "";
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="py-2 text-left font-medium text-muted-foreground">Indicateur</th>
+            <th className="py-2 text-right font-medium text-muted-foreground">{meName}</th>
+            <th className="py-2 text-right font-medium text-muted-foreground">{otherName}</th>
+            <th className="py-2 text-right font-medium text-muted-foreground">Écart</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const delta = Math.round(row.me - row.other);
+            return (
+              <tr key={row.id} className="border-b border-border/50 last:border-0">
+                <td className="py-2.5 text-foreground">{row.label}</td>
+                <td className="py-2.5 text-right font-semibold text-[#3375FF] tabular-nums">
+                  {fmt(row.me)}
+                </td>
+                <td className="py-2.5 text-right font-semibold text-[#FF8A3D] tabular-nums">
+                  {fmt(row.other)}
+                </td>
+                <td
+                  className={cn(
+                    "py-2.5 text-right font-semibold tabular-nums",
+                    delta > 0
+                      ? "text-emerald-500"
+                      : delta < 0
+                      ? "text-red-500"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {delta > 0 ? "+" : ""}
+                  {delta}
+                  {deltaSuffix}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
