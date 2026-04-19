@@ -49,20 +49,13 @@ export function getVisibleViews(availableRoles: UserRole[], hiddenViews: ViewId[
   return authorized.filter((v) => !hiddenViews.includes(v));
 }
 
-/** Derive available roles from primary role (hierarchical fallback when DB column is absent) */
+/**
+ * Return the user's role as a strict single-entry array.
+ * Multi-role users must have their available_roles explicitly set in DB
+ * via `selected_roles` at signup (Philosophy B — no implicit hierarchy).
+ */
 export function deriveAvailableRoles(role: UserRole): UserRole[] {
-  switch (role) {
-    case "reseau":
-      return ["reseau"];
-    case "directeur":
-      return ["directeur", "manager", "conseiller"];
-    case "manager":
-      return ["manager", "conseiller"];
-    case "coach":
-      return ["coach"];
-    default:
-      return ["conseiller"];
-  }
+  return [role];
 }
 
 export interface Institution {
