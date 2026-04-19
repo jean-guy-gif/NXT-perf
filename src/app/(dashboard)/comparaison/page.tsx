@@ -8,6 +8,7 @@ import { useResults, useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { ComparisonRadar } from "@/components/charts/comparison-radar";
 import { DPIComparisonView } from "@/components/dpi/dpi-comparison-view";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { User, UserCategory } from "@/types/user";
@@ -55,9 +56,10 @@ export default function ComparaisonPage() {
   const comparisonData = myRatios.map((r, idx) => {
     const config = ratioConfigs[r.ratioId as RatioId];
     return {
-      name: config?.name ?? r.ratioId,
-      Moi: r.percentageOfTarget,
-      Autre: otherRatios[idx]?.percentageOfTarget ?? 0,
+      key: r.ratioId,
+      label: config?.name ?? r.ratioId,
+      me: r.percentageOfTarget,
+      other: otherRatios[idx]?.percentageOfTarget ?? 0,
     };
   });
 
@@ -81,11 +83,8 @@ export default function ComparaisonPage() {
     ? `${user.firstName} ${user.lastName}`.trim() || "Moi"
     : "Moi";
 
-  const maxValue =
-    Math.max(
-      ...comparisonData.flatMap((d) => [d.Moi, d.Autre]),
-      130
-    ) + 20;
+  const radarMaxValue =
+    Math.max(150, ...comparisonData.flatMap((d) => [d.me, d.other])) + 10;
 
   return (
     <LockedFeature feature="comparaison" featureName="Comparaison N-1" featureDescription="Comparez vos résultats avec l'année précédente">
@@ -201,87 +200,106 @@ export default function ComparaisonPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="mb-5 text-lg font-bold text-foreground">
-              Performance comparée (% objectif)
-            </h3>
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-foreground">
+                Performance comparée
+              </h3>
+            </div>
 
             {/* Légende avec avatars */}
-            <div className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
-              <div className="flex items-center gap-2.5">
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+              <div className="flex items-center gap-2">
                 <UserAvatar src={user?.avatarUrl} name={meDisplayName} size="sm" />
-                <div>
-                  <div className="text-sm font-semibold text-foreground">{meDisplayName}</div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                    Moi
-                  </div>
-                </div>
+                <span className="text-sm font-semibold text-foreground">
+                  {meDisplayName}
+                </span>
+                <span className="inline-block h-2 w-2 rounded-full bg-[#3375FF]" />
               </div>
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <UserAvatar
                   src={selectedOtherUser?.avatarUrl}
                   name={otherDisplayName}
                   size="sm"
                 />
-                <div>
-                  <div className="text-sm font-semibold text-foreground">{otherDisplayName}</div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-                    {mode === "advisor" ? "Conseiller" : "Profil"}
-                  </div>
-                </div>
+                <span className="text-sm font-semibold text-foreground">
+                  {otherDisplayName}
+                </span>
+                <span className="inline-block h-2 w-2 rounded-full bg-[#FF8A3D]" />
               </div>
             </div>
 
-            {/* Barres horizontales groupées par ratio */}
-            <div className="space-y-5">
-              {comparisonData.map((row) => {
-                const referenceLeft = (100 / maxValue) * 100;
-                return (
-                  <div key={row.name} className="space-y-1.5">
-                    <div className="text-sm font-medium text-foreground">{row.name}</div>
-
-                    {/* Barre Moi */}
-                    <div className="flex items-center gap-2">
-                      <div className="relative h-5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all"
-                          style={{ width: `${Math.min((row.Moi / maxValue) * 100, 100)}%` }}
-                        />
-                        <div
-                          className="absolute top-0 bottom-0 w-0.5 border-l-2 border-dashed border-foreground/40"
-                          style={{ left: `${referenceLeft}%` }}
-                        />
-                      </div>
-                      <span className="w-14 text-right text-sm font-semibold text-emerald-500 tabular-nums">
-                        {row.Moi}%
-                      </span>
-                    </div>
-
-                    {/* Barre Autre */}
-                    <div className="flex items-center gap-2">
-                      <div className="relative h-5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full bg-amber-400 transition-all"
-                          style={{ width: `${Math.min((row.Autre / maxValue) * 100, 100)}%` }}
-                        />
-                        <div
-                          className="absolute top-0 bottom-0 w-0.5 border-l-2 border-dashed border-foreground/40"
-                          style={{ left: `${referenceLeft}%` }}
-                        />
-                      </div>
-                      <span className="w-14 text-right text-sm font-semibold text-amber-500 tabular-nums">
-                        {row.Autre}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Radar overlay */}
+            <div className="mb-6 flex justify-center">
+              <ComparisonRadar
+                axes={comparisonData.map((r) => ({
+                  id: r.key,
+                  label: r.label,
+                  score: r.me,
+                }))}
+                overlayAxes={comparisonData.map((r) => ({
+                  id: r.key,
+                  label: r.label,
+                  score: r.other,
+                }))}
+                primaryLabel={meDisplayName}
+                overlayLabel={otherDisplayName}
+                primaryColor="#3375FF"
+                overlayColor="#FF8A3D"
+                size={420}
+                maxValue={radarMaxValue}
+              />
             </div>
 
-            <p className="mt-5 text-xs text-muted-foreground">
-              Ligne pointillée : objectif 100 %
-            </p>
+            {/* Tableau des valeurs précises */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="py-2 text-left font-medium text-muted-foreground">
+                      Ratio
+                    </th>
+                    <th className="py-2 text-right font-medium text-muted-foreground">
+                      {meDisplayName}
+                    </th>
+                    <th className="py-2 text-right font-medium text-muted-foreground">
+                      {otherDisplayName}
+                    </th>
+                    <th className="py-2 text-right font-medium text-muted-foreground">
+                      Écart
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonData.map((row) => {
+                    const delta = row.me - row.other;
+                    return (
+                      <tr key={row.key} className="border-b border-border/50 last:border-0">
+                        <td className="py-2.5 text-foreground">{row.label}</td>
+                        <td className="py-2.5 text-right font-semibold text-[#3375FF] tabular-nums">
+                          {row.me}%
+                        </td>
+                        <td className="py-2.5 text-right font-semibold text-[#FF8A3D] tabular-nums">
+                          {row.other}%
+                        </td>
+                        <td
+                          className={cn(
+                            "py-2.5 text-right font-semibold tabular-nums",
+                            delta > 0
+                              ? "text-emerald-500"
+                              : delta < 0
+                              ? "text-red-500"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          {delta > 0 ? "+" : ""}
+                          {delta}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
