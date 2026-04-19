@@ -25,20 +25,23 @@ export type InsertInput = Partial<ImprovementResource> & {
 };
 
 export interface ImprovementResourcesAdapter {
-  list(userId: string): Promise<ImprovementResource[]>;
+  list(userId: string, includeArchived?: boolean): Promise<ImprovementResource[]>;
   insert(row: InsertInput): Promise<ImprovementResource>;
   update(id: string, patch: Partial<ImprovementResource>): Promise<void>;
 }
 
 // ─── Supabase adapter (production / authentified user) ────────────────
 export class SupabaseAdapter implements ImprovementResourcesAdapter {
-  async list(userId: string): Promise<ImprovementResource[]> {
+  async list(userId: string, includeArchived = false): Promise<ImprovementResource[]> {
     const supabase = createClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("user_improvement_resources")
       .select("*")
-      .eq("user_id", userId)
-      .is("archived_at", null);
+      .eq("user_id", userId);
+    if (!includeArchived) {
+      query = query.is("archived_at", null);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as ImprovementResource[];
   }
@@ -70,13 +73,13 @@ export class LocalStorageAdapter implements ImprovementResourcesAdapter {
     return `demo_improvement_resources_${userId}`;
   }
 
-  async list(userId: string): Promise<ImprovementResource[]> {
+  async list(userId: string, includeArchived = false): Promise<ImprovementResource[]> {
     if (typeof window === "undefined") return [];
     const raw = window.localStorage.getItem(this.key(userId));
     if (!raw) return [];
     try {
       const rows = JSON.parse(raw) as ImprovementResource[];
-      return rows.filter((r) => r.archived_at === null);
+      return includeArchived ? rows : rows.filter((r) => r.archived_at === null);
     } catch {
       return [];
     }

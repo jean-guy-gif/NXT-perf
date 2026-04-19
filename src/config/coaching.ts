@@ -108,6 +108,9 @@ export interface Plan30jPayload {
   estimated_ca_loss_eur: number;
   weeks: Plan30jWeek[];
   regenerated_from_plan_id?: string; // anti-abus : traçabilité régénération
+  /** Valeur du ratio au moment de la création — sert au debrief 30j */
+  baseline_ratio_value?: number;
+  baseline_captured_at?: string;
 }
 
 export interface Plan30jWeek {

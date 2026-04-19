@@ -178,7 +178,11 @@ export function useImprovementResources() {
       }
 
       const plan = generatePlan30j(painPoint);
-      const payload: Plan30jPayload = planToPayload(plan);
+      const payload: Plan30jPayload = {
+        ...planToPayload(plan),
+        baseline_ratio_value: painPoint.currentValue,
+        baseline_captured_at: new Date().toISOString(),
+      };
 
       const adapter = getAdapter(isDemoMode);
       const now = new Date();
@@ -211,6 +215,16 @@ export function useImprovementResources() {
     [isDemoMode, refresh]
   );
 
+  const getArchivedPlanById = useCallback(
+    async (planId: string): Promise<ImprovementResource | null> => {
+      if (!userId) return null;
+      const adapter = getAdapter(isDemoMode);
+      const all = await adapter.list(userId, true);
+      return all.find((r) => r.id === planId) ?? null;
+    },
+    [userId, isDemoMode]
+  );
+
   return {
     resources,
     loading,
@@ -221,6 +235,7 @@ export function useImprovementResources() {
     getNxtCoachingResource,
     createPlan30j,
     updateResource,
+    getArchivedPlanById,
   };
 }
 
