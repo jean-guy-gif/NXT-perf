@@ -1,12 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import {
   PLAN_30J_DURATION_DAYS,
   DEBRIEF_OFFERED_EXPIRY_DAYS,
-  type ImprovementResourceStatus,
   type Plan30jPayload,
 } from "@/config/coaching";
 import {
@@ -21,23 +19,14 @@ import {
 } from "@/lib/plan-30-jours";
 import type { ExpertiseRatioId, ProfileLevel } from "@/data/ratio-expertise";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
+import {
+  getAdapter,
+  type ImprovementResourcesAdapter,
+} from "@/lib/improvement-resources-adapters";
 
-// ─── Types ────────────────────────────────────────────────────────────
-
-export interface ImprovementResource {
-  id: string;
-  user_id: string;
-  resource_type: "plan_30j" | "nxt_coaching" | "nxt_training" | "agefice";
-  status: ImprovementResourceStatus;
-  payload: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-  expires_at: string | null;
-  archived_at: string | null;
-  pain_ratio_id: string | null;
-  pain_score: number | null;
-  debrief_offered_count: number;
-}
+// Re-export the shared row type so existing consumers of this hook keep working.
+export type { ImprovementResource } from "@/lib/improvement-resources-adapters";
+import type { ImprovementResource } from "@/lib/improvement-resources-adapters";
 
 export interface CreatePlanInput {
   mode: "auto" | "targeted";
@@ -51,13 +40,13 @@ export interface CreatePlanInput {
 
 export function useImprovementResources() {
   const user = useAppStore((s) => s.user);
+  const isDemoMode = useAppStore((s) => s.isDemoMode);
   const [resources, setResources] = useState<ImprovementResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const userId = user?.id;
 
-  // Fetch + lazy expiration check
   const refresh = useCallback(async () => {
     if (!userId) {
       setResources([]);
@@ -68,21 +57,16 @@ export function useImprovementResources() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
+    const adapter = getAdapter(isDemoMode);
 
-    const { data, error: fetchError } = await supabase
-      .from("user_improvement_resources")
-      .select("*")
-      .eq("user_id", userId)
-      .is("archived_at", null);
-
-    if (fetchError) {
-      setError(fetchError.message);
+    let rows: ImprovementResource[];
+    try {
+      rows = await adapter.list(userId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
       return;
     }
-
-    const rows = (data ?? []) as ImprovementResource[];
 
     // Lazy expiration : check plan_30j > 30j
     const now = new Date();
@@ -95,20 +79,15 @@ export function useImprovementResources() {
     );
 
     if (plansToExpire.length > 0) {
-      await handlePlanExpiration(plansToExpire, userId);
-      // Re-fetch après expiration
-      const { data: refreshed } = await supabase
-        .from("user_improvement_resources")
-        .select("*")
-        .eq("user_id", userId)
-        .is("archived_at", null);
-      setResources((refreshed ?? []) as ImprovementResource[]);
+      await handlePlanExpiration(plansToExpire, userId, adapter);
+      const refreshed = await adapter.list(userId);
+      setResources(refreshed);
     } else {
       setResources(rows);
     }
 
     setLoading(false);
-  }, [userId]);
+  }, [userId, isDemoMode]);
 
   useEffect(() => {
     refresh();
@@ -167,7 +146,6 @@ export function useImprovementResources() {
           input.avgCommissionEur
         );
       } else {
-        // Mode targeted : construire un PainPointResult pour le ratio demandé
         if (!input.ratioId) {
           throw new Error("targeted mode requires ratioId");
         }
@@ -199,37 +177,29 @@ export function useImprovementResources() {
         );
       }
 
-      // Génération du plan
       const plan = generatePlan30j(painPoint);
       const payload: Plan30jPayload = planToPayload(plan);
 
-      // Insertion BDD
-      const supabase = createClient();
+      const adapter = getAdapter(isDemoMode);
       const now = new Date();
       const expiresAt = new Date(
         now.getTime() + PLAN_30J_DURATION_DAYS * 24 * 60 * 60 * 1000
       );
 
-      const { error: insertError } = await supabase
-        .from("user_improvement_resources")
-        .insert({
-          user_id: userId,
-          resource_type: "plan_30j",
-          status: "active",
-          payload: payload as unknown as Record<string, unknown>,
-          pain_ratio_id: painPoint.expertiseId,
-          pain_score: painPoint.painScore,
-          expires_at: expiresAt.toISOString(),
-        });
-
-      if (insertError) {
-        throw new Error(`Failed to create plan: ${insertError.message}`);
-      }
+      await adapter.insert({
+        user_id: userId,
+        resource_type: "plan_30j",
+        status: "active",
+        payload: payload as unknown as Record<string, unknown>,
+        pain_ratio_id: painPoint.expertiseId,
+        pain_score: painPoint.painScore,
+        expires_at: expiresAt.toISOString(),
+      });
 
       await refresh();
       return plan;
     },
-    [userId, getActivePlan, refresh]
+    [userId, isDemoMode, getActivePlan, refresh]
   );
 
   return {
@@ -248,52 +218,43 @@ export function useImprovementResources() {
 
 async function handlePlanExpiration(
   expiredPlans: ImprovementResource[],
-  userId: string
+  userId: string,
+  adapter: ImprovementResourcesAdapter
 ): Promise<void> {
-  const supabase = createClient();
   const now = new Date();
   const debriefExpiresAt = new Date(
     now.getTime() + DEBRIEF_OFFERED_EXPIRY_DAYS * 24 * 60 * 60 * 1000
   );
 
+  // Fetch fresh rows once to resolve existing nxt_coaching
+  const allRows = await adapter.list(userId);
+
   for (const plan of expiredPlans) {
     // 1. Passer le plan en expired + archiver
-    await supabase
-      .from("user_improvement_resources")
-      .update({
-        status: "expired",
-        archived_at: now.toISOString(),
-      })
-      .eq("id", plan.id);
+    await adapter.update(plan.id, {
+      status: "expired",
+      archived_at: now.toISOString(),
+    });
 
     // 2. Créer ou update la ressource nxt_coaching en debrief_offered
-    const { data: existingCoaching } = await supabase
-      .from("user_improvement_resources")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("resource_type", "nxt_coaching")
-      .is("archived_at", null)
-      .maybeSingle();
+    const existingCoaching = allRows.find(
+      (r) => r.resource_type === "nxt_coaching"
+    );
 
     if (existingCoaching) {
-      // Incrémenter le compteur
-      await supabase
-        .from("user_improvement_resources")
-        .update({
-          status: "debrief_offered",
-          expires_at: debriefExpiresAt.toISOString(),
-          debrief_offered_count:
-            (existingCoaching.debrief_offered_count ?? 0) + 1,
-          payload: {
-            ...(existingCoaching.payload as Record<string, unknown>),
-            debrief_offered_at: now.toISOString(),
-            source_plan_id: plan.id,
-          },
-        })
-        .eq("id", existingCoaching.id);
+      await adapter.update(existingCoaching.id, {
+        status: "debrief_offered",
+        expires_at: debriefExpiresAt.toISOString(),
+        debrief_offered_count:
+          (existingCoaching.debrief_offered_count ?? 0) + 1,
+        payload: {
+          ...(existingCoaching.payload as Record<string, unknown>),
+          debrief_offered_at: now.toISOString(),
+          source_plan_id: plan.id,
+        },
+      });
     } else {
-      // Créer la ressource
-      await supabase.from("user_improvement_resources").insert({
+      await adapter.insert({
         user_id: userId,
         resource_type: "nxt_coaching",
         status: "debrief_offered",

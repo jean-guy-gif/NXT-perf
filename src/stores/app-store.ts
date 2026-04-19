@@ -86,6 +86,7 @@ interface AppState {
   user: User | null;
   isAuthenticated: boolean;
   isDemo: boolean;
+  isDemoMode: boolean;
   profile: DbProfile | null;
   orgInviteCode: string | null;
   orgLogoUrl: string | null;
@@ -196,6 +197,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isDemo: false,
+  isDemoMode: false,
   profile: null,
   orgInviteCode: null,
   orgLogoUrl: null,
@@ -253,6 +255,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     document.cookie = "nxt-demo-mode=true;path=/;max-age=86400";
     set({
       isDemo: true,
+      isDemoMode: true,
       isAuthenticated: true,
       user: demoUser,
       users: [
@@ -291,6 +294,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     document.cookie = "nxt-demo-mode=;path=/;max-age=0";
     set({
       isDemo: false,
+      isDemoMode: false,
       isAuthenticated: false,
       user: null,
       users: [],
@@ -328,7 +332,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().exitDemo();
     } else {
       set({
-      user: null, isAuthenticated: false, profile: null,
+      user: null, isAuthenticated: false, isDemoMode: false, profile: null,
       orgInviteCode: null, orgLogoUrl: null, hiddenViews: [],
       users: [], results: [],
       coachAssignments: [], coachActions: [], coachPlans: [],
