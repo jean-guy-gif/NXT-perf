@@ -7,10 +7,10 @@ import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
 import { useAppStore } from "@/stores/app-store";
-import { BarChart } from "@/components/charts/bar-chart";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DPIComparisonView } from "@/components/dpi/dpi-comparison-view";
-import { CATEGORY_LABELS, NXT_COLORS } from "@/lib/constants";
-import type { UserCategory } from "@/types/user";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import type { User, UserCategory } from "@/types/user";
 import type { RatioId } from "@/types/ratios";
 
 type CompareMode = "advisor" | "profile";
@@ -55,7 +55,7 @@ export default function ComparaisonPage() {
   const comparisonData = myRatios.map((r, idx) => {
     const config = ratioConfigs[r.ratioId as RatioId];
     return {
-      name: config?.name.split("→")[0].trim().slice(0, 12) ?? r.ratioId,
+      name: config?.name ?? r.ratioId,
       Moi: r.percentageOfTarget,
       Autre: otherRatios[idx]?.percentageOfTarget ?? 0,
     };
@@ -64,6 +64,28 @@ export default function ComparaisonPage() {
   const otherUsers = users.filter(
     (u) => u.id !== user?.id && u.role === "conseiller"
   );
+
+  const selectedOtherUser: User | null =
+    mode === "advisor"
+      ? otherUsers.find((u) => u.id === selectedAdvisorId) ?? null
+      : null;
+
+  const otherDisplayName =
+    mode === "advisor"
+      ? selectedOtherUser
+        ? `${selectedOtherUser.firstName} ${selectedOtherUser.lastName}`.trim()
+        : "Autre"
+      : CATEGORY_LABELS[selectedProfile];
+
+  const meDisplayName = user
+    ? `${user.firstName} ${user.lastName}`.trim() || "Moi"
+    : "Moi";
+
+  const maxValue =
+    Math.max(
+      ...comparisonData.flatMap((d) => [d.Moi, d.Autre]),
+      130
+    ) + 20;
 
   return (
     <LockedFeature feature="comparaison" featureName="Comparaison N-1" featureDescription="Comparez vos résultats avec l'année précédente">
@@ -109,7 +131,11 @@ export default function ComparaisonPage() {
 
       {/* ========== CLASSEMENT NXT ========== */}
       {tab === "classement" && (
-        <LeaderboardSection currentUserId={user?.id ?? ""} currentUserFirstName={user?.firstName ?? ""} />
+        <LeaderboardSection
+          currentUserId={user?.id ?? ""}
+          currentUserFirstName={user?.firstName ?? ""}
+          currentUserAvatarUrl={user?.avatarUrl}
+        />
       )}
 
       {/* ========== INTERNE ========== */}
@@ -174,34 +200,88 @@ export default function ComparaisonPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="mb-4 font-semibold text-foreground">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h3 className="mb-5 text-lg font-bold text-foreground">
               Performance comparée (% objectif)
             </h3>
-            <BarChart
-              data={comparisonData}
-              xKey="name"
-              bars={[
-                { dataKey: "Moi", color: NXT_COLORS.green, name: "Moi" },
-                { dataKey: "Autre", color: NXT_COLORS.yellow, name: "Autre" },
-              ]}
-              height={300}
-            />
-            <div className="mt-3 flex justify-center gap-6">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded bg-green-500" />
-                <span className="text-sm text-muted-foreground">Moi</span>
+
+            {/* Légende avec avatars */}
+            <div className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
+              <div className="flex items-center gap-2.5">
+                <UserAvatar src={user?.avatarUrl} name={meDisplayName} size="sm" />
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{meDisplayName}</div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                    Moi
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded bg-yellow-500" />
-                <span className="text-sm text-muted-foreground">
-                  {mode === "advisor"
-                    ? otherUsers.find((u) => u.id === selectedAdvisorId)
-                        ?.firstName ?? "Autre"
-                    : CATEGORY_LABELS[selectedProfile]}
-                </span>
+              <div className="flex items-center gap-2.5">
+                <UserAvatar
+                  src={selectedOtherUser?.avatarUrl}
+                  name={otherDisplayName}
+                  size="sm"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{otherDisplayName}</div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+                    {mode === "advisor" ? "Conseiller" : "Profil"}
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Barres horizontales groupées par ratio */}
+            <div className="space-y-5">
+              {comparisonData.map((row) => {
+                const referenceLeft = (100 / maxValue) * 100;
+                return (
+                  <div key={row.name} className="space-y-1.5">
+                    <div className="text-sm font-medium text-foreground">{row.name}</div>
+
+                    {/* Barre Moi */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all"
+                          style={{ width: `${Math.min((row.Moi / maxValue) * 100, 100)}%` }}
+                        />
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 border-l-2 border-dashed border-foreground/40"
+                          style={{ left: `${referenceLeft}%` }}
+                        />
+                      </div>
+                      <span className="w-14 text-right text-sm font-semibold text-emerald-500 tabular-nums">
+                        {row.Moi}%
+                      </span>
+                    </div>
+
+                    {/* Barre Autre */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full bg-amber-400 transition-all"
+                          style={{ width: `${Math.min((row.Autre / maxValue) * 100, 100)}%` }}
+                        />
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 border-l-2 border-dashed border-foreground/40"
+                          style={{ left: `${referenceLeft}%` }}
+                        />
+                      </div>
+                      <span className="w-14 text-right text-sm font-semibold text-amber-500 tabular-nums">
+                        {row.Autre}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-5 text-xs text-muted-foreground">
+              Ligne pointillée : objectif 100 %
+            </p>
           </div>
         </div>
       )}
@@ -217,7 +297,15 @@ export default function ComparaisonPage() {
 
 // ── Classement NXT anonyme ──────────────────────────────────────────────────
 
-function LeaderboardSection({ currentUserId, currentUserFirstName }: { currentUserId: string; currentUserFirstName: string }) {
+function LeaderboardSection({
+  currentUserId,
+  currentUserFirstName,
+  currentUserAvatarUrl,
+}: {
+  currentUserId: string;
+  currentUserFirstName: string;
+  currentUserAvatarUrl?: string;
+}) {
   const isDemo = useAppStore((s) => s.isDemo);
   const allResults = useAllResults();
   const users = useAppStore((s) => s.users);
@@ -250,6 +338,7 @@ function LeaderboardSection({ currentUserId, currentUserFirstName }: { currentUs
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-4 py-2.5">#</th>
+              <th className="px-2 py-2.5" />
               <th className="px-4 py-2.5">Prénom</th>
               <th className="px-4 py-2.5 text-right">CA</th>
               <th className="px-4 py-2.5 text-right hidden sm:table-cell">Mandats</th>
@@ -273,6 +362,13 @@ function LeaderboardSection({ currentUserId, currentUserFirstName }: { currentUs
                     )}>
                       {idx + 1}
                     </span>
+                  </td>
+                  <td className="py-2.5 pr-2">
+                    <UserAvatar
+                      src={isMe ? currentUserAvatarUrl : undefined}
+                      name={entry.prenom}
+                      size="sm"
+                    />
                   </td>
                   <td className="px-4 py-2.5 text-foreground">
                     {isMe ? `${entry.prenom} (vous)` : entry.prenom}
