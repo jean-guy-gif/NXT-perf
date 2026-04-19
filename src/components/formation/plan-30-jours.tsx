@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  FastForward,
 } from "lucide-react";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
@@ -38,6 +39,7 @@ export function Plan30Jours() {
   const latestResults = useResults();
   const allResults = useAppStore((s) => s.results);
   const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const isDemoMode = useAppStore((s) => s.isDemoMode);
   const {
     loading,
     getActivePlan,
@@ -117,6 +119,37 @@ export function Plan30Jours() {
     refresh,
   ]);
 
+  const handleFastForward = useCallback(async () => {
+    const activePlan = getActivePlan();
+    if (!activePlan) {
+      setToast({ type: "info", message: "Aucun plan actif à simuler" });
+      return;
+    }
+    if (!user?.id) return;
+    if (typeof window === "undefined") return;
+
+    const key = `demo_improvement_resources_${user.id}`;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      setToast({ type: "error", message: "Mode démo introuvable" });
+      return;
+    }
+    try {
+      const rows = JSON.parse(raw) as Array<{ id: string; expires_at: string | null }>;
+      const pastDate = new Date(Date.now() - 3600000).toISOString();
+      const updatedRows = rows.map((r) =>
+        r.id === activePlan.id ? { ...r, expires_at: pastDate } : r
+      );
+      window.localStorage.setItem(key, JSON.stringify(updatedRows));
+    } catch {
+      setToast({ type: "error", message: "Données démo corrompues" });
+      return;
+    }
+
+    await refresh();
+    setToast({ type: "success", message: "Plan expiré, debrief gratuit débloqué !" });
+  }, [getActivePlan, user?.id, refresh]);
+
   const toggleAction = useCallback(
     async (weekNumber: number, actionId: string) => {
       if (!localPayload || !activePlan) return;
@@ -156,6 +189,11 @@ export function Plan30Jours() {
     return (
       <div className="space-y-4">
         {toast && <Toast state={toast} onDismiss={() => setToast(null)} />}
+        {isDemoMode && (
+          <div className="flex justify-end">
+            <FastForwardButton onClick={handleFastForward} />
+          </div>
+        )}
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
             <CalendarCheck className="h-8 w-8 text-primary" />
@@ -214,14 +252,17 @@ export function Plan30Jours() {
             </p>
           )}
         </div>
-        <button
-          disabled
-          title="Un plan est déjà actif — attendez son expiration (30 jours)"
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground/60 cursor-not-allowed"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Régénérer
-        </button>
+        <div className="flex items-center gap-2">
+          {isDemoMode && <FastForwardButton onClick={handleFastForward} />}
+          <button
+            disabled
+            title="Un plan est déjà actif — attendez son expiration (30 jours)"
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground/60 cursor-not-allowed"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Régénérer
+          </button>
+        </div>
       </div>
 
       {/* Diagnostic / best practices */}
@@ -377,6 +418,20 @@ function WeekAccordion({
         </div>
       )}
     </div>
+  );
+}
+
+function FastForwardButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Mode démo : simule l'expiration du plan pour montrer la suite du flywheel"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/20 transition-colors"
+    >
+      <FastForward className="h-3.5 w-3.5" />
+      Simuler 30 jours
+    </button>
   );
 }
 

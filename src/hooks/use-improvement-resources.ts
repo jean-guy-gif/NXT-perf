@@ -202,6 +202,15 @@ export function useImprovementResources() {
     [userId, isDemoMode, getActivePlan, refresh]
   );
 
+  const updateResource = useCallback(
+    async (id: string, patch: Partial<ImprovementResource>): Promise<void> => {
+      const adapter = getAdapter(isDemoMode);
+      await adapter.update(id, patch);
+      await refresh();
+    },
+    [isDemoMode, refresh]
+  );
+
   return {
     resources,
     loading,
@@ -211,6 +220,7 @@ export function useImprovementResources() {
     getActivePlanForRatio,
     getNxtCoachingResource,
     createPlan30j,
+    updateResource,
   };
 }
 
