@@ -75,16 +75,16 @@ export function ImprovementCatalogue({ gap, ratioName }: ImprovementCataloguePro
           key={tool.title}
           className="relative rounded-xl border border-border bg-card p-5 space-y-2 w-72 flex-shrink-0 snap-start sm:w-auto sm:p-4"
         >
-          <div className="flex items-center gap-2 pr-[104px] sm:pr-0 sm:justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-lg">{tool.emoji}</span>
-              <h4 className="text-base font-semibold text-foreground sm:text-sm">{tool.title}</h4>
-            </div>
+          <div className="flex items-start gap-2 pr-[104px] sm:pr-0 sm:flex-col sm:items-stretch sm:gap-1">
             <span
-              className={`absolute top-3 right-3 z-10 rounded-md bg-card px-2 py-0.5 text-[11px] font-medium leading-tight text-right max-w-[96px] sm:static sm:max-w-none sm:whitespace-nowrap sm:text-xs sm:flex-shrink-0 ${tool.priceColor}`}
+              className={`absolute top-3 right-3 z-10 rounded-md bg-card px-2 py-0.5 text-[11px] font-medium leading-tight text-right max-w-[96px] sm:static sm:self-start sm:max-w-full sm:text-[11px] sm:px-0 sm:py-0 sm:bg-transparent sm:text-left sm:order-1 ${tool.priceColor}`}
             >
               {tool.price}
             </span>
+            <div className="flex items-center gap-2 min-w-0 sm:order-2">
+              <span className="text-lg">{tool.emoji}</span>
+              <h4 className="text-base font-semibold text-foreground sm:text-sm">{tool.title}</h4>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">{tool.description}</p>
           <p className="text-xs text-primary/70 sm:text-[10px]">{tool.roi}</p>
