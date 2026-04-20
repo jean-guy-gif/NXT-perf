@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { ResourceModal } from "@/components/formation/resource-modal";
 import { buildResourceFromExpertise } from "@/data/action-resources";
+import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -138,6 +140,10 @@ export function Plan30Jours() {
     }
     setGenerating(true);
     setToast(null);
+
+    const previousRatioId =
+      (getActivePlan()?.pain_ratio_id as ExpertiseRatioId | null) ?? null;
+
     try {
       await resetPlan();
     } catch {
@@ -155,24 +161,25 @@ export function Plan30Jours() {
         agencyObjective?.avgActValue,
         userHistory
       );
+      const randomRatioId = pickRandomDemoRatio(measuredRatios, previousRatioId);
+      if (!randomRatioId) {
+        setToast({
+          type: "info",
+          message: "Aucun ratio mesuré disponible pour régénérer",
+        });
+        return;
+      }
       await createPlan30j({
-        mode: "auto",
+        mode: "targeted",
+        ratioId: randomRatioId,
         measuredRatios,
         profile,
         avgCommissionEur,
       });
       setExpandedWeek(1);
       setToast({ type: "success", message: "Nouveau plan 30 jours généré" });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.startsWith("NO_PAIN_POINT")) {
-        setToast({
-          type: "info",
-          message: "Aucun ratio en sous-performance détecté",
-        });
-      } else {
-        setToast({ type: "error", message: "Erreur lors de la création du plan" });
-      }
+    } catch {
+      setToast({ type: "error", message: "Erreur lors de la création du plan" });
     } finally {
       setGenerating(false);
     }
@@ -185,6 +192,7 @@ export function Plan30Jours() {
     userHistory,
     createPlan30j,
     resetPlan,
+    getActivePlan,
   ]);
 
   const handleFastForward = useCallback(async () => {
