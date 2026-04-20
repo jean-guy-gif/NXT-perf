@@ -12,7 +12,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/welcome") ||
     request.nextUrl.pathname.startsWith("/onboarding") ||
     request.nextUrl.pathname.startsWith("/dpi") ||
-    request.nextUrl.pathname.startsWith("/demo");
+    request.nextUrl.pathname.startsWith("/demo") ||
+    request.nextUrl.pathname.startsWith("/pourquoi-nxt");
 
   const isDemo = request.cookies.get("nxt-demo-mode")?.value === "true";
 

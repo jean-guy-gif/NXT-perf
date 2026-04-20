@@ -123,6 +123,13 @@ export default function ComparaisonPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Comparaison</h1>
 
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+        <p className="text-sm italic text-muted-foreground">
+          La comparaison telle qu&apos;un coach la ferait : pas juste des
+          chiffres, mais un verdict en euros et en efficacité métier.
+        </p>
+      </div>
+
       {/* Tab selector */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">
         <button

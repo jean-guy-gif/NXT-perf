@@ -195,13 +195,20 @@ export function DPIAxisDrawer({
               <div className="h-16 animate-pulse rounded-lg bg-muted" />
             </div>
           ) : (
-            renderAxisContent(axis, results, computedRatios, ratioConfigs, {
-              plan30Total,
-              plan30Done,
-              hasActivePlan,
-              hasCustomObjectif,
-              agencyAvgActValue,
-            })
+            <>
+              {renderAxisContent(axis, results, computedRatios, ratioConfigs, {
+                plan30Total,
+                plan30Done,
+                hasActivePlan,
+                hasCustomObjectif,
+                agencyAvgActValue,
+              })}
+              <div className="mt-6 border-t border-border/40 pt-6 text-center">
+                <p className="text-xs italic text-muted-foreground">
+                  Diagnostic conçu par des coachs immobiliers — pas par des développeurs.
+                </p>
+              </div>
+            </>
           )}
         </div>
       </div>
