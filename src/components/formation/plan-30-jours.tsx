@@ -34,7 +34,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { ResourceModal } from "@/components/formation/resource-modal";
-import { findResourceForAction } from "@/data/action-resources";
+import { buildResourceFromExpertise } from "@/data/action-resources";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -354,6 +354,7 @@ export function Plan30Jours() {
               setExpandedWeek(expandedWeek === week.week_number ? 0 : week.week_number)
             }
             onToggleAction={(actionId) => toggleAction(week.week_number, actionId)}
+            painRatioId={localPayload.pain_ratio_id}
           />
         ))}
       </div>
@@ -366,11 +367,13 @@ function WeekAccordion({
   isExpanded,
   onToggle,
   onToggleAction,
+  painRatioId,
 }: {
   week: Plan30jWeek;
   isExpanded: boolean;
   onToggle: () => void;
   onToggleAction: (actionId: string) => void;
+  painRatioId: string;
 }) {
   const weekDone = week.actions.filter(
     (a) => a.status === "done" || a.done === true
@@ -431,6 +434,7 @@ function WeekAccordion({
                 key={action.id}
                 action={action}
                 onToggle={() => onToggleAction(action.id)}
+                painRatioId={painRatioId}
               />
             ))}
           </ul>
@@ -470,12 +474,14 @@ function getTooltipForStatus(status: Plan30jActionStatus): string {
 function ActionRow({
   action,
   onToggle,
+  painRatioId,
 }: {
   action: Plan30jAction;
   onToggle: () => void;
+  painRatioId: string;
 }) {
   const [resourceOpen, setResourceOpen] = useState(false);
-  const resource = findResourceForAction(action.label);
+  const resource = buildResourceFromExpertise(painRatioId);
 
   const status: Plan30jActionStatus =
     action.status ?? (action.done ? "done" : "todo");
