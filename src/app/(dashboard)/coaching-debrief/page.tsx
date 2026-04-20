@@ -9,7 +9,13 @@ import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import type { ImprovementResource } from "@/hooks/use-improvement-resources";
 import { PlanDebriefScreen } from "@/components/coaching/plan-debrief-screen";
 import { computePlanDebrief } from "@/lib/plan-debrief";
-import { getAvgCommissionEur } from "@/lib/get-avg-commission";
+import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
+import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
+import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { useRatios } from "@/hooks/use-ratios";
+import { useResults } from "@/hooks/use-results";
+import { useUser } from "@/hooks/use-user";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 export default function CoachingDebriefPage() {
   const router = useRouter();
@@ -23,8 +29,13 @@ export default function CoachingDebriefPage() {
     getNxtCoachingResource,
     getArchivedPlanById,
     updateResource,
+    resetPlan,
+    createPlan30j,
     loading,
   } = useImprovementResources();
+  const { category } = useUser();
+  const { computedRatios } = useRatios();
+  const latestResults = useResults();
 
   const [archivedPlan, setArchivedPlan] = useState<ImprovementResource | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
@@ -68,6 +79,56 @@ export default function CoachingDebriefPage() {
     );
     return computePlanDebrief(archivedPlan, userResults, ratioConfigs, avgCommissionEur);
   }, [archivedPlan, userResults, ratioConfigs, agencyObjective]);
+
+  const handleResetPlanDemo = async () => {
+    if (!latestResults) {
+      setToast({ type: "error", message: "Données de performance introuvables" });
+      return;
+    }
+
+    const previousRatioId =
+      (archivedPlan?.pain_ratio_id as ExpertiseRatioId | null) ?? null;
+
+    try {
+      await resetPlan();
+    } catch {
+      setToast({
+        type: "error",
+        message: "Impossible de réinitialiser le plan, réessayez",
+      });
+      return;
+    }
+
+    try {
+      const measuredRatios = buildMeasuredRatios(computedRatios, latestResults);
+      const profile = deriveProfileLevel(category);
+      const avgCommissionEur = getAvgCommissionEur(
+        agencyObjective?.avgActValue,
+        userResults
+      );
+      const randomRatioId = pickRandomDemoRatio(measuredRatios, previousRatioId);
+      if (!randomRatioId) {
+        setToast({
+          type: "info",
+          message: "Aucun ratio mesuré disponible pour régénérer",
+        });
+        router.push("/formation?tab=plan30");
+        return;
+      }
+      await createPlan30j({
+        mode: "targeted",
+        ratioId: randomRatioId,
+        measuredRatios,
+        profile,
+        avgCommissionEur,
+      });
+    } catch {
+      setToast({ type: "error", message: "Erreur lors de la création du plan" });
+      return;
+    }
+
+    router.push("/formation?tab=plan30");
+  };
 
   const handleClose = async () => {
     if (nxtCoaching && nxtCoaching.status === "debrief_offered") {
@@ -197,6 +258,20 @@ export default function CoachingDebriefPage() {
         onClose={handleClose}
         onRequestHumanCoach={handleRequestHumanCoach}
       />
+      {isDemoMode && (
+        <div className="mx-auto flex max-w-3xl justify-center px-6 pb-6">
+          <button
+            type="button"
+            onClick={handleResetPlanDemo}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Tester un nouveau plan
+            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
+              Démo
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

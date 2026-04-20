@@ -14,6 +14,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import type { ImprovementResource } from "@/hooks/use-improvement-resources";
 import { DEMO_COACH_CALENDAR_URL } from "@/config/coaching";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import { cn } from "@/lib/utils";
 
 interface ImprovementCatalogueProps {
@@ -21,6 +22,11 @@ interface ImprovementCatalogueProps {
   gap?: number;
   /** Ratio name for context */
   ratioName?: string;
+  /** Ratio targeted for the plan. When provided with onTargetedPlanRequest,
+   *  the Plan 30j card becomes a button that triggers targeted generation
+   *  instead of the generic redirect. */
+  ratioId?: ExpertiseRatioId;
+  onTargetedPlanRequest?: (ratioId: ExpertiseRatioId) => void | Promise<void>;
 }
 
 function estimateROI(gap: number | undefined): {
@@ -35,12 +41,19 @@ function estimateROI(gap: number | undefined): {
   return { plan: "+20%", coaching: "+35%", training: "+25%", formation: "+30%" };
 }
 
-export function ImprovementCatalogue({ gap, ratioName }: ImprovementCatalogueProps) {
+export function ImprovementCatalogue({
+  gap,
+  ratioName,
+  ratioId,
+  onTargetedPlanRequest,
+}: ImprovementCatalogueProps) {
   const roi = estimateROI(gap);
   const context = ratioName ? ` sur ${ratioName}` : "";
   const isDemoMode = useAppStore((s) => s.isDemoMode);
   const { getNxtCoachingResource, updateResource, refresh } = useImprovementResources();
   const nxtCoaching = getNxtCoachingResource();
+
+  const canTargetPlan = Boolean(ratioId && onTargetedPlanRequest);
 
   const staticTools: StaticToolProps[] = [
     {
@@ -77,8 +90,16 @@ export function ImprovementCatalogue({ gap, ratioName }: ImprovementCataloguePro
 
   return (
     <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible">
-      {/* Card 1 — Plan 30j (static) */}
-      <StaticToolCard {...staticTools[0]} />
+      {/* Card 1 — Plan 30j (targeted button when ratioId provided, else static link) */}
+      {canTargetPlan && ratioId && onTargetedPlanRequest ? (
+        <TargetedPlanCard
+          {...staticTools[0]}
+          ratioId={ratioId}
+          onClick={onTargetedPlanRequest}
+        />
+      ) : (
+        <StaticToolCard {...staticTools[0]} />
+      )}
 
       {/* Card 2 — NXT Coaching (dynamic based on resource status) */}
       <NxtCoachingCard
@@ -138,6 +159,65 @@ function StaticToolCard(props: StaticToolProps) {
         {props.cta}
         <ArrowRight className="h-3 w-3" />
       </Link>
+    </div>
+  );
+}
+
+// ─── Card Plan 30j ciblée (ratio connu) ───────────────────────────
+
+function TargetedPlanCard({
+  emoji,
+  title,
+  price,
+  priceColor,
+  description,
+  roi,
+  cta,
+  ratioId,
+  onClick,
+}: StaticToolProps & {
+  ratioId: ExpertiseRatioId;
+  onClick: (ratioId: ExpertiseRatioId) => void | Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  const handleClick = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onClick(ratioId);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="relative rounded-xl border border-border bg-card p-5 space-y-2 w-72 flex-shrink-0 snap-start sm:w-auto sm:p-4">
+      <div className="flex items-start gap-2 pr-[104px] sm:pr-0 sm:flex-col sm:items-stretch sm:gap-1">
+        <span
+          className={cn(
+            "absolute top-3 right-3 z-10 rounded-md bg-card px-2 py-0.5 text-[11px] font-medium leading-tight text-right max-w-[96px] sm:static sm:self-start sm:max-w-full sm:text-[11px] sm:px-0 sm:py-0 sm:bg-transparent sm:text-left sm:order-1",
+            priceColor
+          )}
+        >
+          {price}
+        </span>
+        <div className="flex items-center gap-2 min-w-0 sm:order-2">
+          <span className="text-lg">{emoji}</span>
+          <h4 className="text-base font-semibold text-foreground sm:text-sm">{title}</h4>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+      <p className="text-xs text-primary/70 sm:text-[10px]">{roi}</p>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={busy}
+        className="inline-flex items-center gap-1 min-h-[44px] py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:py-0 sm:text-xs"
+      >
+        {busy ? "Génération…" : cta}
+        <ArrowRight className="h-3 w-3" />
+      </button>
     </div>
   );
 }

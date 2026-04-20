@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { ResourceModal } from "@/components/formation/resource-modal";
 import { buildResourceFromExpertise } from "@/data/action-resources";
+import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -56,6 +58,7 @@ export function Plan30Jours() {
     createPlan30j,
     refresh,
     updateResource,
+    resetPlan,
   } = useImprovementResources();
 
   const [expandedWeek, setExpandedWeek] = useState<number>(1);
@@ -128,6 +131,68 @@ export function Plan30Jours() {
     userHistory,
     createPlan30j,
     refresh,
+  ]);
+
+  const handleRegenerateDemo = useCallback(async () => {
+    if (!user || !latestResults) {
+      setToast({ type: "error", message: "Données de performance introuvables" });
+      return;
+    }
+    setGenerating(true);
+    setToast(null);
+
+    const previousRatioId =
+      (getActivePlan()?.pain_ratio_id as ExpertiseRatioId | null) ?? null;
+
+    try {
+      await resetPlan();
+    } catch {
+      setGenerating(false);
+      setToast({
+        type: "error",
+        message: "Impossible de réinitialiser le plan, réessayez",
+      });
+      return;
+    }
+    try {
+      const measuredRatios = buildMeasuredRatios(computedRatios, latestResults);
+      const profile = deriveProfileLevel(category);
+      const avgCommissionEur = getAvgCommissionEur(
+        agencyObjective?.avgActValue,
+        userHistory
+      );
+      const randomRatioId = pickRandomDemoRatio(measuredRatios, previousRatioId);
+      if (!randomRatioId) {
+        setToast({
+          type: "info",
+          message: "Aucun ratio mesuré disponible pour régénérer",
+        });
+        return;
+      }
+      await createPlan30j({
+        mode: "targeted",
+        ratioId: randomRatioId,
+        measuredRatios,
+        profile,
+        avgCommissionEur,
+      });
+      setExpandedWeek(1);
+      setToast({ type: "success", message: "Nouveau plan 30 jours généré" });
+    } catch {
+      setToast({ type: "error", message: "Erreur lors de la création du plan" });
+    } finally {
+      setGenerating(false);
+    }
+  }, [
+    user,
+    latestResults,
+    computedRatios,
+    category,
+    agencyObjective,
+    userHistory,
+    createPlan30j,
+    resetPlan,
+    getActivePlan,
   ]);
 
   const handleFastForward = useCallback(async () => {
@@ -302,14 +367,28 @@ export function Plan30Jours() {
         </div>
         <div className="flex items-center gap-2">
           {isDemoMode && <FastForwardButton onClick={handleFastForward} />}
-          <button
-            disabled
-            title="Un plan est déjà actif — attendez son expiration (30 jours)"
-            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground/60 cursor-not-allowed"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Régénérer
-          </button>
+          {isDemoMode ? (
+            <button
+              onClick={handleRegenerateDemo}
+              disabled={generating}
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {generating ? "Régénération…" : "Régénérer"}
+              <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
+                Démo
+              </span>
+            </button>
+          ) : (
+            <button
+              disabled
+              title="Un plan est déjà actif — attendez son expiration (30 jours)"
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground/60 cursor-not-allowed"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Régénérer
+            </button>
+          )}
         </div>
       </div>
 

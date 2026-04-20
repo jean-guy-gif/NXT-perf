@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { X, TrendingUp, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DPIAxis } from "@/lib/dpi-axes";
 import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import { useUser } from "@/hooks/use-user";
+import { useAppStore } from "@/stores/app-store";
+import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
 
 export interface DPIAxisDrawerProps {
   open: boolean;
@@ -106,6 +112,55 @@ export function DPIAxisDrawer({
   agencyAvgActValue,
 }: DPIAxisDrawerProps) {
   const [rendered, setRendered] = useState(false);
+  const router = useRouter();
+  const { createPlan30j } = useImprovementResources();
+  const { user, category } = useUser();
+  const allResults = useAppStore((s) => s.results);
+  const [boosting, setBoosting] = useState(false);
+  const [boostToast, setBoostToast] = useState<
+    { type: "success" | "error" | "info"; message: string } | null
+  >(null);
+
+  useEffect(() => {
+    if (!boostToast) return;
+    const timeout = setTimeout(() => setBoostToast(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [boostToast]);
+
+  const handleBoostSolidite = async () => {
+    if (!results) {
+      setBoostToast({ type: "error", message: "Données de performance introuvables" });
+      return;
+    }
+    setBoosting(true);
+    try {
+      const userHistory = allResults.filter((r) => r.userId === user?.id);
+      const measuredRatios = buildMeasuredRatios(computedRatios, results);
+      const profile = deriveProfileLevel(category);
+      const avgCommissionEur = getAvgCommissionEur(agencyAvgActValue, userHistory);
+      await createPlan30j({
+        mode: "targeted",
+        ratioId: "pct_exclusivite",
+        measuredRatios,
+        profile,
+        avgCommissionEur,
+      });
+      router.push("/formation?tab=plan30");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith("PLAN_ACTIVE_ALREADY")) {
+        setBoostToast({
+          type: "info",
+          message: "Vous avez déjà un plan actif, voici votre plan actuel",
+        });
+        router.push("/formation?tab=plan30");
+      } else {
+        setBoostToast({ type: "error", message: "Erreur lors de la création du plan" });
+      }
+    } finally {
+      setBoosting(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) {
@@ -196,19 +251,42 @@ export function DPIAxisDrawer({
             </div>
           ) : (
             <>
-              {renderAxisContent(axis, results, computedRatios, ratioConfigs, {
-                plan30Total,
-                plan30Done,
-                hasActivePlan,
-                hasCustomObjectif,
-                agencyAvgActValue,
-              })}
+              {renderAxisContent(
+                axis,
+                results,
+                computedRatios,
+                ratioConfigs,
+                {
+                  plan30Total,
+                  plan30Done,
+                  hasActivePlan,
+                  hasCustomObjectif,
+                  agencyAvgActValue,
+                },
+                { onBoost: handleBoostSolidite, boosting }
+              )}
               <div className="mt-6 border-t border-border/40 pt-6 text-center">
                 <p className="text-xs italic text-muted-foreground">
                   Diagnostic conçu par des coachs immobiliers — pas par des développeurs.
                 </p>
               </div>
             </>
+          )}
+          {boostToast && (
+            <div
+              className={cn(
+                "sticky bottom-4 mt-4 rounded-lg border px-4 py-3 text-sm shadow-lg",
+                boostToast.type === "error" &&
+                  "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400",
+                boostToast.type === "info" &&
+                  "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                boostToast.type === "success" &&
+                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              )}
+              role="status"
+            >
+              {boostToast.message}
+            </div>
           )}
         </div>
       </div>
@@ -226,12 +304,18 @@ interface RenderContext {
   agencyAvgActValue?: number;
 }
 
+interface BoostContext {
+  onBoost: () => void;
+  boosting: boolean;
+}
+
 function renderAxisContent(
   axis: DPIAxis,
   results: PeriodResults | null,
   computedRatios: ComputedRatio[],
   ratioConfigs: Record<RatioId, RatioConfig>,
-  ctx: RenderContext
+  ctx: RenderContext,
+  boost: BoostContext
 ) {
   if (!results) {
     return (
@@ -248,7 +332,7 @@ function renderAxisContent(
     case "generation_opportunites":
       return renderGeneration(results);
     case "solidite_portefeuille":
-      return renderSolidite(results);
+      return renderSolidite(results, boost);
     case "maitrise_ratios":
       return renderMaitrise(computedRatios, ratioConfigs, ctx);
     case "valorisation_economique":
@@ -389,7 +473,7 @@ function renderGeneration(results: PeriodResults) {
 }
 
 // Axe 3 — Solidité du Portefeuille
-function renderSolidite(results: PeriodResults) {
+function renderSolidite(results: PeriodResults, boost: BoostContext) {
   const totalMandats = results.vendeurs.mandats.length;
   const mandatsExclusifs = results.vendeurs.mandats.filter(
     (m) => m.type === "exclusif"
@@ -435,7 +519,7 @@ function renderSolidite(results: PeriodResults) {
         </p>
       </Section>
 
-      <ActionRecommandation />
+      <ActionRecommandation onBoost={boost.onBoost} boosting={boost.boosting} />
     </>
   );
 }
@@ -602,7 +686,15 @@ function renderPilotage(computedRatios: ComputedRatio[], ctx: RenderContext) {
 }
 
 // Action recommandée générique
-function ActionRecommandation() {
+function ActionRecommandation({
+  onBoost,
+  boosting,
+}: {
+  onBoost?: () => void;
+  boosting?: boolean;
+} = {}) {
+  const buttonClass =
+    "inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed";
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
       <div className="flex items-start gap-3">
@@ -618,13 +710,22 @@ function ActionRecommandation() {
             cet axe. Ton plan sera construit à partir de notre expertise
             coaching dédiée à ce levier.
           </p>
-          <Link
-            href="/formation?tab=plan30"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <TrendingUp className="h-3 w-3" />
-            Booster cet axe
-          </Link>
+          {onBoost ? (
+            <button
+              type="button"
+              onClick={onBoost}
+              disabled={boosting}
+              className={buttonClass}
+            >
+              <TrendingUp className="h-3 w-3" />
+              {boosting ? "Génération…" : "Booster cet axe"}
+            </button>
+          ) : (
+            <Link href="/formation?tab=plan30" className={buttonClass}>
+              <TrendingUp className="h-3 w-3" />
+              Booster cet axe
+            </Link>
+          )}
         </div>
       </div>
     </div>

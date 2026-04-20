@@ -1,15 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { RatioDrillDownModal } from "@/components/dashboard/ratio-drill-down-modal";
+import { RATIO_ID_TO_EXPERTISE_ID, buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { RatioId } from "@/types/ratios";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
@@ -70,6 +75,48 @@ export default function PerformancePage() {
   const isDemo = useAppStore((s) => s.isDemo);
   const supabase = useSupabase();
   const [perfBadges, setPerfBadges] = useState<DbPerformanceBadge[]>([]);
+  const router = useRouter();
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const allResults = useAppStore((s) => s.results);
+  const { createPlan30j } = useImprovementResources();
+  const [targetedToast, setTargetedToast] = useState<
+    { type: "success" | "error" | "info"; message: string } | null
+  >(null);
+
+  const handleTargetedPlanRequest = async (ratioId: ExpertiseRatioId) => {
+    if (!results) {
+      setTargetedToast({ type: "error", message: "Données de performance introuvables" });
+      return;
+    }
+    try {
+      const userHistory = allResults.filter((r) => r.userId === user?.id);
+      const measuredRatios = buildMeasuredRatios(computedRatios, results);
+      const profile = deriveProfileLevel(category);
+      const avgCommissionEur = getAvgCommissionEur(
+        agencyObjective?.avgActValue,
+        userHistory
+      );
+      await createPlan30j({
+        mode: "targeted",
+        ratioId,
+        measuredRatios,
+        profile,
+        avgCommissionEur,
+      });
+      router.push("/formation?tab=plan30");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith("PLAN_ACTIVE_ALREADY")) {
+        setTargetedToast({
+          type: "info",
+          message: "Vous avez déjà un plan actif, voici votre plan actuel",
+        });
+        router.push("/formation?tab=plan30");
+      } else {
+        setTargetedToast({ type: "error", message: "Erreur lors de la création du plan" });
+      }
+    }
+  };
 
   useEffect(() => {
     if (isDemo || !user?.id) return;
@@ -130,6 +177,18 @@ export default function PerformancePage() {
   return (
     <LockedFeature feature="performance" featureName="Ma Performance" featureDescription="Analysez vos ratios et benchmarks métier">
     <div className="space-y-6">
+      {targetedToast && (
+        <div
+          className={cn(
+            "rounded-lg border px-4 py-3 text-sm",
+            targetedToast.type === "success" && "border-green-500/30 bg-green-500/10 text-green-700",
+            targetedToast.type === "error" && "border-red-500/30 bg-red-500/10 text-red-700",
+            targetedToast.type === "info" && "border-amber-500/30 bg-amber-500/10 text-amber-700"
+          )}
+        >
+          {targetedToast.message}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -310,6 +369,8 @@ export default function PerformancePage() {
                         <ImprovementCatalogue
                           gap={100 - ratio.percentageOfTarget}
                           ratioName={config.name.split("→")[0].trim().toLowerCase()}
+                          ratioId={RATIO_ID_TO_EXPERTISE_ID[ratio.ratioId as RatioId] ?? undefined}
+                          onTargetedPlanRequest={handleTargetedPlanRequest}
                         />
                       </div>
                     )}
