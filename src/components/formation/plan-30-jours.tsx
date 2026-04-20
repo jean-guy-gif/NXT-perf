@@ -31,7 +31,10 @@ import {
   FastForward,
   Circle,
   CircleDashed,
+  BookOpen,
 } from "lucide-react";
+import { ResourceModal } from "@/components/formation/resource-modal";
+import { findResourceForAction } from "@/data/action-resources";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
 
@@ -453,6 +456,17 @@ function WeekAccordion({
   );
 }
 
+function getTooltipForStatus(status: Plan30jActionStatus): string {
+  switch (status) {
+    case "todo":
+      return "Marquer comme en cours";
+    case "in_progress":
+      return "Marquer comme terminé";
+    case "done":
+      return "Remettre à faire";
+  }
+}
+
 function ActionRow({
   action,
   onToggle,
@@ -460,6 +474,9 @@ function ActionRow({
   action: Plan30jAction;
   onToggle: () => void;
 }) {
+  const [resourceOpen, setResourceOpen] = useState(false);
+  const resource = findResourceForAction(action.label);
+
   const status: Plan30jActionStatus =
     action.status ?? (action.done ? "done" : "todo");
 
@@ -470,18 +487,39 @@ function ActionRow({
       ? { Icon: CircleDashed, iconClass: "text-amber-500", labelClass: "text-foreground", aria: "En cours" }
       : { Icon: Circle, iconClass: "text-muted-foreground/60", labelClass: "text-foreground", aria: "À faire" };
   const Icon = config.Icon;
+  const tooltip = getTooltipForStatus(status);
 
   return (
-    <li>
+    <li className="flex items-start gap-2 rounded-lg py-3 px-2 transition-colors hover:bg-muted/40">
       <button
         type="button"
         onClick={onToggle}
-        aria-label={`${config.aria} — cliquer pour changer l'état`}
-        className="flex w-full cursor-pointer items-start gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted/50"
+        aria-label={tooltip}
+        title={tooltip}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted/60"
       >
-        <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", config.iconClass)} />
-        <span className={cn("text-sm", config.labelClass)}>{action.label}</span>
+        <Icon className={cn("h-6 w-6", config.iconClass)} />
       </button>
+      <span className={cn("flex-1 min-w-0 self-center text-sm", config.labelClass)}>
+        {action.label}
+      </span>
+      <button
+        type="button"
+        onClick={() => setResourceOpen(true)}
+        title="Voir la ressource associée"
+        aria-label="Voir la fiche associée à cette action"
+        className="flex shrink-0 items-center gap-1.5 self-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Voir la fiche</span>
+      </button>
+      <ResourceModal
+        open={resourceOpen}
+        onClose={() => setResourceOpen(false)}
+        title={resource.title}
+        content={resource.content}
+        isPlaceholder={resource.isPlaceholder}
+      />
     </li>
   );
 }
