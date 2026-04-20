@@ -92,8 +92,9 @@ export function useDPIEvolution() {
       ...a,
       score: Math.max(10, a.score - 15),
     }));
-    const degradedGlobalScore =
-      degradedAxes.reduce((s, a) => s + a.score, 0) / degradedAxes.length;
+    const degradedGlobalScore = Math.round(
+      degradedAxes.reduce((s, a) => s + a.score, 0) / degradedAxes.length
+    );
 
     const snapshot: DPISnapshot = {
       userId: user.id,
@@ -133,7 +134,7 @@ export function useDPIEvolution() {
 
   const globalDelta = useMemo(() => {
     if (!initialSnapshot) return 0;
-    return currentGlobalScore - initialSnapshot.globalScore;
+    return Math.round(currentGlobalScore - initialSnapshot.globalScore);
   }, [initialSnapshot, currentGlobalScore]);
 
   const smiley: "happy" | "neutral" | "sad" = globalDelta > 5 ? "happy" : globalDelta < -5 ? "sad" : "neutral";

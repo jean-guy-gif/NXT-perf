@@ -225,9 +225,9 @@ export function computePlanDebrief(
     actionsStats: { done, total, percentDone },
     weeksWithSaisie,
     ratioLabel,
-    ratioBaseline: round2(ratioBaseline),
-    ratioCurrent: round2(ratioCurrent),
-    ratioDeltaPoints: round2(ratioDeltaPoints),
+    ratioBaseline: Math.round(ratioBaseline * 10) / 10,
+    ratioCurrent: Math.round(ratioCurrent * 10) / 10,
+    ratioDeltaPoints: Math.round(ratioDeltaPoints * 10) / 10,
     isImproving,
     monthlyGainEur: Math.round(monthlyGainEur),
     annualProjectedEur: Math.round(annualProjectedEur),
@@ -330,10 +330,6 @@ function computeFieldGains(
 }
 
 // ─── Helpers internes ────────────────────────────────────────────────
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 function simulateCurrent(
   baseline: number,
