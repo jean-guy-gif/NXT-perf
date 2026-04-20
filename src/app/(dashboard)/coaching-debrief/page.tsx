@@ -23,6 +23,7 @@ export default function CoachingDebriefPage() {
     getNxtCoachingResource,
     getArchivedPlanById,
     updateResource,
+    resetPlan,
     loading,
   } = useImprovementResources();
 
@@ -68,6 +69,19 @@ export default function CoachingDebriefPage() {
     );
     return computePlanDebrief(archivedPlan, userResults, ratioConfigs, avgCommissionEur);
   }, [archivedPlan, userResults, ratioConfigs, agencyObjective]);
+
+  const handleResetPlanDemo = async () => {
+    try {
+      await resetPlan();
+    } catch {
+      setToast({
+        type: "error",
+        message: "Impossible de réinitialiser le plan, réessayez",
+      });
+      return;
+    }
+    router.push("/formation?tab=plan30");
+  };
 
   const handleClose = async () => {
     if (nxtCoaching && nxtCoaching.status === "debrief_offered") {
@@ -197,6 +211,20 @@ export default function CoachingDebriefPage() {
         onClose={handleClose}
         onRequestHumanCoach={handleRequestHumanCoach}
       />
+      {isDemoMode && (
+        <div className="mx-auto flex max-w-3xl justify-center px-6 pb-6">
+          <button
+            type="button"
+            onClick={handleResetPlanDemo}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Tester un nouveau plan
+            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
+              Démo
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

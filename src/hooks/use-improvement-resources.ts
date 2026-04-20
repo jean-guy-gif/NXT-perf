@@ -215,6 +215,34 @@ export function useImprovementResources() {
     [isDemoMode, refresh]
   );
 
+  // Demo-only: archive the full plan bundle (plan_30j + nxt_coaching)
+  // so a new plan can be generated without waiting for the 30-day cycle.
+  const resetPlan = useCallback(async (): Promise<void> => {
+    if (!userId) throw new Error("User not authenticated");
+
+    const adapter = getAdapter(isDemoMode);
+    const rows = await adapter.list(userId);
+    const now = new Date().toISOString();
+
+    for (const row of rows) {
+      if (row.archived_at !== null) continue;
+
+      if (row.resource_type === "plan_30j") {
+        await adapter.update(row.id, {
+          status: "expired",
+          archived_at: now,
+        });
+      } else if (row.resource_type === "nxt_coaching") {
+        await adapter.update(row.id, {
+          status: "cancelled",
+          archived_at: now,
+        });
+      }
+    }
+
+    await refresh();
+  }, [userId, isDemoMode, refresh]);
+
   const getArchivedPlanById = useCallback(
     async (planId: string): Promise<ImprovementResource | null> => {
       if (!userId) return null;
@@ -236,6 +264,7 @@ export function useImprovementResources() {
     createPlan30j,
     updateResource,
     getArchivedPlanById,
+    resetPlan,
   };
 }
 
