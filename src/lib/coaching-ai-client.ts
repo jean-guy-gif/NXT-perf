@@ -42,19 +42,30 @@ export async function generateAIDebrief(debrief: CoachingDebrief, persona?: stri
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`coaching-ai-client: API error ${res.status}`);
+      return null;
+    }
 
     const data = await res.json();
-    if (data.error) return null;
+    if (data.error) {
+      console.error("coaching-ai-client: API returned error field", data.error);
+      return null;
+    }
 
     // Validate minimum fields
-    if (!data.title || !data.overallSummary) return null;
+    if (!data.title || !data.overallSummary) {
+      console.error("coaching-ai-client: missing required fields in response");
+      return null;
+    }
 
     // Force the closing signature
     data.closing = "tu es meilleur que ce que tu penses, Bonne route";
 
     return data as AIDebriefText;
-  } catch {
+  } catch (error) {
+    // Silent fallback preservé (contrat produit) mais logging ajouté pour debug
+    console.error("coaching-ai-client error:", error);
     return null;
   }
 }

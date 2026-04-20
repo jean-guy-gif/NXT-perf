@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X, BookOpen } from "lucide-react";
 
 interface ResourceModalProps {
@@ -18,6 +18,17 @@ export function ResourceModal({
   content,
   isPlaceholder = false,
 }: ResourceModalProps) {
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setRendered(false);
+      return;
+    }
+    const timeout = setTimeout(() => setRendered(true), 50);
+    return () => clearTimeout(timeout);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -58,7 +69,15 @@ export function ResourceModal({
 
         {/* Content */}
         <div className="prose prose-sm max-w-none dark:prose-invert">
-          {isPlaceholder ? (
+          {!rendered ? (
+            <div className="space-y-3 py-4">
+              <div className="h-6 w-3/4 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-full animate-pulse rounded bg-muted" />
+              <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-full animate-pulse rounded bg-muted" />
+              <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+            </div>
+          ) : isPlaceholder ? (
             <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Cette fiche sera disponible prochainement.

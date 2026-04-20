@@ -249,6 +249,10 @@ function DebriefOfferedCard({
           setLocalToast("Plan source introuvable");
           return;
         }
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          setLocalToast("Tu sembles hors ligne. Vérifie ta connexion.");
+          return;
+        }
         const res = await fetch("/api/coaching/request-human-coach", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -256,14 +260,21 @@ function DebriefOfferedCard({
         });
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { message?: string };
-          setLocalToast(body.message ?? "Erreur lors de la demande de coach");
+          setLocalToast(
+            body.message ?? `Erreur ${res.status} : demande coach impossible`
+          );
           return;
         }
         setLocalToast("Coach assigné, votre plan va être suivi");
         await refresh();
       }
     } catch (err) {
-      setLocalToast(err instanceof Error ? err.message : "Erreur inconnue");
+      console.error("Erreur coaching request (catalogue):", err);
+      setLocalToast(
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue. Vérifie ta connexion et réessaie."
+      );
     } finally {
       setConfirming(false);
     }

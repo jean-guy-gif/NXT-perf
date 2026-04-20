@@ -110,6 +110,14 @@ export default function CoachingDebriefPage() {
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setToast({
+        type: "error",
+        message: "Tu sembles hors ligne. Vérifie ta connexion.",
+      });
+      return;
+    }
+
     try {
       const res = await fetch("/api/coaching/request-human-coach", {
         method: "POST",
@@ -118,15 +126,24 @@ export default function CoachingDebriefPage() {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { message?: string };
-        setToast({ type: "error", message: body.message ?? "Erreur lors de la demande" });
+        setToast({
+          type: "error",
+          message:
+            body.message ??
+            `Erreur ${res.status} : impossible d'enregistrer ta demande`,
+        });
         return;
       }
       setToast({ type: "success", message: "Coach assigné, votre plan va être suivi" });
       router.push("/formation?tab=plan30");
     } catch (err) {
+      console.error("Erreur coaching request:", err);
       setToast({
         type: "error",
-        message: err instanceof Error ? err.message : "Erreur réseau",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Une erreur est survenue. Vérifie ta connexion et réessaie.",
       });
     }
   };

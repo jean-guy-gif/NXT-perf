@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, TrendingUp, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -105,6 +105,17 @@ export function DPIAxisDrawer({
   hasCustomObjectif,
   agencyAvgActValue,
 }: DPIAxisDrawerProps) {
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setRendered(false);
+      return;
+    }
+    const timeout = setTimeout(() => setRendered(true), 50);
+    return () => clearTimeout(timeout);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -177,13 +188,21 @@ export function DPIAxisDrawer({
 
         {/* Contenu spécifique par axe */}
         <div className="space-y-6 p-5">
-          {renderAxisContent(axis, results, computedRatios, ratioConfigs, {
-            plan30Total,
-            plan30Done,
-            hasActivePlan,
-            hasCustomObjectif,
-            agencyAvgActValue,
-          })}
+          {!rendered ? (
+            <div className="space-y-4">
+              <div className="h-32 animate-pulse rounded-lg bg-muted" />
+              <div className="h-24 animate-pulse rounded-lg bg-muted" />
+              <div className="h-16 animate-pulse rounded-lg bg-muted" />
+            </div>
+          ) : (
+            renderAxisContent(axis, results, computedRatios, ratioConfigs, {
+              plan30Total,
+              plan30Done,
+              hasActivePlan,
+              hasCustomObjectif,
+              agencyAvgActValue,
+            })
+          )}
         </div>
       </div>
     </>
