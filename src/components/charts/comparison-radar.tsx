@@ -9,9 +9,17 @@ interface RadarAxis {
   score: number;
 }
 
+interface RawValue {
+  me: number;
+  other: number;
+  unit?: string; // ex: "%" — sinon pas de suffixe
+}
+
 interface ComparisonRadarProps {
   axes: RadarAxis[]; // dataset principal (Moi)
   overlayAxes?: RadarAxis[]; // dataset secondaire (Autre)
+  /** Valeurs brutes à afficher dans le tooltip (sinon on affiche axes[idx].score) */
+  rawAxes?: RawValue[];
   primaryLabel?: string;
   overlayLabel?: string;
   primaryColor?: string;
@@ -25,6 +33,7 @@ interface ComparisonRadarProps {
 export function ComparisonRadar({
   axes,
   overlayAxes,
+  rawAxes,
   primaryLabel = "Moi",
   overlayLabel = "Autre",
   primaryColor = "#3375FF",
@@ -193,43 +202,56 @@ export function ComparisonRadar({
       </svg>
 
       {/* Tooltip — position en coords SVG (précise à l'échelle 1:1 desktop) */}
-      {hoveredIdx !== null && (
-        <div
-          className="pointer-events-none absolute rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-lg"
-          style={{
-            left: `${(primaryPoints[hoveredIdx].x / size) * 100}%`,
-            top: `${(primaryPoints[hoveredIdx].y / size) * 100}%`,
-            transform: "translate(10px, -100%)",
-            zIndex: 10,
-          }}
-        >
-          <div className="mb-1 font-semibold text-foreground">
-            {axes[hoveredIdx].label}
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: primaryColor }}
-            />
-            <span className="text-muted-foreground">{primaryLabel} :</span>
-            <span className="font-semibold" style={{ color: primaryColor }}>
-              {axes[hoveredIdx].score}%
-            </span>
-          </div>
-          {overlayAxes && (
-            <div className="mt-0.5 flex items-center gap-2">
+      {hoveredIdx !== null && (() => {
+        const raw = rawAxes?.[hoveredIdx];
+        const unit = raw?.unit ?? "";
+        const meValue = raw
+          ? `${Math.round(raw.me)}${unit}`
+          : `${axes[hoveredIdx].score}`;
+        const otherValue =
+          raw && overlayAxes
+            ? `${Math.round(raw.other)}${unit}`
+            : overlayAxes
+            ? `${overlayAxes[hoveredIdx].score}`
+            : null;
+        return (
+          <div
+            className="pointer-events-none absolute rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-lg"
+            style={{
+              left: `${(primaryPoints[hoveredIdx].x / size) * 100}%`,
+              top: `${(primaryPoints[hoveredIdx].y / size) * 100}%`,
+              transform: "translate(10px, -100%)",
+              zIndex: 10,
+            }}
+          >
+            <div className="mb-1 font-semibold text-foreground">
+              {axes[hoveredIdx].label}
+            </div>
+            <div className="flex items-center gap-2">
               <span
                 className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: overlayColor }}
+                style={{ backgroundColor: primaryColor }}
               />
-              <span className="text-muted-foreground">{overlayLabel} :</span>
-              <span className="font-semibold" style={{ color: overlayColor }}>
-                {overlayAxes[hoveredIdx].score}%
+              <span className="text-muted-foreground">{primaryLabel} :</span>
+              <span className="font-semibold" style={{ color: primaryColor }}>
+                {meValue}
               </span>
             </div>
-          )}
-        </div>
-      )}
+            {otherValue !== null && (
+              <div className="mt-0.5 flex items-center gap-2">
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: overlayColor }}
+                />
+                <span className="text-muted-foreground">{overlayLabel} :</span>
+                <span className="font-semibold" style={{ color: overlayColor }}>
+                  {otherValue}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

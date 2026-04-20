@@ -89,10 +89,14 @@ export default function ComparaisonPage() {
     myAggregatedResults !== null &&
     (mode !== "advisor" || otherAggregatedResults !== null);
 
-  const volumeRadarMax =
-    Math.max(1, ...volumeAxes.flatMap((a) => [a.me, a.other])) * 1.1;
-  const efficiencyRadarMax =
-    Math.max(100, ...efficiencyAxes.flatMap((a) => [a.me, a.other])) * 1.1;
+  const normalizedVolumes = useMemo(
+    () => normalizeAxes(volumeAxes),
+    [volumeAxes]
+  );
+  const normalizedEfficiency = useMemo(
+    () => normalizeAxes(efficiencyAxes),
+    [efficiencyAxes]
+  );
 
   const otherUsers = users.filter(
     (u) => u.id !== user?.id && u.role === "conseiller"
@@ -322,18 +326,26 @@ export default function ComparaisonPage() {
 
             <div className="mb-6 flex justify-center">
               <ComparisonRadar
-                axes={volumeAxes.map((a) => ({ id: a.id, label: a.label, score: a.me }))}
-                overlayAxes={volumeAxes.map((a) => ({
+                axes={normalizedVolumes.map((a) => ({
                   id: a.id,
                   label: a.label,
-                  score: a.other,
+                  score: a.meNormalized,
+                }))}
+                overlayAxes={normalizedVolumes.map((a) => ({
+                  id: a.id,
+                  label: a.label,
+                  score: a.otherNormalized,
+                }))}
+                rawAxes={normalizedVolumes.map((a) => ({
+                  me: a.meRaw,
+                  other: a.otherRaw,
                 }))}
                 primaryLabel={meDisplayName}
                 overlayLabel={otherDisplayName}
                 primaryColor="#3375FF"
                 overlayColor="#FF8A3D"
                 size={420}
-                maxValue={volumeRadarMax}
+                maxValue={100}
               />
             </div>
 
@@ -364,22 +376,27 @@ export default function ComparaisonPage() {
 
             <div className="mb-6 flex justify-center">
               <ComparisonRadar
-                axes={efficiencyAxes.map((a) => ({
+                axes={normalizedEfficiency.map((a) => ({
                   id: a.id,
                   label: a.label,
-                  score: a.me,
+                  score: a.meNormalized,
                 }))}
-                overlayAxes={efficiencyAxes.map((a) => ({
+                overlayAxes={normalizedEfficiency.map((a) => ({
                   id: a.id,
                   label: a.label,
-                  score: a.other,
+                  score: a.otherNormalized,
+                }))}
+                rawAxes={normalizedEfficiency.map((a) => ({
+                  me: a.meRaw,
+                  other: a.otherRaw,
+                  unit: "%",
                 }))}
                 primaryLabel={meDisplayName}
                 overlayLabel={otherDisplayName}
                 primaryColor="#3375FF"
                 overlayColor="#FF8A3D"
                 size={420}
-                maxValue={efficiencyRadarMax}
+                maxValue={100}
               />
             </div>
 
@@ -426,6 +443,29 @@ interface Axis {
   label: string;
   me: number;
   other: number;
+}
+
+interface NormalizedAxis {
+  id: string;
+  label: string;
+  meNormalized: number; // 0-100
+  otherNormalized: number; // 0-100
+  meRaw: number;
+  otherRaw: number;
+}
+
+function normalizeAxes(axes: Axis[]): NormalizedAxis[] {
+  return axes.map((axis) => {
+    const max = Math.max(axis.me, axis.other, 1);
+    return {
+      id: axis.id,
+      label: axis.label,
+      meNormalized: (axis.me / max) * 100,
+      otherNormalized: (axis.other / max) * 100,
+      meRaw: axis.me,
+      otherRaw: axis.other,
+    };
+  });
 }
 
 function buildVolumeAxes(
