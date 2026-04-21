@@ -3,7 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Building2, Users, UserCheck, GraduationCap, Target } from "lucide-react";
+import {
+  Building2,
+  Users,
+  UserCheck,
+  GraduationCap,
+  ArrowRight,
+} from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 
@@ -12,7 +18,7 @@ const profiles = [
     profile: "INSTITUTION",
     icon: Building2,
     title: "Je crée une agence",
-    desc: "Créez votre agence et invitez vos managers et conseillers",
+    desc: "Créez votre agence, invitez managers et conseillers",
   },
   {
     profile: "MANAGER",
@@ -24,7 +30,7 @@ const profiles = [
     profile: "AGENT",
     icon: UserCheck,
     title: "Je suis Conseiller",
-    desc: "Rejoignez l'équipe de votre manager avec un code d'invitation",
+    desc: "Rejoignez l'équipe de votre manager avec un code",
   },
   {
     profile: "COACH",
@@ -38,17 +44,17 @@ export default function WelcomePage() {
   const router = useRouter();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
 
-  // Redirect authenticated users (demo or Supabase) to dashboard
   useEffect(() => {
     if (isAuthenticated) {
       router.replace("/dashboard");
       return;
     }
 
-    // Check Supabase session — user may have a cookie but store isn't hydrated
     const checkSession = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         router.replace("/dashboard");
       }
@@ -57,56 +63,71 @@ export default function WelcomePage() {
   }, [isAuthenticated, router]);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-8">
-      <div className="mb-6 flex justify-center">
-        <img src="/logo-icon.svg" alt="NXT Perf" className="h-14 w-14" />
+    <div>
+      {/* Logo */}
+      <div className="flex justify-center">
+        <img src="/logo-icon.svg" alt="NXT Perf" className="h-12 w-12" />
       </div>
-      <h1 className="mb-2 text-center text-2xl font-bold text-foreground">
-        Bienvenue sur NXT-Perf
-      </h1>
-      <p className="mb-8 text-center text-sm text-muted-foreground">
-        La plateforme de performance pour les professionnels de l&apos;immobilier
-      </p>
 
-      {/* DPI Block */}
-      <div
-        onClick={() => router.push("/dpi")}
-        className="mb-6 cursor-pointer rounded-2xl p-6 text-center text-white"
-        style={{
-          background: "linear-gradient(135deg, #3375FF, #6B47FF, #A055FF, #3375FF)",
-          backgroundSize: "300% 300%",
-          animation: "dpiGradient 3s ease infinite, dpiGlow 2s ease-in-out infinite",
-        }}
-      >
-        <span className="inline-block rounded-full bg-[#22c55e] px-4 py-1 text-sm font-bold uppercase text-white">
-          100% GRATUIT
-        </span>
-        <h2 className="mt-3 text-xl font-bold">Diagnostic de Performance Immobilière</h2>
-        <p className="mt-2 text-sm text-white/80">
-          Évaluez votre niveau, découvrez votre potentiel de croissance et comparez-vous aux meilleurs
+      {/* Hero — template R15 adapté au container max-w-md */}
+      <div className="mt-8 text-center">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Cockpit de performance immobilière
         </p>
-        <button className="mt-4 rounded-full bg-white/20 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/30">
-          Démarrer mon diagnostic →
-        </button>
+        <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-foreground md:text-4xl">
+          <span className="text-primary">Diagnostiquez</span> votre performance,
+          puis <span className="text-primary">activez</span> le bon parcours.
+        </h1>
+        <p className="mt-6 text-base text-muted-foreground md:text-lg">
+          Diagnostic gratuit en 2 minutes. Puis 1 mois d&apos;essai complet
+          selon votre profil, sans carte bancaire.
+        </p>
       </div>
-      <style>{`
-        @keyframes dpiGradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes dpiGlow {
-          0%, 100% { box-shadow: 0 0 15px rgba(51,117,255,0.3), 0 4px 15px rgba(0,0,0,0.1); }
-          50% { box-shadow: 0 0 30px rgba(160,85,255,0.5), 0 4px 20px rgba(0,0,0,0.15); }
-        }
-      `}</style>
 
+      {/* Encart DPI — parcours recommandé (bg-primary/5) */}
+      <div className="mt-10 rounded-xl border border-primary/30 bg-primary/5 p-6">
+        <div className="flex justify-center">
+          <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-500">
+            Gratuit · 2 min
+          </span>
+        </div>
+        <h2 className="mt-3 text-center text-lg font-bold text-foreground">
+          Diagnostic de Performance Immobilière
+        </h2>
+        <p className="mt-2 text-center text-sm leading-relaxed text-foreground md:text-base">
+          Score sur 100, 6 axes, point de départ du Copilote NXT. Aucune donnée
+          requise, aucun engagement.
+        </p>
+        <div className="mt-6 flex flex-col items-center">
+          <button
+            onClick={() => router.push("/dpi")}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+          >
+            Démarrer mon diagnostic
+            <ArrowRight className="h-5 w-5" />
+          </button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Sans création de compte
+          </p>
+        </div>
+      </div>
+
+      {/* Séparateur — bifurcation vers le parcours alternatif */}
+      <div className="my-8 flex items-center gap-4">
+        <hr className="flex-1 border-border" />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Ou créez votre compte — 1 mois d&apos;essai
+        </p>
+        <hr className="flex-1 border-border" />
+      </div>
+
+      {/* Cards profil */}
       <div className="space-y-3">
         {profiles.map((p) => (
           <button
             key={p.profile}
             onClick={() => router.push(`/register?profile=${p.profile}`)}
-            className="flex w-full items-center gap-4 rounded-xl border border-input bg-background p-4 text-left transition-all hover:border-primary hover:bg-primary/5"
+            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-primary hover:bg-primary/5"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <p.icon className="h-6 w-6 text-primary" />
@@ -119,10 +140,14 @@ export default function WelcomePage() {
         ))}
       </div>
 
-      <div className="mt-6 border-t border-border pt-4">
-        <p className="text-center text-sm text-muted-foreground">
+      {/* Footer nav */}
+      <div className="mt-8 text-center">
+        <p className="text-sm text-muted-foreground">
           Déjà un compte ?{" "}
-          <Link href="/login" className="font-medium text-primary hover:text-primary/80">
+          <Link
+            href="/login"
+            className="font-medium text-primary hover:text-primary/80"
+          >
             Se connecter
           </Link>
         </p>
