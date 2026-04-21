@@ -280,29 +280,11 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (ext === "pdf") {
-      let pdfTextResult: typeof extracted | null = null;
-
-      // Essai 1 : pdf-parse (PDFs textuels → Llama 3.3 70B, rapide et pas cher)
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
-        const result = await pdfParse(buffer);
-        if (result.text && result.text.trim().length > 200) {
-          pdfTextResult = await callLLM(result.text, false);
-        } else {
-          console.warn("[import-performance] pdf-parse returned insufficient text, falling back to Anthropic");
-        }
-      } catch (e) {
-        console.warn("[import-performance] pdf-parse failed, falling back to Anthropic:", e);
-      }
-
-      // Fallback : Gemini 2.5 Flash (support natif PDF via inlineData, API Google directe)
-      if (pdfTextResult) {
-        extracted = pdfTextResult;
-      } else {
-        const base64 = buffer.toString("base64");
-        extracted = await callGeminiPDF(base64);
-      }
+      // PDF : on appelle directement Gemini qui supporte nativement les PDFs.
+      // On évite pdf-parse qui est instable en serverless Vercel (dépendance @napi-rs/canvas).
+      const base64 = buffer.toString("base64");
+      console.warn("[import-performance] PDF detected, calling Gemini directly");
+      extracted = await callGeminiPDF(base64);
     } else if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
       const mimeMap: Record<string, string> = {
         jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
