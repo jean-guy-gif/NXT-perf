@@ -4,7 +4,7 @@ export const mockUsers: User[] = [
   // Directeur d'agence (also manager of team-demo)
   {
     id: "m-demo",
-    email: "jean-guy@start-academy.fr",
+    email: "demo-directeur@nxt-performance.fr",
     password: "demo",
     firstName: "Jean-Guy",
     lastName: "Ourmières",

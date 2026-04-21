@@ -36,7 +36,7 @@ export function useDPIEvolution() {
   const results = useResults();
   const { category } = useUser();
   const user = useAppStore((s) => s.user);
-  const isDemo = useAppStore((s) => s.isDemo);
+  const isDemo = useAppStore((s) => s.isDemoMode);
   const coachPlans = useAppStore((s) => s.coachPlans);
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const [initialSnapshot, setInitialSnapshot] = useState<DPISnapshot | null>(null);
@@ -82,6 +82,30 @@ export function useDPIEvolution() {
     [currentAxes]
   );
 
+  // Auto-init en démo : snapshot dégradé de -15 pts pour montrer une progression
+  useEffect(() => {
+    if (!mounted || !user || !isDemo) return;
+    if (initialSnapshot) return;
+    if (currentAxes.length === 0) return;
+
+    const degradedAxes = currentAxes.map((a) => ({
+      ...a,
+      score: Math.max(10, a.score - 15),
+    }));
+    const degradedGlobalScore = Math.round(
+      degradedAxes.reduce((s, a) => s + a.score, 0) / degradedAxes.length
+    );
+
+    const snapshot: DPISnapshot = {
+      userId: user.id,
+      date: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+      axes: degradedAxes,
+      globalScore: degradedGlobalScore,
+    };
+    saveSnapshot(user.id, snapshot);
+    setInitialSnapshot(snapshot);
+  }, [mounted, user, isDemo, initialSnapshot, currentAxes]);
+
   const isFirstOfMonth = useMemo(() => {
     if (isDemo) return true;
     return new Date().getDate() === 1;
@@ -110,7 +134,7 @@ export function useDPIEvolution() {
 
   const globalDelta = useMemo(() => {
     if (!initialSnapshot) return 0;
-    return currentGlobalScore - initialSnapshot.globalScore;
+    return Math.round(currentGlobalScore - initialSnapshot.globalScore);
   }, [initialSnapshot, currentGlobalScore]);
 
   const smiley: "happy" | "neutral" | "sad" = globalDelta > 5 ? "happy" : globalDelta < -5 ? "sad" : "neutral";

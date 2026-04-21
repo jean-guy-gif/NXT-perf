@@ -43,3 +43,24 @@ next-env.d.ts
 .playwright-mcp/
 test-mondaygate*.png
 manual-test-*.png
+
+# IDE / Agents IA locaux
+.claude/
+.codebuddy/
+.continue/
+.kiro/
+.qoder/
+.roo/
+.trae/
+.agents/
+.mcp.json
+
+# Screenshots de debug locaux (racine)
+/diag-*.png
+/polish-*.png
+/voice-*.png
+/ux-*.png
+
+# Résultats de tests locaux
+test-results/
+skills-lock.json

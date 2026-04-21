@@ -1,35 +1,4 @@
-import type { Plan30Days } from "@/lib/plan-30-jours";
-
-const PLAN_KEY = "nxt-plan-30-jours";
 const AGEFICE_KEY = "nxt-agefice-draft";
-
-// ─── Plan 30 jours ───────────────────────────────────────────────────
-
-export function savePlan(plan: Plan30Days): void {
-  try {
-    localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
-  } catch {
-    // quota exceeded or private browsing
-  }
-}
-
-export function loadPlan(): Plan30Days | null {
-  try {
-    const raw = localStorage.getItem(PLAN_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Plan30Days;
-  } catch {
-    return null;
-  }
-}
-
-export function clearPlan(): void {
-  try {
-    localStorage.removeItem(PLAN_KEY);
-  } catch {
-    // ignore
-  }
-}
 
 // ─── Financement Draft ───────────────────────────────────────────────
 

@@ -49,20 +49,13 @@ export function getVisibleViews(availableRoles: UserRole[], hiddenViews: ViewId[
   return authorized.filter((v) => !hiddenViews.includes(v));
 }
 
-/** Derive available roles from primary role (hierarchical fallback when DB column is absent) */
+/**
+ * Return the user's role as a strict single-entry array.
+ * Multi-role users must have their available_roles explicitly set in DB
+ * via `selected_roles` at signup (Philosophy B — no implicit hierarchy).
+ */
 export function deriveAvailableRoles(role: UserRole): UserRole[] {
-  switch (role) {
-    case "reseau":
-      return ["reseau"];
-    case "directeur":
-      return ["directeur", "manager", "conseiller"];
-    case "manager":
-      return ["manager", "conseiller"];
-    case "coach":
-      return ["coach"];
-    default:
-      return ["conseiller"];
-  }
+  return [role];
 }
 
 export interface Institution {
@@ -93,6 +86,7 @@ interface AppState {
   user: User | null;
   isAuthenticated: boolean;
   isDemo: boolean;
+  isDemoMode: boolean;
   profile: DbProfile | null;
   orgInviteCode: string | null;
   orgLogoUrl: string | null;
@@ -203,6 +197,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isDemo: false,
+  isDemoMode: false,
   profile: null,
   orgInviteCode: null,
   orgLogoUrl: null,
@@ -260,6 +255,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     document.cookie = "nxt-demo-mode=true;path=/;max-age=86400";
     set({
       isDemo: true,
+      isDemoMode: true,
       isAuthenticated: true,
       user: demoUser,
       users: [
@@ -298,6 +294,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     document.cookie = "nxt-demo-mode=;path=/;max-age=0";
     set({
       isDemo: false,
+      isDemoMode: false,
       isAuthenticated: false,
       user: null,
       users: [],
@@ -310,6 +307,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       agencyObjective: null,
       directorCosts: null,
       financialData: {},
+      // Purge coach state (aligné sur enterDemo)
+      coachAssignments: [],
+      coachActions: [],
+      coachPlans: [],
+      coachNotes: [],
+      coachSessions: [],
+      coachQuickPlans: [],
     });
   },
 
@@ -327,7 +331,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isDemo) {
       get().exitDemo();
     } else {
-      set({ user: null, isAuthenticated: false, profile: null, orgInviteCode: null, orgLogoUrl: null, hiddenViews: [], users: [], results: [] });
+      set({
+      user: null, isAuthenticated: false, isDemoMode: false, profile: null,
+      orgInviteCode: null, orgLogoUrl: null, hiddenViews: [],
+      users: [], results: [],
+      coachAssignments: [], coachActions: [], coachPlans: [],
+      coachNotes: [], coachSessions: [], coachQuickPlans: [],
+    });
     }
   },
 

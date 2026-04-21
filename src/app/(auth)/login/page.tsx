@@ -186,6 +186,15 @@ function LoginForm() {
           Créer un compte
         </Link>
       </div>
+
+      <div className="mt-6 border-t border-border pt-4 text-center">
+        <Link
+          href="/pourquoi-nxt"
+          className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary"
+        >
+          Pourquoi choisir NXT Performance ?
+        </Link>
+      </div>
     </div>
     </>
   );

@@ -280,9 +280,7 @@ export default function FormationPage() {
       )}
 
       {/* ========== PLAN 30 JOURS ========== */}
-      {activeTab === "plan30" && (
-        <Plan30Jours diagnostic={diagnostic} ratioConfigs={ratioConfigs} />
-      )}
+      {activeTab === "plan30" && <Plan30Jours />}
 
       {/* ========== S'ENTRAÎNER ========== */}
       {activeTab === "entrainer" && (

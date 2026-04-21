@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
   { href: "/reseau/dashboard", icon: Network, label: "Vue Réseau", networkOnly: true },
   { href: "/reseau/agence", icon: Building2, label: "Mes Agences", networkOnly: true },
   { href: "/admin/dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
+  { href: "/pourquoi-nxt", icon: Compass, label: "Notre approche" },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 

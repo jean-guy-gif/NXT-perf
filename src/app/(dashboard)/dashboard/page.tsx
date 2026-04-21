@@ -8,8 +8,12 @@ import {
   LayoutDashboard,
   Link2,
   Calendar,
+  Target,
 } from "lucide-react";
 import { ProductionChain } from "@/components/dashboard/production-chain";
+import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
+import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
+import { useDPIEvolution } from "@/hooks/use-dpi-evolution";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { usePlans, generatePlanFeedback } from "@/hooks/use-plans";
 import type { PlanWithMeta } from "@/hooks/use-plans";
@@ -30,7 +34,7 @@ import { DemoSaisieGate } from "@/components/saisie/demo-saisie-gate";
 
 // ── Types ──────────────────────────────────────────────────────
 
-type DashboardTab = "chaine" | "favoris";
+type DashboardTab = "chaine" | "dpi" | "favoris";
 type PeriodFilter = "ytd" | "mois" | "custom";
 
 // Favorite items: 12 volume steps + 7 ratio steps
@@ -125,6 +129,8 @@ function DashboardContent() {
   const allResultsData = useAllResults();
   const isDemo = useAppStore((s) => s.isDemo);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const { currentAxes, currentGlobalScore } = useDPIEvolution();
   const { showGate, context: gateContext, isLoading: gateLoading, dismissGate, markSaisieDone, showResumeButton, reopenGate } = useWeeklyGate();
   const { allPlans, activePlans, terminatedPlans, expiredPlans, totalActions, doneActions, inProgressActions } = usePlans();
   const searchParams = useSearchParams();
@@ -325,6 +331,18 @@ function DashboardContent() {
             Chaîne de production
           </button>
           <button
+            onClick={() => setActiveTab("dpi")}
+            className={cn(
+              "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
+              activeTab === "dpi"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Target className="h-4 w-4" />
+            Mon DPI
+          </button>
+          <button
             onClick={() => setActiveTab("favoris")}
             className={cn(
               "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
@@ -516,6 +534,31 @@ function DashboardContent() {
             periodMonths={periodMonthCount}
             periodMode={periodFilter === "ytd" ? "ytd" : periodFilter === "mois" ? "mois" : "custom"}
           />
+        </div>
+      )}
+
+      {/* ═══════ TAB: MON DPI ═══════ */}
+      {activeTab === "dpi" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">
+              Diagnostic de Performance Immobilière
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ton DPI initial vs courant, et les projections de progression
+              selon les outils NXT activés.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <DPIEvolutionCard />
+            {currentAxes.length > 0 && (
+              <DPIProjectionsCard
+                currentAxes={currentAxes}
+                currentGlobalScore={currentGlobalScore}
+                caBase={agencyObjective?.annualCA}
+              />
+            )}
+          </div>
         </div>
       )}
 

@@ -14,6 +14,12 @@ import type { FormationArea } from "@/types/formation";
 import { generatePlan30Days } from "@/lib/plan-30-jours";
 import type { Plan30Days, PlanPriority, ActionStatus } from "@/lib/plan-30-jours";
 import { usePlans } from "@/hooks/use-plans";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import { useRouter } from "next/navigation";
+import { RATIO_ID_TO_EXPERTISE_ID, buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
+import { useRatios } from "@/hooks/use-ratios";
+import { CheckCircle2, XCircle, AlertTriangle as AlertIcon } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -592,6 +598,12 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
   const [expandedAction, setExpandedAction] = useState<number | null>(null);
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
   const { getPlan, savePlan, updateActionStatus, updateActionNote } = usePlans();
+  const router = useRouter();
+  const { getActivePlan, getActivePlanForRatio, createPlan30j } = useImprovementResources();
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const { computedRatios } = useRatios(userId);
+  const [boostToast, setBoostToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [boosting, setBoosting] = useState(false);
 
   const allResults = useAllResults();
   const individualResult = useResults(userId);
@@ -600,6 +612,51 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
   const isDemo = useAppStore((s) => s.isDemo);
   const category: UserCategory = profileProp ?? currentUser?.category ?? "confirme";
   const categoryObj = CATEGORY_OBJECTIVES[category];
+
+  const navigateToPlan = () => router.push("/formation?tab=plan30");
+
+  const handleBoostRatio = async (expertiseId: string) => {
+    if (boosting) return;
+    if (!individualResult) {
+      setBoostToast({ type: "error", message: "Données de performance introuvables" });
+      return;
+    }
+    setBoosting(true);
+    setBoostToast(null);
+    try {
+      const userHistory = allResults.filter((r) => r.userId === (userId ?? currentUser?.id));
+      const measuredRatios = buildMeasuredRatios(computedRatios, individualResult);
+      const profile = deriveProfileLevel(category);
+      const avgCommissionEur = getAvgCommissionEur(agencyObjective?.avgActValue, userHistory);
+      await createPlan30j({
+        mode: "targeted",
+        ratioId: expertiseId as Parameters<typeof createPlan30j>[0]["ratioId"],
+        measuredRatios,
+        profile,
+        avgCommissionEur,
+      });
+      setBoostToast({ type: "success", message: "Plan 30 jours généré" });
+      router.push("/formation?tab=plan30");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith("PLAN_ACTIVE_ALREADY")) {
+        setBoostToast({
+          type: "info",
+          message: "Vous avez déjà un plan actif, voici votre plan actuel",
+        });
+        router.push("/formation?tab=plan30");
+      } else if (msg.startsWith("NO_PAIN_POINT")) {
+        setBoostToast({ type: "info", message: "Aucun ratio en sous-performance détecté" });
+      } else {
+        setBoostToast({ type: "error", message: "Erreur lors de la création du plan" });
+      }
+    } finally {
+      setBoosting(false);
+    }
+  };
+
+  const daysElapsedSince = (iso: string) =>
+    Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)));
 
   // Charger les objectifs GPS depuis Supabase (scope individual uniquement)
   const targetUserId = scope === "individual" ? (userId ?? currentUser?.id) : null;
@@ -729,6 +786,33 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
 
   return (
     <div className="space-y-4">
+      {boostToast && (
+        <div
+          className={cn(
+            "flex items-start gap-3 rounded-lg border px-4 py-3",
+            boostToast.type === "success" && "border-green-500/30 bg-green-500/5",
+            boostToast.type === "error" && "border-red-500/30 bg-red-500/5",
+            boostToast.type === "info" && "border-amber-500/30 bg-amber-500/5"
+          )}
+        >
+          {boostToast.type === "success" ? (
+            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
+          ) : boostToast.type === "error" ? (
+            <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+          ) : (
+            <AlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+          )}
+          <p className="flex-1 text-sm text-foreground">{boostToast.message}</p>
+          <button
+            type="button"
+            onClick={() => setBoostToast(null)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
+
       {/* Toggle + info */}
       <div className="flex items-center justify-between">
         <div className="flex gap-1 rounded-lg bg-muted p-1">
@@ -825,21 +909,36 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                           {/* CTA volume — on volume-only cards in sousperf */}
                           {!ratio && volStatus === "sousperf" && scope === "individual" && volumeToArea[vol.num] && (() => {
                             const vMapping = volumeToArea[vol.num];
-                            const existingVolPlan = getPlan(vMapping.ratioId);
-                            const isOpen = expandedAction === vol.num;
+                            const expertiseId = RATIO_ID_TO_EXPERTISE_ID[vMapping.ratioId];
+                            const planForThis = expertiseId ? getActivePlanForRatio(expertiseId) : null;
+                            const anyActivePlan = getActivePlan();
+                            const hasPlanForThis = !!planForThis;
+                            const hasPlanForOther = !hasPlanForThis && !!anyActivePlan;
+                            const jPlus = planForThis ? Math.min(30, daysElapsedSince(planForThis.created_at)) : 0;
+                            const label = hasPlanForThis
+                              ? `Reprendre mon plan (J+${jPlus}/30)`
+                              : hasPlanForOther
+                              ? "Voir mon plan actif"
+                              : "Booster ce volume";
                             return (
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); setExpandedAction(isOpen ? null : vol.num); setExpandedActionId(null); }}
+                                disabled={boosting}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (hasPlanForThis || hasPlanForOther) navigateToPlan();
+                                  else if (expertiseId) handleBoostRatio(expertiseId);
+                                }}
                                 className={cn(
                                   "mt-3 w-full py-2 text-[11px] font-bold transition-all",
-                                  isOpen ? "bg-muted text-foreground"
-                                    : existingVolPlan ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                      : "bg-red-500 text-white hover:bg-red-600"
+                                  hasPlanForThis || hasPlanForOther
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                    : "bg-red-500 text-white hover:bg-red-600",
+                                  boosting && "opacity-60 cursor-not-allowed"
                                 )}
                                 style={{ borderRadius: "var(--radius-button)" }}
                               >
-                                {isOpen ? "Fermer" : existingVolPlan ? "Reprendre mon plan" : "Booster ce volume"}
+                                {label}
                               </button>
                             );
                           })()}
@@ -863,25 +962,38 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                           {/* CTA — visible on stable and sousperf ratios */}
                           {(ratio.status === "sousperf" || ratio.status === "stable") && scope === "individual" && (() => {
                             const mapping = chainRatioToArea[vol.num];
-                            const existingPlan = mapping ? getPlan(mapping.ratioId) : null;
-                            const isOpen = expandedAction === vol.num;
+                            const expertiseId = mapping ? RATIO_ID_TO_EXPERTISE_ID[mapping.ratioId] : null;
+                            const planForThis = expertiseId ? getActivePlanForRatio(expertiseId) : null;
+                            const anyActivePlan = getActivePlan();
+                            const hasPlanForThis = !!planForThis;
+                            const hasPlanForOther = !hasPlanForThis && !!anyActivePlan;
+                            const jPlus = planForThis ? Math.min(30, daysElapsedSince(planForThis.created_at)) : 0;
+                            const label = hasPlanForThis
+                              ? `Reprendre mon plan (J+${jPlus}/30)`
+                              : hasPlanForOther
+                              ? "Voir mon plan actif"
+                              : "Améliorer ce ratio";
                             return (
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); setExpandedAction(isOpen ? null : vol.num); setExpandedActionId(null); }}
+                                disabled={boosting}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (hasPlanForThis || hasPlanForOther) navigateToPlan();
+                                  else if (expertiseId) handleBoostRatio(expertiseId);
+                                }}
                                 className={cn(
                                   "mt-3 w-full py-2 text-[11px] font-bold transition-all",
-                                  isOpen
-                                    ? "bg-muted text-foreground"
-                                    : existingPlan
-                                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                      : ratio.status === "sousperf"
-                                        ? "bg-red-500 text-white hover:bg-red-600"
-                                        : "bg-amber-500 text-white hover:bg-amber-600"
+                                  hasPlanForThis || hasPlanForOther
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                    : ratio.status === "sousperf"
+                                      ? "bg-red-500 text-white hover:bg-red-600"
+                                      : "bg-amber-500 text-white hover:bg-amber-600",
+                                  boosting && "opacity-60 cursor-not-allowed"
                                 )}
                                 style={{ borderRadius: "var(--radius-button)" }}
                               >
-                                {isOpen ? "Fermer" : existingPlan ? "Reprendre mon plan" : "Améliorer ce ratio"}
+                                {label}
                               </button>
                             );
                           })()}
