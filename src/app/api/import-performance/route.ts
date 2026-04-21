@@ -192,44 +192,43 @@ async function callLLM(content: string, isImage: boolean, imageBase64?: string, 
   return JSON.parse(jsonMatch[0]);
 }
 
-// ── Anthropic PDF support (native) ──────────────────────────────────────────
+// ── Gemini PDF support (native via inlineData) ──────────────────────────────
 
-async function callAnthropicPDF(base64: string) {
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+async function callGeminiPDF(base64: string) {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
-      messages: [{
-        role: "user",
-        content: [
-          {
-            type: "document",
-            source: { type: "base64", media_type: "application/pdf", data: base64 },
-          },
-          { type: "text", text: EXTRACTION_PROMPT },
-        ],
-      }],
-    }),
-  });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: "application/pdf", data: base64 } },
+            { text: EXTRACTION_PROMPT },
+          ],
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Anthropic error ${res.status}: ${text}`);
+    throw new Error(`Gemini error ${res.status}: ${text}`);
   }
 
   const data = await res.json();
-  const raw = data.content?.[0]?.text ?? "";
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON found in Anthropic response");
+  if (!jsonMatch) throw new Error("No JSON found in Gemini response");
   return JSON.parse(jsonMatch[0]);
 }
 
@@ -297,12 +296,12 @@ export async function POST(request: NextRequest) {
         console.warn("[import-performance] pdf-parse failed, falling back to Anthropic:", e);
       }
 
-      // Fallback : Anthropic Claude Haiku (support natif PDF via type document)
+      // Fallback : Gemini 2.5 Flash (support natif PDF via inlineData, API Google directe)
       if (pdfTextResult) {
         extracted = pdfTextResult;
       } else {
         const base64 = buffer.toString("base64");
-        extracted = await callAnthropicPDF(base64);
+        extracted = await callGeminiPDF(base64);
       }
     } else if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
       const mimeMap: Record<string, string> = {
