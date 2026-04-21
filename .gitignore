@@ -45,7 +45,8 @@ test-mondaygate*.png
 manual-test-*.png
 
 # IDE / Agents IA locaux
-.claude/
+.claude/*
+!.claude/design-system-v2.md
 .codebuddy/
 .continue/
 .kiro/
