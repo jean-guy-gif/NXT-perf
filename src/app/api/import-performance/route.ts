@@ -192,6 +192,47 @@ async function callLLM(content: string, isImage: boolean, imageBase64?: string, 
   return JSON.parse(jsonMatch[0]);
 }
 
+// ── Anthropic PDF support (native) ──────────────────────────────────────────
+
+async function callAnthropicPDF(base64: string) {
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 4096,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64 },
+          },
+          { type: "text", text: EXTRACTION_PROMPT },
+        ],
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Anthropic error ${res.status}: ${text}`);
+  }
+
+  const data = await res.json();
+  const raw = data.content?.[0]?.text ?? "";
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found in Anthropic response");
+  return JSON.parse(jsonMatch[0]);
+}
+
 // ── POST handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -240,14 +281,28 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (ext === "pdf") {
+      let pdfTextResult: typeof extracted | null = null;
+
+      // Essai 1 : pdf-parse (PDFs textuels → Llama 3.3 70B, rapide et pas cher)
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
         const result = await pdfParse(buffer);
-        extracted = await callLLM(result.text, false);
-      } catch {
+        if (result.text && result.text.trim().length > 200) {
+          pdfTextResult = await callLLM(result.text, false);
+        } else {
+          console.warn("[import-performance] pdf-parse returned insufficient text, falling back to Anthropic");
+        }
+      } catch (e) {
+        console.warn("[import-performance] pdf-parse failed, falling back to Anthropic:", e);
+      }
+
+      // Fallback : Anthropic Claude Haiku (support natif PDF via type document)
+      if (pdfTextResult) {
+        extracted = pdfTextResult;
+      } else {
         const base64 = buffer.toString("base64");
-        extracted = await callLLM("", true, base64, "application/pdf");
+        extracted = await callAnthropicPDF(base64);
       }
     } else if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
       const mimeMap: Record<string, string> = {
@@ -275,6 +330,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(extracted);
   } catch (err) {
+    console.error("[import-performance] FAILED", err);
     const message = err instanceof Error ? err.message : "Erreur inconnue";
     return NextResponse.json({ error: "Extraction échouée", details: message }, { status: 500 });
   }
