@@ -1,72 +1,95 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import * as XLSX from "xlsx";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  parseExcelRobust,
+  countFilledFields,
+  type ExcelExtractionResult,
+  type FieldResult,
+  type UnknownLabel,
+} from "@/lib/excel-parser";
+import {
+  EXTRACTION_FIELDS,
+  buildSynonymListForPrompt,
+  type ExtractionFieldId,
+} from "@/lib/extraction-dictionary";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GEMINI_MODEL = "gemini-2.0-flash";
+const MIN_EXCEL_FIELDS_BEFORE_FALLBACK = 4;
 
-const EXTRACTION_PROMPT = `Tu es un expert en analyse de performance immobilière.
-Analyse ce document et extrais toutes les métriques de performance.
-Réponds UNIQUEMENT en JSON valide sans markdown avec cette structure :
-{
-  "periods": [
-    {
-      "year": 2024,
-      "month": null,
-      "metrics": {
-        "contacts_entrants": null,
-        "mandats_signes": null,
-        "visites_realisees": null,
-        "offres_recues": null,
-        "compromis_signes": null,
-        "actes_signes": null,
-        "ca_encaisse": null
-      }
-    }
-  ],
-  "individuals": [],
-  "confidence": "high",
-  "missing_fields": []
-}`;
+// ── Response shape ──────────────────────────────────────────────────────────
 
-// ── Known column name aliases for direct Excel mapping ──────────────────────
-
-const METRIC_ALIASES: Record<string, string> = {
-  // contacts_entrants (champ d'import legacy, mappé côté client vers contactsTotaux)
-  "contacts entrants": "contacts_entrants", "contacts totaux": "contacts_entrants",
-  "contacts": "contacts_entrants",
-  "leads": "contacts_entrants", "prospects": "contacts_entrants",
-  "appels entrants": "contacts_entrants", "portail": "contacts_entrants",
-  // mandats_signes
-  "mandats signés": "mandats_signes", "mandats signes": "mandats_signes",
-  "mandats": "mandats_signes", "prises de mandat": "mandats_signes",
-  // visites_realisees
-  "visites réalisées": "visites_realisees", "visites realisees": "visites_realisees",
-  "visites": "visites_realisees", "sorties visite": "visites_realisees",
-  // offres_recues
-  "offres reçues": "offres_recues", "offres recues": "offres_recues",
-  "offres": "offres_recues", "offres d'achat": "offres_recues",
-  // compromis_signes
-  "compromis signés": "compromis_signes", "compromis signes": "compromis_signes",
-  "compromis": "compromis_signes", "ssp": "compromis_signes",
-  // actes_signes
-  "actes signés": "actes_signes", "actes signes": "actes_signes",
-  "actes": "actes_signes", "actes authentiques": "actes_signes",
-  "ventes": "actes_signes",
-  // ca_encaisse
-  "ca encaissé": "ca_encaisse", "ca encaisse": "ca_encaisse",
-  "chiffre d'affaires": "ca_encaisse", "ca": "ca_encaisse",
-  "honoraires": "ca_encaisse", "commissions": "ca_encaisse",
+export type ImportPerformanceResponse = {
+  fileName: string;
+  fileType: "excel" | "pdf" | "image" | "other";
+  fields: Record<ExtractionFieldId, FieldResult>;
+  unknownLabels: UnknownLabel[];
+  sheetsRead: string[];
+  sheetsSkipped: string[];
 };
 
-const ALL_METRICS = [
-  "contacts_entrants", "mandats_signes", "visites_realisees",
-  "offres_recues", "compromis_signes", "actes_signes", "ca_encaisse",
-];
+// ── Prompt Gemini ───────────────────────────────────────────────────────────
+
+function buildGeminiPrompt(): string {
+  const fieldList = buildSynonymListForPrompt();
+  const fieldNames = EXTRACTION_FIELDS.join(", ");
+
+  return `Tu es un expert en extraction de données de performance immobilière (marché français).
+
+Analyse ce document et extrais UNIQUEMENT les VOLUMES BRUTS (compteurs d'actes posés sur une période).
+
+RÈGLE ABSOLUE #1 — IGNORE TOUT CE QUI EST RATIO :
+- Pas de pourcentage (%)
+- Pas de taux (de conversion, transformation, mandat, exclusivité, etc.)
+- Pas de moyenne (délai moyen, ticket moyen, etc.)
+- Pas de ratio calculé (CA/mandat, visites/offre, etc.)
+Si tu vois "85%" ou "taux de conversion 15%", tu IGNORES ces cellules.
+
+RÈGLE ABSOLUE #2 — NE PAS DEVINER :
+Si tu n'es pas sûr d'un champ, laisse { "value": null, "confidence": 0 }.
+Confidence: 1.0 = valeur explicite clairement labellée ; 0.7 = déduction plausible ;
+0.5 = interprétation ; <0.5 = incertain (préfère null).
+
+LES 12 CHAMPS À EXTRAIRE (aucun autre) :
+${fieldList}
+
+RÈGLE MANDATS SIMPLE/EXCLUSIF :
+- Si tu vois DEUX colonnes distinctes (Simple/MS d'un côté, Exclusif/ME/MEX de l'autre) :
+  mandatsSignes = somme MS + ME
+  mandatsExclusifs = ME seul
+- Si tu vois UNE SEULE colonne "Mandats" ou "Total mandats" :
+  mandatsSignes = cette valeur
+  mandatsExclusifs = null (laisse null, on ne devine pas)
+
+CONTACTS — TOUT COMPTE :
+contactsTotaux agrège tous les contacts : appels entrants + sortants, mails,
+messages, conversations, discussions, leads, prospects, relances. Si plusieurs
+colonnes de contacts existent (entrants, sortants…), SOMMER toutes ces colonnes
+dans contactsTotaux (un seul total).
+
+AGRÉGATION MULTI-PÉRIODES :
+Si le document contient plusieurs périodes (ex: hebdo + mensuel + annuel),
+privilégie la vue la plus complète (cumul annuel > mensuel > hebdo). Ne double
+jamais un chiffre déjà comptabilisé dans une vue plus large.
+
+FORMAT DE SORTIE — JSON STRICT, PAS DE MARKDOWN, PAS DE TEXTE AVANT/APRÈS :
+{
+  "fields": {
+${EXTRACTION_FIELDS.map((f) => `    "${f}": { "value": null, "confidence": 0 }`).join(",\n")}
+  },
+  "unknownLabels": ["Intitulé vu mais non mappé à un des 12 champs", "..."],
+  "sheetsRead": ["Nom de feuille/page lue 1", "..."],
+  "sheetsSkipped": ["Nom de feuille/page ignorée (pas de données chiffrées)", "..."]
+}
+
+Clés fields autorisées (exactement ces 12, aucune autre) : ${fieldNames}
+Si le document est un PDF ou une image sans feuilles, renvoie "sheetsRead": ["document"] et "sheetsSkipped": [].
+unknownLabels : intitulés de colonnes/lignes vus dans le document qui ressemblent à des libellés métier mais que tu n'as pas pu rattacher à un des 12 champs. Ne mets PAS les noms des 12 champs eux-mêmes dans cette liste.`;
+}
 
 // ── Supabase helper ─────────────────────────────────────────────────────────
 
@@ -76,183 +99,266 @@ function getSupabase(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll(); },
-        setAll() { /* read-only */ },
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll() {
+          /* read-only */
+        },
       },
     },
   );
 }
 
-// ── Direct Excel parsing (no LLM needed) ────────────────────────────────────
+// ── Gemini call (unifié PDF / image / Excel fallback) ───────────────────────
 
-function parseExcelDirectly(buffer: Buffer): {
-  periods: Array<{ year: number; month: number | null; metrics: Record<string, number | null> }>;
-  confidence: string;
-  missing_fields: string[];
-} {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const metrics: Record<string, number | null> = {};
-  ALL_METRICS.forEach((m) => { metrics[m] = null; });
+type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
 
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+type GeminiExtraction = {
+  fields: Record<ExtractionFieldId, FieldResult>;
+  unknownLabels: string[];
+  sheetsRead: string[];
+  sheetsSkipped: string[];
+};
 
-    if (rows.length === 0) continue;
-
-    // Strategy 1: headers are metric names (columns = metrics, rows = periods/values)
-    const headers = Object.keys(rows[0]);
-    for (const header of headers) {
-      const normalized = header.toLowerCase().trim();
-      const metricKey = METRIC_ALIASES[normalized];
-      if (metricKey) {
-        // Sum all rows for this column
-        let total = 0;
-        for (const row of rows) {
-          const val = row[header];
-          if (typeof val === "number") total += val;
-          else if (typeof val === "string") {
-            const parsed = parseFloat(val.replace(/[^\d.,]/g, "").replace(",", "."));
-            if (!isNaN(parsed)) total += parsed;
-          }
-        }
-        if (total > 0 || rows.some((r) => r[header] !== null)) {
-          metrics[metricKey] = total;
-        }
-      }
-    }
-
-    // Strategy 2: first column is metric label, second column is value (vertical layout)
-    if (headers.length >= 2) {
-      for (const row of rows) {
-        const label = String(row[headers[0]] ?? "").toLowerCase().trim();
-        const value = row[headers[1]];
-        const metricKey = METRIC_ALIASES[label];
-        if (metricKey && value != null) {
-          const numVal = typeof value === "number" ? value
-            : parseFloat(String(value).replace(/[^\d.,]/g, "").replace(",", "."));
-          if (!isNaN(numVal)) {
-            metrics[metricKey] = (metrics[metricKey] ?? 0) + numVal;
-          }
-        }
-      }
-    }
-  }
-
-  const filledCount = ALL_METRICS.filter((m) => metrics[m] !== null).length;
-  const missingFields = ALL_METRICS.filter((m) => metrics[m] === null);
-
-  return {
-    periods: [{
-      year: new Date().getFullYear(),
-      month: null,
-      metrics,
-    }],
-    confidence: filledCount >= 5 ? "high" : filledCount >= 3 ? "medium" : "low",
-    missing_fields: missingFields,
-  };
-}
-
-// ── LLM call (for PDFs and images only) ─────────────────────────────────────
-
-async function callLLM(content: string, isImage: boolean, imageBase64?: string, mimeType?: string) {
-  const model = isImage ? "google/gemini-flash-1.5" : "meta-llama/llama-3.3-70b-instruct";
-
-  const messages = isImage
-    ? [{
-        role: "user" as const,
-        content: [
-          { type: "text" as const, text: EXTRACTION_PROMPT },
-          { type: "image_url" as const, image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
-        ],
-      }]
-    : [{
-        role: "user" as const,
-        content: `${EXTRACTION_PROMPT}\n\nContenu du document :\n\n${content.slice(0, 15000)}`,
-      }];
-
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-    },
-    body: JSON.stringify({ model, messages, temperature: 0.1 }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`OpenRouter error ${res.status}: ${text}`);
-  }
-
-  const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content ?? "";
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON found in LLM response");
-  return JSON.parse(jsonMatch[0]);
-}
-
-// ── Gemini PDF support (native via inlineData) ──────────────────────────────
-
-async function callGeminiPDF(base64: string) {
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+async function callGemini(parts: GeminiPart[]): Promise<GeminiExtraction> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: "application/pdf", data: base64 } },
-            { text: EXTRACTION_PROMPT },
-          ],
-        }],
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: buildGeminiPrompt() }, ...parts],
+          },
+        ],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
           responseMimeType: "application/json",
         },
       }),
-    }
+    },
   );
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Gemini error ${res.status}: ${text}`);
+    throw new Error(`Gemini error ${res.status}: ${text.slice(0, 500)}`);
   }
 
   const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const raw: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("No JSON found in Gemini response");
-  return JSON.parse(jsonMatch[0]);
+
+  const parsed = JSON.parse(jsonMatch[0]) as {
+    fields?: Record<string, { value: unknown; confidence: unknown }>;
+    unknownLabels?: unknown[];
+    sheetsRead?: unknown[];
+    sheetsSkipped?: unknown[];
+  };
+
+  return normalizeGeminiResponse(parsed);
 }
 
-// ── POST handler ────────────────────────────────────────────────────────────
+function normalizeGeminiResponse(parsed: {
+  fields?: Record<string, { value: unknown; confidence: unknown }>;
+  unknownLabels?: unknown[];
+  sheetsRead?: unknown[];
+  sheetsSkipped?: unknown[];
+}): GeminiExtraction {
+  const fields = {} as Record<ExtractionFieldId, FieldResult>;
+  for (const f of EXTRACTION_FIELDS) {
+    const raw = parsed.fields?.[f];
+    const value =
+      typeof raw?.value === "number" && !isNaN(raw.value) ? raw.value : null;
+    const confidence =
+      typeof raw?.confidence === "number" && !isNaN(raw.confidence)
+        ? Math.max(0, Math.min(1, raw.confidence))
+        : 0;
+    fields[f] = { value, confidence: value === null ? 0 : confidence };
+  }
+
+  const toStringArray = (v: unknown[] | undefined): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
+  return {
+    fields,
+    unknownLabels: toStringArray(parsed.unknownLabels),
+    sheetsRead: toStringArray(parsed.sheetsRead),
+    sheetsSkipped: toStringArray(parsed.sheetsSkipped),
+  };
+}
+
+// ── Extraction per file type ───────────────────────────────────────────────
+
+async function extractPDF(buffer: Buffer): Promise<GeminiExtraction> {
+  return callGemini([
+    {
+      inlineData: {
+        mimeType: "application/pdf",
+        data: buffer.toString("base64"),
+      },
+    },
+  ]);
+}
+
+async function extractImage(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<GeminiExtraction> {
+  return callGemini([
+    {
+      inlineData: {
+        mimeType,
+        data: buffer.toString("base64"),
+      },
+    },
+  ]);
+}
+
+async function extractExcelWithFallback(buffer: Buffer): Promise<{
+  result: Omit<ImportPerformanceResponse, "fileName">;
+  usedFallback: boolean;
+}> {
+  const fast: ExcelExtractionResult = parseExcelRobust(buffer);
+  const filled = countFilledFields(fast.fields);
+
+  if (filled >= MIN_EXCEL_FIELDS_BEFORE_FALLBACK) {
+    return {
+      result: {
+        fileType: "excel",
+        fields: fast.fields,
+        unknownLabels: fast.unknownLabels,
+        sheetsRead: fast.sheetsRead,
+        sheetsSkipped: fast.sheetsSkipped,
+      },
+      usedFallback: false,
+    };
+  }
+
+  // Fallback Gemini avec CSV de tous les onglets
+  try {
+    const geminiOut = await callGemini([
+      {
+        text: `Contenu Excel (CSV concaténé des onglets) :\n\n${fast.csvDump.slice(0, 30000)}`,
+      },
+    ]);
+
+    const unknownFromGemini: UnknownLabel[] = geminiOut.unknownLabels.map(
+      (l) => ({ rawLabel: l }),
+    );
+    const mergedUnknowns = mergeUnknowns(fast.unknownLabels, unknownFromGemini);
+
+    return {
+      result: {
+        fileType: "excel",
+        fields: geminiOut.fields,
+        unknownLabels: mergedUnknowns,
+        sheetsRead: fast.sheetsRead,
+        sheetsSkipped: fast.sheetsSkipped,
+      },
+      usedFallback: true,
+    };
+  } catch (err) {
+    console.warn(
+      "[import-performance] Gemini fallback failed, keeping fast-path result",
+      err,
+    );
+    return {
+      result: {
+        fileType: "excel",
+        fields: fast.fields,
+        unknownLabels: fast.unknownLabels,
+        sheetsRead: fast.sheetsRead,
+        sheetsSkipped: fast.sheetsSkipped,
+      },
+      usedFallback: false,
+    };
+  }
+}
+
+function mergeUnknowns(a: UnknownLabel[], b: UnknownLabel[]): UnknownLabel[] {
+  const seen = new Set<string>();
+  const out: UnknownLabel[] = [];
+  for (const item of [...a, ...b]) {
+    const key = item.rawLabel.toLowerCase().trim();
+    if (!seen.has(key) && key.length > 0) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+// ── Extraction summary for audit ───────────────────────────────────────────
+
+function buildExtractionSummary(res: ImportPerformanceResponse) {
+  const extractedCount = EXTRACTION_FIELDS.filter(
+    (f) => res.fields[f].value !== null,
+  ).length;
+  const confidences = EXTRACTION_FIELDS.map(
+    (f) => res.fields[f].confidence,
+  ).filter((c) => c > 0);
+  const avgConfidence =
+    confidences.length > 0
+      ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+      : 0;
+
+  return {
+    sheetsRead: res.sheetsRead,
+    sheetsSkipped: res.sheetsSkipped,
+    fieldsExtracted: extractedCount,
+    fieldsTotal: EXTRACTION_FIELDS.length,
+    avgConfidence: Math.round(avgConfidence * 100) / 100,
+    unknownCount: res.unknownLabels.length,
+  };
+}
+
+// ── POST handler ───────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabase(request);
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authErr,
+    } = await supabase.auth.getUser();
     if (authErr || !user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
-    const { allowed } = checkRateLimit(`import-performance:${user.id}`, 5, 60_000);
-    if (!allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    const { allowed } = checkRateLimit(
+      `import-performance:${user.id}`,
+      5,
+      60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     if (!file) {
-      return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Aucun fichier fourni" },
+        { status: 400 },
+      );
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "Fichier trop volumineux (max 10 Mo)" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Fichier trop volumineux (max 10 Mo)" },
+        { status: 400 },
+      );
     }
 
     const fileName = file.name;
@@ -260,59 +366,97 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    let extracted: { periods?: Array<{ year: number; month: number | null; metrics?: Record<string, number | null> }>; confidence?: string; missing_fields?: string[]; individuals?: unknown[] };
+    let response: ImportPerformanceResponse;
 
     if (["xlsx", "xls", "csv"].includes(ext)) {
-      // Direct parsing — no LLM needed, instant result
-      extracted = parseExcelDirectly(buffer);
-
-      // If direct parsing found very few metrics, fallback to LLM
-      const filledCount = ALL_METRICS.filter((m) => extracted.periods?.[0]?.metrics?.[m] !== null).length;
-      if (filledCount < 2 && OPENROUTER_API_KEY) {
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        const csv = workbook.SheetNames.map((name) =>
-          `--- ${name} ---\n${XLSX.utils.sheet_to_csv(workbook.Sheets[name])}`
-        ).join("\n\n");
-        try {
-          extracted = await callLLM(csv, false);
-        } catch {
-          // Keep direct parsing result if LLM fails
-        }
-      }
+      const { result } = await extractExcelWithFallback(buffer);
+      response = { ...result, fileName };
     } else if (ext === "pdf") {
-      // PDF : on appelle directement Gemini qui supporte nativement les PDFs.
-      // On évite pdf-parse qui est instable en serverless Vercel (dépendance @napi-rs/canvas).
-      const base64 = buffer.toString("base64");
-      console.warn("[import-performance] PDF detected, calling Gemini directly");
-      extracted = await callGeminiPDF(base64);
+      const geminiOut = await extractPDF(buffer);
+      response = {
+        fileName,
+        fileType: "pdf",
+        fields: geminiOut.fields,
+        unknownLabels: geminiOut.unknownLabels.map((l) => ({ rawLabel: l })),
+        sheetsRead:
+          geminiOut.sheetsRead.length > 0 ? geminiOut.sheetsRead : ["document"],
+        sheetsSkipped: geminiOut.sheetsSkipped,
+      };
     } else if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
       const mimeMap: Record<string, string> = {
-        jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
-        webp: "image/webp", heic: "image/heic",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+        heic: "image/heic",
       };
-      const base64 = buffer.toString("base64");
-      extracted = await callLLM("", true, base64, mimeMap[ext] || "image/jpeg");
+      const geminiOut = await extractImage(buffer, mimeMap[ext] || "image/jpeg");
+      response = {
+        fileName,
+        fileType: "image",
+        fields: geminiOut.fields,
+        unknownLabels: geminiOut.unknownLabels.map((l) => ({ rawLabel: l })),
+        sheetsRead:
+          geminiOut.sheetsRead.length > 0 ? geminiOut.sheetsRead : ["capture"],
+        sheetsSkipped: geminiOut.sheetsSkipped,
+      };
     } else {
-      return NextResponse.json({ error: `Type non supporté: .${ext}` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Type non supporté : .${ext}` },
+        { status: 400 },
+      );
     }
 
-    // Save to DB (best-effort)
-    const periods = (extracted.periods ?? []).map(
-      (p: { year: number; month: number | null }) => `${p.year}-${p.month ?? "annual"}`
-    );
-    await supabase.from("performance_imports").insert({
-      user_id: user.id,
-      file_name: fileName,
-      file_type: ext,
-      status: "extracted",
-      extracted_data: extracted,
-      periods_detected: periods,
-    });
+    // ── Audit : performance_imports (1 ligne par upload) ─────────────────
+    const summary = buildExtractionSummary(response);
+    const { error: importErr } = await supabase
+      .from("performance_imports")
+      .insert({
+        user_id: user.id,
+        file_name: fileName,
+        file_type: response.fileType,
+        status: "extracted",
+        extracted_data: response,
+        extraction_summary: summary,
+        periods_detected: response.sheetsRead,
+      });
+    if (importErr) {
+      console.warn(
+        "[import-performance] failed to insert performance_imports",
+        importErr.message,
+      );
+    }
 
-    return NextResponse.json(extracted);
+    // ── Collecte : extraction_unknowns (N lignes par upload) ──────────────
+    if (response.unknownLabels.length > 0) {
+      const rows = response.unknownLabels.map((u) => ({
+        user_id: user.id,
+        file_name: fileName,
+        file_type: response.fileType,
+        raw_label: u.rawLabel,
+        sheet_name: u.sheetName ?? null,
+        row_number: u.rowNumber ?? null,
+        column_letter: u.columnLetter ?? null,
+        suggested_field: u.suggestedField ?? null,
+      }));
+      const { error: unknownsErr } = await supabase
+        .from("extraction_unknowns")
+        .insert(rows);
+      if (unknownsErr) {
+        console.warn(
+          "[import-performance] failed to log extraction_unknowns",
+          unknownsErr.message,
+        );
+      }
+    }
+
+    return NextResponse.json(response);
   } catch (err) {
     console.error("[import-performance] FAILED", err);
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    return NextResponse.json({ error: "Extraction échouée", details: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Extraction échouée", details: message },
+      { status: 500 },
+    );
   }
 }
