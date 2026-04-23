@@ -6,7 +6,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/mnt/c/Users/jeang/Desktop/Projet Antigravity/Dashboard/antigravity-dashboard"
+        "/Users/jean-guyourmieres/Projects/NXT-perf"
       ],
       "env": {}
     },
