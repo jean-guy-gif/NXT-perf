@@ -1,8 +1,14 @@
 // ── Excel fast-path parser ─────────────────────────────────────────────────
 //
 // Parsing local rapide (pas d'appel LLM) pour les fichiers Excel/CSV.
-// Si peu de champs sont remplis, le route handler bascule sur Gemini en
-// fallback avec le CSV agrégé en contexte.
+//
+// Détection intelligente de la ligne d'en-tête : les fichiers business ont
+// typiquement un titre mergé en ligne 1, un sous-titre en ligne 2, une
+// ligne vide, puis le vrai header. On scanne les 10 premières lignes et
+// on choisit celle qui matche le plus de synonymes connus.
+//
+// Si aucune ligne ne matche (≥ 3 cellules reconnues), on retourne un
+// résultat vide : le route handler bascule sur Gemini en fallback.
 
 import * as XLSX from "xlsx";
 import {
@@ -33,6 +39,9 @@ export type ExcelExtractionResult = {
   csvDump: string;
 };
 
+const HEADER_SCAN_ROWS = 10;
+const MIN_HEADER_MATCHES = 3;
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function emptyFields(): Record<ExtractionFieldId, FieldResult> {
@@ -45,7 +54,12 @@ function coerceNumber(v: unknown): number | null {
   if (v == null || v === "") return null;
   if (typeof v === "number") return isNaN(v) ? null : v;
   if (typeof v === "string") {
-    const cleaned = v.replace(/[^\d.,\-]/g, "").replace(/\s/g, "").replace(",", ".");
+    // Une formule non calculée arrive en string : on ignore.
+    if (v.startsWith("=")) return null;
+    const cleaned = v
+      .replace(/[^\d.,\-]/g, "")
+      .replace(/\s/g, "")
+      .replace(",", ".");
     if (!cleaned) return null;
     const n = parseFloat(cleaned);
     return isNaN(n) ? null : n;
@@ -58,130 +72,229 @@ function extractYearFromSheetName(name: string): number | null {
   return match ? parseInt(match[1], 10) : null;
 }
 
-// Une feuille est "skip" si elle n'a quasi pas de données numériques,
-// ou si son nom suggère de l'analyse/commentaire (objectifs, analyse, notes…)
-function shouldSkipSheet(name: string, rows: Record<string, unknown>[]): boolean {
-  const normalized = normalizeLabel(name);
-  const skipKeywords = ["analyse", "objectif", "notes", "commentaires", "lisez moi", "readme"];
-  if (skipKeywords.some((k) => normalized.includes(k))) return true;
-  if (rows.length === 0) return true;
+function isTotalLabel(normalized: string): boolean {
+  if (!normalized) return true; // ligne sans label → considérée terminale
+  return /^(total|totaux|somme|cumul|grand total|moyenne|moy|ytd)/.test(
+    normalized,
+  );
+}
 
-  // Compte les cellules numériques
-  let numericCount = 0;
-  for (const row of rows) {
-    for (const v of Object.values(row)) {
-      if (coerceNumber(v) !== null) numericCount++;
+function isGarbageLabel(raw: string): boolean {
+  const r = raw.trim();
+  if (!r) return true;
+  // SheetJS génère __EMPTY, __EMPTY_1, etc. quand la première ligne a des
+  // cellules vides : on ne veut pas les remonter comme unknowns.
+  if (/^__EMPTY(_\d+)?$/.test(r)) return true;
+  // Labels purement numériques (dates, n° de semaine)
+  if (/^\d+(\.\d+)?$/.test(r)) return true;
+  // Dates format typique
+  if (/^\d{1,2}[\/\-]\d{1,2}/.test(r)) return true;
+  return false;
+}
+
+// ── Feuille à ignorer (titre parle d'analyse/objectif/notes) ────────────────
+
+function shouldSkipSheetByName(name: string): boolean {
+  const normalized = normalizeLabel(name);
+  const skipKeywords = [
+    "analyse",
+    "objectif",
+    "notes",
+    "commentaires",
+    "lisez moi",
+    "readme",
+    "historique",
+    "legende",
+    "doc",
+  ];
+  return skipKeywords.some((k) => normalized.includes(k));
+}
+
+// ── Détection de la ligne d'en-tête ────────────────────────────────────────
+//
+// On scanne les N premières lignes et on compte combien de cellules sur
+// chaque ligne matchent un synonyme du dictionnaire. La ligne gagnante doit
+// avoir ≥ MIN_HEADER_MATCHES matches. Sinon on retourne -1 et le caller
+// bascule sur Gemini.
+
+function detectHeaderRow(aoa: unknown[][]): {
+  row: number;
+  matches: number;
+} {
+  let bestRow = -1;
+  let bestMatches = 0;
+
+  const scanLimit = Math.min(HEADER_SCAN_ROWS, aoa.length);
+  for (let i = 0; i < scanLimit; i++) {
+    const row = aoa[i] ?? [];
+    let matches = 0;
+    for (const cell of row) {
+      const raw = cell == null ? "" : String(cell).trim();
+      if (!raw) continue;
+      if (isGarbageLabel(raw)) continue;
+      const normalized = normalizeLabel(raw);
+      if (!normalized || normalized.length < 2) continue;
+      if (looksLikeRatio(normalized)) continue;
+      const m = matchLabel(normalized);
+      if (m.field) matches++;
+    }
+    if (matches > bestMatches) {
+      bestMatches = matches;
+      bestRow = i;
     }
   }
-  return numericCount < 2;
+
+  return { row: bestRow, matches: bestMatches };
 }
 
 // ── Stratégie par feuille ──────────────────────────────────────────────────
 //
-// Strategy A (horizontal): les en-têtes de colonnes sont les noms de champs.
-//   ex: | Contacts | Mandats | Visites |
-//       |   120    |   30    |   80    |
-//   Pour chaque colonne qui matche un champ, on somme les lignes.
+// Une fois la ligne d'en-tête détectée, on applique deux stratégies :
 //
-// Strategy B (vertical): la première colonne = label, la seconde = valeur.
-//   ex: | Contacts         | 120 |
-//       | Mandats signés   | 30  |
-//   Pour chaque ligne dont le label matche un champ, on prend la valeur.
+// Strategy A (horizontal) : les cellules du header sont des noms de champs.
+//   Pour chaque colonne matchée, on somme les valeurs des lignes de données.
+//   On arrête de sommer dès qu'on atteint une ligne "Total"/"Somme".
+//
+// Strategy B (vertical) : premier col = label, colonnes suivantes = valeurs.
+//   Pour chaque ligne data dont le label matche un champ, on prend la
+//   première valeur numérique.
 
 type SheetExtraction = {
-  fields: Partial<Record<ExtractionFieldId, { value: number; confidence: number }>>;
+  fields: Partial<
+    Record<ExtractionFieldId, { value: number; confidence: number }>
+  >;
   unknowns: UnknownLabel[];
-  /** Nombre de cellules remplies — pour arbitrage multi-onglets */
   filledRowCount: number;
 };
 
-function parseSheet(
+function parseSheetAOA(
   sheetName: string,
-  sheet: XLSX.WorkSheet,
+  aoa: unknown[][],
 ): SheetExtraction {
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: null,
-    blankrows: false,
-  });
-  const result: SheetExtraction = { fields: {}, unknowns: [], filledRowCount: 0 };
-  if (rows.length === 0) return result;
+  const result: SheetExtraction = {
+    fields: {},
+    unknowns: [],
+    filledRowCount: 0,
+  };
+  if (aoa.length === 0) return result;
 
-  const headers = Object.keys(rows[0]);
+  const header = detectHeaderRow(aoa);
+  if (header.row < 0 || header.matches < MIN_HEADER_MATCHES) {
+    return result;
+  }
 
-  // ── Strategy A ────────────────────────────────────────────────────────
-  for (let colIdx = 0; colIdx < headers.length; colIdx++) {
-    const header = headers[colIdx];
-    const normalized = normalizeLabel(header);
-    if (!normalized || looksLikeRatio(normalized)) continue;
+  const headerRow = aoa[header.row];
+  const dataStart = header.row + 1;
 
-    const match = matchLabel(normalized);
-    if (!match.field) {
-      // Collecter comme unknown si ça ressemble à un label (pas une date, pas un nombre)
-      if (normalized.length >= 3 && /[a-z]/.test(normalized) && !/^\d/.test(normalized)) {
+  // Collecter les unknowns (header cells non matchées)
+  for (let colIdx = 0; colIdx < headerRow.length; colIdx++) {
+    const cell = headerRow[colIdx];
+    const raw = cell == null ? "" : String(cell).trim();
+    if (!raw) continue;
+    if (isGarbageLabel(raw)) continue;
+    const normalized = normalizeLabel(raw);
+    if (!normalized || normalized.length < 3) continue;
+    if (looksLikeRatio(normalized)) continue; // colonnes ratio → intentionnellement ignorées
+    const m = matchLabel(normalized);
+    if (!m.field) {
+      // Label qui ressemble à du métier mais non mappé
+      if (/[a-z]/.test(normalized) && !/^\d/.test(normalized)) {
         result.unknowns.push({
-          rawLabel: header,
+          rawLabel: raw,
           sheetName,
           columnLetter: XLSX.utils.encode_col(colIdx),
         });
       }
-      continue;
     }
+  }
+
+  // Déterminer les lignes data (arrêter au premier Total)
+  const dataRows: { row: unknown[]; sheetRowNumber: number }[] = [];
+  for (let i = dataStart; i < aoa.length; i++) {
+    const row = aoa[i] ?? [];
+    // Row totalement vide → on s'arrête
+    const hasAny = row.some((c) => c != null && String(c).trim() !== "");
+    if (!hasAny) break;
+
+    // Label de la première colonne → si "Total"/"Somme" etc., on s'arrête
+    const firstCell = String(row[0] ?? "").trim();
+    if (firstCell) {
+      const normalizedFirst = normalizeLabel(firstCell);
+      if (isTotalLabel(normalizedFirst) && normalizedFirst !== "") {
+        // On saute cette ligne ET on arrête (les totaux sont toujours en bas)
+        break;
+      }
+    }
+    dataRows.push({ row, sheetRowNumber: i + 1 });
+  }
+
+  if (dataRows.length === 0) return result;
+
+  // ── Strategy A ────────────────────────────────────────────────────────
+  for (let colIdx = 0; colIdx < headerRow.length; colIdx++) {
+    const cell = headerRow[colIdx];
+    const raw = cell == null ? "" : String(cell).trim();
+    if (!raw || isGarbageLabel(raw)) continue;
+    const normalized = normalizeLabel(raw);
+    if (!normalized || looksLikeRatio(normalized)) continue;
+
+    const m = matchLabel(normalized);
+    if (!m.field) continue;
 
     let total = 0;
     let seen = 0;
-    for (const row of rows) {
-      const n = coerceNumber(row[header]);
+    for (const { row } of dataRows) {
+      const n = coerceNumber(row[colIdx]);
       if (n !== null) {
         total += n;
         seen++;
       }
     }
     if (seen > 0) {
-      const existing = result.fields[match.field];
-      // Si déjà présent sur cette feuille (double synonyme qui matche), garder le plus confiant
-      if (!existing || match.confidence > existing.confidence) {
-        result.fields[match.field] = { value: total, confidence: match.confidence };
+      const existing = result.fields[m.field];
+      if (!existing || m.confidence > existing.confidence) {
+        result.fields[m.field] = { value: total, confidence: m.confidence };
       }
       result.filledRowCount += seen;
     }
   }
 
   // ── Strategy B ────────────────────────────────────────────────────────
-  if (headers.length >= 2) {
-    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
-      const row = rows[rowIdx];
-      const labelRaw = String(row[headers[0]] ?? "").trim();
-      if (!labelRaw) continue;
+  // Seulement si Strategy A n'a rien trouvé de significatif (évite
+  // double-comptage sur une feuille bien en colonnes).
+  const filledByA = Object.keys(result.fields).length;
+  if (filledByA < 2 && headerRow.length >= 2) {
+    for (const { row, sheetRowNumber } of dataRows) {
+      const labelRaw = String(row[0] ?? "").trim();
+      if (!labelRaw || isGarbageLabel(labelRaw)) continue;
       const normalized = normalizeLabel(labelRaw);
       if (!normalized || looksLikeRatio(normalized)) continue;
 
-      // Trouver la première colonne numérique à droite
       let value: number | null = null;
-      for (let i = 1; i < headers.length; i++) {
-        value = coerceNumber(row[headers[i]]);
+      for (let i = 1; i < row.length; i++) {
+        value = coerceNumber(row[i]);
         if (value !== null) break;
       }
       if (value === null) continue;
 
-      const match = matchLabel(normalized);
-      if (!match.field) {
-        if (normalized.length >= 3 && /[a-z]/.test(normalized) && !/^\d/.test(normalized)) {
+      const m = matchLabel(normalized);
+      if (!m.field) {
+        if (/[a-z]/.test(normalized) && !/^\d/.test(normalized)) {
           result.unknowns.push({
             rawLabel: labelRaw,
             sheetName,
-            rowNumber: rowIdx + 2, // +1 pour 1-indexed, +1 pour skip header row
+            rowNumber: sheetRowNumber,
           });
         }
         continue;
       }
 
-      const existing = result.fields[match.field];
+      const existing = result.fields[m.field];
       if (!existing) {
-        result.fields[match.field] = { value, confidence: match.confidence };
-      } else if (match.confidence > existing.confidence) {
-        result.fields[match.field] = { value, confidence: match.confidence };
-      } else if (match.confidence === existing.confidence) {
-        // Additionner si même confiance (ex: plusieurs lignes "compromis" sur la même feuille)
+        result.fields[m.field] = { value, confidence: m.confidence };
+      } else if (m.confidence > existing.confidence) {
+        result.fields[m.field] = { value, confidence: m.confidence };
+      } else if (m.confidence === existing.confidence) {
         existing.value += value;
       }
       result.filledRowCount++;
@@ -195,9 +308,12 @@ function parseSheet(
 //
 // Pour chaque champ, si plusieurs feuilles l'ont capté :
 // 1. Préférer la feuille dont le titre contient l'année la plus récente
-// 2. Si ambigu (année égale ou absente), préférer celle avec le plus de
-//    cellules remplies (filledRowCount le plus élevé)
+// 2. Si ambigu, préférer celle avec le plus de cellules remplies
 // 3. En dernier recours, garder le score de confiance le plus haut
+//
+// → On ne somme jamais entre feuilles (les 3 onglets contiennent la même
+//   donnée à des granularités différentes : les sommer doublerait/triplerait
+//   les chiffres).
 
 function mergeSheetResults(
   perSheet: Array<{ name: string; result: SheetExtraction }>,
@@ -233,20 +349,13 @@ function mergeSheetResults(
   return merged;
 }
 
-// ── Post-processing: règle MS/ME ───────────────────────────────────────────
-//
-// Si on a capté mandatsExclusifs mais pas mandatsSignes, on suppose que
-// mandatsSignes = mandatsExclusifs (cas "seule la colonne Exclu est présente").
-// Si on a capté les deux, on garde tel quel — l'utilisateur peut ajuster.
+// ── Garde-fou mandats ───────────────────────────────────────────────────────
 
 function applyMandatsRule(
   fields: Record<ExtractionFieldId, FieldResult>,
 ): void {
   const ms = fields.mandatsSignes;
   const me = fields.mandatsExclusifs;
-
-  // Garde-fou : si ME > MS, on garde MS (l'utilisateur ajustera) mais
-  // on baisse la confiance — cas probablement mal interprété.
   if (ms.value !== null && me.value !== null && me.value > ms.value) {
     fields.mandatsSignes.confidence = Math.min(ms.confidence, 0.5);
     fields.mandatsExclusifs.confidence = Math.min(me.confidence, 0.5);
@@ -256,7 +365,12 @@ function applyMandatsRule(
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export function parseExcelRobust(buffer: Buffer): ExcelExtractionResult {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, {
+    type: "buffer",
+    // cellFormula: false évite que les cellules formule non cachées arrivent en string "=SUM(...)"
+    cellFormula: false,
+    cellDates: true,
+  });
   const sheetsRead: string[] = [];
   const sheetsSkipped: string[] = [];
   const perSheet: Array<{ name: string; result: SheetExtraction }> = [];
@@ -264,37 +378,51 @@ export function parseExcelRobust(buffer: Buffer): ExcelExtractionResult {
 
   for (const name of workbook.SheetNames) {
     const sheet = workbook.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-      defval: null,
-      blankrows: false,
-    });
 
-    // CSV dump pour fallback Gemini (on dump TOUS les onglets, même ignorés)
+    // CSV dump pour fallback Gemini (on dump TOUS les onglets, titre inclus)
     csvParts.push(`--- ${name} ---\n${XLSX.utils.sheet_to_csv(sheet)}`);
 
-    if (shouldSkipSheet(name, rows)) {
+    // Skip par nom (Analyse, Objectifs, Notes, Readme…)
+    if (shouldSkipSheetByName(name)) {
+      sheetsSkipped.push(name);
+      continue;
+    }
+
+    // Lecture AOA : on contrôle nous-mêmes la ligne d'en-tête
+    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      blankrows: true,
+      defval: null,
+      raw: true,
+    });
+
+    const parsed = parseSheetAOA(name, aoa);
+
+    // Si la feuille n'a donné aucun champ et aucun header détecté,
+    // elle contient probablement du texte libre → skip
+    if (Object.keys(parsed.fields).length === 0 && parsed.unknowns.length === 0) {
       sheetsSkipped.push(name);
       continue;
     }
 
     sheetsRead.push(name);
-    perSheet.push({ name, result: parseSheet(name, sheet) });
+    perSheet.push({ name, result: parsed });
   }
 
   const fields = mergeSheetResults(perSheet);
   applyMandatsRule(fields);
 
-  // Dédupliquer les unknowns par rawLabel (un même intitulé sur plusieurs
+  // Dédup des unknowns par rawLabel (un même intitulé sur plusieurs
   // feuilles = une seule ligne remontée)
   const seenLabels = new Set<string>();
   const unknownLabels: UnknownLabel[] = [];
   for (const s of perSheet) {
     for (const u of s.result.unknowns) {
+      if (isGarbageLabel(u.rawLabel)) continue;
       const key = normalizeLabel(u.rawLabel);
-      if (!seenLabels.has(key)) {
-        seenLabels.add(key);
-        unknownLabels.push(u);
-      }
+      if (!key || seenLabels.has(key)) continue;
+      seenLabels.add(key);
+      unknownLabels.push(u);
     }
   }
 

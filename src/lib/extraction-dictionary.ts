@@ -208,11 +208,17 @@ export const ABBREVIATIONS: Record<string, ExtractionFieldId> = {
 };
 
 // Regex pour détecter un ratio/pourcentage/taux — on IGNORE ces cellules.
+// Couvre : taux, tx, t., ratio, %, pourcent, moyenne, moy, délai, conversion,
+// transformation, rate (EN), per/par (taux par X).
 const RATIO_PATTERN =
-  /(^|\s)(taux|ratio|pct|pourcent|pourcentage|moyenne|moy|%|delai|conversion|transformation)\b/i;
+  /(^|\s)(taux|tx|ratio|pct|pourcent|pourcentage|moyenne|moy|%|delai|conversion|transformation|rate|efficacite|performance)\b/i;
 
 export function looksLikeRatio(label: string): boolean {
-  return RATIO_PATTERN.test(label) || label.includes("%");
+  if (label.includes("%")) return true;
+  if (RATIO_PATTERN.test(label)) return true;
+  // "t." ou "t " en début → taux abrégé
+  if (/^t[\s.]/i.test(label)) return true;
+  return false;
 }
 
 export function normalizeLabel(s: string): string {

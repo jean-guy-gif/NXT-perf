@@ -231,6 +231,10 @@ async function extractExcelWithFallback(buffer: Buffer): Promise<{
 }> {
   const fast: ExcelExtractionResult = parseExcelRobust(buffer);
   const filled = countFilledFields(fast.fields);
+  const willFallback = filled < MIN_EXCEL_FIELDS_BEFORE_FALLBACK;
+  console.log(
+    `[import-performance] Excel fast-path: ${filled}/12 — Gemini fallback: ${willFallback} — sheets read: [${fast.sheetsRead.join(", ")}] skipped: [${fast.sheetsSkipped.join(", ")}] unknowns: ${fast.unknownLabels.length}`,
+  );
 
   if (filled >= MIN_EXCEL_FIELDS_BEFORE_FALLBACK) {
     return {
@@ -257,14 +261,26 @@ async function extractExcelWithFallback(buffer: Buffer): Promise<{
       (l) => ({ rawLabel: l }),
     );
     const mergedUnknowns = mergeUnknowns(fast.unknownLabels, unknownFromGemini);
+    const geminiFilled = EXTRACTION_FIELDS.filter(
+      (f) => geminiOut.fields[f].value !== null,
+    ).length;
+    console.log(
+      `[import-performance] Gemini fallback result: ${geminiFilled}/12 fields`,
+    );
 
     return {
       result: {
         fileType: "excel",
         fields: geminiOut.fields,
         unknownLabels: mergedUnknowns,
-        sheetsRead: fast.sheetsRead,
-        sheetsSkipped: fast.sheetsSkipped,
+        sheetsRead:
+          fast.sheetsRead.length > 0 || geminiOut.sheetsRead.length === 0
+            ? fast.sheetsRead
+            : geminiOut.sheetsRead,
+        sheetsSkipped:
+          fast.sheetsSkipped.length > 0 || geminiOut.sheetsSkipped.length === 0
+            ? fast.sheetsSkipped
+            : geminiOut.sheetsSkipped,
       },
       usedFallback: true,
     };
