@@ -57,7 +57,7 @@ function makeFixtureBuffer(): Buffer {
       "Période",
       "Contacts",
       "RDV Estim.",
-      "Estims réalisées",
+      "Estim. réal.", // forme abrégée qu'on trouve dans les fichiers réels
       "Mandats",
       "Exclus",
       "Visites",
@@ -65,6 +65,7 @@ function makeFixtureBuffer(): Buffer {
       "Compromis",
       "Actes",
       "CA",
+      "Commentaire", // colonne metadata à ignorer silencieusement
     ],
   ];
   HEBDO_ROWS.forEach((vals, i) => {
@@ -72,6 +73,7 @@ function makeFixtureBuffer(): Buffer {
       `S${i + 1}`,
       `2026-W${String(i + 1).padStart(2, "0")}`,
       ...vals,
+      i === 0 ? "Bonne semaine" : "",
     ]);
   });
   // Ligne Total (doit être ignorée par le parseur)
@@ -88,6 +90,7 @@ function makeFixtureBuffer(): Buffer {
     14,
     5,
     56000,
+    "",
   ]);
   const hebdoSheet = XLSX.utils.aoa_to_sheet(hebdoAOA);
   XLSX.utils.book_append_sheet(wb, hebdoSheet, "Hebdo 2026");
@@ -209,6 +212,25 @@ describe("parseExcelRobust — structure business réaliste", () => {
     );
   });
 
+  it("reconnait 'Estim. réal.' (forme abrégée avec points et accent)", () => {
+    // "Estim. réal." normalisé = "estim real" → synonyme direct
+    expect(result.fields.estimationsRealisees.value).toBe(50);
+    expect(result.fields.estimationsRealisees.confidence).toBeGreaterThanOrEqual(
+      0.8,
+    );
+  });
+
+  it("ne remonte aucune colonne metadata ('Sem.', 'Période', 'Mois', 'Commentaire', 'Total') dans unknowns", () => {
+    const metadataPatterns = [/^sem/i, /^periode$/i, /^mois$/i, /^commentaire$/i, /^total$/i];
+    const offending = result.unknownLabels.filter((u) =>
+      metadataPatterns.some((p) => p.test(u.rawLabel.trim())),
+    );
+    expect(
+      offending,
+      `unknowns contains metadata: ${offending.map((o) => o.rawLabel).join(", ")}`,
+    ).toHaveLength(0);
+  });
+
   it("csvDump contient les intitulés des 3 onglets data + l'onglet analyse", () => {
     expect(result.csvDump).toContain("Hebdo 2026");
     expect(result.csvDump).toContain("Bilan Mensuel 2026");
@@ -233,6 +255,30 @@ describe("parseExcelRobust — cas dégradés", () => {
 
     const res = parseExcelRobust(buf);
     expect(countFilledFields(res.fields)).toBe(0);
+  });
+
+  it("inclut la première ligne de données (S1) dans la somme — pas d'off-by-one", () => {
+    // Fixture où S1 a une valeur distinctive (99). Si le parseur skippe
+    // S1 par erreur (lecture à partir de header_row+2 au lieu de +1), le
+    // total sera réduit de 99.
+    const wb = XLSX.utils.book_new();
+    const aoa: unknown[][] = [
+      ["BILAN 2026"], // titre ligne 1 (mergé)
+      [],             // vide ligne 2
+      ["Sem.", "Contacts", "Mandats", "Visites"], // header ligne 3
+      ["S1", 99, 7, 10], // distinctive S1
+      ["S2", 1, 1, 1],
+      ["S3", 1, 1, 1],
+      ["S4", 1, 1, 1],
+    ];
+    const sheet = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, sheet, "Hebdo");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    const res = parseExcelRobust(buf);
+    expect(res.fields.contactsTotaux.value).toBe(99 + 1 + 1 + 1);
+    expect(res.fields.mandatsSignes.value).toBe(7 + 1 + 1 + 1);
+    expect(res.fields.nombreVisites.value).toBe(10 + 1 + 1 + 1);
   });
 
   it("traite un CSV plat sans titre mergé (header ligne 1)", () => {

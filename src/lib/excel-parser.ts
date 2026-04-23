@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import {
   EXTRACTION_FIELDS,
   FIELD_SYNONYMS,
+  isMetadataLabel,
   looksLikeRatio,
   matchLabel,
   normalizeLabel,
@@ -195,6 +196,7 @@ function parseSheetAOA(
     const normalized = normalizeLabel(raw);
     if (!normalized || normalized.length < 3) continue;
     if (looksLikeRatio(normalized)) continue; // colonnes ratio → intentionnellement ignorées
+    if (isMetadataLabel(normalized)) continue; // colonnes structurelles → ignorées silencieusement
     const m = matchLabel(normalized);
     if (!m.field) {
       // Label qui ressemble à du métier mais non mappé
@@ -230,6 +232,24 @@ function parseSheetAOA(
 
   if (dataRows.length === 0) return result;
 
+  // DEBUG temporaire (à retirer après validation off-by-one) — sortie dans
+  // runtime logs Vercel. Non émis en tests vitest (NODE_ENV=test).
+  if (process.env.NODE_ENV !== "test") {
+    const headerPreview = headerRow
+      .map((c) => (c == null ? "" : String(c).slice(0, 20)))
+      .join(" | ");
+    const firstDataRowPreview = dataRows[0]?.row
+      .map((c) => (c == null ? "" : String(c).slice(0, 10)))
+      .join(" | ");
+    const lastDataRowPreview =
+      dataRows[dataRows.length - 1]?.row
+        .map((c) => (c == null ? "" : String(c).slice(0, 10)))
+        .join(" | ") ?? "";
+    console.log(
+      `[parser] sheet="${sheetName}" headerRow=${header.row + 1} dataRows=${dataRows.length} header="${headerPreview}" first="${firstDataRowPreview}" last="${lastDataRowPreview}"`,
+    );
+  }
+
   // ── Strategy A ────────────────────────────────────────────────────────
   for (let colIdx = 0; colIdx < headerRow.length; colIdx++) {
     const cell = headerRow[colIdx];
@@ -243,8 +263,10 @@ function parseSheetAOA(
 
     let total = 0;
     let seen = 0;
+    const perRowValues: (number | null)[] = [];
     for (const { row } of dataRows) {
       const n = coerceNumber(row[colIdx]);
+      perRowValues.push(n);
       if (n !== null) {
         total += n;
         seen++;
@@ -256,6 +278,11 @@ function parseSheetAOA(
         result.fields[m.field] = { value: total, confidence: m.confidence };
       }
       result.filledRowCount += seen;
+      if (process.env.NODE_ENV !== "test") {
+        console.log(
+          `[parser]   col="${raw}" → ${m.field}=${total} (${seen}/${dataRows.length} cells) values=[${perRowValues.join(",")}]`,
+        );
+      }
     }
   }
 
@@ -269,6 +296,7 @@ function parseSheetAOA(
       if (!labelRaw || isGarbageLabel(labelRaw)) continue;
       const normalized = normalizeLabel(labelRaw);
       if (!normalized || looksLikeRatio(normalized)) continue;
+      if (isMetadataLabel(normalized)) continue;
 
       let value: number | null = null;
       for (let i = 1; i < row.length; i++) {

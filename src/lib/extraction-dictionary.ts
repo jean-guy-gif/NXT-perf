@@ -74,8 +74,22 @@ export const FIELD_SYNONYMS: Record<ExtractionFieldId, string[]> = {
   ],
   estimationsRealisees: [
     "estimations realisees",
+    "estimations realises",
+    "estimations reelles",
+    "estimations reels",
     "estimations",
+    "estims realisees",
+    "estims realises",
+    "estims reelles",
     "estims",
+    "estim real",
+    "estim realisees",
+    "estim realises",
+    "estim reel",
+    "estim reelles",
+    "est real",
+    "est realisees",
+    "est reel",
     "avis de valeur",
     "avis valeur",
     "evaluations",
@@ -219,6 +233,59 @@ export function looksLikeRatio(label: string): boolean {
   // "t." ou "t " en début → taux abrégé
   if (/^t[\s.]/i.test(label)) return true;
   return false;
+}
+
+// Libellés structurels d'un tableau (index de ligne, période, note) — on
+// les ignore SILENCIEUSEMENT : pas d'extraction, pas de remontée en
+// unknowns, pas d'insert dans extraction_unknowns. Ils ne représentent pas
+// une métrique métier manquante.
+const METADATA_LABELS = new Set<string>([
+  "sem",
+  "semaine",
+  "semaines",
+  "sem n",
+  "numero semaine",
+  "periode",
+  "periodes",
+  "mois",
+  "date",
+  "dates",
+  "jour",
+  "jours",
+  "commentaire",
+  "commentaires",
+  "comment",
+  "note",
+  "notes",
+  "remarque",
+  "remarques",
+  "detail",
+  "details",
+  "total",
+  "totaux",
+  "sous total",
+  "cumul",
+  "cumulatif",
+  "moyenne",
+  "moy",
+  "ytd",
+  "annee",
+  "an",
+  "num",
+  "no",
+  "n",
+  "id",
+  "reference",
+  "ref",
+  "libelle",
+  "libelles",
+  "nom",
+  "categorie",
+]);
+
+export function isMetadataLabel(normalized: string): boolean {
+  if (!normalized) return true;
+  return METADATA_LABELS.has(normalized);
 }
 
 export function normalizeLabel(s: string): string {
