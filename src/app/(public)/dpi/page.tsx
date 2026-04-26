@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Target, ArrowRight, BarChart3, TrendingUp, Zap, Clock } from "lucide-react";
+import { Target, ArrowRight, BarChart3, TrendingUp, Zap, Clock, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -69,7 +69,7 @@ export default function DPILandingPage() {
         </div>
 
         <div
-          className="mb-8 w-full rounded-2xl p-8 text-center text-white"
+          className="mb-8 w-full rounded-xl p-8 text-center text-white"
           style={{
             background: "linear-gradient(135deg, #3375FF, #6B47FF, #A055FF, #3375FF)",
             backgroundSize: "300% 300%",
@@ -84,11 +84,12 @@ export default function DPILandingPage() {
           <span className="inline-block rounded-full bg-[#f97316] px-4 py-1 text-sm font-bold uppercase text-white shadow-lg">
             PROCHAINEMENT
           </span>
-          <h1 className="mt-4 text-2xl font-bold sm:text-3xl">
+          <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
             Le DPI arrive bientôt !
           </h1>
-          <p className="mt-3 text-sm text-white/80 sm:text-base">
-            Votre intérêt a bien été enregistré. Nous vous préviendrons dès que le Diagnostic de Performance Immobilière sera disponible.
+          <p className="mt-3 text-sm text-white/80 md:text-base">
+            Votre intérêt a bien été enregistré. Nous vous préviendrons dès que le
+            Diagnostic de Performance Immobilière sera disponible.
           </p>
         </div>
 
@@ -125,7 +126,7 @@ export default function DPILandingPage() {
 
       {/* Hero block */}
       <div
-        className="mb-8 w-full rounded-2xl p-8 text-center text-white"
+        className="mb-8 w-full rounded-xl p-8 text-center text-white"
         style={{
           background: "linear-gradient(135deg, #3375FF, #6B47FF, #A055FF, #3375FF)",
           backgroundSize: "300% 300%",
@@ -140,11 +141,12 @@ export default function DPILandingPage() {
         <span className="inline-block rounded-full bg-[#22c55e] px-4 py-1 text-sm font-bold uppercase text-white shadow-lg">
           100% GRATUIT
         </span>
-        <h1 className="mt-4 text-2xl font-bold sm:text-3xl">
+        <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
           Diagnostic de Performance Immobilière
         </h1>
-        <p className="mt-3 text-sm text-white/80 sm:text-base">
-          Évaluez votre niveau, découvrez votre potentiel de croissance et comparez-vous aux meilleurs du marché
+        <p className="mt-3 text-sm text-white/80 md:text-base">
+          Évaluez votre niveau, découvrez votre potentiel de croissance et comparez-vous
+          aux meilleurs du marché
         </p>
       </div>
 
@@ -179,25 +181,36 @@ export default function DPILandingPage() {
         </div>
       </div>
 
-      {/* What you get */}
-      <div className="mb-8 w-full space-y-3">
-        <h2 className="text-center text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Ce que vous obtiendrez
+      {/* Ce que vous obtenez — section narrative */}
+      <div className="mb-8 w-full">
+        <div className="mb-3 flex justify-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            Livrables
+          </span>
+        </div>
+        <h2 className="mb-6 text-center text-2xl font-bold text-foreground">
+          Ce que vous obtenez en 3 minutes
         </h2>
-        {[
-          "Votre score global de performance sur 100",
-          "Un radar visuel sur 6 axes stratégiques",
-          "Des projections à 3, 6 et 9 mois",
-          "Une estimation de votre CA additionnel",
-          "Des recommandations personnalisées",
-        ].map((item) => (
-          <div key={item} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#22c55e]">
-              <span className="text-xs text-white">✓</span>
+        <div className="space-y-3">
+          {[
+            "Votre score global de performance sur 100",
+            "Un radar visuel sur 6 axes stratégiques",
+            "Des projections à 3, 6 et 9 mois",
+            "Une estimation de votre CA additionnel",
+            "Des recommandations personnalisées",
+          ].map((item) => (
+            <div
+              key={item}
+              className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
+            >
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#22c55e]">
+                <span className="text-xs text-white">✓</span>
+              </div>
+              <p className="text-sm text-foreground">{item}</p>
             </div>
-            <p className="text-sm text-foreground">{item}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Form */}
@@ -212,15 +225,15 @@ export default function DPILandingPage() {
         />
 
         {error && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
             {error}
-          </p>
+          </div>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] text-lg font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] text-lg font-bold text-white shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? "Chargement..." : "Commencer mon diagnostic"}
           {!loading && <ArrowRight className="h-5 w-5" />}
