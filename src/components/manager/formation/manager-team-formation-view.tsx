@@ -446,7 +446,7 @@ function TeamTrainingTab() {
             {data.totalFormationsThisMonth}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Formations ce mois
+            Entraînements ce mois
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-6">
@@ -479,7 +479,7 @@ function TeamTrainingTab() {
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="pb-2 font-medium">Conseiller</th>
-                <th className="pb-2 font-medium">Formations</th>
+                <th className="pb-2 font-medium">Entraînements</th>
                 <th className="pb-2 font-medium">Heures</th>
                 <th className="pb-2 font-medium">Dernière connexion</th>
               </tr>

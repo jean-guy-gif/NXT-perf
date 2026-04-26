@@ -314,7 +314,7 @@ function IndividualTrainingTab({ conseillerName }: { conseillerName: string }) {
         Activité de {conseillerName} sur NXT Training
       </h2>
       <p className="mb-6 max-w-2xl text-muted-foreground">
-        Historique des formations suivies par {conseillerName} sur la plateforme.
+        Historique des entraînements suivis par {conseillerName} sur la plateforme.
       </p>
 
       <div className="mb-6 flex items-center gap-2 rounded-lg bg-orange-500/10 px-4 py-2 text-xs text-orange-500">
@@ -331,7 +331,7 @@ function IndividualTrainingTab({ conseillerName }: { conseillerName: string }) {
           <p className="text-3xl font-bold tabular-nums text-foreground">
             {data.totalSessions}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">Sessions totales</p>
+          <p className="mt-1 text-sm text-muted-foreground">Entraînements totaux</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10">
@@ -347,7 +347,7 @@ function IndividualTrainingTab({ conseillerName }: { conseillerName: string }) {
       {/* Timeline */}
       <div className="rounded-xl border border-border bg-card p-5">
         <h3 className="mb-4 text-sm font-bold text-foreground">
-          Formations récentes
+          Entraînements récents
         </h3>
         <ul className="space-y-3">
           {data.formations.map((f, i) => {
