@@ -4,22 +4,33 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import AvatarEditor from "react-avatar-editor";
-import { Camera, Building2, Upload, Loader2, Check, ArrowRight, ZoomIn, Volume2 } from "lucide-react";
+import {
+  Camera,
+  Building2,
+  Upload,
+  Loader2,
+  Check,
+  ArrowRight,
+  ZoomIn,
+  Volume2,
+  Sparkles,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import { compressImage, ImageCompressionError } from "@/lib/compress-image";
 import { extractAgencyColorsFromBlob, applyAgencyTheme } from "@/lib/agency-theme";
 import { ImportPerformance } from "@/components/onboarding/import-performance";
 import { ImportTeam } from "@/components/onboarding/import-team";
+import { cn } from "@/lib/utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type CoachVoice = "sport" | "sergent" | "bienveillant";
 
 const COACH_VOICES: { id: CoachVoice; emoji: string; label: string; desc: string }[] = [
-  { id: "sport", emoji: "\u{1F3C3}", label: "Coach Sport", desc: "Motivant, dynamique, orient\u00e9 performance. Il te pousse \u00e0 te d\u00e9passer." },
-  { id: "sergent", emoji: "\u{1F396}\uFE0F", label: "Sergent", desc: "Direct, exigeant, sans filtre. Les r\u00e9sultats d\u2019abord, les excuses dehors." },
-  { id: "bienveillant", emoji: "\u{1F91D}", label: "Coach Bienveillant", desc: "Doux, encourageant, \u00e0 l\u2019\u00e9coute. Il t\u2019accompagne sans pression." },
+  { id: "sport", emoji: "\u{1F3C3}", label: "Coach Sport", desc: "Motivant, dynamique, orienté performance. Il te pousse à te dépasser." },
+  { id: "sergent", emoji: "\u{1F396}️", label: "Sergent", desc: "Direct, exigeant, sans filtre. Les résultats d’abord, les excuses dehors." },
+  { id: "bienveillant", emoji: "\u{1F91D}", label: "Coach Bienveillant", desc: "Doux, encourageant, à l’écoute. Il t’accompagne sans pression." },
 ];
 
 const VOICE_DEMOS: Record<CoachVoice, { text: string; persona: string }> = {
@@ -97,11 +108,9 @@ export default function OnboardingIdentitePage() {
   // ── Redirect if already completed ──────────────────────────────────────
   useEffect(() => {
     if (isDemo) {
-      // nxt-demo-onboarding=true means demo onboarding ALREADY completed → redirect
       const demoOnboardingDone = typeof document !== "undefined"
         && document.cookie.includes("nxt-demo-onboarding=true");
       if (demoOnboardingDone) { router.replace("/dashboard"); return; }
-      // No cookie → show onboarding (first demo visit)
       return;
     }
     if (profile?.onboarding_completed) { router.replace("/dashboard"); }
@@ -173,8 +182,6 @@ export default function OnboardingIdentitePage() {
 
       const supabase = createClient();
 
-      // Verify auth session before upload — use getSession (local, fast)
-      // then fallback to getUser (network) for reliability
       let userId: string | null = null;
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) {
@@ -220,8 +227,6 @@ export default function OnboardingIdentitePage() {
   }, [user?.id, isDemo, profile, setProfile]);
 
   // ── Logo upload ────────────────────────────────────────────────────────
-  // If user has org_id → upload to logos/{org_id}/ and update organizations.logo_url
-  // If no org_id → upload to logos/{user_id}/ and update profiles.agency_logo_url
   const handleLogoFile = useCallback(async (file: File) => {
     setError("");
     setLogoUploading(true);
@@ -233,7 +238,6 @@ export default function OnboardingIdentitePage() {
 
       if (!user?.id) { setLogoUploading(false); return; }
 
-      // Extract colors from local Blob BEFORE upload (avoids CORS issues)
       const { primary, secondary, dark, light } = await extractAgencyColorsFromBlob(blob);
       applyAgencyTheme(primary, secondary, dark, light);
 
@@ -247,7 +251,6 @@ export default function OnboardingIdentitePage() {
       const supabase = createClient();
 
       if (hasOrg) {
-        // ── Org-linked upload ──
         const path = `${profile!.org_id}/logo.webp`;
         const { error: upErr } = await supabase.storage
           .from("logos")
@@ -257,7 +260,6 @@ export default function OnboardingIdentitePage() {
         const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
         await supabase.from("organizations").update({ logo_url: publicUrl, primary_color: primary, secondary_color: secondary }).eq("id", profile!.org_id);
       } else {
-        // ── Solo upload (no org) ──
         const path = `${user.id}/logo.webp`;
         const { error: upErr } = await supabase.storage
           .from("logos")
@@ -289,13 +291,10 @@ export default function OnboardingIdentitePage() {
     setCompleting(true);
 
     if (isDemo) {
-      // Demo mode: mark onboarding done via cookie (no Supabase write)
-      document.cookie = "nxt-demo-onboarding=true;path=/;max-age=28800"; // 8h
-      // Redirect to dashboard with gate=1 to show saisie simulation
+      document.cookie = "nxt-demo-onboarding=true;path=/;max-age=28800";
       window.location.href = "/dashboard?gate=1";
       return;
     } else if (user?.id) {
-      // Clear any leftover demo cookies to prevent real account being treated as demo
       document.cookie = "nxt-demo-mode=;path=/;max-age=0";
       document.cookie = "nxt-demo-onboarding=;path=/;max-age=0";
       document.cookie = "nxt-demo-saisie=;path=/;max-age=0";
@@ -314,185 +313,210 @@ export default function OnboardingIdentitePage() {
       }
     }
 
-    // All roles go through DPI → GPS → role-specific destination
     window.location.href = "/onboarding/dpi";
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-foreground">
+      <div className="w-full max-w-3xl space-y-10">
+        {/* ═══ HEADER ═══ */}
+        <header className="text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            Personnalisation
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Bienvenue, {firstName}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Personnalise ton profil avant de commencer.
+          <p className="mt-3 text-muted-foreground">
+            Personnalisez votre profil avant de commencer. Cela ne prend qu&apos;une minute.
           </p>
-        </div>
+        </header>
 
-        {/* Upload zones */}
+        {/* Loading state */}
         {loadingProfile ? (
-          <div className="flex justify-center py-8">
+          <div className="flex flex-col items-center gap-3 py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Chargement de votre profil…</p>
           </div>
         ) : (
           <>
-            {/* Row 1: Avatar + Logo */}
-            <div className={`grid gap-6 ${isCoachExterne ? "" : "sm:grid-cols-2"}`}>
-              {/* ── Avatar with interactive crop ── */}
-              <div
-                className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card/50 p-6 transition-all hover:border-primary/30 hover:bg-primary/5"
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const f = e.dataTransfer.files[0];
-                  if (f) setAvatarFile(f);
-                }}
-                onDragOver={handleDragOver}
-              >
-                {avatarFile && !avatarDone ? (
-                  <>
-                    <AvatarEditor
-                      ref={editorRef}
-                      image={avatarFile}
-                      width={160}
-                      height={160}
-                      borderRadius={80}
-                      border={20}
-                      color={[0, 0, 0, 0.4]}
-                      scale={avatarZoom}
-                      rotate={0}
-                    />
-                    <div className="flex w-full items-center gap-2 px-2">
-                      <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
-                      <input
-                        type="range"
-                        min={1}
-                        max={3}
-                        step={0.05}
-                        value={avatarZoom}
-                        onChange={(e) => setAvatarZoom(Number(e.target.value))}
-                        className="h-1.5 w-full cursor-pointer accent-primary"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAvatarCropConfirm}
-                      disabled={avatarUploading}
-                      className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                    >
-                      {avatarUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      Valider le cadrage
-                    </button>
-                  </>
-                ) : avatarPreview ? (
-                  <div className="relative">
-                    <Image
-                      src={avatarPreview}
-                      alt="Photo de profil"
-                      width={80}
-                      height={80}
-                      className="rounded-full object-cover border-2 border-border"
-                      style={{ width: 80, height: 80 }}
-                    />
-                    {avatarDone && (
-                      <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
-                        <Check className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Camera className="h-6 w-6" />
-                  </div>
-                )}
-
-                <div className="text-center">
-                  <p className="text-sm font-medium text-foreground">Photo de profil</p>
-                  <p className="text-xs text-muted-foreground">Visible par ton équipe et ton manager</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={avatarUploading}
-                  className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  <Upload className="h-3 w-3" />
-                  {avatarDone ? "Changer" : "Choisir un fichier"}
-                </button>
-                <p className="text-[10px] text-muted-foreground">ou glisser-déposer ici</p>
-
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/heic,image/gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) {
-                      setAvatarDone(false);
-                      setAvatarPreview(null);
-                      setAvatarFile(f);
-                    }
-                  }}
-                />
+            {/* ═══ SECTION 2 — IDENTITÉ ═══ */}
+            <section>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Camera className="h-3.5 w-3.5" />
+                Identité
               </div>
+              <h2 className="mb-3 text-2xl font-bold text-foreground">
+                Votre photo et le logo de votre agence
+              </h2>
+              <p className="mb-6 text-sm text-muted-foreground">
+                Visible par votre équipe, votre manager et sur les exports.
+              </p>
 
-              {/* ── Logo agence zone — visible pour tous sauf coach externe ── */}
-              {!isCoachExterne && (
-                <UploadZone
-                  label="Logo de l'agence"
-                  hint={hasOrg ? "Affiché sur les exports et le classement" : "Personnalise ton interface avec ton logo"}
-                  icon={<Building2 className="h-6 w-6" />}
-                  preview={logoPreview}
-                  previewShape="square"
-                  uploading={logoUploading}
-                  done={logoDone}
-                  inputRef={logoInputRef}
-                  onFileSelect={(f) => handleLogoFile(f)}
+              <div className={cn("grid gap-6", !isCoachExterne && "md:grid-cols-2")}>
+                {/* ── Avatar with interactive crop ── */}
+                <div
+                  className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-border bg-card/50 p-6 transition-all hover:border-primary/30 hover:bg-primary/5"
                   onDrop={(e) => {
                     e.preventDefault();
                     const f = e.dataTransfer.files[0];
-                    if (f) handleLogoFile(f);
+                    if (f) setAvatarFile(f);
                   }}
                   onDragOver={handleDragOver}
-                />
-              )}
-            </div>
+                >
+                  {avatarFile && !avatarDone ? (
+                    <>
+                      <AvatarEditor
+                        ref={editorRef}
+                        image={avatarFile}
+                        width={160}
+                        height={160}
+                        borderRadius={80}
+                        border={20}
+                        color={[0, 0, 0, 0.4]}
+                        scale={avatarZoom}
+                        rotate={0}
+                      />
+                      <div className="flex w-full items-center gap-2 px-2">
+                        <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
+                        <input
+                          type="range"
+                          min={1}
+                          max={3}
+                          step={0.05}
+                          value={avatarZoom}
+                          onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                          className="h-1.5 w-full cursor-pointer accent-primary"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAvatarCropConfirm}
+                        disabled={avatarUploading}
+                        className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {avatarUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                        Valider le cadrage
+                      </button>
+                    </>
+                  ) : avatarPreview ? (
+                    <div className="relative">
+                      <Image
+                        src={avatarPreview}
+                        alt="Photo de profil"
+                        width={80}
+                        height={80}
+                        className="rounded-full border-2 border-border object-cover"
+                        style={{ width: 80, height: 80 }}
+                      />
+                      {avatarDone && (
+                        <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
+                          <Check className="h-3 w-3 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <Camera className="h-6 w-6" />
+                    </div>
+                  )}
 
-            {/* Row 2: Coach Voice Selection */}
-            <div className="space-y-4">
-              <div className="text-center">
-                <h2 className="text-base font-semibold text-foreground">Votre voix coach</h2>
-                <p className="text-xs text-muted-foreground mt-1">Choisissez le style de coaching de votre assistant IA</p>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">Photo de profil</p>
+                    <p className="text-xs text-muted-foreground">Visible par ton équipe et ton manager</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    <Upload className="h-3 w-3" />
+                    {avatarDone ? "Changer" : "Choisir un fichier"}
+                  </button>
+                  <p className="text-xs text-muted-foreground">ou glisser-déposer ici</p>
+
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        setAvatarDone(false);
+                        setAvatarPreview(null);
+                        setAvatarFile(f);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* ── Logo agence zone — visible pour tous sauf coach externe ── */}
+                {!isCoachExterne && (
+                  <UploadZone
+                    label="Logo de l'agence"
+                    hint={hasOrg ? "Affiché sur les exports et le classement" : "Personnalise ton interface avec ton logo"}
+                    icon={<Building2 className="h-6 w-6" />}
+                    preview={logoPreview}
+                    previewShape="square"
+                    uploading={logoUploading}
+                    done={logoDone}
+                    inputRef={logoInputRef}
+                    onFileSelect={(f) => handleLogoFile(f)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const f = e.dataTransfer.files[0];
+                      if (f) handleLogoFile(f);
+                    }}
+                    onDragOver={handleDragOver}
+                  />
+                )}
               </div>
+            </section>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+            {/* ═══ SECTION 3 — VOIX COACH ═══ */}
+            <section>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Volume2 className="h-3.5 w-3.5" />
+                Voix coach
+              </div>
+              <h2 className="mb-3 text-2xl font-bold text-foreground">
+                Choisissez votre style de coaching
+              </h2>
+              <p className="mb-6 text-sm text-muted-foreground">
+                Sélectionnez la personnalité qui vous fera progresser. Cliquez sur Écouter
+                pour tester chaque voix.
+              </p>
+
+              <div className="grid gap-3 md:grid-cols-3">
                 {COACH_VOICES.map((v) => (
                   <div
                     key={v.id}
                     onClick={() => setCoachVoice(v.id)}
-                    className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-center transition-all cursor-pointer ${
+                    className={cn(
+                      "relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all",
                       coachVoice === v.id
                         ? "border-[var(--agency-primary,#6C5CE7)] bg-[var(--agency-primary,#6C5CE7)]/5 shadow-sm"
                         : "border-border bg-card/50 hover:border-primary/30 hover:bg-primary/5"
-                    }`}
+                    )}
                   >
                     {coachVoice === v.id && (
-                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--agency-primary,#6C5CE7)]">
+                      <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--agency-primary,#6C5CE7)]">
                         <Check className="h-3 w-3 text-white" />
                       </div>
                     )}
                     <span className="text-2xl">{v.emoji}</span>
                     <p className="text-sm font-semibold text-foreground">{v.label}</p>
-                    <p className="text-[11px] leading-snug text-muted-foreground">{v.desc}</p>
+                    <p className="text-xs leading-snug text-muted-foreground">{v.desc}</p>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleListenVoice(v.id); }}
                       disabled={playingVoice !== null && playingVoice !== v.id}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                     >
                       {playingVoice === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-3 w-3" />}
                       {playingVoice === v.id ? "Lecture…" : "Écouter"}
@@ -500,39 +524,53 @@ export default function OnboardingIdentitePage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            {/* Row 3: Import Performance */}
+            {/* ═══ SECTION 4 — IMPORT PERFORMANCE ═══ */}
             <ImportPerformance isDemo={isDemo} />
 
-            {/* Row 4: Import Team (manager/directeur only) */}
+            {/* ═══ SECTION 5 — IMPORT TEAM (manager/directeur only) ═══ */}
             {(user?.mainRole === "manager" || user?.mainRole === "directeur") && (
               <ImportTeam isDemo={isDemo} />
             )}
           </>
         )}
 
-        {/* Error */}
+        {/* Error encart */}
         {error && (
-          <p className="text-center text-sm text-red-400">{error}</p>
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+            {error}
+          </div>
         )}
 
-        {/* CTA */}
+        {/* CTA bloc */}
         <div className="flex flex-col items-center gap-3">
           <button
             type="button"
             onClick={completeOnboarding}
             disabled={completing}
-            className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-            Suivant
+            {completing ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Patientez…
+              </>
+            ) : (
+              <>
+                Suivant
+                <ArrowRight className="h-5 w-5" />
+              </>
+            )}
           </button>
+          <p className="text-xs text-muted-foreground">
+            Vous pourrez modifier ces infos plus tard
+          </p>
 
           <button
             type="button"
             onClick={() => { window.location.href = "/onboarding/dpi"; }}
-            className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Passer cette étape
           </button>
@@ -564,7 +602,7 @@ function UploadZone({
 }: UploadZoneProps) {
   return (
     <div
-      className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card/50 p-6 transition-all hover:border-primary/30 hover:bg-primary/5"
+      className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-border bg-card/50 p-6 transition-all hover:border-primary/30 hover:bg-primary/5"
       onDrop={onDrop}
       onDragOver={onDragOver}
     >
@@ -575,7 +613,10 @@ function UploadZone({
             alt={label}
             width={80}
             height={80}
-            className={`object-cover border-2 border-border ${previewShape === "circle" ? "rounded-full" : "rounded-xl bg-white"}`}
+            className={cn(
+              "border-2 border-border object-cover",
+              previewShape === "circle" ? "rounded-full" : "rounded-xl bg-white"
+            )}
             style={{ width: 80, height: 80 }}
           />
           {done && (
@@ -585,7 +626,10 @@ function UploadZone({
           )}
         </div>
       ) : (
-        <div className={`flex h-20 w-20 items-center justify-center ${previewShape === "circle" ? "rounded-full" : "rounded-xl"} bg-muted text-muted-foreground`}>
+        <div className={cn(
+          "flex h-20 w-20 items-center justify-center bg-muted text-muted-foreground",
+          previewShape === "circle" ? "rounded-full" : "rounded-xl"
+        )}>
           {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : icon}
         </div>
       )}
@@ -599,13 +643,13 @@ function UploadZone({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
-        className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
       >
         {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
         {done ? "Changer" : "Choisir un fichier"}
       </button>
 
-      <p className="text-[10px] text-muted-foreground">ou glisser-déposer ici</p>
+      <p className="text-xs text-muted-foreground">ou glisser-déposer ici</p>
 
       <input
         ref={inputRef}
