@@ -22,6 +22,15 @@ import {
 import type { User, UserCategory } from "@/types/user";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
+import {
+  Users,
+  Award,
+  Target,
+  Trophy,
+  Zap,
+  Gauge,
+  BarChart3,
+} from "lucide-react";
 
 type CompareMode = "advisor" | "profile";
 type TabType = "interne" | "classement" | "dpi";
@@ -120,311 +129,378 @@ export default function ComparaisonPage() {
 
   return (
     <LockedFeature feature="comparaison" featureName="Comparaison N-1" featureDescription="Comparez vos résultats avec l'année précédente">
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Comparaison</h1>
-
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-        <p className="text-sm italic text-muted-foreground">
-          La comparaison telle qu&apos;un coach la ferait : pas juste des
-          chiffres, mais un verdict en euros et en efficacité métier.
-        </p>
-      </div>
-
-      {/* Tab selector */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1">
-        <button
-          onClick={() => setTab("interne")}
-          className={cn(
-            "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            tab === "interne"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Comparaison Interne
-        </button>
-        <button
-          onClick={() => setTab("classement")}
-          className={cn(
-            "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            tab === "classement"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Classement NXT
-        </button>
-        <button
-          onClick={() => setTab("dpi")}
-          className={cn(
-            "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            tab === "dpi"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Comparaison DPI
-        </button>
-      </div>
-
-      {/* ========== CLASSEMENT NXT ========== */}
-      {tab === "classement" && (
-        <LeaderboardSection
-          currentUserId={user?.id ?? ""}
-          currentUserFirstName={user?.firstName ?? ""}
-          currentUserAvatarUrl={user?.avatarUrl}
-        />
-      )}
-
-      {/* ========== INTERNE ========== */}
-      {tab === "interne" && (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex gap-1 rounded-lg bg-muted p-1">
-              <button
-                onClick={() => setMode("advisor")}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm",
-                  mode === "advisor"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground"
-                )}
-              >
-                Avec un conseiller
-              </button>
-              <button
-                onClick={() => setMode("profile")}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm",
-                  mode === "profile"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground"
-                )}
-              >
-                Avec un profil
-              </button>
-            </div>
-
-            {mode === "advisor" && (
-              <select
-                value={selectedAdvisorId}
-                onChange={(e) => setSelectedAdvisorId(e.target.value)}
-                className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
-              >
-                {otherUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.firstName} {u.lastName}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {mode === "profile" && (
-              <select
-                value={selectedProfile}
-                onChange={(e) =>
-                  setSelectedProfile(e.target.value as UserCategory)
-                }
-                className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
-              >
-                {(["debutant", "confirme", "expert"] as UserCategory[]).map(
-                  (cat) => (
-                    <option key={cat} value={cat}>
-                      {CATEGORY_LABELS[cat]}
-                    </option>
-                  )
-                )}
-              </select>
-            )}
+      <div>
+        {/* ═══ PAGE HEADER ═══ */}
+        <header className="mx-auto max-w-6xl px-4 pt-8 pb-4">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Users className="h-3.5 w-3.5" />
+            Comparaison
           </div>
+          <h1 className="text-3xl font-bold text-foreground">Comparaison</h1>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Mesurez-vous à un autre conseiller, à un profil cible ou au classement NXT —
+            pour voir ce qui fait la différence.
+          </p>
+        </header>
 
-          {/* Période */}
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-muted-foreground">Période :</span>
-            <PeriodSelector
-              options={COMPARISON_PERIOD_OPTIONS}
-              value={period}
-              onChange={setPeriod}
-            />
-            <span className="text-xs text-muted-foreground">
-              ({formatPeriodRange(periodBounds)})
-            </span>
+        {/* ═══ MICRO-SIGNATURE (préservée) ═══ */}
+        <div className="mx-auto max-w-6xl px-4 pb-6">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <p className="text-sm italic text-muted-foreground">
+              La comparaison telle qu&apos;un coach la ferait : pas juste des chiffres,
+              mais un verdict en euros et en efficacité métier.
+            </p>
           </div>
+        </div>
 
-          {!hasData ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
-              <div className="text-sm text-muted-foreground">
-                Aucune donnée disponible pour cette période.
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                Essaye d&apos;élargir la période (Trimestre, Semestre, Année).
-              </div>
-            </div>
-          ) : (
-          <>
-          {/* ═══ BLOC 1 — VERDICT ═══ */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-foreground">Le résultat</h3>
-              <p className="text-sm text-muted-foreground">
-                Qui a produit le plus sur la période
-              </p>
-            </div>
+        {/* ═══ TABS ═══ */}
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+            <TabButton active={tab === "interne"} onClick={() => setTab("interne")} icon={Users}>
+              Comparaison Interne
+            </TabButton>
+            <TabButton active={tab === "classement"} onClick={() => setTab("classement")} icon={Award}>
+              Classement NXT
+            </TabButton>
+            <TabButton active={tab === "dpi"} onClick={() => setTab("dpi")} icon={Target}>
+              Comparaison DPI
+            </TabButton>
+          </div>
+        </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <VerdictCard
-                name={meDisplayName}
-                avatar={user?.avatarUrl}
-                color="#3375FF"
-                bgClass="bg-[#3375FF]/5 border-[#3375FF]/20"
-                ca={myVerdict.ca}
-                actes={myVerdict.actes}
-                mandats={myVerdict.mandats}
-              />
-              <VerdictCard
-                name={otherDisplayName}
-                avatar={selectedOtherUser?.avatarUrl}
-                color="#FF8A3D"
-                bgClass="bg-[#FF8A3D]/5 border-[#FF8A3D]/20"
-                ca={otherVerdict.ca}
-                actes={otherVerdict.actes}
-                mandats={otherVerdict.mandats}
-              />
+        {/* ═══════ TAB: COMPARAISON INTERNE ═══════ */}
+        {tab === "interne" && (
+          <section className="mx-auto max-w-5xl px-4 py-12">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <Users className="h-3.5 w-3.5" />
+              Interne
             </div>
+            <h2 className="mb-3 text-3xl font-bold text-foreground">
+              Mesurez-vous à un conseiller ou à un profil cible
+            </h2>
+            <p className="mb-8 max-w-2xl text-muted-foreground">
+              Choisissez votre adversaire et votre période pour faire apparaître l&apos;écart
+              en CA, en volume et en efficacité métier.
+            </p>
 
-            <div className="mt-4 border-t border-border pt-4">
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <span className="text-sm text-muted-foreground">Écart final :</span>
-                <span
+            {/* Control bar — mode + dropdown */}
+            <div className="mb-4 flex flex-wrap items-center gap-4">
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
+                <button
+                  onClick={() => setMode("advisor")}
                   className={cn(
-                    "text-lg font-bold",
-                    caDelta > 0
-                      ? "text-emerald-500"
-                      : caDelta < 0
-                      ? "text-red-500"
-                      : "text-muted-foreground"
+                    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    mode === "advisor"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {caDelta > 0 ? "+" : ""}
-                  {formatCurrency(caDelta)}
-                  {" "}({caDeltaPct > 0 ? "+" : ""}
-                  {caDeltaPct}%)
-                </span>
+                  Avec un conseiller
+                </button>
+                <button
+                  onClick={() => setMode("profile")}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    mode === "profile"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Avec un profil
+                </button>
               </div>
+
+              {mode === "advisor" && (
+                <select
+                  value={selectedAdvisorId}
+                  onChange={(e) => setSelectedAdvisorId(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {otherUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {mode === "profile" && (
+                <select
+                  value={selectedProfile}
+                  onChange={(e) =>
+                    setSelectedProfile(e.target.value as UserCategory)
+                  }
+                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {(["debutant", "confirme", "expert"] as UserCategory[]).map(
+                    (cat) => (
+                      <option key={cat} value={cat}>
+                        {CATEGORY_LABELS[cat]}
+                      </option>
+                    )
+                  )}
+                </select>
+              )}
             </div>
-          </div>
 
-          {/* ═══ BLOC 2 — INTENSITÉ COMMERCIALE ═══ */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-foreground">Intensité commerciale</h3>
-              <p className="text-sm text-muted-foreground">
-                Volumes absolus sur la période — plus le polygone est grand, plus
-                l&apos;activité est intense
-              </p>
-            </div>
-
-            <Legend
-              meName={meDisplayName}
-              meAvatar={user?.avatarUrl}
-              otherName={otherDisplayName}
-              otherAvatar={selectedOtherUser?.avatarUrl}
-            />
-
-            <div className="mb-6 flex justify-center">
-              <ComparisonRadar
-                axes={normalizedVolumes.map((a) => ({
-                  id: a.id,
-                  label: a.label,
-                  score: a.meNormalized,
-                }))}
-                overlayAxes={normalizedVolumes.map((a) => ({
-                  id: a.id,
-                  label: a.label,
-                  score: a.otherNormalized,
-                }))}
-                rawAxes={normalizedVolumes.map((a) => ({
-                  me: a.meRaw,
-                  other: a.otherRaw,
-                }))}
-                primaryLabel={meDisplayName}
-                overlayLabel={otherDisplayName}
-                primaryColor="#3375FF"
-                overlayColor="#FF8A3D"
-                size={420}
-                maxValue={100}
+            {/* Période */}
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-muted-foreground">Période :</span>
+              <PeriodSelector
+                options={COMPARISON_PERIOD_OPTIONS}
+                value={period}
+                onChange={setPeriod}
               />
+              <span className="text-xs text-muted-foreground">
+                ({formatPeriodRange(periodBounds)})
+              </span>
             </div>
 
-            <DeltaTable
-              rows={volumeAxes}
-              meName={meDisplayName}
-              otherName={otherDisplayName}
-              unit="absolute"
-            />
-          </div>
+            {!hasData ? (
+              <div className="rounded-xl border border-border bg-muted/30 p-8 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <BarChart3 className="h-6 w-6 text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Aucune donnée disponible pour cette période.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Essayez d&apos;élargir la période (Trimestre, Semestre, Année).
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* ═══ Sous-card 1 — VERDICT ═══ */}
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <Trophy className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">Le résultat</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Qui a produit le plus sur la période
+                      </p>
+                    </div>
+                  </div>
 
-          {/* ═══ BLOC 3 — EFFICACITÉ MÉTIER ═══ */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-foreground">Efficacité métier</h3>
-              <p className="text-sm text-muted-foreground">
-                Taux de transformation à chaque étape — plus le polygone est grand,
-                mieux tu convertis
-              </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <VerdictCard
+                      name={meDisplayName}
+                      avatar={user?.avatarUrl}
+                      color="#3375FF"
+                      bgClass="bg-[#3375FF]/5 border-[#3375FF]/20"
+                      ca={myVerdict.ca}
+                      actes={myVerdict.actes}
+                      mandats={myVerdict.mandats}
+                    />
+                    <VerdictCard
+                      name={otherDisplayName}
+                      avatar={selectedOtherUser?.avatarUrl}
+                      color="#FF8A3D"
+                      bgClass="bg-[#FF8A3D]/5 border-[#FF8A3D]/20"
+                      ca={otherVerdict.ca}
+                      actes={otherVerdict.actes}
+                      mandats={otherVerdict.mandats}
+                    />
+                  </div>
+
+                  <div className="mt-4 border-t border-border pt-4">
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                      <span className="text-sm text-muted-foreground">Écart final :</span>
+                      <span
+                        className={cn(
+                          "text-lg font-bold tabular-nums",
+                          caDelta > 0
+                            ? "text-emerald-500"
+                            : caDelta < 0
+                              ? "text-red-500"
+                              : "text-muted-foreground"
+                        )}
+                      >
+                        {caDelta > 0 ? "+" : ""}
+                        {formatCurrency(caDelta)}{" "}
+                        ({caDeltaPct > 0 ? "+" : ""}
+                        {caDeltaPct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ═══ Sous-card 2 — INTENSITÉ COMMERCIALE ═══ */}
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <Zap className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">Intensité commerciale</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Volumes absolus sur la période — plus le polygone est grand, plus
+                        l&apos;activité est intense
+                      </p>
+                    </div>
+                  </div>
+
+                  <Legend
+                    meName={meDisplayName}
+                    meAvatar={user?.avatarUrl}
+                    otherName={otherDisplayName}
+                    otherAvatar={selectedOtherUser?.avatarUrl}
+                  />
+
+                  <div className="mb-6 flex justify-center">
+                    <ComparisonRadar
+                      axes={normalizedVolumes.map((a) => ({
+                        id: a.id,
+                        label: a.label,
+                        score: a.meNormalized,
+                      }))}
+                      overlayAxes={normalizedVolumes.map((a) => ({
+                        id: a.id,
+                        label: a.label,
+                        score: a.otherNormalized,
+                      }))}
+                      rawAxes={normalizedVolumes.map((a) => ({
+                        me: a.meRaw,
+                        other: a.otherRaw,
+                      }))}
+                      primaryLabel={meDisplayName}
+                      overlayLabel={otherDisplayName}
+                      primaryColor="#3375FF"
+                      overlayColor="#FF8A3D"
+                      size={420}
+                      maxValue={100}
+                    />
+                  </div>
+
+                  <DeltaTable
+                    rows={volumeAxes}
+                    meName={meDisplayName}
+                    otherName={otherDisplayName}
+                    unit="absolute"
+                  />
+                </div>
+
+                {/* ═══ Sous-card 3 — EFFICACITÉ MÉTIER ═══ */}
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <Gauge className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">Efficacité métier</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Taux de transformation à chaque étape — plus le polygone est grand,
+                        mieux tu convertis
+                      </p>
+                    </div>
+                  </div>
+
+                  <Legend
+                    meName={meDisplayName}
+                    meAvatar={user?.avatarUrl}
+                    otherName={otherDisplayName}
+                    otherAvatar={selectedOtherUser?.avatarUrl}
+                  />
+
+                  <div className="mb-6 flex justify-center">
+                    <ComparisonRadar
+                      axes={normalizedEfficiency.map((a) => ({
+                        id: a.id,
+                        label: a.label,
+                        score: a.meNormalized,
+                      }))}
+                      overlayAxes={normalizedEfficiency.map((a) => ({
+                        id: a.id,
+                        label: a.label,
+                        score: a.otherNormalized,
+                      }))}
+                      rawAxes={normalizedEfficiency.map((a) => ({
+                        me: a.meRaw,
+                        other: a.otherRaw,
+                        unit: "%",
+                      }))}
+                      primaryLabel={meDisplayName}
+                      overlayLabel={otherDisplayName}
+                      primaryColor="#3375FF"
+                      overlayColor="#FF8A3D"
+                      size={420}
+                      maxValue={100}
+                    />
+                  </div>
+
+                  <DeltaTable
+                    rows={efficiencyAxes}
+                    meName={meDisplayName}
+                    otherName={otherDisplayName}
+                    unit="percent"
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ═══════ TAB: CLASSEMENT NXT ═══════ */}
+        {tab === "classement" && (
+          <LeaderboardSection
+            currentUserId={user?.id ?? ""}
+            currentUserFirstName={user?.firstName ?? ""}
+            currentUserAvatarUrl={user?.avatarUrl}
+          />
+        )}
+
+        {/* ═══════ TAB: COMPARAISON DPI ═══════ */}
+        {tab === "dpi" && (
+          <section className="mx-auto max-w-5xl px-4 py-12">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <Target className="h-3.5 w-3.5" />
+              DPI
             </div>
-
-            <Legend
-              meName={meDisplayName}
-              meAvatar={user?.avatarUrl}
-              otherName={otherDisplayName}
-              otherAvatar={selectedOtherUser?.avatarUrl}
-            />
-
-            <div className="mb-6 flex justify-center">
-              <ComparisonRadar
-                axes={normalizedEfficiency.map((a) => ({
-                  id: a.id,
-                  label: a.label,
-                  score: a.meNormalized,
-                }))}
-                overlayAxes={normalizedEfficiency.map((a) => ({
-                  id: a.id,
-                  label: a.label,
-                  score: a.otherNormalized,
-                }))}
-                rawAxes={normalizedEfficiency.map((a) => ({
-                  me: a.meRaw,
-                  other: a.otherRaw,
-                  unit: "%",
-                }))}
-                primaryLabel={meDisplayName}
-                overlayLabel={otherDisplayName}
-                primaryColor="#3375FF"
-                overlayColor="#FF8A3D"
-                size={420}
-                maxValue={100}
-              />
-            </div>
-
-            <DeltaTable
-              rows={efficiencyAxes}
-              meName={meDisplayName}
-              otherName={otherDisplayName}
-              unit="percent"
-            />
-          </div>
-          </>
-          )}
-        </div>
-      )}
-
-      {/* ========== COMPARAISON DPI ========== */}
-      {tab === "dpi" && (
-        <DPIComparisonView />
-      )}
-    </div>
+            <h2 className="mb-3 text-3xl font-bold text-foreground">
+              Comparaison DPI
+            </h2>
+            <p className="mb-8 max-w-2xl text-muted-foreground">
+              Comparez votre Diagnostic de Performance Immobilière à celui d&apos;un autre
+              conseiller ou à un profil de référence.
+            </p>
+            <DPIComparisonView />
+          </section>
+        )}
+      </div>
     </LockedFeature>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  TabButton                                                          */
+/* ------------------------------------------------------------------ */
+
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {children}
+    </button>
   );
 }
 
@@ -455,8 +531,8 @@ interface Axis {
 interface NormalizedAxis {
   id: string;
   label: string;
-  meNormalized: number; // 0-100
-  otherNormalized: number; // 0-100
+  meNormalized: number;
+  otherNormalized: number;
   meRaw: number;
   otherRaw: number;
 }
@@ -582,7 +658,6 @@ function buildProfileResults(
   const contactsTarget = Math.round(
     estimations * ratioConfigs.contacts_rdv.thresholds[profile]
   );
-  // % d'exclusivité reste un pourcentage (non cumulable)
   const numExclu = Math.floor((mandats * obj.exclusivite) / 100);
   const acheteursTarget = Math.max(
     1,
@@ -648,7 +723,7 @@ function VerdictCard({
   mandats: number;
 }) {
   return (
-    <div className={cn("rounded-lg border p-5", bgClass)}>
+    <div className={cn("rounded-xl border p-5", bgClass)}>
       <div className="mb-4 flex items-center gap-2">
         <UserAvatar src={avatar} name={name} size="sm" />
         <span className="text-sm font-semibold text-foreground">{name}</span>
@@ -728,10 +803,10 @@ function DeltaTable({
             return (
               <tr key={row.id} className="border-b border-border/50 last:border-0">
                 <td className="py-2.5 text-foreground">{row.label}</td>
-                <td className="py-2.5 text-right font-semibold text-[#3375FF] tabular-nums">
+                <td className="py-2.5 text-right font-semibold tabular-nums text-[#3375FF]">
                   {fmt(row.me)}
                 </td>
-                <td className="py-2.5 text-right font-semibold text-[#FF8A3D] tabular-nums">
+                <td className="py-2.5 text-right font-semibold tabular-nums text-[#FF8A3D]">
                   {fmt(row.other)}
                 </td>
                 <td
@@ -740,8 +815,8 @@ function DeltaTable({
                     delta > 0
                       ? "text-emerald-500"
                       : delta < 0
-                      ? "text-red-500"
-                      : "text-muted-foreground"
+                        ? "text-red-500"
+                        : "text-muted-foreground"
                   )}
                 >
                   {delta > 0 ? "+" : ""}
@@ -768,11 +843,9 @@ function LeaderboardSection({
   currentUserFirstName: string;
   currentUserAvatarUrl?: string;
 }) {
-  const isDemo = useAppStore((s) => s.isDemo);
   const allResults = useAllResults();
   const users = useAppStore((s) => s.users);
 
-  // In demo mode: build leaderboard from mock data
   const leaderboard = useMemo(() => {
     const conseillers = users.filter((u) => u.role === "conseiller" || u.role === "manager");
     const entries = conseillers.map((u) => {
@@ -789,39 +862,50 @@ function LeaderboardSection({
   const currentEntry = leaderboard.find((e) => e.userId === currentUserId);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">Classement NXT Performance — Top 20</h2>
-        <p className="text-xs text-muted-foreground">Comparaison anonyme entre conseillers NXT — Prénoms uniquement</p>
+    <section className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+        <Award className="h-3.5 w-3.5" />
+        Classement
       </div>
+      <h2 className="mb-3 text-3xl font-bold text-foreground">
+        Classement NXT Performance — Top 20
+      </h2>
+      <p className="mb-8 max-w-2xl text-muted-foreground">
+        Comparaison anonyme entre conseillers NXT. Seuls les prénoms sont affichés.
+      </p>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+            <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
               <th className="px-4 py-2.5">#</th>
               <th className="px-2 py-2.5" />
               <th className="px-4 py-2.5">Prénom</th>
               <th className="px-4 py-2.5 text-right">CA</th>
-              <th className="px-4 py-2.5 text-right hidden sm:table-cell">Mandats</th>
+              <th className="hidden px-4 py-2.5 text-right md:table-cell">Mandats</th>
             </tr>
           </thead>
           <tbody>
             {leaderboard.map((entry, idx) => {
               const isMe = entry.userId === currentUserId;
               return (
-                <tr key={entry.userId} className={cn(
-                  "border-b border-border/50 last:border-0",
-                  isMe && "bg-primary/10 font-semibold"
-                )}>
+                <tr
+                  key={entry.userId}
+                  className={cn(
+                    "border-b border-border/50 last:border-0",
+                    isMe && "bg-primary/10 font-semibold"
+                  )}
+                >
                   <td className="px-4 py-2.5">
-                    <span className={cn(
-                      "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold",
-                      idx === 0 ? "bg-amber-500/20 text-amber-500" :
-                      idx === 1 ? "bg-slate-400/20 text-slate-400" :
-                      idx === 2 ? "bg-orange-600/20 text-orange-600" :
-                      "bg-muted text-muted-foreground"
-                    )}>
+                    <span
+                      className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold",
+                        idx === 0 ? "bg-amber-500/20 text-amber-500" :
+                        idx === 1 ? "bg-slate-400/20 text-slate-400" :
+                        idx === 2 ? "bg-orange-600/20 text-orange-600" :
+                        "bg-muted text-muted-foreground"
+                      )}
+                    >
                       {idx + 1}
                     </span>
                   </td>
@@ -838,7 +922,7 @@ function LeaderboardSection({
                   <td className="px-4 py-2.5 text-right text-foreground">
                     {entry.ca.toLocaleString("fr-FR")} €
                   </td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground hidden sm:table-cell">
+                  <td className="hidden px-4 py-2.5 text-right text-muted-foreground md:table-cell">
                     {entry.mandats}
                   </td>
                 </tr>
@@ -849,10 +933,10 @@ function LeaderboardSection({
       </div>
 
       {currentUserRank === -1 && currentUserFirstName && (
-        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
           Votre position : #{leaderboard.length + 1} — CA : {currentEntry?.ca?.toLocaleString("fr-FR") ?? 0} €
         </div>
       )}
-    </div>
+    </section>
   );
 }
