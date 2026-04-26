@@ -42,7 +42,7 @@ const pageTitles: Record<string, string> = {
   "/manager/equipe": "Mon Volume d'Activité",
   "/manager/classement": "Mes Ratios de Transformation",
   "/manager/comparaison": "Me Comparer",
-  "/manager/alertes": "Alertes",
+  "/manager/notifications": "Notifications",
   "/parametres": "Paramètres",
   "/manager/formation-collective": "Ma Formation Collective",
   "/directeur/pilotage": "Mon Tableau de Bord",
@@ -360,7 +360,11 @@ export function Header() {
               <div className="border-t border-border px-4 py-2">
                 <button
                   type="button"
-                  onClick={() => { router.push("/notifications"); setShowNotifs(false); }}
+                  onClick={() => {
+                    const targetUrl = pathname.startsWith("/manager") ? "/manager/notifications" : "/notifications";
+                    router.push(targetUrl);
+                    setShowNotifs(false);
+                  }}
                   className="w-full text-center text-xs text-primary hover:text-primary/80 transition-colors"
                 >
                   Voir toutes les notifications
