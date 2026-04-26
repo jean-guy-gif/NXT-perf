@@ -52,11 +52,16 @@ export default function ProfilParametresPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <UserIcon className="h-5 w-5" /> Mon profil
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Photo de profil et personnalisation.</p>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <UserIcon className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Mon profil</h1>
+          <p className="text-sm text-muted-foreground">
+            Photo de profil et personnalisation.
+          </p>
+        </div>
       </div>
 
       {/* Avatar */}
@@ -100,14 +105,14 @@ export default function ProfilParametresPage() {
         <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Voix coach</h2>
         <p className="text-xs text-muted-foreground">Le style de coaching de votre assistant IA.</p>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-3">
           {COACH_VOICES.map((v) => (
             <button
               key={v.id}
               type="button"
               onClick={() => handleSaveVoice(v.id)}
               disabled={savingVoice}
-              className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition-all ${
+              className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-center transition-all ${
                 coachVoice === v.id
                   ? "border-[var(--agency-primary,#6C5CE7)] bg-[var(--agency-primary,#6C5CE7)]/5 shadow-sm"
                   : "border-border bg-card/50 hover:border-primary/30 hover:bg-primary/5"

@@ -52,7 +52,7 @@ export default function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-12">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
@@ -69,12 +69,16 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Bell className="h-5 w-5" /> Notifications
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Bell className="h-3.5 w-3.5" />
+            Notifications
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Vos alertes en cours
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-2 text-muted-foreground">
             {unresolvedCount > 0 ? `${unresolvedCount} non traitée${unresolvedCount > 1 ? "s" : ""}` : "Tout est traité"}
           </p>
         </div>
@@ -82,7 +86,7 @@ export default function NotificationsPage() {
           <button
             type="button"
             onClick={markAllAsRead}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            className="inline-flex items-center gap-1.5 self-start rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             <CheckCheck className="h-3.5 w-3.5" />
             Tout marquer comme lu

@@ -73,16 +73,21 @@ export default function VoixParametresPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Mic className="h-5 w-5" /> Voix & Saisie
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Choisis ta voix de guidage et ton mode de saisie.</p>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Mic className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Voix &amp; Saisie</h1>
+          <p className="text-sm text-muted-foreground">
+            Choisis ta voix de guidage et ton mode de saisie.
+          </p>
+        </div>
       </div>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Voix de guidage</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {PERSONAS.map((p) => (
             <button key={p.id} type="button" onClick={() => { setPersona(p.id); setSaved(false); }}
               className={`relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all ${persona === p.id ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border bg-card hover:border-primary/30"}`}>

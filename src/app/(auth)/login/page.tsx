@@ -60,7 +60,7 @@ function LoginForm() {
       {/* DPI Block */}
       <div
         onClick={() => router.push("/dpi")}
-        className="mb-6 cursor-pointer rounded-2xl p-6 text-center text-white"
+        className="mb-6 cursor-pointer rounded-xl p-6 text-center text-white"
         style={{
           background: "linear-gradient(135deg, #3375FF, #6B47FF, #A055FF, #3375FF)",
           backgroundSize: "300% 300%",
@@ -94,7 +94,7 @@ function LoginForm() {
       <div className="mb-6 flex justify-center">
         <img src="/logo-icon.svg" alt="NXT Perf" className="h-12 w-12" />
       </div>
-      <h1 className="mb-2 text-center text-2xl font-bold text-foreground">
+      <h1 className="mb-2 text-center text-3xl font-bold tracking-tight text-foreground">
         Connexion
       </h1>
       <p className="mb-6 text-center text-sm text-muted-foreground">
@@ -139,15 +139,15 @@ function LoginForm() {
         </div>
 
         {success && (
-          <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-600 dark:text-green-400">
+          <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-600">
             {success}
-          </p>
+          </div>
         )}
 
         {error && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
             {error}
-          </p>
+          </div>
         )}
 
         <button
