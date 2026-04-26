@@ -2,7 +2,14 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, ArrowRight, TrendingUp, Award } from "lucide-react";
+import {
+  Download,
+  ArrowRight,
+  TrendingUp,
+  Award,
+  Target,
+  AlertTriangle,
+} from "lucide-react";
 import { DPIRadar } from "@/components/dpi/dpi-radar";
 import { DPIProjectionsCard } from "@/components/dpi/dpi-projections-card";
 import { caBaseFromRange } from "@/lib/dpi-projections";
@@ -112,19 +119,25 @@ function DPIResultsContent() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="mb-2 text-2xl font-bold text-foreground sm:text-3xl">
-          Votre Diagnostic de Performance
+      {/* ═══ SECTION 1 — PAGE HEADER ═══ */}
+      <header className="text-center">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          <Award className="h-3.5 w-3.5" />
+          Vos résultats
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+          Votre Diagnostic de Performance Immobilière
         </h1>
-        <p className="text-muted-foreground">Immobilière</p>
-      </div>
+        <p className="mt-3 text-muted-foreground">
+          Voici votre photographie en 6 axes, vos projections, et les leviers à activer.
+        </p>
+      </header>
 
-      {/* Score cards */}
+      {/* ═══ SECTION 2 — Score global ═══ */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-xl border border-border bg-card p-6 text-center">
           <p className="mb-1 text-sm text-muted-foreground">Score actuel</p>
-          <p className={cn("text-4xl font-bold", levelColor)}>
+          <p className={cn("text-4xl font-bold tabular-nums", levelColor)}>
             {scores.globalScore}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">/100</p>
@@ -134,7 +147,7 @@ function DPIResultsContent() {
         </div>
         <div className="rounded-xl border border-border bg-card p-6 text-center">
           <p className="mb-1 text-sm text-muted-foreground">Potentiel</p>
-          <p className="text-4xl font-bold text-[#A055FF]">
+          <p className="text-4xl font-bold tabular-nums text-[#A055FF]">
             {scores.potentialScore}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">/100</p>
@@ -144,10 +157,12 @@ function DPIResultsContent() {
         </div>
       </div>
 
-      {/* Percentile */}
+      {/* ═══ SECTION 3 — Percentile ═══ */}
       {scores.percentileLabel && (
-        <div className="rounded-xl border border-[#3375FF]/20 bg-gradient-to-r from-[#3375FF]/5 to-[#A055FF]/5 p-5 text-center">
-          <Award className="mx-auto mb-2 h-8 w-8 text-[#3375FF]" />
+        <div className="rounded-xl border border-[#3375FF]/20 bg-gradient-to-r from-[#3375FF]/5 to-[#A055FF]/5 p-6 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[#3375FF]/10">
+            <Award className="h-6 w-6 text-[#3375FF]" />
+          </div>
           <p className="text-lg font-bold text-[#3375FF]">
             {scores.percentileLabel}
           </p>
@@ -159,8 +174,19 @@ function DPIResultsContent() {
         </div>
       )}
 
-      {/* Radar */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      {/* ═══ SECTION 4 — Radar 6 axes ═══ */}
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          <Target className="h-3.5 w-3.5" />
+          Radar 6 axes
+        </div>
+        <h2 className="mb-3 text-2xl font-bold text-foreground">
+          Votre profil détaillé
+        </h2>
+        <p className="mb-6 text-sm text-muted-foreground">
+          Comparez votre profil actuel à vos projections et au top performer.
+        </p>
+
         <div className="mb-4 flex flex-wrap gap-2">
           {(["current", "3m", "6m", "9m", "potential"] as const).map((p) => (
             <button
@@ -184,13 +210,15 @@ function DPIResultsContent() {
         />
       </div>
 
-      {/* CA estimation */}
+      {/* ═══ SECTION 5 — Estimation CA additionnel ═══ */}
       {scores.estimatedCAGain.max > 0 && (
         <div className="rounded-xl border border-border bg-gradient-to-r from-[#3375FF]/5 to-[#A055FF]/5 p-6">
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <TrendingUp className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-foreground">Estimation CA additionnel</h3>
           </div>
+          <h3 className="mb-2 text-lg font-bold text-foreground">
+            Estimation CA additionnel
+          </h3>
           <p className="text-muted-foreground">
             En optimisant vos leviers, vous pourriez aller chercher entre{" "}
             <strong className="text-foreground">{formatCurrency(scores.estimatedCAGain.min)}</strong> et{" "}
@@ -200,41 +228,62 @@ function DPIResultsContent() {
         </div>
       )}
 
-      {/* Recommendations */}
+      {/* ═══ SECTION 6 — Axes d'amélioration prioritaires ═══ */}
       {weakAxes.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-foreground">Axes d'amélioration prioritaires</h3>
-          {weakAxes.map((axis) => (
-            <div
-              key={axis.id}
-              className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4"
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">{axis.label}</span>
-                <span className="text-sm font-bold text-orange-500">{axis.score}/100</span>
+        <div>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-orange-500/10 px-3 py-1 text-xs font-semibold text-orange-500">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Axes prioritaires
+          </div>
+          <h2 className="mb-3 text-2xl font-bold text-foreground">
+            Vos axes d&apos;amélioration prioritaires
+          </h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Les 3 axes les plus faibles à travailler en priorité.
+          </p>
+          <div className="space-y-3">
+            {weakAxes.map((axis) => (
+              <div
+                key={axis.id}
+                className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4"
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">{axis.label}</span>
+                  <span className="text-sm font-bold tabular-nums text-orange-500">
+                    {axis.score}/100
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {AXIS_RECOMMENDATIONS[axis.id]}
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {AXIS_RECOMMENDATIONS[axis.id]}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Projections NXT */}
+      {/* ═══ SECTION 7 — Projections NXT (composant intact) ═══ */}
       <DPIProjectionsCard
         currentAxes={scores.axes.map((a): DPIAxis => ({ id: a.id, label: a.label, score: a.score }))}
         currentGlobalScore={scores.globalScore}
         caBase={caBaseFromRange()}
       />
 
-      {/* Actions */}
-      <div className="space-y-3">
-        <div className="flex gap-3">
+      {/* ═══ SECTION 8 — Encart CTA conclusion (R8/R9) ═══ */}
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
+        <h3 className="mb-2 text-2xl font-bold text-foreground">
+          Continuez votre parcours
+        </h3>
+        <p className="mb-6 text-sm leading-relaxed text-muted-foreground">
+          Téléchargez votre rapport et créez votre compte pour piloter votre performance
+          en continu.
+        </p>
+
+        <div className="mb-4 flex gap-3">
           <button
             onClick={() => handleDownloadPDF("dark")}
             disabled={generatingPdf}
-            className="flex flex-1 h-12 items-center justify-center gap-2 rounded-xl bg-[#0a0c1e] px-4 text-sm font-semibold text-white transition-opacity hover:opacity-80 border border-white/10 disabled:opacity-50"
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#0a0c1e] px-4 text-sm font-semibold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
             PDF Dark
@@ -242,7 +291,7 @@ function DPIResultsContent() {
           <button
             onClick={() => handleDownloadPDF("white")}
             disabled={generatingPdf}
-            className="flex flex-1 h-12 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0a0c1e] transition-opacity hover:opacity-80 border border-gray-200 disabled:opacity-50"
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#0a0c1e] transition-opacity hover:opacity-80 disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
             PDF Pro
@@ -251,15 +300,21 @@ function DPIResultsContent() {
 
         <a
           href="/register"
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] font-semibold text-white transition-opacity hover:opacity-90"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
         >
           Créer mon compte NXT Performance
           <ArrowRight className="h-5 w-5" />
         </a>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          Sans engagement — 1 mois d&apos;essai complet
+        </p>
       </div>
 
+      {/* Subline finale */}
       <p className="text-center text-sm text-muted-foreground">
-        Ce diagnostic est une photographie. NXT Performance vous permet de piloter votre performance en continu.
+        Ce diagnostic est une photographie. NXT Performance vous permet de piloter votre
+        performance en continu.
       </p>
     </div>
   );
