@@ -13,6 +13,7 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { RatioDrillDownModal } from "@/components/dashboard/ratio-drill-down-modal";
 import { RATIO_ID_TO_EXPERTISE_ID, buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { RATIO_PERCENT_LABELS, formatRatioObjectiveValue, formatRatioCurrentValue } from "@/lib/ratio-labels";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { RatioId } from "@/types/ratios";
@@ -331,7 +332,9 @@ export default function PerformancePage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-semibold leading-tight text-foreground">
-                        {config.name}
+                        {viewMode === "pourcentages"
+                          ? RATIO_PERCENT_LABELS[ratio.ratioId as RatioId] ?? config.name
+                          : config.name}
                       </p>
                       <span
                         data-tooltip-id="ratio-tooltip"
@@ -356,14 +359,16 @@ export default function PerformancePage() {
                   {/* Current Value — neutral foreground (color is on the badge) */}
                   <p className="mt-3 text-3xl font-bold tabular-nums text-foreground">
                     {viewMode === "pourcentages"
-                      ? `${Math.round(ratio.percentageOfTarget)}%`
+                      ? formatRatioCurrentValue(ratio.ratioId as RatioId, ratio.value)
                       : config.isPercentage
                         ? `${Math.round(ratio.value)}%`
                         : ratio.value.toFixed(1)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {viewMode === "pourcentages" ? "de l'objectif" : config.unit}
-                  </p>
+                  {viewMode !== "pourcentages" && (
+                    <p className="text-xs text-muted-foreground">
+                      {config.unit}
+                    </p>
+                  )}
 
                   {/* Scoring badge vsMarket */}
                   <span
@@ -397,9 +402,11 @@ export default function PerformancePage() {
                       </span>
                     </div>
                     <span className="text-xs font-bold text-foreground">
-                      {config.isPercentage
-                        ? `${ratio.thresholdForCategory}%`
-                        : `${ratio.thresholdForCategory} ${config.unit}`}
+                      {viewMode === "pourcentages"
+                        ? formatRatioObjectiveValue(ratio.ratioId as RatioId, ratio.thresholdForCategory)
+                        : config.isPercentage
+                          ? `${ratio.thresholdForCategory}%`
+                          : `${ratio.thresholdForCategory} ${config.unit}`}
                     </span>
                   </div>
 

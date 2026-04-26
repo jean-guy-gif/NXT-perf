@@ -941,13 +941,13 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                       {/* Ratio */}
                       {showRatios && ratio && (
                         <div className={cn("flex flex-1 flex-col", showVolumes && "border-t border-border/20 pt-2 mt-1")}>
-                          <p className="text-[11px] text-foreground leading-snug">
+                          <p className="text-[11px] leading-snug text-foreground">
                             <span className="font-bold tabular-nums">{ratio.realise}</span> {ratio.from} → 1 {ratio.to}
                             {ratio.realisePct > 0 && (
                               <span className="text-muted-foreground"> · {ratio.realisePct}%</span>
                             )}
                           </p>
-                          <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
+                          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
                             Obj. {objLabel} : {ratio.objectif} → 1
                             {ratio.objectifPct > 0 && <span> · {ratio.objectifPct}%</span>}
                           </p>
