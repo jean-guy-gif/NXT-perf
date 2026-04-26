@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Target, ArrowRight, ArrowDown, ClipboardCheck, FileSignature, Eye, FileText, Handshake, FileCheck } from "lucide-react";
+import {
+  Target,
+  ArrowRight,
+  ArrowDown,
+  ClipboardCheck,
+  FileSignature,
+  Eye,
+  FileText,
+  Handshake,
+  FileCheck,
+} from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { calculateObjectiveBreakdown } from "@/lib/objectifs";
@@ -95,21 +105,22 @@ export default function OnboardingGpsPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-lg space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-              <Target className="h-7 w-7 text-primary" />
-            </div>
+      <div className="w-full max-w-2xl space-y-6">
+        {/* ═══ HEADER ═══ */}
+        <header className="text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Target className="h-3.5 w-3.5" />
+            Objectifs
           </div>
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {title}
+          </h1>
+          <p className="mt-3 text-muted-foreground">
             2 informations suffisent pour calculer vos objectifs, {firstName}
           </p>
-        </div>
+        </header>
 
-        {/* Profile badge */}
+        {/* Profile badge (info contextuelle inline) */}
         <div className="flex items-center justify-center gap-2">
           <span className="text-xs text-muted-foreground">Profil :</span>
           <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -161,7 +172,9 @@ export default function OnboardingGpsPage() {
 
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
               <p className="text-xs text-muted-foreground">Objectif CA Annuel</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(ca)}</p>
+              <p className="text-2xl font-bold tabular-nums text-primary">
+                {formatCurrency(ca)}
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -176,14 +189,14 @@ export default function OnboardingGpsPage() {
                     className="rounded-xl border border-border bg-card p-3"
                   >
                     <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <p className="text-xs text-muted-foreground">{step.label}</p>
                     </div>
-                    <p className="mt-1 text-xl font-bold text-foreground">
+                    <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                       {Math.round(value)}
                       <span className="text-xs font-normal text-muted-foreground">/an</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs tabular-nums text-muted-foreground">
                       ~{monthly}/mois
                     </p>
                   </div>
@@ -194,7 +207,9 @@ export default function OnboardingGpsPage() {
             {/* Exclusivity */}
             <div className="rounded-xl border border-border bg-card p-3 text-center">
               <p className="text-xs text-muted-foreground">% Exclusivité attendu</p>
-              <p className="text-lg font-bold text-foreground">{breakdown.pourcentageExclusivite}%</p>
+              <p className="text-lg font-bold tabular-nums text-foreground">
+                {breakdown.pourcentageExclusivite}%
+              </p>
             </div>
           </div>
         )}
@@ -206,19 +221,20 @@ export default function OnboardingGpsPage() {
             onClick={handleComplete}
             disabled={completing}
             className={cn(
-              "flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-semibold transition-colors disabled:opacity-50",
-              breakdown
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                : "bg-muted text-muted-foreground"
+              "inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50",
+              breakdown && "shadow-lg"
             )}
           >
-            <ArrowRight className="h-4 w-4" />
             {breakdown ? "Valider mes objectifs" : "Accéder à mon tableau de bord"}
+            <ArrowRight className="h-5 w-5" />
           </button>
+          <p className="text-xs text-muted-foreground">
+            Vous pourrez modifier ces objectifs plus tard
+          </p>
           <button
             type="button"
             onClick={handleSkip}
-            className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Passer cette étape
           </button>
