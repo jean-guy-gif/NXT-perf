@@ -9,6 +9,11 @@ import {
   Link2,
   Calendar,
   Target,
+  ArrowRight,
+  Check,
+  AlertTriangle,
+  X,
+  ListTodo,
 } from "lucide-react";
 import { ProductionChain } from "@/components/dashboard/production-chain";
 import { DPIEvolutionCard } from "@/components/dpi/dpi-evolution-card";
@@ -25,7 +30,6 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
 import { useWeeklyGate } from "@/hooks/use-weekly-gate";
 import { WeeklyGateWrapper } from "@/components/dashboard/weekly-gate-wrapper";
-import { useSupabaseResults } from "@/hooks/use-supabase-results";
 import { cn } from "@/lib/utils";
 import type { PeriodResults } from "@/types/results";
 import { usePersistedState } from "@/hooks/use-persisted-state";
@@ -107,10 +111,10 @@ function getVolumeStatus(realise: number, objectif: number): RatioStatus {
 }
 
 const STATUS_STYLE = {
-  surperf: { text: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/30", label: "Surperf" },
-  stable: { text: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/30", label: "Stable" },
-  sousperf: { text: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30", label: "Sous-perf" },
-};
+  surperf: { bg: "bg-emerald-500/10", text: "text-emerald-500", icon: Check, label: "Surperf" },
+  stable: { bg: "bg-orange-500/10", text: "text-orange-500", icon: AlertTriangle, label: "Stable" },
+  sousperf: { bg: "bg-red-500/10", text: "text-red-500", icon: X, label: "Sous-perf" },
+} as const;
 
 // ── Page ──────────────────────────────────────────────────────
 
@@ -132,7 +136,7 @@ function DashboardContent() {
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { currentAxes, currentGlobalScore } = useDPIEvolution();
   const { showGate, context: gateContext, isLoading: gateLoading, dismissGate, markSaisieDone, showResumeButton, reopenGate } = useWeeklyGate();
-  const { allPlans, activePlans, terminatedPlans, expiredPlans, totalActions, doneActions, inProgressActions } = usePlans();
+  const { allPlans, activePlans, terminatedPlans, expiredPlans, totalActions, doneActions } = usePlans();
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = usePersistedState<DashboardTab>("nxt-dashboard-tab-v2", "chaine");
@@ -142,7 +146,7 @@ function DashboardContent() {
   const [editingFavorites, setEditingFavorites] = useState(false);
 
   // Custom month range for "Par période" (whole months only)
-  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`; // "2026-04"
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const [customMonthFrom, setCustomMonthFrom] = usePersistedState<string>("nxt-chain-mfrom", currentMonthKey);
   const [customMonthTo, setCustomMonthTo] = usePersistedState<string>("nxt-chain-mto", currentMonthKey);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
@@ -155,34 +159,29 @@ function DashboardContent() {
     }
   }, [searchParams, setActiveTab]);
 
-  // Helper: count whole months between two "YYYY-MM" keys (inclusive)
   const countMonths = (from: string, to: string): number => {
     const [fy, fm] = from.split("-").map(Number);
     const [ty, tm] = to.split("-").map(Number);
     return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
   };
 
-  // Helper: format "YYYY-MM" → "janvier 2026"
   const fmtMonth = (key: string): string => {
     const [y, m] = key.split("-").map(Number);
     return new Date(y, m - 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   };
 
-  // Resolve period results
   const periodResults = useMemo((): PeriodResults | null => {
     if (!user) return null;
     if (periodFilter === "ytd") return ytdResults;
     if (periodFilter === "mois") return results;
-    // Custom: aggregate whole months in [customMonthFrom, customMonthTo]
     const matching = allResultsData.filter((r) => {
       if (r.userId !== user.id || r.periodType !== "month") return false;
-      const monthKey = r.periodStart.substring(0, 7); // "2026-02"
+      const monthKey = r.periodStart.substring(0, 7);
       return monthKey >= customMonthFrom && monthKey <= customMonthTo;
     });
     return aggregateResults(matching);
   }, [periodFilter, user, results, ytdResults, allResultsData, customMonthFrom, customMonthTo]);
 
-  // Period label
   const periodLabel = useMemo(() => {
     if (periodFilter === "ytd") return `Depuis le 1er janvier ${new Date().getFullYear()}`;
     if (periodFilter === "mois") {
@@ -193,26 +192,21 @@ function DashboardContent() {
     return `${fmtMonth(customMonthFrom)} → ${fmtMonth(customMonthTo)}`;
   }, [periodFilter, customMonthFrom, customMonthTo]);
 
-  // Custom period month count for display
   const customMonthCount = periodFilter === "custom" ? countMonths(customMonthFrom, customMonthTo) : 0;
 
-  // Month progress (for "mois" filter)
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const currentDay = now.getDate();
   const monthProgressPct = Math.round((currentDay / daysInMonth) * 100);
 
-  // Number of months for objective scaling (whole months, no prorata)
   const periodMonthCount = useMemo(() => {
     if (periodFilter === "mois") return 1;
     if (periodFilter === "ytd") return now.getMonth() + 1;
     return countMonths(customMonthFrom, customMonthTo);
-  }, [periodFilter, customMonthFrom, customMonthTo]);
+  }, [periodFilter, customMonthFrom, customMonthTo, now]);
 
-  // Category (safe even when user is null)
   const category = user?.category ?? "confirme";
 
-  // Favorite items data extraction from periodResults
   const favData = useMemo(() => {
     const r = periodResults;
     const contacts = r?.prospection.contactsTotaux ?? 0;
@@ -267,7 +261,6 @@ function DashboardContent() {
     setFavorites((prev) => prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]);
   };
 
-  // Demo saisie gate
   const showDemoGate = isDemo
     && searchParams.get("gate") === "1"
     && typeof document !== "undefined"
@@ -296,198 +289,210 @@ function DashboardContent() {
   // Empty state
   if (!results) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-5">
-          <LayoutDashboard className="h-8 w-8 text-primary/50" />
+      <section className="mx-auto max-w-3xl px-4 py-12">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <LayoutDashboard className="h-6 w-6 text-primary" />
+          </div>
+          <h2 className="mb-3 text-2xl font-bold text-foreground">
+            Bienvenue sur NXT Performance, {user.firstName}
+          </h2>
+          <p className="mb-6 max-w-md text-base leading-relaxed text-muted-foreground">
+            Commencez par saisir vos premiers résultats pour voir votre dashboard prendre vie.
+          </p>
+          <a
+            href="/saisie"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+          >
+            Faire ma première saisie
+            <ArrowRight className="h-5 w-5" />
+          </a>
         </div>
-        <h2 className="text-xl font-bold text-foreground mb-2">
-          Bienvenue sur NXT Performance, {user.firstName}
-        </h2>
-        <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-6">
-          Commencez par saisir vos premiers résultats pour voir votre dashboard prendre vie.
-        </p>
-        <a href="/saisie" className="inline-block rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-          Faire ma première saisie
-        </a>
-      </div>
+      </section>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* ── Top tabs ── */}
-      <div className="flex items-center border-b border-border/50 pb-3">
-        <div className="flex items-center gap-8">
-          <button
-            onClick={() => setActiveTab("chaine")}
-            className={cn(
-              "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-              activeTab === "chaine"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Link2 className="h-4 w-4" />
-            Chaîne de production
-          </button>
-          <button
-            onClick={() => setActiveTab("dpi")}
-            className={cn(
-              "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-              activeTab === "dpi"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Target className="h-4 w-4" />
-            Mon DPI
-          </button>
-          <button
-            onClick={() => setActiveTab("favoris")}
-            className={cn(
-              "flex items-center gap-2 pb-3 text-sm font-medium transition-colors",
-              activeTab === "favoris"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Star className="h-4 w-4" />
-            Favoris
-          </button>
-        </div>
-        {showResumeButton && (
-          <button type="button" onClick={reopenGate}
-            className="ml-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors">
-            Compléter ma saisie
-          </button>
-        )}
-      </div>
+  const planProgressPct = totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0;
 
-      {/* ═══ Bandeau Mes plans — cliquable ═══ */}
+  return (
+    <div>
+      {/* ═══ PAGE HEADER ═══ */}
+      <header className="mx-auto max-w-6xl px-4 pt-8 pb-6">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          <LayoutDashboard className="h-3.5 w-3.5" />
+          Mon cockpit
+        </div>
+        <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
+        <p className="mt-3 max-w-2xl text-muted-foreground">
+          Suivez votre chaîne de production, votre DPI et vos indicateurs favoris en un coup
+          d&apos;œil.
+        </p>
+      </header>
+
+      {/* ═══ BANDEAU MES PLANS (conditional) ═══ */}
       {allPlans.length > 0 && (
-        <>
+        <div className="mx-auto max-w-6xl px-4 pb-6 space-y-4">
           <button
             type="button"
             onClick={() => setShowPlansPanel(!showPlansPanel)}
-            className="w-full flex items-center justify-between border border-primary/20 bg-primary/5 px-5 py-3 hover:bg-primary/8 transition-all text-left"
-            style={{ borderRadius: "var(--radius-card)" }}
+            className="flex w-full items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:bg-primary/10"
           >
             <div className="flex items-center gap-3">
-              <span className="text-base">{"\uD83D\uDCC5"}</span>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <ListTodo className="h-5 w-5 text-primary" />
+              </div>
               <div>
-                <p className="text-xs font-bold text-foreground">
-                  {activePlans.length > 0 && <>{activePlans.length} plan{activePlans.length > 1 ? "s" : ""} actif{activePlans.length > 1 ? "s" : ""}</>}
+                <p className="text-sm font-semibold text-foreground">
+                  {activePlans.length > 0 && (
+                    <>{activePlans.length} plan{activePlans.length > 1 ? "s" : ""} actif{activePlans.length > 1 ? "s" : ""}</>
+                  )}
                   {activePlans.length > 0 && (terminatedPlans.length > 0 || expiredPlans.length > 0) && " · "}
-                  {terminatedPlans.length > 0 && <span className="text-green-500">{terminatedPlans.length} {"terminé"}{terminatedPlans.length > 1 ? "s" : ""}</span>}
-                  {expiredPlans.length > 0 && <span className="text-amber-500"> · {expiredPlans.length} {"expiré"}{expiredPlans.length > 1 ? "s" : ""}</span>}
+                  {terminatedPlans.length > 0 && (
+                    <span className="text-emerald-500">{terminatedPlans.length} terminé{terminatedPlans.length > 1 ? "s" : ""}</span>
+                  )}
+                  {expiredPlans.length > 0 && (
+                    <span className="text-orange-500"> · {expiredPlans.length} expiré{expiredPlans.length > 1 ? "s" : ""}</span>
+                  )}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {doneActions}/{totalActions} actions · {showPlansPanel ? "Cliquez pour fermer" : "Cliquez pour voir tous vos plans"}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-28">
-                <div className="h-2 rounded-full bg-border/30 overflow-hidden">
-                  <div className="h-full rounded-full bg-green-500 transition-all duration-500" style={{ width: `${totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%` }} />
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="w-24">
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${planProgressPct}%` }}
+                  />
                 </div>
               </div>
-              <span className="text-xs font-bold text-primary tabular-nums">
-                {totalActions > 0 ? Math.round((doneActions / totalActions) * 100) : 0}%
+              <span className="text-sm font-bold tabular-nums text-primary">
+                {planProgressPct}%
               </span>
             </div>
           </button>
 
-          {/* ═══ Panneau Mes plans ═══ */}
+          {/* Panneau Mes plans */}
           {showPlansPanel && (
-            <div className="rounded-xl border border-border bg-card p-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-sm font-bold text-foreground">Mes plans 30 jours</h3>
+            <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+              <h3 className="text-base font-bold text-foreground">Mes plans 30 jours</h3>
 
-              {/* Plans actifs */}
               {activePlans.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{"Actifs"}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">Actifs</p>
                   {activePlans.map((m) => <PlanCard key={m.ratioId} meta={m} />)}
                 </div>
               )}
 
-              {/* Plans terminés */}
               {terminatedPlans.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-green-500 uppercase tracking-wider">{"Terminés"}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-500">Terminés</p>
                   {terminatedPlans.map((m) => <PlanCard key={m.ratioId} meta={m} />)}
                 </div>
               )}
 
-              {/* Plans expirés */}
               {expiredPlans.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">{"Expirés"}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">Expirés</p>
                   {expiredPlans.map((m) => <PlanCard key={m.ratioId} meta={m} />)}
                 </div>
               )}
             </div>
           )}
-        </>
+        </div>
       )}
+
+      {/* ═══ TABS ═══ */}
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+            <TabButton active={activeTab === "chaine"} onClick={() => setActiveTab("chaine")} icon={Link2}>
+              Chaîne de production
+            </TabButton>
+            <TabButton active={activeTab === "dpi"} onClick={() => setActiveTab("dpi")} icon={Target}>
+              Mon DPI
+            </TabButton>
+            <TabButton active={activeTab === "favoris"} onClick={() => setActiveTab("favoris")} icon={Star}>
+              Favoris
+            </TabButton>
+          </div>
+          {showResumeButton && (
+            <button
+              type="button"
+              onClick={reopenGate}
+              className="inline-flex items-center gap-1.5 self-start rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              Compléter ma saisie
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* ═══════ TAB: CHAÎNE DE PRODUCTION ═══════ */}
       {activeTab === "chaine" && (
-        <div className="space-y-4">
-          {/* Period selector + context bar */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-primary/15 bg-primary/5 px-5 py-3.5" style={{ borderRadius: "var(--radius-card)" }}>
-            <div className="flex items-center gap-3">
-              <Calendar className="h-4.5 w-4.5 text-primary shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-foreground capitalize">{periodLabel}</p>
-                {periodFilter === "mois" && (
-                  <p className="text-xs text-muted-foreground">
-                    Jour {currentDay}/{daysInMonth} — {monthProgressPct}% du mois
-                  </p>
-                )}
-                {periodFilter === "ytd" && (
-                  <p className="text-xs text-muted-foreground">
-                    {now.getMonth() + 1} mois cumulés — profil {CATEGORY_LABELS[category]}
-                  </p>
-                )}
-                {periodFilter === "custom" && (
-                  <p className="text-xs text-muted-foreground">
-                    {customMonthCount} mois — profil {CATEGORY_LABELS[category]}
-                  </p>
-                )}
+        <section className="mx-auto max-w-6xl px-4 py-12">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Link2 className="h-3.5 w-3.5" />
+            Chaîne de production
+          </div>
+          <h2 className="mb-3 text-3xl font-bold text-foreground">
+            Votre flux de production
+          </h2>
+          <p className="mb-8 max-w-2xl text-muted-foreground">
+            Visualisez chaque étape de votre tunnel commercial, du contact au compromis.
+          </p>
+
+          {/* Period selector card */}
+          <div className="mb-4 rounded-xl border border-border bg-card p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Calendar className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold capitalize text-foreground">{periodLabel}</p>
+                  {periodFilter === "mois" && (
+                    <p className="text-xs text-muted-foreground">
+                      Jour {currentDay}/{daysInMonth} — {monthProgressPct}% du mois
+                    </p>
+                  )}
+                  {periodFilter === "ytd" && (
+                    <p className="text-xs text-muted-foreground">
+                      {now.getMonth() + 1} mois cumulés — profil {CATEGORY_LABELS[category]}
+                    </p>
+                  )}
+                  {periodFilter === "custom" && (
+                    <p className="text-xs text-muted-foreground">
+                      {customMonthCount} mois — profil {CATEGORY_LABELS[category]}
+                    </p>
+                  )}
+                </div>
               </div>
+              <PeriodPills
+                periodFilter={periodFilter}
+                onSelect={(p) => {
+                  setPeriodFilter(p);
+                  if (p !== "custom") setShowCustomPicker(false);
+                  else setShowCustomPicker((v) => !v);
+                }}
+              />
             </div>
-            <div className="flex items-center gap-1">
-              {/* Period pills */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1">
-                <button
-                  onClick={() => { setPeriodFilter("ytd"); setShowCustomPicker(false); }}
-                  className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    periodFilter === "ytd" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                >
-                  Depuis le début de l&apos;année
-                </button>
-                <button
-                  onClick={() => { setPeriodFilter("mois"); setShowCustomPicker(false); }}
-                  className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    periodFilter === "mois" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                >
-                  Ce mois-ci
-                </button>
-                <button
-                  onClick={() => { setPeriodFilter("custom"); setShowCustomPicker((v) => !v); }}
-                  className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    periodFilter === "custom" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                >
-                  Par période
-                </button>
+
+            {periodFilter === "mois" && (
+              <div className="mt-4 flex items-center gap-3">
+                <span className="shrink-0 text-xs text-muted-foreground">Progression du mois</span>
+                <div className="flex-1">
+                  <ProgressBar value={monthProgressPct} status="ok" showValue size="sm" />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Custom month range picker */}
           {periodFilter === "custom" && showCustomPicker && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 De
                 <input
@@ -510,23 +515,12 @@ function DashboardContent() {
                   className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
                 />
               </label>
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 {customMonthCount} mois
               </span>
             </div>
           )}
 
-          {/* Month progress bar for "mois" */}
-          {periodFilter === "mois" && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground shrink-0">Progression du mois</span>
-              <div className="flex-1">
-                <ProgressBar value={monthProgressPct} status="ok" showValue size="sm" />
-              </div>
-            </div>
-          )}
-
-          {/* ═══ PRODUCTION CHAIN ═══ */}
           <ProductionChain
             scope="individual"
             userId={user.id}
@@ -534,22 +528,25 @@ function DashboardContent() {
             periodMonths={periodMonthCount}
             periodMode={periodFilter === "ytd" ? "ytd" : periodFilter === "mois" ? "mois" : "custom"}
           />
-        </div>
+        </section>
       )}
 
       {/* ═══════ TAB: MON DPI ═══════ */}
       {activeTab === "dpi" && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">
-              Diagnostic de Performance Immobilière
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ton DPI initial vs courant, et les projections de progression
-              selon les outils NXT activés.
-            </p>
+        <section className="mx-auto max-w-5xl px-4 py-12">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Target className="h-3.5 w-3.5" />
+            Diagnostic
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <h2 className="mb-3 text-3xl font-bold text-foreground">
+            Mon Diagnostic de Performance Immobilière
+          </h2>
+          <p className="mb-8 max-w-2xl text-muted-foreground">
+            Votre DPI initial vs courant, et les projections de progression selon les outils
+            NXT activés.
+          </p>
+
+          <div className="grid gap-6 md:grid-cols-2">
             <DPIEvolutionCard />
             {currentAxes.length > 0 && (
               <DPIProjectionsCard
@@ -559,59 +556,71 @@ function DashboardContent() {
               />
             )}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ═══════ TAB: FAVORIS ═══════ */}
       {activeTab === "favoris" && (
-        <div className="space-y-6">
-          {/* Period selector (same as chain) */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1 rounded-lg bg-muted p-1">
-              <button onClick={() => { setPeriodFilter("ytd"); setShowCustomPicker(false); }}
-                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  periodFilter === "ytd" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                Depuis le début de l&apos;année
-              </button>
-              <button onClick={() => { setPeriodFilter("mois"); setShowCustomPicker(false); }}
-                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  periodFilter === "mois" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                Ce mois-ci
-              </button>
-              <button onClick={() => { setPeriodFilter("custom"); setShowCustomPicker((v) => !v); }}
-                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  periodFilter === "custom" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                Par période
-              </button>
-            </div>
+        <section className="mx-auto max-w-6xl px-4 py-12">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Star className="h-3.5 w-3.5" />
+            Favoris
+          </div>
+          <h2 className="mb-3 text-3xl font-bold text-foreground">
+            Vos indicateurs favoris
+          </h2>
+          <p className="mb-8 max-w-2xl text-muted-foreground capitalize">
+            {periodLabel} — profil {CATEGORY_LABELS[category]}
+          </p>
+
+          {/* Control bar */}
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <PeriodPills
+              periodFilter={periodFilter}
+              onSelect={(p) => {
+                setPeriodFilter(p);
+                if (p !== "custom") setShowCustomPicker(false);
+                else setShowCustomPicker((v) => !v);
+              }}
+            />
             <button
               onClick={() => setEditingFavorites(!editingFavorites)}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                "inline-flex items-center gap-2 self-start rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                 editingFavorites
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "border border-border text-foreground hover:bg-muted"
               )}
             >
-              {editingFavorites ? <><Star className="h-4 w-4" /> Terminer</> : <><Star className="h-4 w-4" /> Personnaliser</>}
+              <Star className="h-4 w-4" />
+              {editingFavorites ? "Terminer" : "Personnaliser"}
             </button>
           </div>
 
-          {/* Edit mode: picker */}
+          {/* Edit mode picker */}
           {editingFavorites && (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-4">
+            <div className="mb-6 space-y-6 rounded-xl border border-border bg-card p-6">
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-primary">
                   Volumes ({favorites.filter((f) => f.startsWith("vol_")).length}/12)
-                </h3>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                </p>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
                   {allFavoriteItems.filter((f) => f.group === "volume").map((w) => {
                     const active = favorites.includes(w.id);
                     return (
-                      <button key={w.id} onClick={() => toggleFavorite(w.id)}
-                        className={cn("flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors",
-                          active ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted")}>
-                        {active ? <Star className="h-3.5 w-3.5 shrink-0 text-primary fill-primary" /> : <StarOff className="h-3.5 w-3.5 shrink-0" />}
+                      <button
+                        key={w.id}
+                        onClick={() => toggleFavorite(w.id)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors",
+                          active
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {active
+                          ? <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />
+                          : <StarOff className="h-3.5 w-3.5 shrink-0" />}
                         <span className="truncate">{w.label}</span>
                       </button>
                     );
@@ -619,17 +628,26 @@ function DashboardContent() {
                 </div>
               </div>
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-primary">
                   Ratios ({favorites.filter((f) => f.startsWith("ratio_")).length}/7)
-                </h3>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                </p>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
                   {allFavoriteItems.filter((f) => f.group === "ratio").map((w) => {
                     const active = favorites.includes(w.id);
                     return (
-                      <button key={w.id} onClick={() => toggleFavorite(w.id)}
-                        className={cn("flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors",
-                          active ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted")}>
-                        {active ? <Star className="h-3.5 w-3.5 shrink-0 text-primary fill-primary" /> : <StarOff className="h-3.5 w-3.5 shrink-0" />}
+                      <button
+                        key={w.id}
+                        onClick={() => toggleFavorite(w.id)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors",
+                          active
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {active
+                          ? <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />
+                          : <StarOff className="h-3.5 w-3.5 shrink-0" />}
                         <span className="truncate">{w.label}</span>
                       </button>
                     );
@@ -639,37 +657,44 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* Period label */}
-          <p className="text-xs text-muted-foreground capitalize">{periodLabel} — profil {CATEGORY_LABELS[category]}</p>
-
-          {/* Favorite cards */}
+          {/* Favorite cards grid */}
           {favorites.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {favorites.map((fid) => {
                 const isVolume = fid.startsWith("vol_");
                 if (isVolume) {
                   const vol = favData.volumes[fid];
                   if (!vol) return null;
-                  const status = vol.unit === "%" ? getRatioStatus(vol.realise, vol.objectif, false) : getVolumeStatus(vol.realise, vol.objectif);
+                  const status = vol.unit === "%"
+                    ? getRatioStatus(vol.realise, vol.objectif, false)
+                    : getVolumeStatus(vol.realise, vol.objectif);
                   const s = STATUS_STYLE[status];
+                  const StatusIcon = s.icon;
                   const delta = vol.realise - vol.objectif;
-                  const fmtVal = (v: number) => vol.unit === "€" ? formatCurrency(v) : vol.unit === "%" ? `${v}%` : String(v);
+                  const fmtVal = (v: number) =>
+                    vol.unit === "€" ? formatCurrency(v) : vol.unit === "%" ? `${v}%` : String(v);
 
                   return (
-                    <div key={fid} className={cn("border p-4 space-y-2.5", s.border, s.bg)} style={{ borderRadius: "var(--radius-card)", boxShadow: "var(--shadow-1)" }}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-foreground">{vol.label}</p>
-                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", s.text, s.bg)}>{s.label}</span>
+                    <div key={fid} className="rounded-xl border border-border bg-card p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">{vol.label}</p>
+                        <span className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+                          s.bg, s.text
+                        )}>
+                          <StatusIcon className="h-3 w-3" />
+                          {s.label}
+                        </span>
                       </div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-2xl font-extrabold text-foreground tracking-tight tabular-nums">{fmtVal(vol.realise)}</span>
-                        <div className="text-right">
-                          <span className="text-[10px] text-muted-foreground">obj. {fmtVal(vol.objectif)}</span>
-                          <p className={cn("text-xs font-bold tabular-nums", s.text)}>
-                            {delta >= 0 ? "+" : ""}{fmtVal(delta)}
-                          </p>
-                        </div>
-                      </div>
+                      <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
+                        {fmtVal(vol.realise)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Obj. {fmtVal(vol.objectif)} ·{" "}
+                        <span className={cn("font-semibold tabular-nums", s.text)}>
+                          {delta >= 0 ? "+" : ""}{fmtVal(delta)}
+                        </span>
+                      </p>
                     </div>
                   );
                 }
@@ -679,18 +704,30 @@ function DashboardContent() {
                 if (!ratio) return null;
                 const status = getRatioStatus(ratio.realise, ratio.objectif, ratio.isLowerBetter);
                 const s = STATUS_STYLE[status];
+                const StatusIcon = s.icon;
 
                 return (
-                  <div key={fid} className={cn("border p-4 space-y-2.5", s.border, s.bg)} style={{ borderRadius: "var(--radius-card)", boxShadow: "var(--shadow-1)" }}>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-foreground">{ratio.label}</p>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", s.text, s.bg)}>{s.label}</span>
+                  <div key={fid} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">{ratio.label}</p>
+                      <span className={cn(
+                        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+                        s.bg, s.text
+                      )}>
+                        <StatusIcon className="h-3 w-3" />
+                        {s.label}
+                      </span>
                     </div>
-                    <p className="text-sm text-foreground">
-                      {"Réalisé : "}<span className="font-bold tabular-nums">{ratio.realise}</span> pour 1
-                      {ratio.realisePct > 0 && <span className="text-muted-foreground"> · {ratio.realisePct}%</span>}
+                    <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
+                      {ratio.realise}
+                      <span className="ml-1 text-sm font-normal text-muted-foreground">pour 1</span>
+                      {ratio.realisePct > 0 && (
+                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                          · {ratio.realisePct}%
+                        </span>
+                      )}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Obj. {CATEGORY_LABELS[category]} : {ratio.objectif} pour 1
                       {ratio.objectifPct > 0 && <span> · {ratio.objectifPct}%</span>}
                     </p>
@@ -699,35 +736,117 @@ function DashboardContent() {
               })}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
-              <StarOff className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">
-                Aucun favori sélectionné. Cliquez sur <strong>Personnaliser</strong> pour choisir vos indicateurs.
+            <div className="rounded-xl border border-border bg-muted/30 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <StarOff className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Aucun favori sélectionné. Cliquez sur{" "}
+                <span className="font-semibold text-foreground">Personnaliser</span>{" "}
+                pour choisir vos indicateurs.
               </p>
             </div>
           )}
-        </div>
+        </section>
       )}
-
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Plan Card (for "Mes plans" panel)                                  */
+/*  TabButton                                                          */
+/* ------------------------------------------------------------------ */
+
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {children}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  PeriodPills (shared between Chaîne and Favoris)                    */
+/* ------------------------------------------------------------------ */
+
+function PeriodPills({
+  periodFilter,
+  onSelect,
+}: {
+  periodFilter: PeriodFilter;
+  onSelect: (p: PeriodFilter) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+      <button
+        onClick={() => onSelect("ytd")}
+        className={cn(
+          "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+          periodFilter === "ytd"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        Depuis le début de l&apos;année
+      </button>
+      <button
+        onClick={() => onSelect("mois")}
+        className={cn(
+          "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+          periodFilter === "mois"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        Ce mois-ci
+      </button>
+      <button
+        onClick={() => onSelect("custom")}
+        className={cn(
+          "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+          periodFilter === "custom"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        Par période
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Plan Card (for "Mes plans" panel) — intact (logique métier)        */
 /* ------------------------------------------------------------------ */
 
 function PlanCard({ meta }: { meta: PlanWithMeta }) {
   const [showDetail, setShowDetail] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const { getPlan, updateActionStatus } = usePlans();
-  // Read fresh plan data from hook (not just from prop snapshot)
   const freshPlan = getPlan(meta.ratioId) ?? meta.plan;
   const area = freshPlan.priorities[0]?.label ?? "Performance";
   const created = meta.createdAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
   const ends = meta.endsAt.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
   const canFeedback = meta.status === "termine" || meta.status === "expire";
-  // Recompute fresh stats for feedback
   const freshAllActions = freshPlan.weeks.flatMap((w) => w.actions);
   const freshDone = freshAllActions.filter((a) => a.status === "done").length;
   const freshTotal = freshAllActions.length;
@@ -736,16 +855,16 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
   const feedback = canFeedback ? generatePlanFeedback(freshMeta) : null;
 
   const RATIO_LABELS: Record<string, string> = {
-    contacts_rdv: "Contacts \u2192 RDV", rdv_mandats: "RDV \u2192 Mandats",
-    pct_mandats_exclusifs: "% Exclusivit\u00E9", acheteurs_visites: "Acheteurs \u2192 Visites",
-    visites_offre: "Visites \u2192 Offre", offres_compromis: "Offres \u2192 Compromis",
-    compromis_actes: "Compromis \u2192 Acte", honoraires_moyens: "Honoraires moyens",
+    contacts_rdv: "Contacts → RDV", rdv_mandats: "RDV → Mandats",
+    pct_mandats_exclusifs: "% Exclusivité", acheteurs_visites: "Acheteurs → Visites",
+    visites_offre: "Visites → Offre", offres_compromis: "Offres → Compromis",
+    compromis_actes: "Compromis → Acte", honoraires_moyens: "Honoraires moyens",
   };
 
   const statusStyle = {
     actif: { bg: "bg-primary/10", text: "text-primary", label: "Actif" },
-    termine: { bg: "bg-green-500/10", text: "text-green-500", label: "Terminé" },
-    expire: { bg: "bg-amber-500/10", text: "text-amber-500", label: "Expiré" },
+    termine: { bg: "bg-emerald-500/10", text: "text-emerald-500", label: "Terminé" },
+    expire: { bg: "bg-orange-500/10", text: "text-orange-500", label: "Expiré" },
   }[meta.status];
 
   const cycleStatus = (actionId: string, current: string) => {
@@ -754,12 +873,12 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+    <div className="rounded-lg border border-border bg-background p-3 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <p className="text-xs font-bold text-foreground">{area}</p>
-          <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold", statusStyle.bg, statusStyle.text)}>
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", statusStyle.bg, statusStyle.text)}>
             {statusStyle.label}
           </span>
         </div>
@@ -770,8 +889,8 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
 
       {/* Dates */}
       <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-        <span>{"Créé le"} {created}</span>
-        <span>{"Fin le"} {ends}</span>
+        <span>Créé le {created}</span>
+        <span>Fin le {ends}</span>
         {meta.status === "actif" && (
           <span className="font-bold text-primary">{meta.daysRemaining}j restants</span>
         )}
@@ -779,8 +898,8 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
 
       {/* Progress */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
-          <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${freshPct}%` }} />
+        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${freshPct}%` }} />
         </div>
         <span className="text-[10px] font-bold text-foreground">{freshPct}%</span>
         <span className="text-[10px] text-muted-foreground">{freshDone}/{freshTotal}</span>
@@ -794,7 +913,7 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
         </button>
         {canFeedback && (
           <button type="button" onClick={() => { setShowFeedback(!showFeedback); setShowDetail(false); }}
-            className="flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-[10px] font-bold text-green-600 hover:bg-green-500/20 transition-colors">
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/20 transition-colors">
             {showFeedback ? "Masquer le bilan" : "Bilan NXT Coaching — Offert"}
           </button>
         )}
@@ -804,8 +923,8 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
       {showDetail && (
         <div className="space-y-2 pt-1">
           {freshPlan.weeks.map((week) => (
-            <div key={week.weekNumber} className="rounded-lg bg-card border border-border/50 p-2.5">
-              <p className="text-[9px] font-bold text-primary uppercase mb-1.5">Semaine {week.weekNumber}</p>
+            <div key={week.weekNumber} className="rounded-lg border border-border bg-card p-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1.5">Semaine {week.weekNumber}</p>
               <div className="space-y-1">
                 {week.actions.map((action) => (
                   <button key={action.id} type="button"
@@ -814,15 +933,15 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
                       action.status === "done" && "opacity-60")}
                   >
                     <span className="shrink-0 text-sm mt-0.5">
-                      {action.status === "done" ? "\u2705" : action.status === "in_progress" ? "\uD83D\uDD04" : "\u2B1C"}
+                      {action.status === "done" ? "✅" : action.status === "in_progress" ? "🔄" : "⬜"}
                     </span>
                     <span className={cn("text-[10px] leading-snug flex-1",
                       action.status === "done" ? "text-muted-foreground line-through" : "text-foreground")}>
                       {action.label}
                     </span>
-                    <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold",
-                      action.status === "done" ? "bg-green-500/15 text-green-500"
-                        : action.status === "in_progress" ? "bg-amber-500/15 text-amber-500"
+                    <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                      action.status === "done" ? "bg-emerald-500/10 text-emerald-500"
+                        : action.status === "in_progress" ? "bg-orange-500/10 text-orange-500"
                           : "bg-muted text-muted-foreground")}>
                       {action.status === "done" ? "Terminé" : action.status === "in_progress" ? "En cours" : "À faire"}
                     </span>
@@ -836,20 +955,19 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
 
       {/* Feedback NXT Coaching */}
       {showFeedback && feedback && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-base">{"\uD83C\uDFAF"}</span>
             <p className="text-xs font-bold text-foreground">{feedback.title}</p>
-            <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[8px] font-bold text-green-600 uppercase">Offert</span>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-600">Offert</span>
           </div>
           <p className="text-[10px] text-muted-foreground">{feedback.summary}</p>
           {feedback.doneList.length > 0 && (
             <div>
-              <p className="text-[9px] font-bold text-green-600 uppercase mb-1">{"Réalisé"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Réalisé</p>
               <ul className="space-y-0.5">
                 {feedback.doneList.slice(0, 5).map((a, i) => (
                   <li key={i} className="text-[10px] text-foreground flex items-start gap-1.5">
-                    <span className="text-green-500 shrink-0">{"✓"}</span>{a}
+                    <span className="text-emerald-500 shrink-0">✓</span>{a}
                   </li>
                 ))}
                 {feedback.doneList.length > 5 && <li className="text-[10px] text-muted-foreground">+{feedback.doneList.length - 5} autres</li>}
@@ -858,19 +976,19 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
           )}
           {feedback.missedList.length > 0 && (
             <div>
-              <p className="text-[9px] font-bold text-amber-500 uppercase mb-1">{"Non réalisé"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-orange-500 mb-1">Non réalisé</p>
               <ul className="space-y-0.5">
                 {feedback.missedList.slice(0, 3).map((a, i) => (
                   <li key={i} className="text-[10px] text-muted-foreground flex items-start gap-1.5">
-                    <span className="text-amber-500 shrink-0">{"○"}</span>{a}
+                    <span className="text-orange-500 shrink-0">○</span>{a}
                   </li>
                 ))}
                 {feedback.missedList.length > 3 && <li className="text-[10px] text-muted-foreground">+{feedback.missedList.length - 3} autres</li>}
               </ul>
             </div>
           )}
-          <div className="rounded-lg bg-card border border-border p-2.5">
-            <p className="text-[9px] font-bold text-primary uppercase mb-1">{"Recommandation NXT Coaching"}</p>
+          <div className="rounded-lg border border-border bg-card p-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">Recommandation NXT Coaching</p>
             <p className="text-[10px] text-foreground">{feedback.recommendation}</p>
           </div>
         </div>
@@ -878,4 +996,3 @@ function PlanCard({ meta }: { meta: PlanWithMeta }) {
     </div>
   );
 }
-
