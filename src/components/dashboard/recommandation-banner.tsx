@@ -58,7 +58,7 @@ const PRIORITY_COLORS = {
 
 const FORMATION_LINKS: Record<string, string> = {
   conseiller: "/formation",
-  manager: "/manager/formation-collective",
+  manager: "/manager/formation",
   directeur: "/directeur/formation-collective",
 };
 

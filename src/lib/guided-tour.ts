@@ -108,8 +108,8 @@ const managerSteps: TourStep[] = [
     description: "Ici, tu visualises le classement de tes conseillers et tu identifies les meilleurs performers et les axes de progression.",
   },
   {
-    target: '[href="/manager/formation-collective"]',
-    title: "Formation collective",
+    target: '[href="/manager/formation"]',
+    title: "Ma Formation",
     description: "Ici, tu identifies les priorités de formation pour ton équipe en fonction des faiblesses collectives détectées par les ratios.",
   },
 ];
