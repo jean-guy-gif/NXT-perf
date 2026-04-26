@@ -21,24 +21,39 @@ import {
   CalendarCheck,
   Wallet,
   FileText,
+  ArrowRight,
 } from "lucide-react";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 
 type FormationTab = "diagnostic" | "plan30" | "entrainer" | "financement" | "catalogue";
 
 const priorityConfig = {
-  1: { label: "P1", color: "bg-red-500/20 text-red-500", border: "border-red-500/30" },
-  2: { label: "P2", color: "bg-orange-500/20 text-orange-500", border: "border-orange-500/30" },
-  3: { label: "P3", color: "bg-yellow-500/20 text-yellow-400", border: "border-yellow-500/30" },
+  1: { label: "P1", color: "bg-red-500/10 text-red-500" },
+  2: { label: "P2", color: "bg-orange-500/10 text-orange-500" },
+  3: { label: "P3", color: "bg-yellow-500/10 text-yellow-500" },
 } as const;
 
 const statusConfig = {
-  ok: { icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10", label: "Bon niveau" },
-  warning: { icon: AlertTriangle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Vigilance" },
-  danger: { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10", label: "Action requise" },
+  ok: {
+    icon: CheckCircle,
+    iconColor: "text-green-500",
+    iconBg: "bg-green-500/10",
+    label: "Bon niveau",
+  },
+  warning: {
+    icon: AlertTriangle,
+    iconColor: "text-orange-500",
+    iconBg: "bg-orange-500/10",
+    label: "Vigilance",
+  },
+  danger: {
+    icon: XCircle,
+    iconColor: "text-red-500",
+    iconBg: "bg-red-500/10",
+    label: "Action requise",
+  },
 };
 
-// Catalogue des formations pour le dropdown AGEFICE
 const formationCatalogOptions = [
   "Prospection immobilière",
   "Estimation et prise de mandat",
@@ -60,26 +75,40 @@ export default function FormationPage() {
 
   if (!diagnostic) {
     return (
-      <LockedFeature feature="formation" featureName="Ma Formation" featureDescription="Identifiez vos axes d'amélioration et progressez">
-        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-5">
-            <BookOpen className="h-8 w-8 text-primary/50" />
+      <LockedFeature
+        feature="formation"
+        featureName="Ma Formation"
+        featureDescription="Identifiez vos axes d'amélioration et progressez"
+      >
+        <section className="mx-auto max-w-3xl px-4 py-12">
+          <div className="flex flex-col items-center text-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <BookOpen className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="mb-3 text-2xl font-bold text-foreground">
+              Votre plan de formation personnalisé
+            </h2>
+            <p className="mb-6 max-w-md text-base leading-relaxed text-muted-foreground">
+              Votre diagnostic sera généré après votre première saisie de résultats. Il
+              identifiera vos axes de progression prioritaires.
+            </p>
+            <a
+              href="/saisie"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+            >
+              Faire ma première saisie
+              <ArrowRight className="h-5 w-5" />
+            </a>
           </div>
-          <h2 className="text-lg font-bold text-foreground mb-2">Votre plan de formation personnalisé</h2>
-          <p className="text-sm text-muted-foreground max-w-sm leading-relaxed mb-6">
-            Votre diagnostic sera généré après votre première saisie de résultats. Il identifiera vos axes de progression prioritaires.
-          </p>
-          <a href="/saisie" className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-            Faire ma première saisie
-          </a>
-        </div>
+        </section>
       </LockedFeature>
     );
   }
 
   const StatusIcon = statusConfig[diagnostic.overallStatus].icon;
+  const statusCfg = statusConfig[diagnostic.overallStatus];
 
-  // Points d'amélioration basés sur le diagnostic
+  // Points d'amélioration (priorités hautes/moyennes)
   const weakPoints = diagnostic.recommendations.filter((r) => r.priority <= 2);
 
   // Options pour le dropdown AGEFICE (priorités + catalogue)
@@ -92,455 +121,456 @@ export default function FormationPage() {
   ];
 
   return (
-    <LockedFeature feature="formation" featureName="Ma Formation" featureDescription="Accédez à votre plan de formation personnalisé">
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Ma Formation</h1>
-
-      {/* Outils pour progresser */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Outils pour progresser</h2>
-        <ImprovementCatalogue />
-      </section>
-
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1">
-        <button
-          onClick={() => setActiveTab("diagnostic")}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "diagnostic"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Target className="h-4 w-4" />
-          Diagnostic
-        </button>
-        <button
-          onClick={() => setActiveTab("plan30")}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "plan30"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <CalendarCheck className="h-4 w-4" />
-          Plan 30 jours
-        </button>
-        <button
-          onClick={() => setActiveTab("entrainer")}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "entrainer"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Dumbbell className="h-4 w-4" />
-          S&apos;entraîner
-        </button>
-        <button
-          onClick={() => setActiveTab("financement")}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "financement"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Wallet className="h-4 w-4" />
-          Financement
-        </button>
-        <button
-          onClick={() => setActiveTab("catalogue")}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "catalogue"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <ExternalLink className="h-4 w-4" />
-          Catalogue
-        </button>
-      </div>
-
-      {/* ========== DIAGNOSTIC ========== */}
-      {activeTab === "diagnostic" && (
-        <>
-          {/* Diagnostic Summary */}
-          <div
-            className={cn(
-              "rounded-[14px] border p-6 shadow-[var(--shadow-1)]",
-              diagnostic.overallStatus === "ok"
-                ? "border-green-500/30 bg-green-500/8"
-                : diagnostic.overallStatus === "warning"
-                  ? "border-orange-500/30 bg-orange-500/8"
-                  : "border-red-500/30 bg-red-500/8"
-            )}
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-full",
-                  statusConfig[diagnostic.overallStatus].bg
-                )}
-              >
-                <StatusIcon
-                  className={cn("h-6 w-6", statusConfig[diagnostic.overallStatus].color)}
-                />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Diagnostic synthétique
-                </h2>
-                <p className={cn("text-sm", statusConfig[diagnostic.overallStatus].color)}>
-                  {statusConfig[diagnostic.overallStatus].label}
-                </p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {diagnostic.recommendations.length === 0
-                ? "Félicitations ! Tous vos ratios sont conformes aux objectifs de votre catégorie."
-                : `${diagnostic.recommendations.length} domaine(s) de formation identifié(s). ${diagnostic.recommendations.filter((r) => r.priority === 1).length} priorité(s) haute(s).`}
-            </p>
+    <LockedFeature
+      feature="formation"
+      featureName="Ma Formation"
+      featureDescription="Accédez à votre plan de formation personnalisé"
+    >
+      <div>
+        {/* PAGE HEADER */}
+        <header className="mx-auto max-w-6xl px-4 pt-8 pb-6">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Target className="h-3.5 w-3.5" />
+            Plan personnalisé
           </div>
+          <h1 className="text-3xl font-bold text-foreground">Ma Formation</h1>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Identifiez vos axes faibles, suivez votre plan 30 jours, entraînez-vous sur les
+            bons leviers et financez vos formations.
+          </p>
+        </header>
 
-          {/* Recommendations */}
-          {diagnostic.recommendations.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                Recommandations de formation
+        {/* TABS */}
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+            <TabButton
+              active={activeTab === "diagnostic"}
+              onClick={() => setActiveTab("diagnostic")}
+              icon={Target}
+            >
+              Diagnostic
+            </TabButton>
+            <TabButton
+              active={activeTab === "plan30"}
+              onClick={() => setActiveTab("plan30")}
+              icon={CalendarCheck}
+            >
+              Plan 30 jours
+            </TabButton>
+            <TabButton
+              active={activeTab === "entrainer"}
+              onClick={() => setActiveTab("entrainer")}
+              icon={Dumbbell}
+            >
+              S&apos;entraîner
+            </TabButton>
+            <TabButton
+              active={activeTab === "financement"}
+              onClick={() => setActiveTab("financement")}
+              icon={Wallet}
+            >
+              Financement
+            </TabButton>
+            <TabButton
+              active={activeTab === "catalogue"}
+              onClick={() => setActiveTab("catalogue")}
+              icon={ExternalLink}
+            >
+              Catalogue
+            </TabButton>
+          </div>
+        </div>
+
+        {/* ========== DIAGNOSTIC ========== */}
+        {activeTab === "diagnostic" && (
+          <>
+            {/* Section 3 — Bilan synthétique */}
+            <section className="mx-auto max-w-5xl px-4 py-12">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Target className="h-3.5 w-3.5" />
+                Diagnostic
+              </div>
+              <h2 className="mb-3 text-3xl font-bold text-foreground">
+                Votre bilan synthétique
               </h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {diagnostic.recommendations.map((rec) => {
-                  const pConfig = priorityConfig[rec.priority];
-                  return (
-                    <div
-                      key={rec.area}
-                      className={cn(
-                        "rounded-[14px] border bg-card p-5 shadow-[var(--shadow-1)]",
-                        pConfig.border
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <h3 className="font-semibold text-foreground">
+              <p className="mb-6 max-w-2xl text-muted-foreground">
+                Vue d&apos;ensemble de la santé de vos ratios ce mois-ci.
+              </p>
+
+              <div className="rounded-xl border border-border bg-card p-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
+                      statusCfg.iconBg
+                    )}
+                  >
+                    <StatusIcon className={cn("h-6 w-6", statusCfg.iconColor)} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="mb-2 text-2xl font-bold text-foreground">
+                      Diagnostic synthétique
+                    </h3>
+                    <p className={cn("mb-3 text-sm font-semibold", statusCfg.iconColor)}>
+                      {statusCfg.label}
+                    </p>
+                    <p className="text-base leading-relaxed text-muted-foreground">
+                      {diagnostic.recommendations.length === 0
+                        ? "Félicitations ! Tous vos ratios sont conformes aux objectifs de votre catégorie."
+                        : `${diagnostic.recommendations.length} domaine(s) de formation identifié(s). ${diagnostic.recommendations.filter((r) => r.priority === 1).length} priorité(s) haute(s).`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 4 — Recommandations */}
+            {diagnostic.recommendations.length > 0 && (
+              <section className="mx-auto max-w-5xl px-4 py-12">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Recommandations
+                </div>
+                <h2 className="mb-3 text-3xl font-bold text-foreground">
+                  Vos axes de formation prioritaires
+                </h2>
+                <p className="mb-8 max-w-2xl text-muted-foreground">
+                  Chaque carte indique un domaine à travailler, son niveau actuel et
+                  l&apos;objectif à atteindre, classés P1 à P3.
+                </p>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {diagnostic.recommendations.map((rec) => {
+                    const pConfig = priorityConfig[rec.priority];
+                    return (
+                      <div
+                        key={rec.area}
+                        className="rounded-xl border border-border bg-card p-6"
+                      >
+                        <div className="mb-4 flex items-start justify-between">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                          </div>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-bold",
+                              pConfig.color
+                            )}
+                          >
+                            {pConfig.label}
+                          </span>
+                        </div>
+
+                        <h3 className="mb-3 text-base font-bold text-foreground">
+                          {rec.label}
+                        </h3>
+
+                        <div className="mb-3 space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Actuel</span>
+                            <span className="font-medium tabular-nums text-foreground">
+                              {rec.currentRatio.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Objectif</span>
+                            <span className="font-medium tabular-nums text-foreground">
+                              {rec.targetRatio}
+                            </span>
+                          </div>
+                        </div>
+
+                        <ProgressBar
+                          value={
+                            rec.targetRatio > 0
+                              ? (rec.currentRatio / rec.targetRatio) * 100
+                              : 0
+                          }
+                          status={
+                            rec.priority === 1
+                              ? "danger"
+                              : rec.priority === 2
+                                ? "warning"
+                                : "ok"
+                          }
+                          showValue
+                          size="sm"
+                          className="mb-3"
+                        />
+
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          {rec.description}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Section Outils — déplacée dans Diagnostic */}
+            <section className="mx-auto max-w-6xl px-4 py-12">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                Outils
+              </div>
+              <h2 className="mb-3 text-3xl font-bold text-foreground">
+                Pour progresser dès aujourd&apos;hui
+              </h2>
+              <p className="mb-8 max-w-2xl text-muted-foreground">
+                Modules de formation accessibles immédiatement, sans attendre votre
+                prochain diagnostic.
+              </p>
+              <ImprovementCatalogue />
+            </section>
+          </>
+        )}
+
+        {/* ========== PLAN 30 JOURS ========== */}
+        {activeTab === "plan30" && (
+          <section className="mx-auto max-w-6xl px-4 py-12">
+            <Plan30Jours />
+          </section>
+        )}
+
+        {/* ========== S'ENTRAÎNER ========== */}
+        {activeTab === "entrainer" && (
+          <>
+            {weakPoints.length > 0 ? (
+              <>
+                {/* Section 5 — Axes faibles à entraîner */}
+                <section className="mx-auto max-w-5xl px-4 py-12">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    <Dumbbell className="h-3.5 w-3.5" />
+                    Entraînement
+                  </div>
+                  <h2 className="mb-3 text-3xl font-bold text-foreground">
+                    Travaillez vos points d&apos;amélioration
+                  </h2>
+                  <p className="mb-8 max-w-2xl text-muted-foreground">
+                    {weakPoints.length} domaine(s) prioritaire(s) à travailler. Lancez une
+                    session ciblée sur la plateforme NXT Training.
+                  </p>
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {weakPoints.map((rec) => {
+                      const pConfig = priorityConfig[rec.priority];
+                      return (
+                        <div
+                          key={rec.area}
+                          className="rounded-xl border border-border bg-card p-6"
+                        >
+                          <div className="mb-4 flex items-start justify-between">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
+                              <Dumbbell className="h-5 w-5 text-primary" />
+                            </div>
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-xs font-bold",
+                                pConfig.color
+                              )}
+                            >
+                              {pConfig.label}
+                            </span>
+                          </div>
+
+                          <h3 className="mb-3 text-base font-bold text-foreground">
                             {rec.label}
                           </h3>
+
+                          <ProgressBar
+                            value={
+                              rec.targetRatio > 0
+                                ? (rec.currentRatio / rec.targetRatio) * 100
+                                : 0
+                            }
+                            status={rec.priority === 1 ? "danger" : "warning"}
+                            showValue
+                            size="sm"
+                            className="mb-3"
+                          />
+
+                          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+                            {rec.description}
+                          </p>
+
+                          <button
+                            onClick={() =>
+                              window.open("https://train-my-agent.vercel.app/", "_blank")
+                            }
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                          >
+                            <Dumbbell className="h-4 w-4" />
+                            S&apos;entraîner sur NXT
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs font-bold",
-                            pConfig.color
-                          )}
-                        >
-                          {pConfig.label}
-                        </span>
-                      </div>
-
-                      <div className="mt-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Actuel</span>
-                          <span className="font-medium text-foreground">
-                            <span className="tabular-nums">{rec.currentRatio.toFixed(1)}</span>
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Objectif</span>
-                          <span className="font-medium text-foreground">
-                            {rec.targetRatio}
-                          </span>
-                        </div>
-                        <ProgressBar
-                          value={
-                            rec.targetRatio > 0
-                              ? (rec.currentRatio / rec.targetRatio) * 100
-                              : 0
-                          }
-                          status={rec.priority === 1 ? "danger" : rec.priority === 2 ? "warning" : "ok"}
-                          showValue
-                          size="sm"
-                          className="mt-2"
-                        />
-                      </div>
-
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        {rec.description}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ========== PLAN 30 JOURS ========== */}
-      {activeTab === "plan30" && <Plan30Jours />}
-
-      {/* ========== S'ENTRAÎNER ========== */}
-      {activeTab === "entrainer" && (
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="rounded-[14px] border border-orange-500/30 bg-orange-500/8 p-5 shadow-[var(--shadow-1)]">
-            <div className="flex items-center gap-3">
-              <Dumbbell className="h-5 w-5 text-orange-500" />
-              <div>
-                <h2 className="font-semibold text-foreground">
-                  Entraînez vos points d&apos;amélioration
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {weakPoints.length > 0
-                    ? `${weakPoints.length} domaine(s) à travailler identifié(s) depuis votre diagnostic.`
-                    : "Aucun point faible détecté. Continuez à performer !"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Weak points to train on */}
-          {weakPoints.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Vos axes de travail
-              </h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {weakPoints.map((rec) => {
-                  const pConfig = priorityConfig[rec.priority];
-                  return (
-                    <div
-                      key={rec.area}
-                      className={cn(
-                        "rounded-[14px] border bg-card p-5 shadow-[var(--shadow-1)]",
-                        pConfig.border
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Dumbbell className="h-4 w-4 text-muted-foreground" />
-                          <h4 className="font-semibold text-foreground">
-                            {rec.label}
-                          </h4>
-                        </div>
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs font-bold",
-                            pConfig.color
-                          )}
-                        >
-                          {pConfig.label}
-                        </span>
-                      </div>
-
-                      <div className="mt-3">
-                        <ProgressBar
-                          value={
-                            rec.targetRatio > 0
-                              ? (rec.currentRatio / rec.targetRatio) * 100
-                              : 0
-                          }
-                          status={rec.priority === 1 ? "danger" : "warning"}
-                          showValue
-                          size="sm"
-                        />
-                      </div>
-
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        {rec.description}
-                      </p>
-
-                      {/* CTA vers NXT */}
-                      <button
-                        onClick={() =>
-                          window.open("https://train-my-agent.vercel.app/", "_blank")
-                        }
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--radius-button)] bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                      >
-                        <Dumbbell className="h-4 w-4" />
-                        S&apos;entraîner sur NXT
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* All ratios status - quick view */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">
-              Vue complète de vos ratios
-            </h3>
-            <div className="rounded-[14px] border border-border bg-card shadow-[var(--shadow-1)] divide-y divide-border">
-              {computedRatios.map((ratio) => {
-                const config = ratioConfigs[ratio.ratioId as keyof typeof ratioConfigs];
-                const isWeak = ratio.status !== "ok";
-                return (
-                  <div
-                    key={ratio.ratioId}
-                    className="flex items-center justify-between px-5 py-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={cn(
-                          "h-2.5 w-2.5 shrink-0 rounded-full",
-                          ratio.status === "ok"
-                            ? "bg-green-500"
-                            : ratio.status === "warning"
-                              ? "bg-orange-500"
-                              : "bg-red-500"
-                        )}
-                      />
-                      <span className="text-sm text-foreground truncate">
-                        {config?.name ?? ratio.ratioId}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={cn(
-                          "text-sm font-bold",
-                          ratio.status === "ok"
-                            ? "text-green-500"
-                            : ratio.status === "warning"
-                              ? "text-orange-500"
-                              : "text-red-500"
-                        )}
-                      >
-                        <span className="tabular-nums">{ratio.percentageOfTarget}%</span>
-                      </span>
-                      {isWeak && (
-                        <button
-                          onClick={() =>
-                            window.open("https://train-my-agent.vercel.app/", "_blank")
-                          }
-                          className="flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                        >
-                          <Dumbbell className="h-3 w-3" />
-                          NXT
-                        </button>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </section>
 
-          {/* NXT Connection banner */}
-          <div className="rounded-[14px] border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-6 shadow-[var(--shadow-1)]">
-            <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
-                <Dumbbell className="h-7 w-7 text-indigo-500" />
+                {/* Section 7 — CTA NXT Training (encart primary) */}
+                <section className="mx-auto max-w-3xl px-4 py-16">
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                      <Dumbbell className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="mb-3 text-2xl font-bold text-foreground">
+                      Accédez à NXT Training
+                    </h3>
+                    <p className="mb-6 text-base leading-relaxed text-muted-foreground">
+                      Exercices interactifs, mises en situation et suivi personnalisé de
+                      votre progression.
+                    </p>
+                    <button
+                      onClick={() =>
+                        window.open("https://train-my-agent.vercel.app/", "_blank")
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+                    >
+                      Accéder à NXT
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Plateforme externe — accès via votre compte NXT
+                    </p>
+                  </div>
+                </section>
+              </>
+            ) : (
+              <section className="mx-auto max-w-3xl px-4 py-12">
+                <div className="rounded-xl border border-border bg-card p-6 text-center">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
+                    <CheckCircle className="h-6 w-6 text-green-500" />
+                  </div>
+                  <h3 className="mb-2 text-2xl font-bold text-foreground">
+                    Tous vos ratios sont au vert
+                  </h3>
+                  <p className="text-base leading-relaxed text-muted-foreground">
+                    Continuez comme ça.
+                  </p>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {/* ========== FINANCEMENT ========== */}
+        {activeTab === "financement" && (
+          <>
+            {/* Section 8 — AGEFICE */}
+            <section className="mx-auto max-w-5xl px-4 py-12">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Wallet className="h-3.5 w-3.5" />
+                Financement
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">
-                  Plateforme NXT Training
+              <h2 className="mb-3 text-3xl font-bold text-foreground">
+                Financement AGEFICE
+              </h2>
+              <p className="mb-8 max-w-2xl text-muted-foreground">
+                En tant que dirigeant non salarié, vous pouvez bénéficier d&apos;une prise
+                en charge AGEFICE pour vos formations professionnelles.
+              </p>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                    <CheckCircle className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="text-3xl font-bold tabular-nums text-foreground">100%</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Prise en charge possible
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                    <CalendarCheck className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">3 min</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Pour constituer le dossier
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                    <Wallet className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">0 €</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Reste à charge estimé
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 9 — CTA Constituer dossier (encart primary) */}
+            <section className="mx-auto max-w-3xl px-4 py-16">
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <FileText className="h-6 w-6 text-emerald-500" />
+                </div>
+                <h3 className="mb-3 text-2xl font-bold text-foreground">
+                  Constituez votre dossier
                 </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Entraînez-vous sur vos points faibles avec des exercices interactifs,
-                  des mises en situation et un suivi personnalisé de votre progression.
+                <p className="mb-6 text-base leading-relaxed text-muted-foreground">
+                  Répondez à quelques questions, remplissez le formulaire prérempli et
+                  téléchargez votre dossier complet prêt à envoyer.
+                </p>
+                <button
+                  onClick={() => setShowAgeficeWizard(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+                >
+                  Constituer mon dossier
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Dossier prérempli — prêt à envoyer en 3 minutes
                 </p>
               </div>
-              <button
-                onClick={() =>
-                  window.open("https://train-my-agent.vercel.app/", "_blank")
-                }
-                className="flex shrink-0 items-center gap-2 rounded-[var(--radius-button)] bg-indigo-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-600"
-              >
-                Accéder à NXT
-                <ExternalLink className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </section>
+          </>
+        )}
 
-      {/* ========== FINANCEMENT ========== */}
-      {activeTab === "financement" && (
-        <div className="space-y-6">
-          {/* Banner AGEFICE */}
-          <div className="rounded-[14px] border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6 shadow-[var(--shadow-1)]">
-            <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20">
-                <Wallet className="h-7 w-7 text-emerald-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">
-                  Financement AGEFICE
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  En tant que dirigeant d&apos;entreprise non salarié, vous pouvez
-                  bénéficier d&apos;un financement AGEFICE pour vos formations.
-                  Constituez votre dossier en quelques minutes.
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* ========== CATALOGUE ========== */}
+        {activeTab === "catalogue" && <CatalogueTab />}
 
-          {/* Infos clés */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
-              <p className="text-2xl font-bold text-emerald-500 tabular-nums">100%</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Prise en charge possible
-              </p>
-            </div>
-            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
-              <p className="text-2xl font-bold text-emerald-500">3 min</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pour constituer le dossier
-              </p>
-            </div>
-            <div className="rounded-[14px] border border-border bg-card p-5 text-center shadow-[var(--shadow-1)]">
-              <p className="text-2xl font-bold text-emerald-500">0 €</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Reste à charge estimé
-              </p>
-            </div>
-          </div>
-
-          {/* CTA */}
-          <div className="flex flex-col items-center rounded-[14px] border border-dashed border-border bg-card px-6 py-10 text-center shadow-[var(--shadow-1)]">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
-              <FileText className="h-7 w-7 text-emerald-500" />
-            </div>
-            <h3 className="mt-4 text-lg font-bold text-foreground">
-              Constituez votre dossier de financement
-            </h3>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              Répondez à quelques questions, remplissez le formulaire prérempli
-              et téléchargez votre dossier complet prêt à envoyer.
-            </p>
-            <button
-              onClick={() => setShowAgeficeWizard(true)}
-              className="mt-6 flex items-center gap-2 rounded-[var(--radius-button)] bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-600"
-            >
-              <FileText className="h-4 w-4" />
-              Constituer mon dossier
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ========== CATALOGUE ========== */}
-      {activeTab === "catalogue" && (
-        <CatalogueTab />
-      )}
-
-      {/* AGEFICE Wizard Modal */}
-      {showAgeficeWizard && (
-        <AgeficeWizard
-          onClose={() => setShowAgeficeWizard(false)}
-          formationOptions={ageficeFormationOptions}
-        />
-      )}
-    </div>
+        {/* AGEFICE Wizard Modal */}
+        {showAgeficeWizard && (
+          <AgeficeWizard
+            onClose={() => setShowAgeficeWizard(false)}
+            formationOptions={ageficeFormationOptions}
+          />
+        )}
+      </div>
     </LockedFeature>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {children}
+    </button>
   );
 }
 
@@ -549,60 +579,79 @@ function CatalogueTab() {
   const networks = useAppStore((s) => s.networks);
   const [iframeError, setIframeError] = useState(false);
 
-  // Find catalogue URL from user's network if available
   const userNetwork = networks.find((n) =>
     n.institutionIds.includes(profile?.org_id ?? "")
   );
-  const catalogueUrl = (userNetwork as { catalogue_url?: string } | undefined)?.catalogue_url
-    || "https://www.start-academy.fr/consultez-catalogue-formation-immobiliere/";
+  const catalogueUrl =
+    (userNetwork as { catalogue_url?: string } | undefined)?.catalogue_url ||
+    "https://www.start-academy.fr/consultez-catalogue-formation-immobiliere/";
 
   if (iframeError) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-        <BookOpen className="h-10 w-10 text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">
-          Le catalogue ne peut pas être affiché directement.
+      <section className="mx-auto max-w-3xl px-4 py-12">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <BookOpen className="h-6 w-6 text-primary" />
+          </div>
+          <h2 className="mb-3 text-2xl font-bold text-foreground">
+            Catalogue indisponible en intégré
+          </h2>
+          <p className="mb-6 max-w-md text-base leading-relaxed text-muted-foreground">
+            Le catalogue ne peut pas être affiché directement. Ouvrez-le dans un nouvel
+            onglet.
+          </p>
+          <a
+            href={catalogueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+          >
+            <ExternalLink className="h-5 w-5" />
+            Ouvrir le catalogue
+          </a>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-12">
+      <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+        <ExternalLink className="h-3.5 w-3.5" />
+        Catalogue
+      </div>
+      <h2 className="mb-3 text-3xl font-bold text-foreground">Catalogue de formations</h2>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-2xl text-muted-foreground">
+          Parcourez l&apos;ensemble des formations professionnelles disponibles via votre
+          réseau.
         </p>
         <a
           href={catalogueUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80"
         >
-          <ExternalLink className="h-4 w-4" />
-          Ouvrir le catalogue
+          Ouvrir dans un nouvel onglet <ExternalLink className="h-4 w-4" />
         </a>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Catalogue de formations professionnelles</p>
-        <a href={catalogueUrl} target="_blank" rel="noopener noreferrer"
-          className="text-xs text-primary hover:text-primary/80 flex items-center gap-1">
-          Ouvrir dans un nouvel onglet <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
-      <div className="rounded-[14px] border border-border overflow-hidden shadow-[var(--shadow-1)]">
+      <div className="overflow-hidden rounded-xl border border-border">
         <iframe
           src={catalogueUrl}
           className="w-full border-0"
           style={{ height: "calc(100vh - 280px)", minHeight: 400 }}
           onError={() => setIframeError(true)}
           onLoad={(e) => {
-            // Detect X-Frame-Options block (iframe loads but content is blank)
             try {
               const frame = e.currentTarget;
               if (frame.contentDocument?.title === "") setIframeError(true);
             } catch {
-              // Cross-origin — iframe loaded successfully (can't access contentDocument)
+              // Cross-origin — iframe loaded successfully
             }
           }}
           sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
         />
       </div>
-    </div>
+    </section>
   );
 }
