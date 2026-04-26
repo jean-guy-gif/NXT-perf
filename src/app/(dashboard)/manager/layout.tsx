@@ -2,6 +2,7 @@
 
 import { useAppStore } from "@/stores/app-store";
 import { redirect } from "next/navigation";
+import { ManagerScopeBanner } from "@/components/layout/manager-scope-banner";
 
 export default function ManagerLayout({
   children,
@@ -15,5 +16,12 @@ export default function ManagerLayout({
     redirect("/dashboard");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <ManagerScopeBanner
+        hideOnRoutes={["/manager/comparaison", "/manager/equipe", "/manager/gps"]}
+      />
+      {children}
+    </>
+  );
 }

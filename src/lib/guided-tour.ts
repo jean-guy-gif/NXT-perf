@@ -93,7 +93,7 @@ const managerSteps: TourStep[] = [
     description: "Cette visite rapide te présente les principales fonctionnalités de ton espace manager. Tu peux la passer à tout moment.",
   },
   {
-    target: '[href="/manager/cockpit"]',
+    target: '[href="/manager/dashboard"]',
     title: "Ton cockpit manager",
     description: "Ici, tu suis les résultats de ton équipe en un coup d'oeil : KPI collectifs, suivi des contacts et acheteurs chauds, alertes de performance.",
   },

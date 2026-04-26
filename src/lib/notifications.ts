@@ -173,7 +173,7 @@ function computeManagerNotifications(
       type: "warning",
       message: `Saisie manquante : ${overdueFriday.length} agent${overdueFriday.length > 1 ? "s" : ""}`,
       detail: `${names} — saisie de la semaine passée non complétée`,
-      link: "/manager/cockpit",
+      link: "/manager/dashboard",
     });
   }
 

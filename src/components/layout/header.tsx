@@ -38,7 +38,7 @@ const pageTitles: Record<string, string> = {
   "/performance": "Mes Ratios de Transformation",
   "/comparaison": "Ma Comparaison",
   "/formation": "Ma Formation",
-  "/manager/cockpit": "Mon Tableau de Bord",
+  "/manager/dashboard": "Tableau de bord",
   "/manager/equipe": "Mon Volume d'Activité",
   "/manager/classement": "Mes Ratios de Transformation",
   "/manager/comparaison": "Me Comparer",
