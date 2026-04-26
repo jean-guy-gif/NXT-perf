@@ -66,7 +66,7 @@ export function useCoachAudio(params: {
   const playCoachSpeech = useCallback(async (text: string, persona: PersonaId) => {
     setIsSpeaking(true)
     try {
-      const res = await fetch('/api/vocal', {
+      const res = await fetch('/api/voice/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, persona }),
