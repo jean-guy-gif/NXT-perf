@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { cn } from "@/lib/utils";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
 import { ProspectionTab } from "@/components/resultats/prospection-tab";
@@ -81,121 +81,133 @@ export default function ResultatsPage() {
 
   return (
     <LockedFeature feature="resultats" featureName="Mes Résultats" featureDescription="Consultez votre historique de performance mois par mois">
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Mes Résultats</h1>
-
-      {/* Period selector */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Period type buttons */}
-        <div className="flex gap-1 rounded-lg bg-muted p-1">
-          {(["week", "month", "year"] as PeriodView[]).map((pv) => (
-            <button
-              key={pv}
-              onClick={() => {
-                setPeriodView(pv);
-                setPeriodOffset(0);
-              }}
-              className={cn(
-                "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-                periodView === pv
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {periodLabels[pv]}
-            </button>
-          ))}
-        </div>
-
-        {/* Period navigation */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPeriodOffset((o) => o - 1)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium capitalize text-foreground">
-              {periodLabel}
-            </span>
+      <div className="space-y-6">
+        {/* ═══ HEADER ═══ */}
+        <header>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Résultats
           </div>
-          <button
-            onClick={() => setPeriodOffset((o) => Math.min(o + 1, 0))}
-            disabled={isCurrentPeriod}
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-lg border border-border transition-colors",
-              isCurrentPeriod
-                ? "cursor-not-allowed text-muted-foreground/30"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          {!isCurrentPeriod && (
-            <button
-              onClick={() => setPeriodOffset(0)}
-              className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-            >
-              Aujourd&apos;hui
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* No data message */}
-      {!results && (
-        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
-          <Calendar className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">
-            Aucune donnée disponible pour cette période.
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Mes Résultats
+          </h1>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Consultez votre historique de performance par semaine, mois ou année.
           </p>
-          <button
-            onClick={() => setPeriodOffset(0)}
-            className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Revenir à la période actuelle
-          </button>
-        </div>
-      )}
+        </header>
 
-      {/* Tab navigation */}
-      {results && (
-        <>
+        {/* ═══ PERIOD SELECTOR + NAVIGATION ═══ */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          {/* Period type pills */}
           <div className="flex gap-1 rounded-lg bg-muted p-1">
-            {tabs.map((tab) => (
+            {(["week", "month", "year"] as PeriodView[]).map((pv) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                key={pv}
+                onClick={() => {
+                  setPeriodView(pv);
+                  setPeriodOffset(0);
+                }}
                 className={cn(
                   "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-                  activeTab === tab.id
+                  periodView === pv
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {tab.label}
+                {periodLabels[pv]}
               </button>
             ))}
           </div>
 
-          {activeTab === "prospection" && (
-            <ProspectionTab results={results} />
-          )}
-          {activeTab === "vendeurs" && <VendeursTab results={results} />}
-          {activeTab === "acheteurs" && <AcheteursTab results={results} />}
-          {activeTab === "ventes" && <VentesTab results={results} />}
-        </>
-      )}
+          {/* Period navigation */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPeriodOffset((o) => o - 1)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium capitalize text-foreground">
+                {periodLabel}
+              </span>
+            </div>
+            <button
+              onClick={() => setPeriodOffset((o) => Math.min(o + 1, 0))}
+              disabled={isCurrentPeriod}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-lg border border-border transition-colors",
+                isCurrentPeriod
+                  ? "cursor-not-allowed text-muted-foreground/30"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {!isCurrentPeriod && (
+              <button
+                onClick={() => setPeriodOffset(0)}
+                className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+              >
+                Aujourd&apos;hui
+              </button>
+            )}
+          </div>
+        </div>
 
-      <Tooltip
-        id="field-tooltip"
-        place="top"
-        className="!max-w-xs !rounded-lg !bg-popover !px-3 !py-2 !text-xs !text-popover-foreground !shadow-lg !border !border-border"
-        opacity={1}
-      />
-    </div>
+        {/* ═══ EMPTY STATE ═══ */}
+        {!results && (
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <Calendar className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Aucune donnée disponible pour cette période.
+            </p>
+            <button
+              onClick={() => setPeriodOffset(0)}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Revenir à la période actuelle
+            </button>
+          </div>
+        )}
+
+        {/* ═══ TAB NAVIGATION + CONTENT ═══ */}
+        {results && (
+          <>
+            <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                    activeTab === tab.id
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === "prospection" && <ProspectionTab results={results} />}
+            {activeTab === "vendeurs" && <VendeursTab results={results} />}
+            {activeTab === "acheteurs" && <AcheteursTab results={results} />}
+            {activeTab === "ventes" && <VentesTab results={results} />}
+          </>
+        )}
+
+        <Tooltip
+          id="field-tooltip"
+          place="top"
+          className="!max-w-xs !rounded-lg !bg-popover !px-3 !py-2 !text-xs !text-popover-foreground !shadow-lg !border !border-border"
+          opacity={1}
+        />
+      </div>
     </LockedFeature>
   );
 }
