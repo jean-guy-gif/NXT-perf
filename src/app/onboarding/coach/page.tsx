@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Check, HeartHandshake, ArrowRight, UserPlus, Settings, BarChart3 } from "lucide-react";
+import { Copy, Check, HeartHandshake, ArrowRight } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 
@@ -52,62 +52,66 @@ export default function OnboardingCoachPage() {
 
   const firstName = user?.firstName || "Coach";
 
+  const steps = [
+    { step: "1", text: "Vos coachés se connectent à NXT Performance" },
+    { step: "2", text: "Ils entrent votre code dans Paramètres > Coaching" },
+    { step: "3", text: "Vous accédez à leurs résultats en temps réel" },
+  ];
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-lg space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-              <HeartHandshake className="h-7 w-7 text-primary" />
-            </div>
+      <div className="w-full max-w-2xl space-y-8">
+        {/* ═══ HEADER ═══ */}
+        <header className="text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <HeartHandshake className="h-3.5 w-3.5" />
+            Coaching
           </div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Votre espace coach est prêt, {firstName}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Partagez ce code à vos coachés pour qu'ils vous ajoutent
+          <p className="mt-3 text-muted-foreground">
+            Partagez ce code à vos coachés pour qu&apos;ils vous ajoutent.
           </p>
-        </div>
+        </header>
 
-        {/* Code card */}
+        {/* ═══ CODE COACH (encart primary R8) ═══ */}
         {coachCode ? (
-          <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-6 text-center space-y-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Votre code coach
             </p>
-            <p className="text-3xl font-mono font-bold text-foreground tracking-widest">
+            <p className="text-3xl font-mono font-bold tabular-nums tracking-widest text-foreground">
               {coachCode}
             </p>
             <button
               type="button"
               onClick={handleCopy}
-              className="flex items-center gap-1.5 mx-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="mx-auto flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? "Copié !" : "Copier le code"}
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+          <div className="rounded-xl border border-border bg-card p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Votre code coach sera disponible dans Paramètres &gt; Coaching
             </p>
           </div>
         )}
 
-        {/* Steps */}
+        {/* ═══ COMMENT ÇA MARCHE ═══ */}
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">
+          <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Comment ça marche
           </p>
           <div className="grid gap-3">
-            {[
-              { icon: UserPlus, step: "1", text: "Vos coachés se connectent à NXT Performance" },
-              { icon: Settings, step: "2", text: "Ils entrent votre code dans Paramètres > Coaching" },
-              { icon: BarChart3, step: "3", text: "Vous accédez à leurs résultats en temps réel" },
-            ].map((item) => (
-              <div key={item.step} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            {steps.map((item) => (
+              <div
+                key={item.step}
+                className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+              >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                   {item.step}
                 </div>
@@ -117,21 +121,24 @@ export default function OnboardingCoachPage() {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* ═══ CTA + SKIP ═══ */}
         <div className="flex flex-col items-center gap-3">
           <button
             type="button"
             onClick={handleComplete}
             disabled={completing}
-            className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            <ArrowRight className="h-4 w-4" />
             Accéder à mon espace coach
+            <ArrowRight className="h-5 w-5" />
           </button>
+          <p className="text-xs text-muted-foreground">
+            Vous pouvez inviter d&apos;autres coachés à tout moment depuis vos paramètres.
+          </p>
           <button
             type="button"
             onClick={handleComplete}
-            className="text-xs text-muted-foreground hover:text-muted-foreground/70 transition-colors"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Passer cette étape
           </button>
