@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { RATIO_ID_TO_EXPERTISE_ID, buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
 import { useRatios } from "@/hooks/use-ratios";
-import { CheckCircle2, XCircle, AlertTriangle as AlertIcon } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle as AlertIcon, Minus } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,11 +69,12 @@ function getVolumeStatus(realise: number, objectif: number): Status {
   return "sousperf";
 }
 
-// Status colors — Tailwind classes for bg/text, CSS var for inline borderColor
+// Status tokens — neutral cards + status badge top-right (DS pattern)
+// Cards stay neutral (border-border, bg-card) ; status surfaces only via badge + delta + progress bar.
 const STATUS_CONFIG = {
-  surperf: { borderColor: "var(--success)", bg: "bg-green-500/8", text: "text-green-500", label: "Surperf", arrow: "↑" },
-  stable:  { borderColor: "var(--warning)", bg: "bg-amber-500/8", text: "text-amber-500", label: "Stable", arrow: "=" },
-  sousperf:{ borderColor: "var(--danger)",  bg: "bg-red-500/8",   text: "text-red-500",   label: "Sous-perf", arrow: "↓" },
+  surperf: { progressColor: "var(--success)", badgeBg: "bg-green-500/10",  text: "text-green-500",  icon: CheckCircle2, label: "Surperf",   arrow: "↑" },
+  stable:  { progressColor: "var(--warning)", badgeBg: "bg-orange-500/10", text: "text-orange-500", icon: Minus,        label: "Stable",    arrow: "=" },
+  sousperf:{ progressColor: "var(--danger)",  badgeBg: "bg-red-500/10",    text: "text-red-500",    icon: AlertIcon,    label: "Sous-perf", arrow: "↓" },
 };
 
 // ── Ratio → FormationArea mapping for action panels ─────────────────
@@ -854,23 +855,15 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                   <div key={vol.num} className="flex items-stretch shrink-0">
                     {/* Step card */}
                     <div
-                      className={cn(
-                        "relative w-[176px] p-3.5 transition-all border",
-                        sc.bg,
-                      )}
-                      style={{
-                        borderColor: sc.borderColor,
-                        borderLeftWidth: "3px",
-                        borderRadius: "var(--radius-card)",
-                        boxShadow: "var(--shadow-1)",
-                      }}
+                      className="relative flex h-full w-[176px] flex-col rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/50"
                     >
                       {/* Status pill */}
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-semibold text-muted-foreground/50 tabular-nums">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-semibold tabular-nums text-muted-foreground">
                           {String(vol.num).padStart(2, "0")}
                         </span>
-                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide", sc.text, sc.bg)}>
+                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", sc.badgeBg, sc.text)}>
+                          <sc.icon className="h-3 w-3" />
                           {sc.label}
                         </span>
                       </div>
@@ -882,8 +875,8 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
 
                       {/* Volume */}
                       {showVolumes && (
-                        <div className="mb-2">
-                          <span className="text-xl font-extrabold text-foreground leading-none tracking-tight">
+                        <div className="mb-2 flex flex-1 flex-col">
+                          <span className="text-xl font-extrabold tabular-nums leading-none tracking-tight text-foreground">
                             {formatVal(vol.realise, vol.unit)}
                           </span>
                           <div className="flex items-center justify-between mt-1">
@@ -896,12 +889,12 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                             </span>
                           </div>
                           {/* Progress bar */}
-                          <div className="mt-1.5 h-1.5 rounded-full bg-border/40 overflow-hidden">
+                          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border/40">
                             <div
                               className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${Math.min(100, vol.objectif > 0 ? (vol.realise / vol.objectif) * 100 : 0)}%`,
-                                backgroundColor: sc.borderColor,
+                                backgroundColor: sc.progressColor,
                               }}
                             />
                           </div>
@@ -930,7 +923,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                   else if (expertiseId) handleBoostRatio(expertiseId);
                                 }}
                                 className={cn(
-                                  "mt-3 w-full py-2 text-[11px] font-bold transition-all",
+                                  "mt-auto w-full py-2 text-[11px] font-bold transition-all",
                                   hasPlanForThis || hasPlanForOther
                                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                                     : "bg-red-500 text-white hover:bg-red-600",
@@ -947,7 +940,7 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
 
                       {/* Ratio */}
                       {showRatios && ratio && (
-                        <div className={cn(showVolumes && "border-t border-border/20 pt-2 mt-1")}>
+                        <div className={cn("flex flex-1 flex-col", showVolumes && "border-t border-border/20 pt-2 mt-1")}>
                           <p className="text-[11px] text-foreground leading-snug">
                             <span className="font-bold tabular-nums">{ratio.realise}</span> {ratio.from} → 1 {ratio.to}
                             {ratio.realisePct > 0 && (
@@ -983,12 +976,12 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                   else if (expertiseId) handleBoostRatio(expertiseId);
                                 }}
                                 className={cn(
-                                  "mt-3 w-full py-2 text-[11px] font-bold transition-all",
+                                  "mt-auto w-full py-2 text-[11px] font-bold transition-all",
                                   hasPlanForThis || hasPlanForOther
                                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                                     : ratio.status === "sousperf"
                                       ? "bg-red-500 text-white hover:bg-red-600"
-                                      : "bg-amber-500 text-white hover:bg-amber-600",
+                                      : "bg-orange-500 text-white hover:bg-orange-600",
                                   boosting && "opacity-60 cursor-not-allowed"
                                 )}
                                 style={{ borderRadius: "var(--radius-button)" }}
@@ -1327,8 +1320,8 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                                     </span>
                                     <span className={cn(
                                       "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold",
-                                      action.status === "done" ? "bg-green-500/15 text-green-500"
-                                        : action.status === "in_progress" ? "bg-amber-500/15 text-amber-500"
+                                      action.status === "done" ? "bg-green-500/10 text-green-500"
+                                        : action.status === "in_progress" ? "bg-orange-500/10 text-orange-500"
                                           : "bg-muted text-muted-foreground"
                                     )}>
                                       {statusLabel(action.status)}
