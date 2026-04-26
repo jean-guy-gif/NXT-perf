@@ -72,19 +72,27 @@ export default function OnboardingDpiPage() {
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h1 className="text-sm font-semibold text-foreground">Diagnostic de Performance</h1>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={handleComplete}
-              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+            <button
+              type="button"
+              onClick={handleComplete}
+              disabled={completing}
+              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
               Terminer et continuer
             </button>
-            <a href="/dpi/questionnaire" target="_blank" rel="noopener noreferrer"
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <a
+              href="/dpi/questionnaire"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
               <ExternalLink className="h-3 w-3" /> Nouvel onglet
             </a>
           </div>
         </div>
         <iframe
           src={dpiUrl}
-          className="flex-1 w-full border-0"
+          className="w-full flex-1 border-0"
           style={{ minHeight: "calc(100vh - 52px)" }}
           sandbox="allow-same-origin allow-scripts allow-forms"
         />
@@ -94,49 +102,50 @@ export default function OnboardingDpiPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-lg space-y-8">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-              <BarChart3 className="h-7 w-7 text-primary" />
-            </div>
+      <div className="w-full max-w-2xl space-y-8">
+        {/* ═══ HEADER ═══ */}
+        <header className="text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Diagnostic
           </div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Votre Diagnostic de Performance, {firstName}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            3 minutes pour identifier vos axes de progression
+          <p className="mt-3 text-muted-foreground">
+            3 minutes pour identifier vos axes de progression et personnaliser votre
+            cockpit.
           </p>
-        </div>
+        </header>
 
-        <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-6 text-center space-y-4">
-          <p className="text-sm text-foreground leading-relaxed">
-            Le DPI analyse votre profil commercial et identifie vos points forts
-            et vos axes d'amélioration sur 8 dimensions clés.
+        {/* ═══ ENCART CONVICTION + CTA (R8/R9) ═══ */}
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
+          <p className="mb-6 text-sm leading-relaxed text-foreground md:text-base">
+            Le DPI analyse votre profil commercial et identifie vos points forts et vos
+            axes d&apos;amélioration.
           </p>
-          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-            <div className="rounded-lg border border-border bg-card px-3 py-2">Prospection</div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2">Négociation</div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2">Suivi client</div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2">Organisation</div>
-          </div>
           <button
             type="button"
             onClick={() => setShowDpi(true)}
-            className="w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
           >
             Commencer mon diagnostic
+            <ArrowRight className="h-5 w-5" />
           </button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            3 minutes — sans engagement
+          </p>
         </div>
 
-        <div className="flex flex-col items-center gap-3">
+        {/* ═══ SKIP ═══ */}
+        <div className="flex flex-col items-center">
           <button
             type="button"
             onClick={handleSkip}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            <ArrowRight className="h-4 w-4" />
             Passer cette étape
+            <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       </div>
