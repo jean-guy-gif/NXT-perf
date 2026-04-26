@@ -46,7 +46,6 @@ manual-test-*.png
 
 # IDE / Agents IA locaux
 .claude/*
-!.claude/design-system-v2.md
 .codebuddy/
 .continue/
 .kiro/
