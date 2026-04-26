@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3 } from "lucide-react";
 import { DPI_QUESTIONS } from "@/lib/dpi-questions";
 import { computeDPIScores } from "@/lib/dpi-scoring";
 import { createClient } from "@/lib/supabase/client";
@@ -142,20 +142,22 @@ function DPIQuestionnaireContent() {
   if (showTransition) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <span className="text-3xl">📊</span>
+        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+          <BarChart3 className="h-6 w-6 text-primary" />
         </div>
         <h2 className="mb-3 text-2xl font-bold text-foreground">
           Contexte noté !
         </h2>
         <p className="mb-8 max-w-sm text-muted-foreground">
-          Maintenant, passons à vos indicateurs de performance. 10 questions pour évaluer vos résultats concrets.
+          Maintenant, passons à vos indicateurs de performance. 10 questions pour évaluer
+          vos résultats concrets.
         </p>
         <button
           onClick={continueToPerformance}
-          className="rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] px-8 py-3 font-semibold text-white transition-opacity hover:opacity-90"
+          className="inline-flex h-12 items-center gap-2 rounded-xl bg-gradient-to-r from-[#3375FF] to-[#A055FF] px-8 text-base font-bold text-white shadow-lg transition-opacity hover:opacity-90"
         >
           Continuer
+          <ArrowRight className="h-5 w-5" />
         </button>
       </div>
     );
@@ -174,11 +176,15 @@ function DPIQuestionnaireContent() {
 
   return (
     <div className="flex min-h-[60vh] flex-col">
-      {/* Progress bar */}
+      {/* Bandeau de progression */}
       <div className="mb-8">
-        <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
-          <span>{question.bloc === "contexte" ? "Contexte" : "Performance"}</span>
-          <span>{currentIndex + 1} / {totalQuestions}</span>
+        <div className="mb-3 flex items-center justify-between">
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            {question.bloc === "contexte" ? "Contexte" : "Performance"}
+          </span>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {currentIndex + 1} / {totalQuestions}
+          </span>
         </div>
         <div className="h-2 rounded-full bg-muted">
           <div
@@ -188,10 +194,10 @@ function DPIQuestionnaireContent() {
         </div>
       </div>
 
-      {/* Question */}
-      <h2 className="mb-8 text-xl font-bold text-foreground sm:text-2xl">
+      {/* Question (H1 de l'écran) */}
+      <h1 className="mb-8 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
         {question.text}
-      </h2>
+      </h1>
 
       {/* Options */}
       <div className="flex-1 space-y-3">
@@ -208,9 +214,11 @@ function DPIQuestionnaireContent() {
                   : "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5"
               )}
             >
-              <span className="text-sm font-medium sm:text-base">{option.label}</span>
+              <span className="text-sm font-medium leading-relaxed">{option.label}</span>
               {option.detail && (
-                <span className="mt-1 block text-xs opacity-70">{option.detail}</span>
+                <span className="mt-1 block text-xs leading-relaxed opacity-70">
+                  {option.detail}
+                </span>
               )}
             </button>
           );
