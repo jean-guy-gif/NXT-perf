@@ -21,9 +21,6 @@ import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
 import {
   Gauge,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Target,
   Info,
   Check,
@@ -31,8 +28,7 @@ import {
   X,
   ArrowRight,
 } from "lucide-react";
-import { getHumanScore, getGlobalScore } from "@/lib/scoring";
-import { formatBenchmark } from "@/data/mock-benchmark";
+import { getGlobalScore } from "@/lib/scoring";
 import { useAppStore } from "@/stores/app-store";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { useSupabase } from "@/hooks/use-supabase";
@@ -280,19 +276,6 @@ export default function PerformancePage() {
               if (!config) return null;
               const sc = statusConfig[ratio.status];
               const StatusIcon = sc.icon;
-              const humanScore = getHumanScore(ratio);
-              const MarketIcon =
-                humanScore.vsMarket === "above"
-                  ? TrendingUp
-                  : humanScore.vsMarket === "below"
-                    ? TrendingDown
-                    : Minus;
-              const marketIconColor =
-                humanScore.vsMarket === "above"
-                  ? "text-green-500"
-                  : humanScore.vsMarket === "below"
-                    ? "text-red-500"
-                    : "text-muted-foreground";
 
               return (
                 <div
@@ -370,18 +353,6 @@ export default function PerformancePage() {
                     </p>
                   )}
 
-                  {/* Scoring badge vsMarket */}
-                  <span
-                    className={cn(
-                      "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                      humanScore.bgColor,
-                      humanScore.color
-                    )}
-                  >
-                    <MarketIcon className={cn("h-3 w-3", marketIconColor)} />
-                    {humanScore.label}
-                  </span>
-
                   <ProgressBar
                     value={ratio.percentageOfTarget}
                     status={ratio.status}
@@ -389,9 +360,6 @@ export default function PerformancePage() {
                     size="sm"
                     className="mt-3"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatBenchmark(ratio.ratioId as RatioId)}
-                  </p>
 
                   {/* Threshold info */}
                   <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">

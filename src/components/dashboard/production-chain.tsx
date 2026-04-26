@@ -69,12 +69,32 @@ function getVolumeStatus(realise: number, objectif: number): Status {
   return "sousperf";
 }
 
-// Status tokens — neutral cards + status badge top-right (DS pattern)
-// Cards stay neutral (border-border, bg-card) ; status surfaces only via badge + delta + progress bar.
+// Status tokens — colored 2px border + status badge top-right.
+// Exception au DS standard "border-border neutre" : usage spécifique chaîne de production
+// (lecture comparative rapide de ~12 cards en flux), le signal status doit être plus fort.
+// Border classes statiques pour purge Tailwind.
 const STATUS_CONFIG = {
-  surperf: { progressColor: "var(--success)", badgeBg: "bg-green-500/10",  text: "text-green-500",  icon: CheckCircle2, label: "Surperf",   arrow: "↑" },
-  stable:  { progressColor: "var(--warning)", badgeBg: "bg-orange-500/10", text: "text-orange-500", icon: Minus,        label: "Stable",    arrow: "=" },
-  sousperf:{ progressColor: "var(--danger)",  badgeBg: "bg-red-500/10",    text: "text-red-500",    icon: AlertIcon,    label: "Sous-perf", arrow: "↓" },
+  surperf: {
+    progressColor: "var(--success)",
+    badgeBg: "bg-green-500/10",
+    text: "text-green-500",
+    borderClass: "border-2 border-green-500/40 hover:border-green-500/70",
+    icon: CheckCircle2, label: "Surperf",   arrow: "↑",
+  },
+  stable: {
+    progressColor: "var(--warning)",
+    badgeBg: "bg-orange-500/10",
+    text: "text-orange-500",
+    borderClass: "border-2 border-orange-500/40 hover:border-orange-500/70",
+    icon: Minus,        label: "Stable",    arrow: "=",
+  },
+  sousperf: {
+    progressColor: "var(--danger)",
+    badgeBg: "bg-red-500/10",
+    text: "text-red-500",
+    borderClass: "border-2 border-red-500/40 hover:border-red-500/70",
+    icon: AlertIcon,    label: "Sous-perf", arrow: "↓",
+  },
 };
 
 // ── Ratio → FormationArea mapping for action panels ─────────────────
@@ -855,7 +875,10 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
                   <div key={vol.num} className="flex items-stretch shrink-0">
                     {/* Step card */}
                     <div
-                      className="relative flex h-full w-[176px] flex-col rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/50"
+                      className={cn(
+                        "relative flex h-full w-[176px] flex-col rounded-xl bg-card p-3.5 transition-colors",
+                        sc.borderClass,
+                      )}
                     >
                       {/* Status pill */}
                       <div className="mb-2 flex items-center justify-between">
