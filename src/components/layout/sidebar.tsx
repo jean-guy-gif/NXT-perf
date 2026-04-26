@@ -51,7 +51,7 @@ const navItems: NavItem[] = [
   { href: "/comparaison", icon: GitCompare, label: "Ma Comparaison", lockedFeature: "comparaison" },
   { href: "/formation", icon: GraduationCap, label: "Ma Formation", lockedFeature: "formation" },
   { href: "/manager/dashboard", icon: LayoutDashboard, label: "Tableau de bord", managerOnly: true },
-  { href: "/manager/equipe", icon: BarChart3, label: "Mon Volume d'Activité", managerOnly: true },
+  { href: "/manager/resultats", icon: BarChart3, label: "Mon Volume d'Activité", managerOnly: true },
   { href: "/manager/classement", icon: Gauge, label: "Mes Ratios de Transformation", managerOnly: true },
   { href: "/manager/comparaison", icon: GitCompare, label: "Me Comparer", managerOnly: true },
   { href: "/manager/alertes", icon: Bell, label: "Alertes", managerOnly: true },
