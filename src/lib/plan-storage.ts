@@ -10,6 +10,23 @@ export type NatureActiviteMicro =
   | "ARTISANALE"
   | "";
 
+/**
+ * Données du Point d'Accueil AGEFICE (Section 1 du CERFA).
+ * `source: "officiel"` → sélectionné dans le référentiel agefice-pta-officiel.ts
+ * `source: "manuel"` → saisie libre par l'utilisateur (PTA non listée)
+ */
+export interface AgeficeDraftPTA {
+  source: "officiel" | "manuel" | undefined;
+  nom?: string;
+  numero?: string;        // pas dans le référentiel officiel — saisie manuelle optionnelle
+  interlocuteur?: string; // pas dans le référentiel officiel — saisie manuelle optionnelle
+  adresse?: string;
+  codePostal?: string;
+  ville?: string;
+  telephone?: string;
+  email?: string;
+}
+
 export interface AgeficeDraft {
   // ── Step 1 — Préqualification ──
   statut: "independant" | "salarie" | "ne_sais_pas" | "";
@@ -62,6 +79,9 @@ export interface AgeficeDraft {
   dateNaissance?: string;          // format ISO YYYY-MM-DD (input type="date")
   numeroSecuriteSociale?: string;  // 13-15 chiffres, espaces tolérés
   dernierDiplome?: string;         // valeur exacte du dropdown CERFA (DIPLOME_OPTIONS)
+
+  // ── V1.6 — Point d'Accueil AGEFICE (Step 1, optionnel) ──
+  pta?: AgeficeDraftPTA;
 }
 
 export const emptyAgeficeDraft: AgeficeDraft = {
@@ -101,6 +121,7 @@ export const emptyAgeficeDraft: AgeficeDraft = {
   dateNaissance: "",
   numeroSecuriteSociale: "",
   dernierDiplome: "",
+  pta: undefined,
 };
 
 export function saveAgeficeDraft(data: AgeficeDraft): void {

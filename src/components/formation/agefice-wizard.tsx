@@ -10,6 +10,7 @@ import { MICRO_NATURE_LABELS } from "@/lib/fundingRules";
 import type { NatureActiviteMicro } from "@/lib/plan-storage";
 import type { SimulationResult } from "@/lib/simulateTrainingRights";
 import { DIPLOME_OPTIONS } from "@/lib/cerfa-agefice";
+import { PTASelector } from "@/components/formation/pta-selector";
 
 // Codes NAF/APE fréquents en immobilier (boutons préset wizard).
 const NAF_PRESETS: { value: string; label: string }[] = [
@@ -322,6 +323,21 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* ─── Point d'Accueil AGEFICE (V1.6 — optionnel) ─── */}
+              <div className="border-t border-border pt-4">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Point d&apos;Accueil AGEFICE (optionnel)
+                </p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Le Point d&apos;Accueil instruit votre demande avant transmission à l&apos;AGEFICE.
+                </p>
+                <PTASelector
+                  codePostalEntreprise={draft.codePostalEntreprise}
+                  value={draft.pta}
+                  onChange={(pta) => updateDraft({ pta })}
+                />
               </div>
 
               <TriChoice label="Vos cotisations (URSSAF / caisses) sont-elles à jour ?" value={draft.cotisationsAJour} onChange={(v) => updateDraft({ cotisationsAJour: v })} />

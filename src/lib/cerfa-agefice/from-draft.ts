@@ -13,7 +13,9 @@ import type { CerfaInput } from "./types";
  *   Attestation stage)
  * - Champs CerfaInput non couverts par AgeficeDraft → undefined (le PDF reste vierge)
  *
- * V1.5 — sections couvertes (~44 champs CERFA, soit 47 % du formulaire) :
+ * V1.6 — sections couvertes (~52 champs CERFA, soit 55 % du formulaire) :
+ * - PTA                  : NOUVEAU — sélection référentiel officiel (438 PTA)
+ *                          ou saisie manuelle, 8 champs Section 1
  * - Entreprise           : raison sociale, code NAF/APE, adresse complète,
  *                          forme juridique (microentreprise si applicable)
  * - Participant          : civilité, nom, prénom, nom de naissance, date de
@@ -26,17 +28,29 @@ import type { CerfaInput } from "./types";
  * - Modalités            : Quiz + Feuilles présence + Attestation stage (si Start Academy)
  * - Signature            : mandat coché si Start Academy
  *
- * Sections NON couvertes en V1.5 (Session 2 — wizard étendu) :
- * - PTA complet (8 champs)
+ * Sections NON couvertes en V1.6 (Session 2 — wizard étendu) :
  * - Formation : dateFin, nomFormateur, lieu/CP/ville, formationEnEntreprise,
  *               qualification, thématique, déroulement pédagogique
- * - Signature : lieu et date de signature (le mandat est la seule donnée auto V1.5)
+ * - Signature : lieu et date de signature (le mandat est la seule donnée auto)
  */
 export function mapDraftToCerfaInput(draft: AgeficeDraft): CerfaInput {
   const useStartAcademy = isStartAcademy(draft.organisme);
 
   return {
-    pta: undefined, // Wizard V1.5 ne couvre pas encore le Point d'Accueil
+    // V1.6 : Section 1 Point d'Accueil — alimentée si l'utilisateur a sélectionné
+    // une PTA officielle dans le wizard (ou saisi manuellement). Sinon undefined.
+    pta: draft.pta
+      ? {
+          nom: emptyToUndef(draft.pta.nom),
+          numero: emptyToUndef(draft.pta.numero),
+          interlocuteur: emptyToUndef(draft.pta.interlocuteur),
+          adresse: emptyToUndef(draft.pta.adresse),
+          codePostal: emptyToUndef(draft.pta.codePostal),
+          ville: emptyToUndef(draft.pta.ville),
+          telephone: emptyToUndef(draft.pta.telephone),
+          email: emptyToUndef(draft.pta.email),
+        }
+      : undefined,
 
     entreprise: {
       // V1.5 : raison sociale et adresse maintenant alimentées

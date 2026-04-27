@@ -212,6 +212,18 @@ async function main() {
     dateNaissance: "1985-03-22",
     numeroSecuriteSociale: "2 85 03 34 145 011 23",
     dernierDiplome: "Bac+3 : Licence ou maîtrise",
+
+    // V1.6 — Point d'Accueil AGEFICE sélectionné depuis le référentiel officiel
+    pta: {
+      source: "officiel",
+      nom: "CCI Hérault",
+      adresse: "Hôtel consulaire — Zone Aéroportuaire CS 10088",
+      codePostal: "34137",
+      ville: "MAUGUIO CEDEX",
+      telephone: "0499516666",
+      email: "agefice@herault.cci.fr",
+      // numero et interlocuteur laissés vides (saisie manuelle optionnelle)
+    },
   };
 
   console.log("[TEST 3] Mapping AgeficeDraft V1.5 enrichi → CerfaInput + génération...");
