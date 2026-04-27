@@ -45,6 +45,23 @@ export interface AgeficeDraft {
   // Optionnels (boost confiance)
   codeAPE: string;
   idcc: string;
+
+  // ── V1.5 — Identification entreprise (Step 1, optionnels) ──
+  // Champs ajoutés pour enrichir le remplissage CERFA. Tous optionnels pour
+  // préserver la rétrocompatibilité des drafts localStorage antérieurs (lus
+  // sans ces champs → undefined au runtime).
+  nomEntreprise?: string;          // ex: "William BELLUS Entreprise Individuelle"
+  codeNAF?: string;                // ex: "68.31Z" (Agences immobilières)
+  adresseEntreprise?: string;
+  codePostalEntreprise?: string;
+  villeEntreprise?: string;
+
+  // ── V1.5 — Identité dirigeant (Step 2, optionnels) ──
+  civilite?: "M" | "MME";
+  nomNaissance?: string;           // si différent du nom marital
+  dateNaissance?: string;          // format ISO YYYY-MM-DD (input type="date")
+  numeroSecuriteSociale?: string;  // 13-15 chiffres, espaces tolérés
+  dernierDiplome?: string;         // valeur exacte du dropdown CERFA (DIPLOME_OPTIONS)
 }
 
 export const emptyAgeficeDraft: AgeficeDraft = {
@@ -73,6 +90,17 @@ export const emptyAgeficeDraft: AgeficeDraft = {
   montantDejaConsommeCetteAnnee: "",
   codeAPE: "",
   idcc: "",
+  // V1.5 — initialisés à "" pour cohérence avec le reste du draft
+  nomEntreprise: "",
+  codeNAF: "",
+  adresseEntreprise: "",
+  codePostalEntreprise: "",
+  villeEntreprise: "",
+  civilite: undefined,
+  nomNaissance: "",
+  dateNaissance: "",
+  numeroSecuriteSociale: "",
+  dernierDiplome: "",
 };
 
 export function saveAgeficeDraft(data: AgeficeDraft): void {

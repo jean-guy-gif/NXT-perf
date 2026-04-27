@@ -64,3 +64,6 @@ manual-test-*.png
 # Résultats de tests locaux
 test-results/
 skills-lock.json
+
+# Sources XLSX de référentiels (donnée déjà transformée en TS)
+scripts/*.xlsx

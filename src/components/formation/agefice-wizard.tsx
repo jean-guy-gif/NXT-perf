@@ -9,6 +9,14 @@ import { downloadDossierText } from "@/lib/agefice-pdf";
 import { MICRO_NATURE_LABELS } from "@/lib/fundingRules";
 import type { NatureActiviteMicro } from "@/lib/plan-storage";
 import type { SimulationResult } from "@/lib/simulateTrainingRights";
+import { DIPLOME_OPTIONS } from "@/lib/cerfa-agefice";
+
+// Codes NAF/APE fréquents en immobilier (boutons préset wizard).
+const NAF_PRESETS: { value: string; label: string }[] = [
+  { value: "68.31Z", label: "68.31Z — Agences immobilières" },
+  { value: "68.32A", label: "68.32A — Administration d'immeubles" },
+  { value: "46.19B", label: "46.19B — Intermédiaires du commerce" },
+];
 import {
   X, ChevronRight, ChevronLeft, Download, ExternalLink,
   CheckCircle, AlertTriangle, Calculator, Shield, FileText,
@@ -59,6 +67,7 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
   const [simLoading, setSimLoading] = useState(false);
   const [showSimModal, setShowSimModal] = useState(false);
+  const [cerfaLoading, setCerfaLoading] = useState(false);
 
   useEffect(() => {
     const saved = loadAgeficeDraft();
@@ -91,6 +100,36 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
   const handleSendToStartAcademy = useCallback(() => {
     window.open("https://start-academy.smartof.app/formulaire-inscription-sessions/VTJGc2RHVmtYMS94MDZNWTdiRmlyU0J5djJTK2hKelIxRWlhVHoyVVdDa09JNFQzMjBWLzkrMXoyeGdYSnhwTHZlN1dJR3VYdW1MaVJMTEU1elZNdXBSY2c3V2RHU0k1dWljOCtGcW5BL2U1NS9PdzlCUzlCcS9vYWFOOGo0dEtnM1AxWDhxN1BWVWpuVStpRGRRR2krR1AzOUxHQ05GWGlXS2pCbnk4bm41Y1Y4cDd1bmUwV2NyamdKQWU3UHU4ZTFqRWlMQ3BiNU5aZ0hneUxWampyUXVpUTBkdU1RT3QvVEVPOGJYZG5rUTVhaUxRS29nL0N1UUlaMTN0b3A0NU9SQnh1N3BuTGlpWGU0NW5kbTA3WlkwUkViZ0QzTCtGUHdvYkJMTEQxUDg5/soumettre", "_blank");
   }, []);
+
+  const handleDownloadCerfa = useCallback(async () => {
+    setCerfaLoading(true);
+    try {
+      const response = await fetch("/api/agefice/cerfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error ?? "Erreur serveur");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (draft.nom || "demande").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      a.download = `agefice-cerfa-${safeName}-${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("success", "CERFA téléchargé. Vérifiez les informations avant envoi à votre point d'accueil AGEFICE.");
+    } catch {
+      showToast("error", "Impossible de générer le CERFA. Réessayez.");
+    } finally {
+      setCerfaLoading(false);
+    }
+  }, [draft, showToast]);
 
   const handleSimulate = useCallback(async () => {
     setSimLoading(true);
@@ -212,6 +251,79 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
                 </div>
               )}
 
+              {/* ─── Identification entreprise (V1.5 — optionnel) ─── */}
+              <div className="border-t border-border pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Identification entreprise (optionnel)
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className={LABEL_CLS}>Nom de l&apos;entreprise</label>
+                    <input type="text" placeholder="ex : William BELLUS Entreprise Individuelle"
+                      value={draft.nomEntreprise ?? ""}
+                      onChange={(e) => updateDraft({ nomEntreprise: e.target.value })}
+                      className={INPUT_CLS} />
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLS}>Activité principale (Code NAF/APE)</label>
+                    <select
+                      value={
+                        NAF_PRESETS.some((p) => p.value === draft.codeNAF)
+                          ? draft.codeNAF
+                          : draft.codeNAF
+                            ? "AUTRE"
+                            : ""
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "AUTRE") updateDraft({ codeNAF: " " }); // marqueur "Autre" → champ libre apparaît
+                        else updateDraft({ codeNAF: v });
+                      }}
+                      className={INPUT_CLS}
+                    >
+                      <option value="">Sélectionnez</option>
+                      {NAF_PRESETS.map((p) => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                      <option value="AUTRE">Autre…</option>
+                    </select>
+                    {!!draft.codeNAF && !NAF_PRESETS.some((p) => p.value === draft.codeNAF) && (
+                      <input type="text" placeholder="Code NAF/APE (ex : 70.22Z)"
+                        value={draft.codeNAF.trim()}
+                        onChange={(e) => updateDraft({ codeNAF: e.target.value })}
+                        className={cn(INPUT_CLS, "mt-2")} />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLS}>Adresse</label>
+                    <input type="text" placeholder="ex : 12 rue de la République"
+                      value={draft.adresseEntreprise ?? ""}
+                      onChange={(e) => updateDraft({ adresseEntreprise: e.target.value })}
+                      className={INPUT_CLS} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={LABEL_CLS}>Code postal</label>
+                      <input type="text" inputMode="numeric" pattern="\d{5}" maxLength={5}
+                        placeholder="34000"
+                        value={draft.codePostalEntreprise ?? ""}
+                        onChange={(e) => updateDraft({ codePostalEntreprise: e.target.value })}
+                        className={INPUT_CLS} />
+                    </div>
+                    <div>
+                      <label className={LABEL_CLS}>Ville</label>
+                      <input type="text" placeholder="MONTPELLIER"
+                        value={draft.villeEntreprise ?? ""}
+                        onChange={(e) => updateDraft({ villeEntreprise: e.target.value })}
+                        className={INPUT_CLS} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <TriChoice label="Vos cotisations (URSSAF / caisses) sont-elles à jour ?" value={draft.cotisationsAJour} onChange={(v) => updateDraft({ cotisationsAJour: v })} />
               <TriChoice label="Avez-vous une attestation URSSAF / CFP disponible ?" value={draft.attestationUrssafCFPDisponible} onChange={(v) => updateDraft({ attestationUrssafCFPDisponible: v })} />
 
@@ -269,6 +381,77 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
 
               <div><label className={LABEL_CLS}>Téléphone</label>
                 <input type="tel" value={draft.telephone} onChange={(e) => updateDraft({ telephone: e.target.value })} placeholder="06 12 34 56 78" className={INPUT_CLS} /></div>
+
+              {/* ─── Identité personnelle (V1.5 — optionnel) ─── */}
+              <div className="border-t border-border pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Identité personnelle (optionnel)
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">Civilité</label>
+                    <div className="flex gap-2">
+                      {([
+                        { value: "M" as const, label: "Monsieur" },
+                        { value: "MME" as const, label: "Madame" },
+                      ]).map((o) => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => updateDraft({ civilite: o.value })}
+                          className={cn(
+                            "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                            draft.civilite === o.value
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground hover:bg-muted",
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLS}>Nom de naissance</label>
+                    <input type="text" placeholder="Si différent du nom actuel"
+                      value={draft.nomNaissance ?? ""}
+                      onChange={(e) => updateDraft({ nomNaissance: e.target.value })}
+                      className={INPUT_CLS} />
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLS}>Date de naissance</label>
+                    <input type="date"
+                      value={draft.dateNaissance ?? ""}
+                      onChange={(e) => updateDraft({ dateNaissance: e.target.value })}
+                      className={INPUT_CLS} />
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLS}>N° de sécurité sociale</label>
+                    <input type="text" placeholder="1 65 01 12 145 011 23"
+                      value={draft.numeroSecuriteSociale ?? ""}
+                      onChange={(e) => updateDraft({ numeroSecuriteSociale: e.target.value })}
+                      className={INPUT_CLS} />
+                    <p className="mt-1 text-[11px] text-muted-foreground">13 à 15 chiffres, espaces tolérés.</p>
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLS}>Dernier diplôme obtenu</label>
+                    <select
+                      value={draft.dernierDiplome ?? ""}
+                      onChange={(e) => updateDraft({ dernierDiplome: e.target.value })}
+                      className={INPUT_CLS}
+                    >
+                      <option value="">Sélectionner…</option>
+                      {DIPLOME_OPTIONS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
 
               <div><label className={LABEL_CLS}>Formation choisie</label>
                 <select value={draft.formationChoisie} onChange={(e) => updateDraft({ formationChoisie: e.target.value })} className={INPUT_CLS}>
@@ -376,8 +559,12 @@ export function AgeficeWizard({ onClose, formationOptions }: AgeficeWizardProps)
               </div>
 
               <div className="flex flex-col gap-3">
-                <button onClick={handleDownload} className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-                  <Download className="h-4 w-4" /> Télécharger le dossier</button>
+                <button onClick={handleDownloadCerfa} disabled={cerfaLoading}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+                  {cerfaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  {cerfaLoading ? "Génération…" : "Télécharger mon CERFA prérempli"}</button>
+                <button onClick={handleDownload} className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted">
+                  <Download className="h-4 w-4" /> Télécharger le récapitulatif</button>
                 <button onClick={handleSendToStartAcademy} className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted">
                   <ExternalLink className="h-4 w-4" /> S&apos;inscrire sur Start Academy</button>
                 <button onClick={handleSimulate} disabled={simLoading}
