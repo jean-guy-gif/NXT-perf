@@ -22,7 +22,6 @@ import {
   Navigation,
   ClipboardCheck,
   Building2,
-  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -54,7 +53,6 @@ const navItems: NavItem[] = [
   { href: "/manager/resultats", icon: BarChart3, label: "Mon Volume d'Activité", managerOnly: true },
   { href: "/manager/performance", icon: Gauge, label: "Mes Ratios de Transformation", managerOnly: true },
   { href: "/manager/comparaison", icon: GitCompare, label: "Me Comparer", managerOnly: true },
-  { href: "/manager/notifications", icon: Bell, label: "Notifications", managerOnly: true },
   { href: "/manager/formation", icon: BookOpen, label: "Ma Formation", managerOnly: true },
   { href: "/directeur/pilotage", icon: LayoutDashboard, label: "Mon Tableau de Bord", directorOnly: true },
   { href: "/directeur/equipes", icon: BarChart3, label: "Mon Volume d'Activité", directorOnly: true },
