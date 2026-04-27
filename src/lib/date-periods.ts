@@ -1,9 +1,10 @@
-export type ComparisonPeriod = "mois" | "trimestre" | "semestre" | "annee";
+export type ComparisonPeriod = "semaine" | "mois" | "trimestre" | "semestre" | "annee";
 
 export const COMPARISON_PERIOD_OPTIONS: Array<{
   value: ComparisonPeriod;
   label: string;
 }> = [
+  { value: "semaine", label: "Semaine" },
   { value: "mois", label: "Mois" },
   { value: "trimestre", label: "Trimestre" },
   { value: "semestre", label: "Semestre" },
@@ -24,6 +25,15 @@ export function getPeriodBounds(
   const month = now.getMonth(); // 0-11
 
   switch (period) {
+    case "semaine": {
+      // ISO week: lundi 00:00 → dimanche 23:59:59 contenant `now`
+      const daysFromMonday = (now.getDay() + 6) % 7; // Mon=0, Sun=6
+      const start = new Date(year, month, now.getDate() - daysFromMonday, 0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      return { start, end, monthsInPeriod: 0.25 };
+    }
     case "mois": {
       const start = new Date(year, month, 1, 0, 0, 0, 0);
       const end = new Date(year, month + 1, 0, 23, 59, 59, 999);

@@ -19,7 +19,7 @@ export default function ManagerLayout({
   return (
     <>
       <ManagerScopeBanner
-        hideOnRoutes={["/manager/comparaison", "/manager/equipe", "/manager/gps", "/manager/notifications"]}
+        hideOnRoutes={["/manager/equipe", "/manager/gps", "/manager/notifications"]}
       />
       {children}
     </>

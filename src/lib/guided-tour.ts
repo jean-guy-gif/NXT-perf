@@ -103,9 +103,9 @@ const managerSteps: TourStep[] = [
     description: "Ici, tu gères la composition de ton équipe, tu consultes le détail de chaque conseiller et tu partages le code d'invitation.",
   },
   {
-    target: '[href="/manager/classement"]',
-    title: "Classement",
-    description: "Ici, tu visualises le classement de tes conseillers et tu identifies les meilleurs performers et les axes de progression.",
+    target: '[href="/manager/comparaison"]',
+    title: "Ma Comparaison",
+    description: "Ici, tu compares ton équipe à une autre, tu situes ton agence vs le réseau NXT et tu visualises le classement de tes collaborateurs.",
   },
   {
     target: '[href="/manager/formation"]',
