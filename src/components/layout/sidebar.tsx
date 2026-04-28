@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
   { href: "/directeur/performance", icon: Gauge, label: "Mes Ratios de Transformation", directorOnly: true },
   { href: "/directeur/comparaison", icon: GitCompare, label: "Ma Comparaison", directorOnly: true },
   { href: "/directeur/formation", icon: BookOpen, label: "Ma Formation", directorOnly: true },
+  { href: "/directeur/equipe", icon: Users, label: "Mon Équipe", directorOnly: true },
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage Financier", directorOnly: true, separatorBefore: true },
   { href: "/directeur/leads-dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
   { href: "/coach/dashboard", icon: HeartHandshake, label: "Portefeuille", coachOnly: true },
