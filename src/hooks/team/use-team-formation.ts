@@ -24,27 +24,48 @@ interface UseTeamFormationReturn {
   prioritizedAreas: AggregatedFormationArea[];
 }
 
+interface UseTeamFormationOptions {
+  /** Cible une équipe spécifique en mode démo (fallback sur currentUser.teamId si absent). */
+  teamId?: string;
+  /**
+   * Override direct de la liste de conseillers à diagnostiquer.
+   * Quand fourni, court-circuite tout filtre interne (managerId / teamId).
+   * Utilisé par la page Directeur pour cibler une équipe ou une agence
+   * arbitraire sans dépendre du currentUser.
+   */
+  conseillersOverride?: User[];
+}
+
 /**
  * Aggregate team formation diagnostics — extracted from /manager/cockpit teamRecommendations.
  * Returns per-conseiller diagnostic + aggregated priority areas (sorted by count desc).
+ *
+ * Backwards-compatible : appel sans argument = comportement Manager actuel
+ * (fallback sur currentUser.teamId / currentUser.id).
  */
-export function useTeamFormation(teamId?: string): UseTeamFormationReturn {
+export function useTeamFormation(
+  options?: UseTeamFormationOptions,
+): UseTeamFormationReturn {
   const users = useAppStore((s) => s.users);
   const currentUser = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemo);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const allResults = useAllResults();
 
+  const teamId = options?.teamId;
+  const conseillersOverride = options?.conseillersOverride;
   const effectiveTeamId = teamId ?? currentUser?.teamId ?? null;
 
   const conseillers = useMemo<User[]>(() => {
+    // Override Directeur : utiliser la liste fournie sans filtrage interne.
+    if (conseillersOverride) return conseillersOverride;
     if (!currentUser) return [];
     return users.filter((u) => {
       if (u.role !== "conseiller") return false;
       if (isDemo) return u.teamId === effectiveTeamId;
       return u.managerId === currentUser.id;
     });
-  }, [users, currentUser, isDemo, effectiveTeamId]);
+  }, [users, currentUser, isDemo, effectiveTeamId, conseillersOverride]);
 
   const perConseillerDiagnostic = useMemo(() => {
     const map = new Map<string, FormationDiagnostic>();

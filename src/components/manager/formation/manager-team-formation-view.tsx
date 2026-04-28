@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Target,
   BookOpen,
@@ -14,14 +14,18 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app-store";
 import { useTeamFormation } from "@/hooks/team/use-team-formation";
 import type { AggregatedFormationArea } from "@/hooks/team/use-team-formation";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { mockTeamNxtTrainingData } from "@/data/mock-nxt-training";
 import type { FormationArea } from "@/types/formation";
+import type { User } from "@/types/user";
+import type { ScopeOverride } from "@/types/scope-override";
 
 type TeamFormationTab = "diagnostic" | "plan30" | "entrainer" | "catalogue";
+export type EntityLabel = "équipe" | "agence";
 
 interface CollectivePlanState {
   area: FormationArea;
@@ -45,8 +49,47 @@ function formatRelativeDate(iso: string): string {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-export function ManagerTeamFormationView() {
-  const { perConseillerDiagnostic, prioritizedAreas } = useTeamFormation();
+interface ManagerTeamFormationViewProps {
+  /**
+   * Override de scope (Directeur). Calcule un override de la liste de
+   * conseillers à diagnostiquer selon institutionId / teamId fournis,
+   * et le passe à useTeamFormation pour court-circuiter le filtre managerId.
+   * Sans override, comportement Manager actuel inchangé.
+   */
+  scopeOverride?: ScopeOverride;
+  /**
+   * Libellé de l'entité collective utilisé dans les textes UI.
+   * - "équipe" (défaut) : comportement Manager actuel
+   * - "agence"          : substitué dans tous les libellés "votre équipe" → "votre agence"
+   */
+  entityLabel?: EntityLabel;
+}
+
+export function ManagerTeamFormationView({
+  scopeOverride,
+  entityLabel = "équipe",
+}: ManagerTeamFormationViewProps = {}) {
+  const users = useAppStore((s) => s.users);
+
+  // Calcul de l'override de conseillers depuis scopeOverride.
+  // - institutionId + teamId : conseillers de cette équipe
+  // - institutionId seul     : tous les conseillers de l'institution (mode agence)
+  // - undefined              : useTeamFormation utilise son fallback Manager natif
+  const conseillersOverride = useMemo<User[] | undefined>(() => {
+    if (!scopeOverride) return undefined;
+    const { institutionId, teamId } = scopeOverride;
+    if (!institutionId && !teamId) return undefined;
+    return users.filter((u) => {
+      if (u.role !== "conseiller") return false;
+      if (institutionId && u.institutionId !== institutionId) return false;
+      if (teamId && u.teamId !== teamId) return false;
+      return true;
+    });
+  }, [scopeOverride, users]);
+
+  const { perConseillerDiagnostic, prioritizedAreas } = useTeamFormation({
+    conseillersOverride,
+  });
   const [activeTab, setActiveTab] = useState<TeamFormationTab>("diagnostic");
   const [collectivePlan, setCollectivePlan] = useState<CollectivePlanState | null>(null);
   const [selectedArea, setSelectedArea] = useState<string>("");
@@ -99,10 +142,10 @@ export function ManagerTeamFormationView() {
               Diagnostic collectif
             </div>
             <h2 className="mb-3 text-3xl font-bold text-foreground">
-              Bilan synthétique de votre équipe
+              Bilan synthétique de votre {entityLabel}
             </h2>
             <p className="mb-6 max-w-2xl text-muted-foreground">
-              Vue d&apos;ensemble des axes de formation prioritaires pour votre équipe.
+              Vue d&apos;ensemble des axes de formation prioritaires pour votre {entityLabel}.
             </p>
 
             <div className="rounded-xl border border-border bg-card p-6">
@@ -129,8 +172,8 @@ export function ManagerTeamFormationView() {
                   </h3>
                   <p className="text-base leading-relaxed text-muted-foreground">
                     {prioritizedAreas.length === 0
-                      ? `Tous les conseillers de votre équipe (${totalConseillers}) atteignent leurs objectifs sur les ratios de transformation.`
-                      : `${prioritizedAreas.reduce((s, a) => s + a.count, 0)} situation(s) prioritaire(s) détectée(s) sur ${totalConseillers} conseiller(s). Lancez un plan d'équipe pour cibler le levier dominant.`}
+                      ? `Tous les conseillers de votre ${entityLabel} (${totalConseillers}) atteignent leurs objectifs sur les ratios de transformation.`
+                      : `${prioritizedAreas.reduce((s, a) => s + a.count, 0)} situation(s) prioritaire(s) détectée(s) sur ${totalConseillers} conseiller(s). Lancez un plan d'${entityLabel} pour cibler le levier dominant.`}
                   </p>
                 </div>
               </div>
@@ -170,10 +213,10 @@ export function ManagerTeamFormationView() {
             Plan 30 jours collectif
           </div>
           <h2 className="mb-3 text-3xl font-bold text-foreground">
-            Plan d&apos;équipe 30 jours
+            Plan d&apos;{entityLabel} 30 jours
           </h2>
           <p className="mb-8 max-w-2xl text-muted-foreground">
-            Choisissez un axe prioritaire et lancez un plan d&apos;équipe ciblé sur 30 jours.
+            Choisissez un axe prioritaire et lancez un plan d&apos;{entityLabel} ciblé sur 30 jours.
           </p>
 
           {!collectivePlan ? (
@@ -183,10 +226,10 @@ export function ManagerTeamFormationView() {
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="mb-2 text-2xl font-bold text-foreground">
-                  Démarrer un plan d&apos;équipe
+                  Démarrer un plan d&apos;{entityLabel}
                 </h3>
                 <p className="mb-6 max-w-md text-base leading-relaxed text-muted-foreground">
-                  Sélectionnez l&apos;axe sur lequel concentrer l&apos;effort de votre équipe.
+                  Sélectionnez l&apos;axe sur lequel concentrer l&apos;effort de votre {entityLabel}.
                 </p>
 
                 {prioritizedAreas.length === 0 ? (
@@ -221,7 +264,7 @@ export function ManagerTeamFormationView() {
                       }}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Démarrer le plan d&apos;équipe
+                      Démarrer le plan d&apos;{entityLabel}
                       <ArrowRight className="h-5 w-5" />
                     </button>
                   </div>
@@ -234,6 +277,7 @@ export function ManagerTeamFormationView() {
           ) : (
             <ActiveCollectivePlanCard
               plan={collectivePlan}
+              entityLabel={entityLabel}
               onTerminate={() => setCollectivePlan(null)}
             />
           )}
@@ -241,7 +285,7 @@ export function ManagerTeamFormationView() {
       )}
 
       {/* ========== ENTRAÎNEMENT (mocké) ========== */}
-      {activeTab === "entrainer" && <TeamTrainingTab />}
+      {activeTab === "entrainer" && <TeamTrainingTab entityLabel={entityLabel} />}
 
       {/* ========== CATALOGUE ========== */}
       {activeTab === "catalogue" && (
@@ -251,10 +295,10 @@ export function ManagerTeamFormationView() {
             Catalogue
           </div>
           <h2 className="mb-3 text-3xl font-bold text-foreground">
-            Pour faire progresser votre équipe
+            Pour faire progresser votre {entityLabel}
           </h2>
           <p className="mb-8 max-w-2xl text-muted-foreground">
-            4 outils pour améliorer la performance de votre équipe : plan personnalisé,
+            4 outils pour améliorer la performance de votre {entityLabel} : plan personnalisé,
             coaching, entraînement et formation certifiante.
           </p>
           <ImprovementCatalogue />
@@ -332,21 +376,23 @@ function AreaCard({
 
 function ActiveCollectivePlanCard({
   plan,
+  entityLabel = "équipe",
   onTerminate,
 }: {
   plan: CollectivePlanState;
+  entityLabel?: EntityLabel;
   onTerminate: () => void;
 }) {
   const elapsed = daysSince(plan.startedAt);
   const xOfThirty = Math.min(30, elapsed);
   const progress = Math.min(100, (xOfThirty / 30) * 100);
 
-  // Mock 4 actions équipe
+  // Mock 4 actions collectives
   const mockActions = [
-    "Brief équipe : présentation de l'axe et objectifs",
+    `Brief ${entityLabel} : présentation de l'axe et objectifs`,
     "Atelier collectif : techniques avancées",
     "Mise en pratique terrain (semaine 2-3)",
-    "Bilan d'équipe : retours et ajustements",
+    `Bilan d'${entityLabel} : retours et ajustements`,
   ];
 
   return (
@@ -385,7 +431,7 @@ function ActiveCollectivePlanCard({
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h4 className="mb-3 text-sm font-bold text-foreground">
-          Actions d&apos;équipe
+          Actions d&apos;{entityLabel}
         </h4>
         <ul className="space-y-2">
           {mockActions.map((action, i) => (
@@ -411,7 +457,9 @@ function ActiveCollectivePlanCard({
 
 // ─── TEAM TRAINING TAB (mocké) ────────────────────────────────────
 
-function TeamTrainingTab() {
+function TeamTrainingTab({
+  entityLabel = "équipe",
+}: { entityLabel?: EntityLabel } = {}) {
   const data = mockTeamNxtTrainingData;
   const conseillersActifs = data.perConseillerSummary.filter(
     (c) => c.formationsCount > 0,
@@ -424,10 +472,10 @@ function TeamTrainingTab() {
         Entraînement
       </div>
       <h2 className="mb-3 text-3xl font-bold text-foreground">
-        Activité NXT Training de votre équipe
+        Activité NXT Training de votre {entityLabel}
       </h2>
       <p className="mb-6 max-w-2xl text-muted-foreground">
-        Suivi de l&apos;activité d&apos;entraînement des conseillers de votre équipe ce mois.
+        Suivi de l&apos;activité d&apos;entraînement des conseillers de votre {entityLabel} ce mois.
       </p>
 
       {/* Bandeau transparence mock */}
