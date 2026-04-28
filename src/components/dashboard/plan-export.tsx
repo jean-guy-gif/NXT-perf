@@ -2,10 +2,23 @@
 
 import { useCallback, useState, useRef } from "react";
 import { Download, X, Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
-import html2canvas from "html2canvas";
+import { toJpeg } from "html-to-image";
 import { cn } from "@/lib/utils";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
+
+/**
+ * Retourne la couleur de fond du dashboard pour aligner l'export JPEG sur le
+ * rendu écran (light → blanc, dark → --agency-dark dynamique selon thème agence).
+ * SSR-safe : fallback #1A1A2E hors browser.
+ */
+function getDashboardBackgroundColor(): string {
+  if (typeof window === "undefined") return "#1A1A2E";
+  const html = document.documentElement;
+  if (!html.classList.contains("dark")) return "#ffffff";
+  const agencyDark = getComputedStyle(html).getPropertyValue("--agency-dark").trim();
+  return agencyDark || "#1A1A2E";
+}
 
 interface PlanWeek {
   week: number;
@@ -73,23 +86,24 @@ export function PlanExport({ title, subtitle, weakRatios, onClose }: PlanExportP
     setExporting(true);
 
     try {
-      const canvas = await html2canvas(planRef.current, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
+      const dataUrl = await toJpeg(planRef.current, {
+        quality: 0.92,
+        backgroundColor: getDashboardBackgroundColor(),
+        cacheBust: true,
+        pixelRatio: 2,
       });
 
       if (format === "jpeg") {
         const link = document.createElement("a");
         link.download = `plan-30-jours-${Date.now()}.jpg`;
-        link.href = canvas.toDataURL("image/jpeg", 0.92);
+        link.href = dataUrl;
         link.click();
         showToast("success", "Export JPEG téléchargé");
       } else {
-        // PDF via print
+        // PDF via print (logique conservée — autre chantier pour migration vers pdf-lib)
         const win = window.open("", "_blank");
         if (win) {
-          win.document.write(`<html><body style="margin:0"><img src="${canvas.toDataURL("image/jpeg", 0.92)}" style="width:100%"/></body></html>`);
+          win.document.write(`<html><body style="margin:0"><img src="${dataUrl}" style="width:100%"/></body></html>`);
           win.document.close();
           win.print();
           showToast("success", "Export PDF lancé");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import html2canvas from "html2canvas";
+import { toJpeg } from "html-to-image";
 import {
   Award,
   Trophy,
@@ -37,6 +37,19 @@ import type { User } from "@/types/user";
 type RankSubMode = "conseillers" | "equipes";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
+
+/**
+ * Retourne la couleur de fond du dashboard pour aligner l'export JPEG sur le
+ * rendu écran (light → blanc, dark → --agency-dark dynamique selon thème agence).
+ * SSR-safe : fallback #1A1A2E hors browser.
+ */
+function getDashboardBackgroundColor(): string {
+  if (typeof window === "undefined") return "#1A1A2E";
+  const html = document.documentElement;
+  if (!html.classList.contains("dark")) return "#ffffff";
+  const agencyDark = getComputedStyle(html).getPropertyValue("--agency-dark").trim();
+  return agencyDark || "#1A1A2E";
+}
 
 type MetricKey =
   | "ca"
@@ -227,28 +240,22 @@ export function EnrichedLeaderboardTab() {
   const handleExportJpeg = useCallback(async () => {
     if (!exportRef.current || exporting) return;
     setExporting(true);
+    // Force un commit DOM (rendre le header conditionnel `exporting && ...`)
+    // avant la capture toJpeg — sinon React n'a pas encore peint le header.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     try {
-      const canvas = await html2canvas(exportRef.current, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        logging: false,
+      const dataUrl = await toJpeg(exportRef.current, {
+        quality: 0.92,
+        backgroundColor: getDashboardBackgroundColor(),
+        cacheBust: true,
+        pixelRatio: 2,
       });
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return;
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? metric;
-          a.download = `classement-${subMode}-${metricLabel.toLowerCase().replace(/\s/g, "-")}.jpg`;
-          a.click();
-          URL.revokeObjectURL(url);
-          showToast("success", "Export JPEG téléchargé");
-        },
-        "image/jpeg",
-        0.92,
-      );
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? metric;
+      a.download = `classement-${subMode}-${metricLabel.toLowerCase().replace(/\s/g, "-")}.jpg`;
+      a.click();
+      showToast("success", "Export JPEG téléchargé");
     } catch (err) {
       console.error("[leaderboard] Export JPEG failed:", err);
       showToast("error", "L'export JPEG est temporairement indisponible. Une mise à jour est en cours.");
@@ -338,6 +345,68 @@ export function EnrichedLeaderboardTab() {
 
       {/* Exportable area */}
       <div ref={exportRef} className="space-y-6">
+        {/* Header contextuel — visible uniquement pendant l'export JPEG.
+            Styles inline pour fiabilité html-to-image (pas de classes Tailwind purgeables). */}
+        {exporting && (
+          <div
+            style={{
+              padding: "32px 24px 24px",
+              textAlign: "center",
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
+              marginBottom: "24px",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: "32px",
+                fontWeight: 700,
+                color: "#ffffff",
+                margin: 0,
+                marginBottom: "8px",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Classement de l&apos;agence
+            </h1>
+            <div
+              style={{
+                fontSize: "16px",
+                color: "rgba(255,255,255,0.85)",
+                marginBottom: "4px",
+              }}
+            >
+              Classement par {METRICS.find((m) => m.key === metric)?.label ?? metric} ·{" "}
+              {subMode === "conseillers" ? "Conseillers" : "Équipes"}
+            </div>
+            <div
+              style={{
+                fontSize: "14px",
+                color: "rgba(255,255,255,0.65)",
+                marginBottom: "12px",
+              }}
+            >
+              {COMPARISON_PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? period} ·{" "}
+              {formatPeriodRange(periodBounds)}
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                color: "rgba(255,255,255,0.45)",
+                fontStyle: "italic",
+              }}
+            >
+              Exporté le{" "}
+              {new Date().toLocaleString("fr-FR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Top 3 + À suivre (conseillers only) */}
         <div
           className={cn(
