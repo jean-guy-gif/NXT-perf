@@ -2,6 +2,7 @@
 
 import { useAppStore } from "@/stores/app-store";
 import { redirect } from "next/navigation";
+import { DirecteurShell } from "./_directeur-shell";
 
 export default function DirecteurLayout({
   children,
@@ -17,5 +18,5 @@ export default function DirecteurLayout({
     redirect("/dashboard");
   }
 
-  return <>{children}</>;
+  return <DirecteurShell>{children}</DirecteurShell>;
 }
