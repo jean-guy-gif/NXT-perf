@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/directeur/pilotage", destination: "/directeur/dashboard", permanent: true },
       { source: "/directeur/equipes", destination: "/directeur/resultats", permanent: true },
+      { source: "/directeur/equipe", destination: "/directeur/dashboard", permanent: true },
       { source: "/directeur/formation-collective", destination: "/directeur/formation", permanent: true },
       { source: "/admin/dpi", destination: "/directeur/leads-dpi", permanent: true },
     ];

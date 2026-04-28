@@ -50,7 +50,6 @@ const pageTitles: Record<string, string> = {
   "/directeur/performance": "Mes Ratios de Transformation",
   "/directeur/comparaison": "Ma Comparaison",
   "/directeur/formation": "Ma Formation",
-  "/directeur/equipe": "Mon Équipe",
   "/directeur/pilotage-financier": "Pilotage Financier",
   "/directeur/leads-dpi": "Leads DPI",
   "/coach/cockpit": "Cockpit Coach",

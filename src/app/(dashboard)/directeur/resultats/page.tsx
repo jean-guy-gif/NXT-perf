@@ -199,15 +199,9 @@ export default function DirecteurResultatsPage() {
           <h2 className="mb-3 text-2xl font-bold text-foreground">
             {emptyTitle}
           </h2>
-          <p className="mb-6 max-w-md text-base leading-relaxed text-muted-foreground">
-            Pour voir les résultats, ajoutez des conseillers à l&apos;équipe.
+          <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+            Les résultats s&apos;afficheront dès que des conseillers auront saisi leurs données.
           </p>
-          <a
-            href="/directeur/equipe"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
-          >
-            Gérer l&apos;équipe
-          </a>
         </div>
       </section>
     );

@@ -8,7 +8,6 @@ import { ScopeSelector } from "@/components/directeur/scope-selector";
  * Décide d'afficher ou non le ScopeSelector selon la route courante.
  *
  * Routes EXCLUES (pas de ScopeSelector visible) :
- * - /directeur/equipe          : gestion équipe (scope intrinsèquement "agence")
  * - /directeur/pilotage-financier : indicateurs agence-only pour l'instant
  * - /directeur/leads-dpi       : ré-export /admin/dpi, pas de scope applicable
  *
@@ -17,7 +16,6 @@ import { ScopeSelector } from "@/components/directeur/scope-selector";
  * le layout Server parent.
  */
 const HIDE_SCOPE_SELECTOR_ON: string[] = [
-  "/directeur/equipe",
   "/directeur/pilotage-financier",
   "/directeur/leads-dpi",
 ];
