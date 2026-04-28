@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import { computeAllRatios } from "@/lib/ratios";
@@ -37,10 +37,24 @@ export function DPIComparisonView() {
     [users]
   );
 
-  const [userAId, setUserAId] = useState(currentUser?.id ?? comparableUsers[0]?.id ?? "");
-  const [userBId, setUserBId] = useState(
-    comparableUsers.find((u) => u.id !== currentUser?.id)?.id ?? ""
-  );
+  const [userAId, setUserAId] = useState("");
+  const [userBId, setUserBId] = useState("");
+
+  // Initialisation différée : Zustand (currentUser, users) hydrate de manière
+  // asynchrone après le premier render. Sans cet effect, useState fige les
+  // valeurs au tout premier render (souvent currentUser=null et users=[]),
+  // ce qui désynchronise le <select> du state. Cet effect alimente A/B dès
+  // que les données deviennent disponibles, sans écraser les sélections
+  // utilisateur ultérieures (conditionné sur !userAId / !userBId).
+  useEffect(() => {
+    if (!userAId && (currentUser?.id || comparableUsers.length > 0)) {
+      setUserAId(currentUser?.id ?? comparableUsers[0]?.id ?? "");
+    }
+    if (!userBId && comparableUsers.length > 0) {
+      const firstNonCurrent = comparableUsers.find((u) => u.id !== currentUser?.id);
+      setUserBId(firstNonCurrent?.id ?? comparableUsers[1]?.id ?? comparableUsers[0]?.id ?? "");
+    }
+  }, [currentUser?.id, comparableUsers, userAId, userBId]);
 
   const dpiA = useMemo(() => computeUserDPI(userAId, users, allResults, ratioConfigs), [userAId, users, allResults, ratioConfigs]);
   const dpiB = useMemo(() => computeUserDPI(userBId, users, allResults, ratioConfigs), [userBId, users, allResults, ratioConfigs]);
