@@ -9,6 +9,7 @@ import { MiniRadar } from "@/components/dpi/mini-radar";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
+import type { ScopeOverride } from "@/types/scope-override";
 
 function computeUserDPI(
   userId: string,
@@ -26,11 +27,22 @@ function computeUserDPI(
   return { user, scores: axes, globalScore };
 }
 
-export function DPIComparisonView() {
+interface DPIComparisonViewProps {
+  /** Override de scope (Directeur). Sans override, lit currentUser via useAppStore. */
+  scopeOverride?: ScopeOverride;
+}
+
+export function DPIComparisonView({ scopeOverride }: DPIComparisonViewProps = {}) {
   const users = useAppStore((s) => s.users);
   const currentUser = useAppStore((s) => s.user);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const allResults = useAllResults();
+
+  // ID de référence pour l'auto-sélection A et le label "(moi)"/"(sélectionné)".
+  // Avec scopeOverride.userId : utilisé comme défaut A et marqué "(sélectionné)".
+  // Sans override : currentUser.id, marqué "(moi)" — comportement Manager actuel.
+  const referenceUserId = scopeOverride?.userId ?? currentUser?.id ?? null;
+  const referenceLabel = scopeOverride?.userId ? " (sélectionné)" : " (moi)";
 
   const comparableUsers = useMemo(() =>
     users.filter((u) => u.role === "conseiller" || u.role === "manager"),
@@ -47,14 +59,14 @@ export function DPIComparisonView() {
   // que les données deviennent disponibles, sans écraser les sélections
   // utilisateur ultérieures (conditionné sur !userAId / !userBId).
   useEffect(() => {
-    if (!userAId && (currentUser?.id || comparableUsers.length > 0)) {
-      setUserAId(currentUser?.id ?? comparableUsers[0]?.id ?? "");
+    if (!userAId && (referenceUserId || comparableUsers.length > 0)) {
+      setUserAId(referenceUserId ?? comparableUsers[0]?.id ?? "");
     }
     if (!userBId && comparableUsers.length > 0) {
-      const firstNonCurrent = comparableUsers.find((u) => u.id !== currentUser?.id);
-      setUserBId(firstNonCurrent?.id ?? comparableUsers[1]?.id ?? comparableUsers[0]?.id ?? "");
+      const firstNonReference = comparableUsers.find((u) => u.id !== referenceUserId);
+      setUserBId(firstNonReference?.id ?? comparableUsers[1]?.id ?? comparableUsers[0]?.id ?? "");
     }
-  }, [currentUser?.id, comparableUsers, userAId, userBId]);
+  }, [referenceUserId, comparableUsers, userAId, userBId]);
 
   const dpiA = useMemo(() => computeUserDPI(userAId, users, allResults, ratioConfigs), [userAId, users, allResults, ratioConfigs]);
   const dpiB = useMemo(() => computeUserDPI(userBId, users, allResults, ratioConfigs), [userBId, users, allResults, ratioConfigs]);
@@ -77,7 +89,7 @@ export function DPIComparisonView() {
           >
             {comparableUsers.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.firstName} {u.lastName}{u.id === currentUser?.id ? " (moi)" : ""}
+                {u.firstName} {u.lastName}{u.id === referenceUserId ? referenceLabel : ""}
               </option>
             ))}
           </select>
@@ -91,7 +103,7 @@ export function DPIComparisonView() {
           >
             {comparableUsers.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.firstName} {u.lastName}{u.id === currentUser?.id ? " (moi)" : ""}
+                {u.firstName} {u.lastName}{u.id === referenceUserId ? referenceLabel : ""}
               </option>
             ))}
           </select>

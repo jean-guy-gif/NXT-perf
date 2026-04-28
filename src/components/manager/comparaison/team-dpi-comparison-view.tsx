@@ -10,6 +10,7 @@ import { computeDPIAxes, computeGlobalDPIScore, type DPIAxis } from "@/lib/dpi-a
 import { MiniRadar } from "@/components/dpi/mini-radar";
 import { cn } from "@/lib/utils";
 import type { PeriodResults } from "@/types/results";
+import type { ScopeOverride } from "@/types/scope-override";
 
 interface TeamDPI {
   teamId: string;
@@ -35,15 +36,22 @@ function computeTeamDPI(
   return { teamId, teamName, scores: axes, globalScore };
 }
 
-export function TeamDPIComparisonView() {
+interface TeamDPIComparisonViewProps {
+  /** Override de scope (Directeur). Sans override, lit currentUser via useUser. */
+  scopeOverride?: ScopeOverride;
+}
+
+export function TeamDPIComparisonView({
+  scopeOverride,
+}: TeamDPIComparisonViewProps = {}) {
   const { user } = useUser();
   const users = useAppStore((s) => s.users);
   const teamInfos = useAppStore((s) => s.teamInfos);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const allResults = useAllResults();
 
-  const myInstitutionId = user?.institutionId;
-  const myTeamId = user?.teamId;
+  const myInstitutionId = scopeOverride?.institutionId ?? user?.institutionId;
+  const myTeamId = scopeOverride?.teamId ?? user?.teamId;
 
   const teams = useMemo(() => {
     const fromInfos = teamInfos.filter((t) => t.institutionId === myInstitutionId);

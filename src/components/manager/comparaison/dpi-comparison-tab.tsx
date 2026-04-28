@@ -5,10 +5,16 @@ import { Target, User as UserIcon, Users as UsersIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DPIComparisonView } from "@/components/dpi/dpi-comparison-view";
 import { TeamDPIComparisonView } from "@/components/manager/comparaison/team-dpi-comparison-view";
+import type { ScopeOverride } from "@/types/scope-override";
 
 type DpiSubMode = "conseillers" | "equipes";
 
-export function DpiComparisonTab() {
+interface DpiComparisonTabProps {
+  /** Override de scope (Directeur). Forwardé aux 2 sous-vues. */
+  scopeOverride?: ScopeOverride;
+}
+
+export function DpiComparisonTab({ scopeOverride }: DpiComparisonTabProps = {}) {
   const [subMode, setSubMode] = useState<DpiSubMode>("conseillers");
 
   return (
@@ -54,7 +60,11 @@ export function DpiComparisonTab() {
         </div>
       </div>
 
-      {subMode === "conseillers" ? <DPIComparisonView /> : <TeamDPIComparisonView />}
+      {subMode === "conseillers" ? (
+        <DPIComparisonView scopeOverride={scopeOverride} />
+      ) : (
+        <TeamDPIComparisonView scopeOverride={scopeOverride} />
+      )}
     </section>
   );
 }

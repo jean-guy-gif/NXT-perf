@@ -28,6 +28,7 @@ import {
 } from "@/lib/comparison";
 import type { PeriodResults } from "@/types/results";
 import type { User, UserCategory } from "@/types/user";
+import type { ScopeOverride } from "@/types/scope-override";
 
 type CompareTeamMode = "team" | "profile";
 type CompareIndivMode = "advisor" | "profile";
@@ -35,26 +36,31 @@ type CompareIndivMode = "advisor" | "profile";
 interface ComparaisonInternalViewProps {
   /** When defined → individual scope dispatcher (Pierre vs autre/profil). When null → team scope. */
   conseiller: User | null;
+  /** Override de scope (Directeur). Appliqué uniquement à TeamView (IndivView est pur). */
+  scopeOverride?: ScopeOverride;
 }
 
-export function ComparaisonInternalView({ conseiller }: ComparaisonInternalViewProps) {
+export function ComparaisonInternalView({
+  conseiller,
+  scopeOverride,
+}: ComparaisonInternalViewProps) {
   if (conseiller) {
     return <IndivView conseiller={conseiller} />;
   }
-  return <TeamView />;
+  return <TeamView scopeOverride={scopeOverride} />;
 }
 
 // ─── COLLECTIF — équipe agrégée vs autre équipe / profil ────────────────────
 
-function TeamView() {
+function TeamView({ scopeOverride }: { scopeOverride?: ScopeOverride } = {}) {
   const { user } = useUser();
   const users = useAppStore((s) => s.users);
   const teamInfos = useAppStore((s) => s.teamInfos);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const allResults = useAllResults();
 
-  const myInstitutionId = user?.institutionId;
-  const myTeamId = user?.teamId;
+  const myInstitutionId = scopeOverride?.institutionId ?? user?.institutionId;
+  const myTeamId = scopeOverride?.teamId ?? user?.teamId;
 
   // Team list of the same institution, excluding mine
   const otherTeams = useMemo(() => {
@@ -132,8 +138,14 @@ function TeamView() {
   const myTeamName = useMemo(() => {
     const info = teamInfos.find((t) => t.id === myTeamId);
     if (info) return info.name;
+    // Avec override (Directeur), `user` est le Directeur → son prénom n'est pas
+    // pertinent comme fallback. On dérive depuis le manager de l'équipe ciblée.
+    if (scopeOverride && myTeamId) {
+      const mgr = users.find((u) => u.teamId === myTeamId && u.role === "manager");
+      if (mgr) return `Équipe de ${mgr.firstName}`;
+    }
     return user ? `Équipe de ${user.firstName}` : "Mon équipe";
-  }, [teamInfos, myTeamId, user]);
+  }, [teamInfos, myTeamId, user, users, scopeOverride]);
 
   const otherDisplayName =
     mode === "team"

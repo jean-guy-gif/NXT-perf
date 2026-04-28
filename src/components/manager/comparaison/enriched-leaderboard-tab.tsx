@@ -33,6 +33,7 @@ import {
 } from "@/lib/date-periods";
 import type { PeriodResults } from "@/types/results";
 import type { User } from "@/types/user";
+import type { ScopeOverride } from "@/types/scope-override";
 
 type RankSubMode = "conseillers" | "equipes";
 
@@ -131,7 +132,14 @@ function formatMetricValue(value: number, metric: MetricKey): string {
   return value.toLocaleString("fr-FR");
 }
 
-export function EnrichedLeaderboardTab() {
+interface EnrichedLeaderboardTabProps {
+  /** Override de scope (Directeur). Sans override, lit currentUser via useUser. */
+  scopeOverride?: ScopeOverride;
+}
+
+export function EnrichedLeaderboardTab({
+  scopeOverride,
+}: EnrichedLeaderboardTabProps = {}) {
   const { user: currentUser } = useUser();
   const users = useAppStore((s) => s.users);
   const teamInfos = useAppStore((s) => s.teamInfos);
@@ -152,7 +160,7 @@ export function EnrichedLeaderboardTab() {
 
   const periodBounds = useMemo(() => getPeriodBounds(period), [period]);
 
-  const myInstitutionId = currentUser?.institutionId;
+  const myInstitutionId = scopeOverride?.institutionId ?? currentUser?.institutionId;
 
   // Conseillers ranking — institution-scoped
   const conseillerRankings = useMemo<RankingEntry[]>(() => {
