@@ -45,15 +45,15 @@ const pageTitles: Record<string, string> = {
   "/parametres": "Paramètres",
   "/manager/formation": "Ma Formation",
   "/manager/formation-collective": "Ma Formation Collective",
-  "/directeur/pilotage": "Mon Tableau de Bord",
-  "/directeur/equipes": "Mon Volume d'Activité",
+  "/directeur/dashboard": "Tableau de bord",
+  "/directeur/resultats": "Mon Volume d'Activité",
   "/directeur/performance": "Mes Ratios de Transformation",
-  "/directeur/comparaison": "Me Comparer",
-  "/directeur/formation-collective": "Ma Formation Collective",
+  "/directeur/comparaison": "Ma Comparaison",
+  "/directeur/formation": "Ma Formation",
   "/directeur/pilotage-financier": "Pilotage Financier",
+  "/directeur/leads-dpi": "Leads DPI",
   "/coach/cockpit": "Cockpit Coach",
   "/reseau/dashboard": "Tableau de bord Réseau",
-  "/admin/dpi": "Leads DPI",
 };
 
 export function Header() {

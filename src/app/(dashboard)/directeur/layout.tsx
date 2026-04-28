@@ -11,7 +11,9 @@ export default function DirecteurLayout({
   const user = useAppStore((s) => s.user);
   const roles = user?.availableRoles ?? [];
 
-  if (!roles.includes("directeur")) {
+  // Autorise le rôle "reseau" en plus de "directeur" pour préserver l'accès
+  // aux Leads DPI (ancienne URL /admin/dpi redirigée vers /directeur/leads-dpi).
+  if (!roles.includes("directeur") && !roles.includes("reseau")) {
     redirect("/dashboard");
   }
 

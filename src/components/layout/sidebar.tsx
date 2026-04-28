@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -41,6 +42,8 @@ interface NavItem {
   networkOnly?: boolean;
   /** Feature key for subscription lock check */
   lockedFeature?: string;
+  /** Affiche un séparateur visuel discret AVANT cet item dans la sidebar */
+  separatorBefore?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -54,17 +57,17 @@ const navItems: NavItem[] = [
   { href: "/manager/performance", icon: Gauge, label: "Mes Ratios de Transformation", managerOnly: true },
   { href: "/manager/comparaison", icon: GitCompare, label: "Ma Comparaison", managerOnly: true },
   { href: "/manager/formation", icon: BookOpen, label: "Ma Formation", managerOnly: true },
-  { href: "/directeur/pilotage", icon: LayoutDashboard, label: "Mon Tableau de Bord", directorOnly: true },
-  { href: "/directeur/equipes", icon: BarChart3, label: "Mon Volume d'Activité", directorOnly: true },
+  { href: "/directeur/dashboard", icon: LayoutDashboard, label: "Tableau de bord", directorOnly: true },
+  { href: "/directeur/resultats", icon: BarChart3, label: "Mon Volume d'Activité", directorOnly: true },
   { href: "/directeur/performance", icon: Gauge, label: "Mes Ratios de Transformation", directorOnly: true },
-  { href: "/directeur/comparaison", icon: GitCompare, label: "Me Comparer", directorOnly: true },
-  { href: "/directeur/formation-collective", icon: BookOpen, label: "Ma Formation Collective", directorOnly: true },
-  { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage Financier", directorOnly: true },
+  { href: "/directeur/comparaison", icon: GitCompare, label: "Ma Comparaison", directorOnly: true },
+  { href: "/directeur/formation", icon: BookOpen, label: "Ma Formation", directorOnly: true },
+  { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage Financier", directorOnly: true, separatorBefore: true },
+  { href: "/directeur/leads-dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
   { href: "/coach/dashboard", icon: HeartHandshake, label: "Portefeuille", coachOnly: true },
   { href: "/coach/cockpit", icon: Zap, label: "Cockpit Coach", coachOnly: true },
   { href: "/reseau/dashboard", icon: Network, label: "Vue Réseau", networkOnly: true },
   { href: "/reseau/agence", icon: Building2, label: "Mes Agences", networkOnly: true },
-  { href: "/admin/dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
   { href: "/pourquoi-nxt", icon: Compass, label: "Notre approche" },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
@@ -168,7 +171,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {directorItems.length > 0 && (
         <SidebarSection label="Directeur" collapsed={collapsed}>
           {directorItems.map((item) => (
-            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+            <Fragment key={item.href}>
+              {item.separatorBefore && (
+                <div
+                  className={cn(
+                    collapsed
+                      ? "my-2 mx-auto h-px w-8 bg-sidebar-border"
+                      : "my-2 border-t border-sidebar-border",
+                  )}
+                />
+              )}
+              <SidebarItem item={item} pathname={pathname} collapsed={collapsed} />
+            </Fragment>
           ))}
         </SidebarSection>
       )}
