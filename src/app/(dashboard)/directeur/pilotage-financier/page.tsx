@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Wallet,
   TrendingUp,
@@ -12,22 +12,31 @@ import {
   Settings2,
   X,
   Check,
+  RotateCcw,
+  History,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { useAllResults } from "@/hooks/use-results";
+import { aggregateResults } from "@/lib/aggregate-results";
 import {
   calculateCashNetReel,
   calculatePointMort,
   calculateSalaryRatio,
   calculateRevenueBreakdown,
-  calculateHealthScore,
   buildExecutiveRecommendation,
   detectMissingFields,
   FINANCIAL_FIELD_LABELS,
 } from "@/lib/finance";
+import { getMonthKey } from "@/lib/finance-trajectory";
 import type { FinancialFieldId, HealthStatus } from "@/types/finance";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import {
+  TrajectoryCard,
+  useDirectorTrajectory,
+} from "@/components/director/finance/trajectory-card";
+import { AlertBanner } from "@/components/director/finance/alert-banner";
 
 // ── Status color utilities ──
 
@@ -60,25 +69,61 @@ function fmtMonths(value: number): string {
 
 // ── Main page ──
 
-// All 9 financial fields in display order
-const ALL_FIELDS: FinancialFieldId[] = [
-  "caTransaction", "caGestion", "caSyndic", "caAutres",
-  "chargesFixesMensuelles", "masseSalarialeMensuelle",
-  "tresorerieDisponible", "dettesCourtTerme", "fondsMandants",
-];
-
 export default function PilotageFinancierPage() {
   const financialData = useAppStore((s) => s.financialData);
   const updateField = useAppStore((s) => s.updateFinancialField);
+  const setCaTransactionFromAgency = useAppStore((s) => s.setCaTransactionFromAgency);
+  const clearCaTransactionOverride = useAppStore((s) => s.clearCaTransactionOverride);
+  const restorePreviousMonth = useAppStore((s) => s.restorePreviousMonth);
+  const financialDataHistory = useAppStore((s) => s.financialDataHistory);
+  const directorInstitutionId = useAppStore((s) => s.user?.institutionId);
+  const users = useAppStore((s) => s.users);
+  const allResults = useAllResults();
   const [showEditor, setShowEditor] = useState(false);
 
   const cashNet = useMemo(() => calculateCashNetReel(financialData), [financialData]);
   const pointMort = useMemo(() => calculatePointMort(financialData), [financialData]);
   const salaryRatio = useMemo(() => calculateSalaryRatio(financialData), [financialData]);
   const revenueBreakdown = useMemo(() => calculateRevenueBreakdown(financialData), [financialData]);
-  const healthScore = useMemo(() => calculateHealthScore(financialData), [financialData]);
   const recommendation = useMemo(() => buildExecutiveRecommendation(financialData), [financialData]);
   const missingFields = useMemo(() => detectMissingFields(financialData), [financialData]);
+
+  // Trajectoire 3 mois (PR2i) — partagée entre AlertBanner et TrajectoryCard.
+  const trajectoire = useDirectorTrajectory();
+
+  // CA Acte agence (mois courant) — pour auto-sync caTransaction (PR2i Q4).
+  const caActeAgence = useMemo(() => {
+    if (!directorInstitutionId) return 0;
+    const conseillerIds = new Set(
+      users
+        .filter((u) => u.role === "conseiller" && u.institutionId === directorInstitutionId)
+        .map((u) => u.id),
+    );
+    const ref = new Date();
+    const refY = ref.getFullYear();
+    const refM = ref.getMonth();
+    const currentMonthResults = allResults.filter((r) => {
+      if (!conseillerIds.has(r.userId)) return false;
+      const d = new Date(r.periodStart);
+      return d.getFullYear() === refY && d.getMonth() === refM;
+    });
+    const agg = aggregateResults(currentMonthResults);
+    return agg?.ventes.chiffreAffaires ?? 0;
+  }, [allResults, users, directorInstitutionId]);
+
+  // Auto-sync caTransaction avec CA Acte agence (PR2i Q4-b).
+  const isCaTransactionOverridden = financialData.isCaTransactionManuallyOverridden ?? false;
+  useEffect(() => {
+    if (!isCaTransactionOverridden && caActeAgence > 0) {
+      setCaTransactionFromAgency(caActeAgence);
+    }
+  }, [isCaTransactionOverridden, caActeAgence, setCaTransactionFromAgency]);
+
+  // Bouton "Reprendre le mois dernier" — état activé/désactivé (PR2i Q1).
+  const hasPreviousMonth = useMemo(() => {
+    const currentKey = getMonthKey();
+    return Object.keys(financialDataHistory).some((k) => k < currentKey);
+  }, [financialDataHistory]);
 
   return (
     <div className="space-y-6">
@@ -109,11 +154,18 @@ export default function PilotageFinancierPage() {
         </button>
       </div>
 
+      {/* ── Bandeau d'alerte unique (PR2i — remplace score 90/100) ── */}
+      <AlertBanner trajectoire={trajectoire} />
+
       {/* ── Panneau d'édition des données ── */}
       {showEditor && (
         <DataEditorPanel
           data={financialData}
           onUpdate={updateField}
+          onRestorePreviousMonth={restorePreviousMonth}
+          onClearCaTransactionOverride={clearCaTransactionOverride}
+          hasPreviousMonth={hasPreviousMonth}
+          caActeAgence={caActeAgence}
         />
       )}
 
@@ -127,16 +179,16 @@ export default function PilotageFinancierPage() {
       {/* ── Ligne 2 : Répartition du CA ── */}
       <RevenueBreakdownSection data={revenueBreakdown} />
 
-      {/* ── Ligne 3 : Score santé + recommandation ── */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <HealthScoreSection score={healthScore} />
-        <RecommendationSection
-          recommendation={recommendation}
-          scoreStatus={healthScore.status}
-        />
-      </div>
+      {/* ── Ligne 3 : Trajectoire 3 mois (PR2i) ── */}
+      <TrajectoryCard trajectoire={trajectoire} />
 
-      {/* ── Ligne 4 : Données manquantes ── */}
+      {/* ── Ligne 4 : Recommandation dirigeant (pleine largeur, PR2i) ── */}
+      <RecommendationSection
+        recommendation={recommendation}
+        scoreStatus={trajectoire.canCalculate ? trajectoire.status === "saine" ? "ok" : trajectoire.status === "vigilance" ? "warning" : "danger" : "ok"}
+      />
+
+      {/* ── Ligne 5 : Données manquantes ── */}
       {missingFields.length > 0 && !showEditor && (
         <MissingDataSection
           fields={missingFields}
@@ -158,16 +210,44 @@ const FIELD_GROUPS: { title: string; fields: FinancialFieldId[] }[] = [
 function DataEditorPanel({
   data,
   onUpdate,
+  onRestorePreviousMonth,
+  onClearCaTransactionOverride,
+  hasPreviousMonth,
+  caActeAgence,
 }: {
-  data: Partial<Record<FinancialFieldId, number>>;
+  data: Partial<Record<FinancialFieldId, number>> & { isCaTransactionManuallyOverridden?: boolean };
   onUpdate: (field: FinancialFieldId, value: number) => void;
+  onRestorePreviousMonth: () => void;
+  onClearCaTransactionOverride: () => void;
+  hasPreviousMonth: boolean;
+  caActeAgence: number;
 }) {
+  const isCaOverridden = data.isCaTransactionManuallyOverridden ?? false;
   return (
     <div className="rounded-xl border border-primary/20 bg-card p-5">
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Settings2 className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold">Données financières</h3>
         <span className="text-xs text-muted-foreground">— modification en temps réel</span>
+        <button
+          type="button"
+          onClick={onRestorePreviousMonth}
+          disabled={!hasPreviousMonth}
+          title={
+            hasPreviousMonth
+              ? "Pré-remplir avec la dernière saisie mensuelle"
+              : "Aucune saisie le mois précédent"
+          }
+          className={cn(
+            "ml-auto inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+            hasPreviousMonth
+              ? "border-border text-foreground hover:bg-muted"
+              : "cursor-not-allowed border-border/50 text-muted-foreground/50",
+          )}
+        >
+          <History className="h-3.5 w-3.5" />
+          Reprendre le mois dernier
+        </button>
       </div>
       <div className="space-y-5">
         {FIELD_GROUPS.map((group) => (
@@ -182,6 +262,15 @@ function DataEditorPanel({
                   fieldId={fieldId}
                   currentValue={data[fieldId]}
                   onSave={onUpdate}
+                  syncMeta={
+                    fieldId === "caTransaction"
+                      ? {
+                          isOverridden: isCaOverridden,
+                          agencyValue: caActeAgence,
+                          onClearOverride: onClearCaTransactionOverride,
+                        }
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -192,14 +281,26 @@ function DataEditorPanel({
   );
 }
 
+interface EditableFieldSyncMeta {
+  /** true si l'utilisateur a édité manuellement caTransaction (PR2i Q4-b). */
+  isOverridden: boolean;
+  /** Valeur agence courante (CA Acte agrégé) — affichée comme valeur de resync. */
+  agencyValue: number;
+  /** Resync : flag override → false (la useEffect re-syncera depuis l'agence). */
+  onClearOverride: () => void;
+}
+
 function EditableField({
   fieldId,
   currentValue,
   onSave,
+  syncMeta,
 }: {
   fieldId: FinancialFieldId;
   currentValue: number | undefined;
   onSave: (field: FinancialFieldId, value: number) => void;
+  /** Présent uniquement pour caTransaction — UX sync auto avec CA Acte agence. */
+  syncMeta?: EditableFieldSyncMeta;
 }) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -256,27 +357,58 @@ function EditableField({
   }
 
   return (
-    <button
-      onClick={startEditing}
+    <div
       className={cn(
-        "group flex items-center justify-between rounded-lg border p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30",
-        isFilled ? "border-border" : "border-dashed border-orange-500/30"
+        "group rounded-lg border p-3 text-left transition-colors",
+        isFilled ? "border-border" : "border-dashed border-orange-500/30",
       )}
     >
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-foreground">
-          {FINANCIAL_FIELD_LABELS[fieldId]}
-        </p>
-        {isFilled ? (
-          <p className="mt-0.5 text-sm font-semibold text-foreground">
-            {formatCurrency(currentValue)}
+      <button
+        type="button"
+        onClick={startEditing}
+        className="flex w-full items-center justify-between hover:border-primary/40"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-foreground">
+            {FINANCIAL_FIELD_LABELS[fieldId]}
           </p>
+          {isFilled ? (
+            <p className="mt-0.5 text-sm font-semibold text-foreground">
+              {formatCurrency(currentValue)}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-xs text-orange-500">Non renseigné</p>
+          )}
+        </div>
+        <Pencil className="ml-2 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      </button>
+      {/* PR2i Q4-b : indicateur de sync auto pour caTransaction. */}
+      {syncMeta && (
+        syncMeta.isOverridden ? (
+          <div className="mt-1.5 flex items-center justify-between gap-1.5">
+            <span className="truncate text-[10px] italic text-muted-foreground">
+              modifié manuellement
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                syncMeta.onClearOverride();
+              }}
+              title={`Resynchroniser avec CA Acte agence (${formatCurrency(syncMeta.agencyValue)})`}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Resynchroniser
+            </button>
+          </div>
         ) : (
-          <p className="mt-0.5 text-xs text-orange-500">Non renseigné</p>
-        )}
-      </div>
-      <Pencil className="ml-2 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-    </button>
+          <p className="mt-1.5 truncate text-[10px] italic text-muted-foreground">
+            synchronisé avec CA Acte agence
+          </p>
+        )
+      )}
+    </div>
   );
 }
 
@@ -473,50 +605,6 @@ function RevenueBreakdownSection({ data }: { data: ReturnType<typeof calculateRe
           })()}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Score santé financière ──
-
-function HealthScoreSection({ score }: { score: ReturnType<typeof calculateHealthScore> }) {
-  return (
-    <div className={cn("rounded-xl border bg-card p-5", STATUS_BORDER[score.status])}>
-      <h3 className="mb-4 text-sm font-semibold">Santé financière</h3>
-
-      <div className="flex items-center gap-4">
-        {/* Score circle */}
-        <div className={cn(
-          "flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full border-4",
-          score.status === "ok" ? "border-green-500" : score.status === "warning" ? "border-orange-500" : "border-red-500"
-        )}>
-          <span className={cn("text-2xl font-bold", STATUS_TEXT[score.status])}>
-            {score.score}
-          </span>
-        </div>
-        <div>
-          <p className={cn("text-lg font-semibold", STATUS_TEXT[score.status])}>
-            {score.label}
-          </p>
-          <p className="text-xs text-muted-foreground">sur 100</p>
-        </div>
-      </div>
-
-      {score.details.length > 0 && (
-        <div className="mt-4 space-y-1.5">
-          {score.details.map((detail, i) => (
-            <div key={i} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className={cn("h-1.5 w-1.5 rounded-full", detail.status === "danger" ? "bg-red-500" : "bg-orange-500")} />
-                <span className="text-muted-foreground">{detail.label}</span>
-              </div>
-              <span className={cn("font-medium", STATUS_TEXT[detail.status])}>
-                {detail.points}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

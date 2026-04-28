@@ -8,6 +8,7 @@ import { mockResults, mockJanuaryResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 import type { CoachAssignment, CoachAction, CoachPlan, CoachNote, CoachSession, CoachQuickPlan } from "@/types/coach";
 import type { FinancialData, FinancialFieldId } from "@/types/finance";
+import { getMonthKey } from "@/lib/finance-trajectory";
 import { mockCoachAssignments, mockCoachActions, mockCoachPlans, mockCoachNotes, mockCoachSessions, mockCoachQuickPlans } from "@/data/mock-coach";
 import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
@@ -113,6 +114,8 @@ interface AppState {
   agencyObjective: { annualCA: number; avgActValue: number } | null;
   directorCosts: DirectorCosts | null;
   financialData: Partial<FinancialData>;
+  /** Snapshots mensuels des saisies financières (PR2i) — keyed par YYYY-MM. */
+  financialDataHistory: Record<string, Partial<FinancialData>>;
 
   // ── Outils NXT actifs (souscrits par l'utilisateur) ──
   activeTools: Array<"nxt_data" | "nxt_profiling" | "nxt_training" | "nxt_finance">;
@@ -123,6 +126,13 @@ interface AppState {
   setDirectorCosts: (costs: DirectorCosts | null) => void;
   setFinancialData: (data: Partial<FinancialData>) => void;
   updateFinancialField: (field: FinancialFieldId, value: number) => void;
+  /** Sync silencieuse de caTransaction avec la valeur agrégée agence (PR2i Q4).
+   *  Ne touche PAS isCaTransactionManuallyOverridden (utilisé par useEffect auto-sync). */
+  setCaTransactionFromAgency: (value: number) => void;
+  /** Resync utilisateur : flag à false pour réactiver l'auto-sync agence (PR2i Q4). */
+  clearCaTransactionOverride: () => void;
+  /** Restaure la dernière saisie mensuelle disponible (< mois courant) — PR2i Q1. */
+  restorePreviousMonth: () => void;
 
   // ── View preferences (hiddenViews = user hides a view, never adds permissions) ──
   hiddenViews: ViewId[];
@@ -217,6 +227,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   agencyObjective: null,
   directorCosts: null,
   financialData: {},
+  financialDataHistory: {},
   activeTools: [],
 
   // ── View preferences ──
@@ -238,9 +249,70 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAgencyObjective: (obj) => set({ agencyObjective: obj }),
   setDirectorCosts: (costs) => set({ directorCosts: costs }),
   setFinancialData: (data) => set({ financialData: data }),
-  updateFinancialField: (field, value) => set((s) => ({
-    financialData: { ...s.financialData, [field]: value },
-  })),
+  updateFinancialField: (field, value) => set((s) => {
+    // PR2i — édition utilisateur d'un champ financier :
+    // - Pour caTransaction : on lève le flag override (l'utilisateur prend la main).
+    // - Pour tous les champs : on snapshot l'état dans l'historique du mois courant.
+    const newFinancial: Partial<FinancialData> = {
+      ...s.financialData,
+      [field]: value,
+    };
+    if (field === "caTransaction") {
+      newFinancial.isCaTransactionManuallyOverridden = true;
+    }
+    const monthKey = getMonthKey();
+    return {
+      financialData: newFinancial,
+      financialDataHistory: {
+        ...s.financialDataHistory,
+        [monthKey]: newFinancial,
+      },
+    };
+  }),
+  setCaTransactionFromAgency: (value) => set((s) => {
+    // Sync silencieuse — ne lève PAS le flag override (utilisé par useEffect auto-sync).
+    if (s.financialData.isCaTransactionManuallyOverridden) return s;
+    if (s.financialData.caTransaction === value) return s;
+    const newFinancial: Partial<FinancialData> = {
+      ...s.financialData,
+      caTransaction: value,
+    };
+    const monthKey = getMonthKey();
+    return {
+      financialData: newFinancial,
+      financialDataHistory: {
+        ...s.financialDataHistory,
+        [monthKey]: newFinancial,
+      },
+    };
+  }),
+  clearCaTransactionOverride: () => set((s) => {
+    if (!s.financialData.isCaTransactionManuallyOverridden) return s;
+    const newFinancial: Partial<FinancialData> = {
+      ...s.financialData,
+      isCaTransactionManuallyOverridden: false,
+    };
+    const monthKey = getMonthKey();
+    return {
+      financialData: newFinancial,
+      financialDataHistory: {
+        ...s.financialDataHistory,
+        [monthKey]: newFinancial,
+      },
+    };
+  }),
+  restorePreviousMonth: () => set((s) => {
+    // Trouve la clé YYYY-MM la plus récente strictement < mois courant.
+    const currentKey = getMonthKey();
+    const previousKey = Object.keys(s.financialDataHistory)
+      .filter((k) => k < currentKey)
+      .sort()
+      .pop();
+    if (!previousKey) return s;
+    const previous = s.financialDataHistory[previousKey];
+    if (!previous) return s;
+    return { financialData: { ...previous } };
+  }),
 
   activateTool: (tool) => set((s) => ({
     activeTools: s.activeTools.includes(tool) ? s.activeTools : [...s.activeTools, tool],
@@ -279,6 +351,32 @@ export const useAppStore = create<AppState>((set, get) => ({
       hiddenViews: [],
       agencyObjective: { annualCA: 500000, avgActValue: 12000 },
       financialData: { ...mockFinancialData },
+      // Mock historique : 2 mois précédents (mars + février 2026) pour tester
+      // le bouton "Reprendre le mois dernier" (PR2i).
+      financialDataHistory: {
+        "2026-02": {
+          caTransaction: 38000,
+          caGestion: 8000,
+          caSyndic: 5000,
+          caAutres: 2200,
+          chargesFixesMensuelles: 22000,
+          masseSalarialeMensuelle: 15000,
+          tresorerieDisponible: 92000,
+          dettesCourtTerme: 11000,
+          fondsMandants: 30000,
+        },
+        "2026-03": {
+          caTransaction: 32000,
+          caGestion: 8000,
+          caSyndic: 5000,
+          caAutres: 1800,
+          chargesFixesMensuelles: 22000,
+          masseSalarialeMensuelle: 15000,
+          tresorerieDisponible: 78000,
+          dettesCourtTerme: 13000,
+          fondsMandants: 26000,
+        },
+      },
       directorCosts: {
         commissionDirecteur: 50,
         commissionManagers: 10,
@@ -307,6 +405,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       agencyObjective: null,
       directorCosts: null,
       financialData: {},
+      financialDataHistory: {},
       // Purge coach state (aligné sur enterDemo)
       coachAssignments: [],
       coachActions: [],

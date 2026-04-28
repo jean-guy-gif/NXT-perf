@@ -15,9 +15,26 @@ export interface FinancialData {
   tresorerieDisponible: number;
   dettesCourtTerme: number;
   fondsMandants: number;
+  /**
+   * Flag UI (PR2i) : true quand l'utilisateur a édité manuellement
+   * caTransaction (override la sync auto avec CA Acte agence). Pas un
+   * montant financier — exclu de FinancialFieldId pour éviter qu'il
+   * apparaisse dans les itérations de champs éditables.
+   */
+  isCaTransactionManuallyOverridden?: boolean;
 }
 
-export type FinancialFieldId = keyof FinancialData;
+/** IDs des champs financiers éditables (numériques uniquement, hors méta-flags). */
+export type FinancialFieldId =
+  | "caTransaction"
+  | "caGestion"
+  | "caSyndic"
+  | "caAutres"
+  | "chargesFixesMensuelles"
+  | "masseSalarialeMensuelle"
+  | "tresorerieDisponible"
+  | "dettesCourtTerme"
+  | "fondsMandants";
 
 export interface MissingField {
   id: FinancialFieldId;
