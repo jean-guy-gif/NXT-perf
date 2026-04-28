@@ -10,6 +10,9 @@ import {
   Download,
   User as UserIcon,
   Users as UsersIcon,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
@@ -32,6 +35,8 @@ import type { PeriodResults } from "@/types/results";
 import type { User } from "@/types/user";
 
 type RankSubMode = "conseillers" | "equipes";
+
+type ToastState = { type: "success" | "error" | "info"; message: string } | null;
 
 type MetricKey =
   | "ca"
@@ -124,7 +129,13 @@ export function EnrichedLeaderboardTab() {
   const [metric, setMetric] = useState<MetricKey>("ca");
   const [period, setPeriod] = useState<ComparisonPeriod>("mois");
   const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+
+  const showToast = useCallback((type: "success" | "error" | "info", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
 
   const periodBounds = useMemo(() => getPeriodBounds(period), [period]);
 
@@ -233,19 +244,26 @@ export function EnrichedLeaderboardTab() {
           a.download = `classement-${subMode}-${metricLabel.toLowerCase().replace(/\s/g, "-")}.jpg`;
           a.click();
           URL.revokeObjectURL(url);
+          showToast("success", "Export JPEG téléchargé");
         },
         "image/jpeg",
         0.92,
       );
     } catch (err) {
       console.error("[leaderboard] Export JPEG failed:", err);
+      showToast("error", "L'export JPEG est temporairement indisponible. Une mise à jour est en cours.");
     } finally {
       setExporting(false);
     }
-  }, [exporting, metric, subMode]);
+  }, [exporting, metric, subMode, showToast]);
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-12">
+      {toast && (
+        <div className="mb-4">
+          <Toast state={toast} onDismiss={() => setToast(null)} />
+        </div>
+      )}
       <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
         <Award className="h-3.5 w-3.5" />
         Classement
@@ -496,5 +514,29 @@ export function EnrichedLeaderboardTab() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Pattern toast local — copie du composant inline défini dans
+// src/components/formation/plan-30-jours.tsx (auto-dismiss 4s côté hook).
+function Toast({ state, onDismiss }: { state: NonNullable<ToastState>; onDismiss: () => void }) {
+  const styles =
+    state.type === "success"
+      ? { bg: "border-green-500/30 bg-green-500/5", Icon: CheckCircle2, iconClass: "text-green-500" }
+      : state.type === "error"
+        ? { bg: "border-red-500/30 bg-red-500/5", Icon: XCircle, iconClass: "text-red-500" }
+        : { bg: "border-amber-500/30 bg-amber-500/5", Icon: AlertTriangle, iconClass: "text-amber-500" };
+  const Icon = styles.Icon;
+  return (
+    <div className={cn("flex items-start gap-3 rounded-lg border px-4 py-3", styles.bg)}>
+      <Icon className={cn("mt-0.5 h-4 w-4 flex-shrink-0", styles.iconClass)} />
+      <p className="flex-1 text-sm text-foreground">{state.message}</p>
+      <button
+        onClick={onDismiss}
+        className="text-xs text-muted-foreground hover:text-foreground"
+      >
+        Fermer
+      </button>
+    </div>
   );
 }

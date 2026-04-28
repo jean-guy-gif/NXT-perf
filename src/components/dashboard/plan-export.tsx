@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Download, X, Loader2 } from "lucide-react";
+import { useCallback, useState, useRef } from "react";
+import { Download, X, Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import html2canvas from "html2canvas";
+import { cn } from "@/lib/utils";
+
+type ToastState = { type: "success" | "error" | "info"; message: string } | null;
 
 interface PlanWeek {
   week: number;
@@ -56,40 +59,61 @@ function generatePlan(weakRatios: PlanExportProps["weakRatios"]): PlanWeek[] {
 
 export function PlanExport({ title, subtitle, weakRatios, onClose }: PlanExportProps) {
   const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
   const planRef = useRef<HTMLDivElement>(null);
   const plan = generatePlan(weakRatios);
+
+  const showToast = useCallback((type: "success" | "error" | "info", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
 
   const handleExport = async (format: "jpeg" | "pdf") => {
     if (!planRef.current) return;
     setExporting(true);
 
-    const canvas = await html2canvas(planRef.current, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-    });
+    try {
+      const canvas = await html2canvas(planRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
 
-    if (format === "jpeg") {
-      const link = document.createElement("a");
-      link.download = `plan-30-jours-${Date.now()}.jpg`;
-      link.href = canvas.toDataURL("image/jpeg", 0.92);
-      link.click();
-    } else {
-      // PDF via print
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(`<html><body style="margin:0"><img src="${canvas.toDataURL("image/jpeg", 0.92)}" style="width:100%"/></body></html>`);
-        win.document.close();
-        win.print();
+      if (format === "jpeg") {
+        const link = document.createElement("a");
+        link.download = `plan-30-jours-${Date.now()}.jpg`;
+        link.href = canvas.toDataURL("image/jpeg", 0.92);
+        link.click();
+        showToast("success", "Export JPEG téléchargé");
+      } else {
+        // PDF via print
+        const win = window.open("", "_blank");
+        if (win) {
+          win.document.write(`<html><body style="margin:0"><img src="${canvas.toDataURL("image/jpeg", 0.92)}" style="width:100%"/></body></html>`);
+          win.document.close();
+          win.print();
+          showToast("success", "Export PDF lancé");
+        } else {
+          showToast("error", "Impossible d'ouvrir la fenêtre d'impression. Vérifiez que les popups sont autorisés.");
+        }
       }
+    } catch (err) {
+      console.error("[plan-export] Export failed:", err);
+      const formatLabel = format === "jpeg" ? "JPEG" : "PDF";
+      showToast("error", `L'export ${formatLabel} est temporairement indisponible. Une mise à jour est en cours.`);
+    } finally {
+      setExporting(false);
     }
-
-    setExporting(false);
   };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
+        {toast && (
+          <div className="sticky top-0 z-20 px-5 pt-3">
+            <Toast state={toast} onDismiss={() => setToast(null)} />
+          </div>
+        )}
         {/* Toolbar */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3">
           <h3 className="text-sm font-semibold text-foreground">Plan 30 jours</h3>
@@ -157,6 +181,30 @@ export function PlanExport({ title, subtitle, weakRatios, onClose }: PlanExportP
           <p className="text-center text-[10px] text-gray-300">Généré par NXT Performance</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Pattern toast local — copie du composant inline défini dans
+// src/components/formation/plan-30-jours.tsx (auto-dismiss 4s côté hook).
+function Toast({ state, onDismiss }: { state: NonNullable<ToastState>; onDismiss: () => void }) {
+  const styles =
+    state.type === "success"
+      ? { bg: "border-green-500/30 bg-green-500/5", Icon: CheckCircle2, iconClass: "text-green-500" }
+      : state.type === "error"
+        ? { bg: "border-red-500/30 bg-red-500/5", Icon: XCircle, iconClass: "text-red-500" }
+        : { bg: "border-amber-500/30 bg-amber-500/5", Icon: AlertTriangle, iconClass: "text-amber-500" };
+  const Icon = styles.Icon;
+  return (
+    <div className={cn("flex items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-md", styles.bg)}>
+      <Icon className={cn("mt-0.5 h-4 w-4 flex-shrink-0", styles.iconClass)} />
+      <p className="flex-1 text-sm text-foreground">{state.message}</p>
+      <button
+        onClick={onDismiss}
+        className="text-xs text-muted-foreground hover:text-foreground"
+      >
+        Fermer
+      </button>
     </div>
   );
 }
