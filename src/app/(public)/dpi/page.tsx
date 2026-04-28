@@ -1,10 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Target, ArrowRight, BarChart3, TrendingUp, Zap, Clock, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+
+/**
+ * Validation simple d'un UUID v4 (format 8-4-4-4-12 hexa).
+ * Utilisé pour ne pas stocker de ?ref= invalide en sessionStorage.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Composant invisible qui lit ?ref=... et le persiste en sessionStorage.
+ * Isolé sous Suspense car useSearchParams() bypasse le SSG sinon (Next 15).
+ */
+function DpiRefTracker() {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref && UUID_RE.test(ref)) {
+      sessionStorage.setItem("dpi_referrer_id", ref);
+    }
+  }, [searchParams]);
+  return null;
+}
 
 // NOTE: Run this SQL on Supabase to add 'waitlist' status:
 // ALTER TABLE public.dpi_results DROP CONSTRAINT dpi_results_status_check;
@@ -118,6 +139,12 @@ export default function DPILandingPage() {
   // ── Normal landing page ──
   return (
     <div className="flex flex-col items-center">
+      {/* PR2j — tracker invisible : capture ?ref= en sessionStorage. Isolé en
+          Suspense car useSearchParams() force le rendu dynamique sinon. */}
+      <Suspense fallback={null}>
+        <DpiRefTracker />
+      </Suspense>
+
       {/* Logo */}
       <div className="mb-6 flex items-center gap-2">
         <img src="/logo-icon.svg" alt="NXT Perf" className="h-10 w-10" />
