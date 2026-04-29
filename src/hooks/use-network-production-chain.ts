@@ -92,7 +92,28 @@ export interface ChainStepData {
   /** realise / objectif × 100, arrondi entier. 0 si objectif = 0. */
   pct: number;
   status: Status;
+  /**
+   * Tooltip optionnel à afficher sur la carte (icône info + popover).
+   * Renseigné aujourd'hui uniquement pour `caCompromis` (étape 11) afin
+   * d'expliquer la discrépance 15 000€ mock vs 7 500€ objectif honoraires.
+   */
+  tooltip?: string;
 }
+
+/**
+ * Tooltip explicatif unique de l'étape caCompromis (étape 11) — discrépance
+ * volontaire entre la valeur réalisée (mock 15k = valeur des biens) et
+ * l'objectif (7.5k = honoraires moyens d'agence). Voir Q6 PR2 brief +
+ * JSDoc CATEGORY_OBJECTIVES.caCompromis.
+ */
+const CA_COMPROMIS_TOOLTIP =
+  "Le CA Compromis affiché correspond à la valeur des biens en compromis " +
+  "(≈ 15 000€ par compromis dans la démo). L'objectif réseau est calculé sur " +
+  "les honoraires d'agence attendus (≈ 7 500€ par compromis × nombre de " +
+  "compromis cible). Le ratio supérieur à 100% reflète cette différence de " +
+  "convention, pas une véritable surperformance. En production, ces deux " +
+  "valeurs seront exprimées dans la même unité (honoraires d'agence) et le " +
+  "ratio sera cohérent.";
 
 export interface CategoryMix {
   debutant: { count: number; pct: number };
@@ -326,6 +347,8 @@ export function useNetworkProductionChain(): NetworkProductionChainData {
         ecart,
         pct,
         status,
+        // Tooltip uniquement pour caCompromis (discrépance assumée 15k mock vs 7.5k objectif).
+        tooltip: def.stepId === "caCompromis" ? CA_COMPROMIS_TOOLTIP : undefined,
       };
     });
 
