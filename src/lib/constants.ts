@@ -73,20 +73,53 @@ export const FIELD_TOOLTIPS: Record<string, string> = {
   chiffreAffaires: "Montant total de vos honoraires d'agence (HT ou TTC selon votre convention) sur les actes signés de la période. C'est le prix de votre prestation, pas le prix de vente du bien.",
 };
 
-/** Monthly objectives by category — used for agency GPS calculations */
+/**
+ * Monthly objectives by category — used for agency GPS calculations and the
+ * Vue Réseau v2.0 "ruissellement total" (sum of CATEGORY_OBJECTIVES[c.category]
+ * over every conseiller in every agency of the network).
+ *
+ * Conventions :
+ * - exclusivite : pourcentage cible (0..100) du mix exclusif/simple sur les mandats
+ * - ca          : chiffre d'affaires (€) cible des actes signés (CA Acte)
+ * - caCompromis : honoraires moyens cibles (€) sur les compromis signés —
+ *                 calculé comme `compromis × 7 500€/compromis`. Ne pas confondre
+ *                 avec le champ mock `chiffreAffairesCompromis` qui représente
+ *                 la VALEUR DES BIENS en compromis (`compromis × 15 000€`).
+ *                 Voir docs/TECH_DEBT.md.
+ *
+ * Les 4 champs `contactsTotaux`, `rdvEstimation`, `acheteursSortis`, `caCompromis`
+ * ont été ajoutés en Phase 1 du tableau de bord réseau v2.0 (Task 2) pour couvrir
+ * les 12 étapes de la chaîne de production.
+ */
 export const CATEGORY_OBJECTIVES: Record<string, {
+  contactsTotaux: number;
+  rdvEstimation: number;
   estimations: number;
   mandats: number;
   exclusivite: number;
+  acheteursSortis: number;
   visites: number;
   offres: number;
   compromis: number;
   actes: number;
+  caCompromis: number;
   ca: number;
 }> = {
-  debutant: { estimations: 8, mandats: 4, exclusivite: 30, visites: 20, offres: 3, compromis: 1, actes: 1, ca: 8000 },
-  confirme: { estimations: 15, mandats: 8, exclusivite: 50, visites: 30, offres: 5, compromis: 3, actes: 2, ca: 20000 },
-  expert:   { estimations: 20, mandats: 12, exclusivite: 70, visites: 40, offres: 8, compromis: 5, actes: 4, ca: 40000 },
+  debutant: {
+    contactsTotaux: 200, rdvEstimation: 12, estimations: 8, mandats: 4, exclusivite: 30,
+    acheteursSortis: 15, visites: 20, offres: 3, compromis: 1, actes: 1,
+    caCompromis: 7500, ca: 8000,
+  },
+  confirme: {
+    contactsTotaux: 300, rdvEstimation: 18, estimations: 15, mandats: 8, exclusivite: 50,
+    acheteursSortis: 25, visites: 30, offres: 5, compromis: 3, actes: 2,
+    caCompromis: 22500, ca: 20000,
+  },
+  expert: {
+    contactsTotaux: 400, rdvEstimation: 25, estimations: 20, mandats: 12, exclusivite: 70,
+    acheteursSortis: 35, visites: 40, offres: 8, compromis: 5, actes: 4,
+    caCompromis: 37500, ca: 40000,
+  },
 };
 
 export type GPSTheme = "estimations" | "mandats" | "exclusivite" | "visites" | "offres" | "compromis" | "actes" | "ca_compromis" | "ca_acte";
