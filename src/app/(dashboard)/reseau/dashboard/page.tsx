@@ -1,384 +1,255 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Network,
-  Building2,
-  Users,
-  TrendingUp,
-  AlertTriangle,
-  Trophy,
-  ChevronRight,
-  ArrowUpRight,
-  ArrowDownRight,
-} from "lucide-react";
-import { useNetworkData } from "@/hooks/use-network-data";
-import type { AgencyAggregate } from "@/hooks/use-network-data";
-import { BarChart } from "@/components/charts/bar-chart";
-import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { Compass, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { useNetworkProductionChain } from "@/hooks/use-network-production-chain";
+import { NetworkProductionChain } from "@/components/dashboard/network-production-chain";
+import type { ViewMode, PeriodMode } from "@/components/dashboard/production-chain";
+import type { CategoryMix } from "@/hooks/use-network-production-chain";
 
-type SortKey = "ca" | "mandats" | "exclusivite" | "offres" | "performance" | "actes";
-
+/**
+ * /reseau/dashboard — Tableau de bord Réseau (Vue Réseau v2.0 Phase 1 Task 4.2).
+ *
+ * Strict miroir visuel de /directeur/pilotage mais agrégé à l'échelle réseau
+ * via useNetworkProductionChain (ruissellement total des objectifs).
+ *
+ * Composition :
+ * - Header (icône + titre + sous-titre + ScoreBadge réseau global)
+ * - Toggle Volumes / Ratios / Les deux
+ * - Sub-header [N] collaborateurs · Objectifs pondérés (popover) · période
+ * - Toggle Mois / Année
+ * - <NetworkProductionChain /> (composant pur de présentation)
+ *
+ * Drill-down (Phase 2) : clic sur une carte → /reseau/volume-activite?step=...
+ */
 export default function ReseauDashboardPage() {
   const router = useRouter();
-  const { agencies, networkStats, topAgents, topManagers } = useNetworkData();
-  const [sortKey, setSortKey] = useState<SortKey>("performance");
-  const [sortDesc, setSortDesc] = useState(true);
+  const {
+    steps,
+    ratios,
+    conseillerCount,
+    categoryMix,
+    period,
+    setPeriod,
+    displayMode,
+    setDisplayMode,
+  } = useNetworkProductionChain();
 
-  const alertAgencies = agencies.filter((a) => a.alerts.length > 0);
+  // Score global réseau = moyenne des pcts des 12 steps.
+  const globalPct = useMemo(() => {
+    if (steps.length === 0) return 0;
+    return Math.round(steps.reduce((s, x) => s + x.pct, 0) / steps.length);
+  }, [steps]);
 
-  const sortedAgencies = [...agencies].sort((a, b) => {
-    const getValue = (agency: AgencyAggregate) => {
-      switch (sortKey) {
-        case "ca": return agency.totalCA;
-        case "mandats": return agency.totalMandats;
-        case "exclusivite": return agency.avgExclusivite;
-        case "offres": return agency.totalOffres;
-        case "performance": return agency.avgPerformance;
-        case "actes": return agency.totalActes;
-      }
-    };
-    const diff = getValue(a) - getValue(b);
-    return sortDesc ? -diff : diff;
-  });
-
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDesc(!sortDesc);
-    } else {
-      setSortKey(key);
-      setSortDesc(true);
+  const globalBadge = useMemo(() => {
+    if (globalPct >= 100) {
+      return { label: "Excellent niveau", className: "bg-green-500/15 text-green-500 border-green-500/30" };
     }
-  }
-
-  function perfColor(value: number) {
-    if (value >= 100) return "text-green-500";
-    if (value >= 80) return "text-orange-500";
-    return "text-red-500";
-  }
-
-  function perfBg(value: number) {
-    if (value >= 100) return "bg-green-500/10 text-green-500";
-    if (value >= 80) return "bg-orange-500/10 text-orange-500";
-    return "bg-red-500/10 text-red-500";
-  }
+    if (globalPct >= 90) {
+      return { label: "Bon niveau", className: "bg-green-500/10 text-green-500 border-green-500/20" };
+    }
+    if (globalPct >= 75) {
+      return { label: "Niveau correct", className: "bg-orange-500/10 text-orange-500 border-orange-500/30" };
+    }
+    return { label: "À améliorer", className: "bg-red-500/10 text-red-500 border-red-500/30" };
+  }, [globalPct]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Network className="h-5 w-5 text-primary" />
+      {/* ═══ Header ═══ */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <Compass className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Tableau de bord Réseau</h1>
+            <p className="text-sm text-muted-foreground">
+              GPS de performance réseau — données mensuelles
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Tableau de bord Réseau</h1>
-          <p className="text-sm text-muted-foreground">
-            Vision consolidée de la performance multi-agences
-          </p>
-        </div>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
+            globalBadge.className,
+          )}
+        >
+          {globalBadge.label}{" "}
+          <span className="ml-1 tabular-nums opacity-75">({globalPct}%)</span>
+        </span>
       </div>
 
-      {/* KPIs consolidés */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-        <KpiCard
-          label="Chiffre d'affaires"
-          value={formatCurrency(networkStats.totalCA)}
-          accent
+      {/* ═══ Toggle Volumes / Ratios / Les deux ═══ */}
+      <ViewModeToggle value={displayMode} onChange={setDisplayMode} />
+
+      {/* ═══ Sub-header : [N] collaborateurs · Objectifs pondérés · période + Toggle Mois/Année ═══ */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <SubHeader
+          conseillerCount={conseillerCount}
+          categoryMix={categoryMix}
+          period={period}
         />
-        <KpiCard
-          label="Agences"
-          value={formatNumber(networkStats.agencyCount)}
-          icon={<Building2 className="h-4 w-4" />}
-        />
-        <KpiCard
-          label="Collaborateurs"
-          value={formatNumber(networkStats.totalAgents)}
-          icon={<Users className="h-4 w-4" />}
-        />
-        <KpiCard
-          label="Mandats"
-          value={formatNumber(networkStats.totalMandats)}
-        />
-        <KpiCard
-          label="Compromis"
-          value={formatNumber(networkStats.totalCompromis)}
-        />
-        <KpiCard
-          label="Actes"
-          value={formatNumber(networkStats.totalActes)}
-        />
-        <KpiCard
-          label="% Exclusivité"
-          value={`${networkStats.avgExclusivite} %`}
-        />
-        <KpiCard
-          label="Score moyen"
-          value={`${networkStats.avgPerformance} %`}
-          className={perfColor(networkStats.avgPerformance)}
-        />
+        <PeriodToggle value={period} onChange={setPeriod} />
       </div>
 
-      {/* Agences en alerte */}
-      {alertAgencies.length > 0 && (
-        <div className="rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold">Agences à suivre en priorité</h3>
-            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-500">
-              {alertAgencies.length}
-            </span>
-          </div>
-          <div className="divide-y divide-border">
-            {alertAgencies.map((agency) => (
-              <button
-                key={agency.institutionId}
-                onClick={() => router.push(`/reseau/agence?id=${agency.institutionId}`)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted/50"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{agency.institutionName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Directeur : {agency.directeurName} · {agency.agentCount} collaborateurs
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {agency.alerts.map((alert, i) => (
-                      <span
-                        key={i}
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                          alert.severity === "critical"
-                            ? "bg-red-500/10 text-red-500"
-                            : "bg-amber-500/10 text-amber-500"
-                        )}
-                      >
-                        {alert.message}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className={cn("text-lg font-bold", perfColor(agency.avgPerformance))}>
-                    {agency.avgPerformance}%
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Classement des agences */}
-      <div className="rounded-lg border border-border bg-card">
-        <div className="border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold">Classement des agences</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="px-4 py-2">Agence</th>
-                <th className="px-4 py-2">Directeur</th>
-                <th className="hidden px-4 py-2 text-right sm:table-cell">Collab.</th>
-                <SortHeader label="CA" sortKey="ca" current={sortKey} desc={sortDesc} onSort={handleSort} />
-                <SortHeader label="Mandats" sortKey="mandats" current={sortKey} desc={sortDesc} onSort={handleSort} />
-                <SortHeader label="Exclu." sortKey="exclusivite" current={sortKey} desc={sortDesc} onSort={handleSort} />
-                <SortHeader label="Offres" sortKey="offres" current={sortKey} desc={sortDesc} onSort={handleSort} />
-                <SortHeader label="Actes" sortKey="actes" current={sortKey} desc={sortDesc} onSort={handleSort} />
-                <SortHeader label="Score" sortKey="performance" current={sortKey} desc={sortDesc} onSort={handleSort} />
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {sortedAgencies.map((agency, idx) => (
-                <tr
-                  key={agency.institutionId}
-                  onClick={() => router.push(`/reseau/agence?id=${agency.institutionId}`)}
-                  className="cursor-pointer border-b border-border last:border-0 transition-colors hover:bg-muted/50"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium">{agency.institutionName}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{agency.directeurName}</td>
-                  <td className="hidden px-4 py-3 text-right sm:table-cell">{agency.agentCount}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(agency.totalCA)}</td>
-                  <td className="px-4 py-3 text-right">{agency.totalMandats}</td>
-                  <td className="px-4 py-3 text-right">{agency.avgExclusivite}%</td>
-                  <td className="px-4 py-3 text-right">{agency.totalOffres}</td>
-                  <td className="px-4 py-3 text-right">{agency.totalActes}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-semibold", perfBg(agency.avgPerformance))}>
-                      {agency.avgPerformance}%
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Comparaison inter-agences (bar chart) */}
-      {agencies.length > 0 && (
-        <div className="rounded-lg border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <h3 className="text-sm font-semibold">Comparaison inter-agences — CA mensuel</h3>
-          </div>
-          <div className="p-4">
-            <BarChart
-              data={sortedAgencies.map((a) => ({
-                name: a.institutionName.length > 15 ? a.institutionName.slice(0, 15) + "…" : a.institutionName,
-                CA: a.totalCA,
-                Mandats: a.totalMandats * 1000,
-              }))}
-              xKey="name"
-              bars={[
-                { dataKey: "CA", color: "var(--agency-primary, #6C5CE7)", name: "CA (€)" },
-              ]}
-              height={250}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Top performers */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Top agents */}
-        <div className="rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <Trophy className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold">Top conseillers réseau</h3>
-          </div>
-          <div className="divide-y divide-border">
-            {topAgents.map((p, i) => (
-              <div key={p.user.id} className="flex items-center gap-3 px-4 py-2.5">
-                <span className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold",
-                  i === 0 ? "bg-amber-500/20 text-amber-500" :
-                  i === 1 ? "bg-slate-400/20 text-slate-400" :
-                  i === 2 ? "bg-orange-600/20 text-orange-600" :
-                  "bg-muted text-muted-foreground"
-                )}>
-                  {i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{p.user.firstName} {p.user.lastName}</p>
-                  <p className="text-[11px] text-muted-foreground">{p.institutionName}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className={cn("text-sm font-bold", perfColor(p.score))}>{p.score}%</p>
-                  <p className="text-[11px] text-muted-foreground">{formatCurrency(p.ca)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top managers */}
-        <div className="rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <Trophy className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold">Top managers réseau</h3>
-          </div>
-          <div className="divide-y divide-border">
-            {topManagers.map((p, i) => (
-              <div key={p.user.id} className="flex items-center gap-3 px-4 py-2.5">
-                <span className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold",
-                  i === 0 ? "bg-amber-500/20 text-amber-500" :
-                  i === 1 ? "bg-slate-400/20 text-slate-400" :
-                  i === 2 ? "bg-orange-600/20 text-orange-600" :
-                  "bg-muted text-muted-foreground"
-                )}>
-                  {i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{p.user.firstName} {p.user.lastName}</p>
-                  <p className="text-[11px] text-muted-foreground">{p.institutionName} · {p.role === "directeur" ? "Directeur" : "Manager"}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className={cn("text-sm font-bold", perfColor(p.score))}>{p.score}%</p>
-                  <p className="text-[11px] text-muted-foreground">{formatCurrency(p.ca)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* ═══ Chaîne 12 étapes ═══ */}
+      <NetworkProductionChain
+        steps={steps}
+        ratios={ratios}
+        displayMode={displayMode}
+        onStepClick={(stepId) =>
+          router.push(`/reseau/volume-activite?step=${stepId}`)
+        }
+      />
     </div>
   );
 }
 
-/* ── Sub-components ── */
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-header avec popover "Objectifs pondérés"
+// ─────────────────────────────────────────────────────────────────────────────
 
-function KpiCard({
-  label,
+function SubHeader({
+  conseillerCount,
+  categoryMix,
+  period,
+}: {
+  conseillerCount: number;
+  categoryMix: CategoryMix;
+  period: PeriodMode;
+}) {
+  const [open, setOpen] = useState(false);
+  const periodLabel = period === "ytd" ? "année à date" : "ce mois-ci";
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+      <Users className="h-4 w-4" />
+      <span>
+        <strong className="text-foreground tabular-nums">{conseillerCount}</strong> collaborateurs
+      </span>
+      <span>·</span>
+      <span
+        className="relative"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="cursor-help underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+          aria-expanded={open}
+        >
+          Objectifs pondérés
+        </button>
+        {open && (
+          <span
+            role="tooltip"
+            className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg"
+          >
+            <p className="mb-2 font-semibold text-foreground">Répartition des conseillers</p>
+            <ul className="space-y-1">
+              <li className="flex justify-between">
+                <span>Junior</span>
+                <span className="tabular-nums">
+                  {categoryMix.debutant.count} ({categoryMix.debutant.pct}%)
+                </span>
+              </li>
+              <li className="flex justify-between">
+                <span>Confirmé</span>
+                <span className="tabular-nums">
+                  {categoryMix.confirme.count} ({categoryMix.confirme.pct}%)
+                </span>
+              </li>
+              <li className="flex justify-between">
+                <span>Expert</span>
+                <span className="tabular-nums">
+                  {categoryMix.expert.count} ({categoryMix.expert.pct}%)
+                </span>
+              </li>
+            </ul>
+          </span>
+        )}
+      </span>
+      <span>·</span>
+      <span>{periodLabel}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Toggles
+// ─────────────────────────────────────────────────────────────────────────────
+
+const VIEW_MODE_OPTIONS: Array<{ value: ViewMode; label: string }> = [
+  { value: "volumes", label: "Volumes" },
+  { value: "ratios", label: "Ratios" },
+  { value: "both", label: "Les deux" },
+];
+
+function ViewModeToggle({
   value,
-  icon,
-  accent,
-  className,
+  onChange,
 }: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  accent?: boolean;
-  className?: string;
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
 }) {
   return (
-    <div className={cn(
-      "rounded-lg border border-border bg-card px-3 py-3",
-      accent && "border-primary/30 bg-primary/5"
-    )}>
-      <div className="flex items-center gap-1.5">
-        {icon && <span className="text-muted-foreground">{icon}</span>}
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-      </div>
-      <p className={cn("mt-1 text-lg font-bold", className)}>{value}</p>
+    <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs">
+      {VIEW_MODE_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            "rounded-md px-3 py-1.5 font-medium transition-colors",
+            value === opt.value
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
 
-function SortHeader({
-  label,
-  sortKey,
-  current,
-  desc,
-  onSort,
+function PeriodToggle({
+  value,
+  onChange,
 }: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  desc: boolean;
-  onSort: (key: SortKey) => void;
+  value: PeriodMode;
+  onChange: (v: PeriodMode) => void;
 }) {
-  const isActive = current === sortKey;
   return (
-    <th className="hidden px-4 py-2 text-right sm:table-cell">
+    <div className="inline-flex rounded-lg border border-border text-xs">
       <button
-        onClick={() => onSort(sortKey)}
+        type="button"
+        onClick={() => onChange("mois")}
         className={cn(
-          "inline-flex items-center gap-1 text-xs transition-colors",
-          isActive ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+          "rounded-l-lg px-3 py-1 font-medium transition-colors",
+          value === "mois"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted",
         )}
       >
-        {label}
-        {isActive && (
-          desc
-            ? <ArrowDownRight className="h-3 w-3" />
-            : <ArrowUpRight className="h-3 w-3" />
-        )}
+        Mois
       </button>
-    </th>
+      <button
+        type="button"
+        onClick={() => onChange("ytd")}
+        className={cn(
+          "rounded-r-lg px-3 py-1 font-medium transition-colors",
+          value === "ytd"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted",
+        )}
+      >
+        Année
+      </button>
+    </div>
   );
 }
