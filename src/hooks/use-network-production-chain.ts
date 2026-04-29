@@ -8,7 +8,9 @@ import { aggregateResults } from "@/lib/aggregate-results";
 import {
   getStatus,
   getVolumeStatus,
+  computeChainRatios,
   type Status,
+  type StepRatio,
   type ViewMode,
   type PeriodMode,
 } from "@/components/dashboard/production-chain";
@@ -79,6 +81,13 @@ export type ChainStep =
 
 export type ChainCategory = "prospection" | "transformation" | "resultat";
 
+/**
+ * Alias du type StepRatio exporté par <ProductionChain>. Le réseau réutilise
+ * exactement la même structure de ratio que le directeur (alignement strict
+ * de la convention métier — Vue Réseau v2.0 Task 3-bis).
+ */
+export type ChainRatioData = StepRatio;
+
 export interface ChainStepData {
   stepId: ChainStep;
   /** 1 à 12 (ordre canonique de la chaîne). */
@@ -122,7 +131,14 @@ export interface CategoryMix {
 }
 
 export interface NetworkProductionChainData {
+  /** Les 12 cartes de la chaîne de production (volumes + CA). */
   steps: ChainStepData[];
+  /**
+   * Les 7 ratios de transformation (numéros 2-9 sauf 6) — convention strictement
+   * alignée avec le directeur via `computeChainRatios()` (réutilisé tel quel).
+   * Affiché en mode `displayMode === "ratios"` ou `"both"`.
+   */
+  ratios: ChainRatioData[];
   conseillerCount: number;
   categoryMix: CategoryMix;
   period: PeriodMode;
@@ -189,7 +205,7 @@ export function useNetworkProductionChain(): NetworkProductionChainData {
   const [period, setPeriod] = usePersistedState<PeriodMode>(PERIOD_KEY, "mois");
   const [displayMode, setDisplayMode] = usePersistedState<ViewMode>(VIEW_KEY, "volumes");
 
-  const data = useMemo<Pick<NetworkProductionChainData, "steps" | "conseillerCount" | "categoryMix">>(() => {
+  const data = useMemo<Pick<NetworkProductionChainData, "steps" | "ratios" | "conseillerCount" | "categoryMix">>(() => {
     // ── 1. Collecte tous les conseillers du réseau ──
     const allConseillers: User[] = [];
     for (const agency of agencies) {
@@ -352,11 +368,29 @@ export function useNetworkProductionChain(): NetworkProductionChainData {
       };
     });
 
-    return { steps, conseillerCount, categoryMix };
+    // ── 5. Construction des 7 ratios de transformation ──
+    // Réutilise computeChainRatios extrait de production-chain.tsx — convention
+    // strictement alignée avec le directeur (numéros 2-9 sauf 6, isLowerBetter=true
+    // sauf % Exclusivité, objectifs métier 15/1.5/2/10/2/1.5).
+    const ratios: ChainRatioData[] = computeChainRatios({
+      contacts: realContacts,
+      rdvEstim: realRdv,
+      estimations: realEstim,
+      mandats: realMandats,
+      pctExclu: realExclusivePct,
+      visites: realVisites,
+      offres: realOffres,
+      compromis: realCompromis,
+      actes: realActes,
+      exclusiviteObjectif: objExclusivePct,
+    });
+
+    return { steps, ratios, conseillerCount, categoryMix };
   }, [agencies, allResults, period]);
 
   return {
     steps: data.steps,
+    ratios: data.ratios,
     conseillerCount: data.conseillerCount,
     categoryMix: data.categoryMix,
     period,
