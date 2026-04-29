@@ -86,7 +86,11 @@ export default function ReseauDashboardPage() {
       <ViewModeToggle value={displayMode} onChange={setDisplayMode} />
 
       {/* ═══ Sub-header : [N] collaborateurs · Objectifs pondérés · période + Toggle Mois/Année ═══ */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+      {/* Pas de flex-wrap : on garde sub-header gauche / toggle droite sur la
+          même ligne (évite que le toggle soit poussé en ligne séparée sur des
+          largeurs intermédiaires). Sur mobile très étroit, le sub-header
+          interne se condensera grâce à son propre flex-wrap interne. */}
+      <div className="flex items-center justify-between gap-3 text-sm">
         <SubHeader
           conseillerCount={conseillerCount}
           categoryMix={categoryMix}

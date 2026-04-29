@@ -52,7 +52,7 @@ const pageTitles: Record<string, string> = {
   "/directeur/formation-collective": "Ma Formation Collective",
   "/directeur/pilotage-financier": "Pilotage Financier",
   "/coach/cockpit": "Cockpit Coach",
-  "/reseau/dashboard": "Tableau de bord Réseau",
+  "/reseau/dashboard": "Tableau de bord",
   "/admin/dpi": "Leads DPI",
 };
 
@@ -144,7 +144,10 @@ export function Header() {
       <div className="flex h-16 items-center justify-between px-3 sm:px-6">
       <div className="flex items-center gap-4">
         <h1 className="truncate text-lg font-[var(--w-title)] tracking-tight text-agency-primary">{pageTitle}</h1>
-        {user && (() => {
+        {/* Category badge masqué sur la rubrique Réseau : un user "réseau" n'a
+            pas de catégorie de production individuelle, et le score réseau est
+            déjà affiché dans le header de la page elle-même. */}
+        {user && !pathname.startsWith("/reseau/") && (() => {
           const userResults = results.filter((r) => r.userId === user.id);
           const dynamicLevel = calculateDynamicProfile(userResults, user.category);
           const creationLevel = user.category;

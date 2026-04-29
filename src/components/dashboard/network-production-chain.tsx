@@ -42,12 +42,18 @@ interface StatusConfig {
   text: string;
   label: string;
   icon: typeof CheckCircle2;
-  progressColor: string;
+  /** Tailwind class for progress bar fill (explicit, not CSS variable). */
+  progressBg: string;
 }
 
 // Aligné avec STATUS_CONFIG de production-chain.tsx (dupliqué localement
 // pour éviter de l'exporter et créer un couplage avec les imports lucide
 // du composant directeur).
+//
+// Note : le directeur utilise CSS variables (`var(--success)` etc.). On
+// préfère ici des classes Tailwind explicites pour éviter toute ambiguité
+// de résolution des tokens et garantir des couleurs surperf=vert /
+// stable=orange / sousperf=rouge cohérentes (Vue Réseau v2.0 fix 3).
 const STATUS_CONFIG: Record<Status, StatusConfig> = {
   surperf: {
     borderClass: "border-2 border-green-500/40 hover:border-green-500/70",
@@ -55,7 +61,7 @@ const STATUS_CONFIG: Record<Status, StatusConfig> = {
     text: "text-green-500",
     label: "Surperf",
     icon: CheckCircle2,
-    progressColor: "var(--success)",
+    progressBg: "bg-green-500",
   },
   stable: {
     borderClass: "border-2 border-orange-500/40 hover:border-orange-500/70",
@@ -63,7 +69,7 @@ const STATUS_CONFIG: Record<Status, StatusConfig> = {
     text: "text-orange-500",
     label: "Stable",
     icon: Minus,
-    progressColor: "var(--warning)",
+    progressBg: "bg-orange-500",
   },
   sousperf: {
     borderClass: "border-2 border-red-500/40 hover:border-red-500/70",
@@ -71,7 +77,7 @@ const STATUS_CONFIG: Record<Status, StatusConfig> = {
     text: "text-red-500",
     label: "Sous-perf",
     icon: AlertTriangle,
-    progressColor: "var(--danger)",
+    progressBg: "bg-red-500",
   },
 };
 
@@ -214,8 +220,8 @@ function StepCard({ step, onClick }: StepCardProps) {
       {/* Progress bar */}
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border/40">
         <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${progressPct}%`, backgroundColor: sc.progressColor }}
+          className={cn("h-full rounded-full transition-all duration-500", sc.progressBg)}
+          style={{ width: `${progressPct}%` }}
         />
       </div>
     </button>
