@@ -534,6 +534,75 @@ export function formatVal(v: number, unit?: string): string {
   return String(v);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Canonical ratios computation — extracted for reuse (Vue Réseau v2.0 Phase 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inputs nécessaires au calcul des 7 ratios de transformation de la chaîne.
+ * Tous des entiers/percents agrégés sur le scope (individuel, équipe, agence
+ * ou réseau).
+ */
+export interface ChainRatioInputs {
+  /** Σ contacts totaux. */
+  contacts: number;
+  /** Σ RDV estimation. */
+  rdvEstim: number;
+  /** Σ estimations réalisées. */
+  estimations: number;
+  /** Σ mandats signés. */
+  mandats: number;
+  /** % exclusivité (0..100) — moyenne pondérée Σ exclusifs / Σ mandats × 100. */
+  pctExclu: number;
+  /** Σ visites réalisées. */
+  visites: number;
+  /** Σ offres reçues. */
+  offres: number;
+  /** Σ compromis signés. */
+  compromis: number;
+  /** Σ actes signés. */
+  actes: number;
+  /** Objectif % exclusivité (0..100) — utilisé pour le ratio num 5. */
+  exclusiviteObjectif: number;
+}
+
+/**
+ * Calcule les 7 ratios de transformation canoniques (numéros 2-9, saute 1, 6,
+ * 10-12 qui sont volumes-only ou agrégats).
+ *
+ * Convention métier (alignée avec <ProductionChain> directeur) :
+ * - `realise` = ratio inverse type (combien de "from" pour 1 "to") via safeDiv,
+ *   sauf pour % Exclusivité (num 5) qui est un % direct.
+ * - `objectif` = constantes métier hardcodées (15 contacts/RDV, 1.5 RDV/Estim,
+ *   2 RDV/Mandat, 10 visites/offre, 2 offres/compromis, 1.5 compromis/acte),
+ *   sauf % Exclusivité qui prend `exclusiviteObjectif`.
+ * - `isLowerBetter: true` (moins = mieux) sauf % Exclusivité (plus = mieux).
+ * - `realisePct` / `objectifPct` = % de transformation (plus = mieux),
+ *   utilisés pour l'affichage uniquement, pas pour le status.
+ * - `status` calculé sur (realise, objectif, isLowerBetter) via getStatus.
+ *
+ * Garde-fous division par zéro : `safeDiv(a, 0) = 0`. Pour les `realisePct`,
+ * la condition `to > 0` protège la plupart des cas, sauf edge case où le
+ * numérateur est non-zéro alors que le dénominateur est zéro (situation
+ * théorique en données réelles, ignorée dans le directeur historique).
+ */
+export function computeChainRatios(inputs: ChainRatioInputs): StepRatio[] {
+  const {
+    contacts, rdvEstim, estimations, mandats, pctExclu,
+    visites, offres, compromis, actes, exclusiviteObjectif,
+  } = inputs;
+
+  return [
+    { num: 2, label: "Contacts → RDV", from: "contacts", to: "RDV", realise: safeDiv(contacts, rdvEstim), objectif: 15, realisePct: rdvEstim > 0 ? Math.round((rdvEstim / contacts) * 100) : 0, objectifPct: Math.round((1 / 15) * 100), isLowerBetter: true, status: "stable" as Status },
+    { num: 3, label: "RDV → Estimation", from: "RDV", to: "estimation", realise: safeDiv(rdvEstim, estimations), objectif: 1.5, realisePct: estimations > 0 ? Math.round((estimations / rdvEstim) * 100) : 0, objectifPct: Math.round((1 / 1.5) * 100), isLowerBetter: true, status: "stable" as Status },
+    { num: 4, label: "RDV → Mandat", from: "RDV", to: "mandat", realise: safeDiv(rdvEstim, mandats), objectif: 2, realisePct: mandats > 0 ? Math.round((mandats / rdvEstim) * 100) : 0, objectifPct: 50, isLowerBetter: true, status: "stable" as Status },
+    { num: 5, label: "% Exclusivité", from: "mandats", to: "exclusifs", realise: pctExclu, objectif: exclusiviteObjectif, realisePct: pctExclu, objectifPct: exclusiviteObjectif, isLowerBetter: false, status: "stable" as Status },
+    { num: 7, label: "Visites → Offre", from: "visites", to: "offre", realise: safeDiv(visites, offres), objectif: 10, realisePct: offres > 0 ? Math.round((offres / visites) * 100) : 0, objectifPct: 10, isLowerBetter: true, status: "stable" as Status },
+    { num: 8, label: "Offres → Compromis", from: "offres", to: "compromis", realise: safeDiv(offres, compromis), objectif: 2, realisePct: compromis > 0 ? Math.round((compromis / offres) * 100) : 0, objectifPct: 50, isLowerBetter: true, status: "stable" as Status },
+    { num: 9, label: "Compromis → Acte", from: "compromis", to: "acte", realise: safeDiv(compromis, actes), objectif: 1.5, realisePct: actes > 0 ? Math.round((actes / compromis) * 100) : 0, objectifPct: 67, isLowerBetter: true, status: "stable" as Status },
+  ].map((r) => ({ ...r, status: getStatus(r.realise, r.objectif, r.isLowerBetter) }));
+}
+
 // ── Aggregate helper ─────────────────────────────────────────────────────────
 
 function aggregateResults(results: PeriodResults[]): PeriodResults | null {
@@ -789,18 +858,16 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
     { num: 12, label: "CA Acte", realise: ca, objectif: obj.ca * pm * headcount, unit: "€" },
   ];
 
-  // Ratios — only real transformation steps (7 ratios)
-  // Excluded: Contacts entrants (num 1) = volume only, Acheteurs chauds (num 6) = volume only,
-  //           CA par Acte (num 12) = not a transformation ratio
-  const ratios: StepRatio[] = [
-    { num: 2, label: "Contacts → RDV", from: "contacts", to: "RDV", realise: safeDiv(contacts, rdvEstim), objectif: 15, realisePct: rdvEstim > 0 ? Math.round((rdvEstim / contacts) * 100) : 0, objectifPct: Math.round((1 / 15) * 100), isLowerBetter: true, status: "stable" },
-    { num: 3, label: "RDV → Estimation", from: "RDV", to: "estimation", realise: safeDiv(rdvEstim, estimations), objectif: 1.5, realisePct: estimations > 0 ? Math.round((estimations / rdvEstim) * 100) : 0, objectifPct: Math.round((1 / 1.5) * 100), isLowerBetter: true, status: "stable" },
-    { num: 4, label: "RDV → Mandat", from: "RDV", to: "mandat", realise: safeDiv(rdvEstim, mandats), objectif: 2, realisePct: mandats > 0 ? Math.round((mandats / rdvEstim) * 100) : 0, objectifPct: 50, isLowerBetter: true, status: "stable" },
-    { num: 5, label: "% Exclusivité", from: "mandats", to: "exclusifs", realise: pctExclu, objectif: obj.exclusivite, realisePct: pctExclu, objectifPct: obj.exclusivite, isLowerBetter: false, status: "stable" },
-    { num: 7, label: "Visites → Offre", from: "visites", to: "offre", realise: safeDiv(visites, offres), objectif: 10, realisePct: offres > 0 ? Math.round((offres / visites) * 100) : 0, objectifPct: 10, isLowerBetter: true, status: "stable" },
-    { num: 8, label: "Offres → Compromis", from: "offres", to: "compromis", realise: safeDiv(offres, compromis), objectif: 2, realisePct: compromis > 0 ? Math.round((compromis / offres) * 100) : 0, objectifPct: 50, isLowerBetter: true, status: "stable" },
-    { num: 9, label: "Compromis → Acte", from: "compromis", to: "acte", realise: safeDiv(compromis, actes), objectif: 1.5, realisePct: actes > 0 ? Math.round((actes / compromis) * 100) : 0, objectifPct: 67, isLowerBetter: true, status: "stable" },
-  ].map((r) => ({ ...r, status: getStatus(r.realise, r.objectif, r.isLowerBetter) }));
+  // Ratios — only real transformation steps (7 ratios). Définition canonique
+  // extraite en `computeChainRatios` pour réutilisation côté Vue Réseau v2.0
+  // (Phase 1 Task 3-bis). Exclus du tableau : Contacts entrants (num 1) =
+  // volume only, Acheteurs chauds (num 6) = volume only, CA par Acte (num 12)
+  // = pas un ratio de transformation.
+  const ratios: StepRatio[] = computeChainRatios({
+    contacts, rdvEstim, estimations, mandats, pctExclu,
+    visites, offres, compromis, actes,
+    exclusiviteObjectif: obj.exclusivite,
+  });
 
   const showVolumes = viewMode === "volumes" || viewMode === "both";
   const showRatios = viewMode === "ratios" || viewMode === "both";
