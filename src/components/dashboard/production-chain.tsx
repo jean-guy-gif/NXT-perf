@@ -49,7 +49,13 @@ export interface StepRatio {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getStatus(realise: number, objectif: number, isLowerBetter: boolean): Status {
+/**
+ * Pure helper exporté pour réutilisation (NetworkProductionChain Phase 1) :
+ * détermine le status d'un ratio (mode "ratios"), avec support isLowerBetter
+ * pour les ratios où une valeur basse est meilleure (ex: visites par offre).
+ * Seuils : surperf > 110 % objectif, sousperf < 90 %, stable entre les deux.
+ */
+export function getStatus(realise: number, objectif: number, isLowerBetter: boolean): Status {
   if (objectif === 0) return "stable";
   if (isLowerBetter) {
     if (realise < objectif * 0.9) return "surperf";
@@ -61,7 +67,12 @@ function getStatus(realise: number, objectif: number, isLowerBetter: boolean): S
   return "stable";
 }
 
-function getVolumeStatus(realise: number, objectif: number): Status {
+/**
+ * Pure helper exporté pour réutilisation (NetworkProductionChain Phase 1) :
+ * détermine le status d'une carte de volume (mode "volumes"), où plus c'est
+ * haut mieux c'est. Mêmes seuils que getStatus mais sans inversion possible.
+ */
+export function getVolumeStatus(realise: number, objectif: number): Status {
   if (objectif === 0) return "stable";
   const pct = realise / objectif;
   if (pct >= 1.1) return "surperf";
@@ -505,11 +516,19 @@ function computeRatioImpact(
   return null;
 }
 
-function safeDiv(a: number, b: number): number {
+/**
+ * Pure helper exporté pour réutilisation : division arrondie au dixième,
+ * avec garde-fou b=0. Utilisé pour calculer les ratios de transformation.
+ */
+export function safeDiv(a: number, b: number): number {
   return b === 0 ? 0 : Math.round((a / b) * 10) / 10;
 }
 
-function formatVal(v: number, unit?: string): string {
+/**
+ * Pure helper exporté pour réutilisation : formate une valeur avec son unité
+ * (€ avec séparateur fr-FR, %, ou nombre brut).
+ */
+export function formatVal(v: number, unit?: string): string {
   if (unit === "€") return v.toLocaleString("fr-FR") + " €";
   if (unit === "%") return v + "%";
   return String(v);
@@ -551,7 +570,13 @@ function aggregateResults(results: PeriodResults[]): PeriodResults | null {
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
-type PeriodMode = "mois" | "ytd" | "custom";
+/**
+ * Mode de période passé en prop à <ProductionChain> et exporté pour réutilisation.
+ * - "mois"   : valeurs du mois courant uniquement
+ * - "ytd"    : Year-To-Date (cumul depuis janvier)
+ * - "custom" : période personnalisée (combinée à periodMonths)
+ */
+export type PeriodMode = "mois" | "ytd" | "custom";
 
 interface ProductionChainProps {
   scope: "individual" | "team" | "agency";
