@@ -4,14 +4,14 @@ import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { DbProfile } from "@/types/database";
 import { mockUsers } from "@/data/mock-users";
-import { mockResults, mockJanuaryResults } from "@/data/mock-results";
+import { mockResults, mockJanuaryResults, mockMarchResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
 import type { CoachAssignment, CoachAction, CoachPlan, CoachNote, CoachSession, CoachQuickPlan } from "@/types/coach";
 import type { FinancialData, FinancialFieldId } from "@/types/finance";
 import { mockCoachAssignments, mockCoachActions, mockCoachPlans, mockCoachNotes, mockCoachSessions, mockCoachQuickPlans } from "@/data/mock-coach";
 import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
-import { mockNetworkUsers, mockNetworkResults, mockNetworkJanuaryResults, mockNetworkInstitutions, mockNetworks, mockReseauUser, type Network } from "@/data/mock-network";
+import { mockNetworkUsers, mockNetworkResults, mockNetworkJanuaryResults, mockNetworkMarchResults, mockNetworkInstitutions, mockNetworks, mockReseauUser, type Network } from "@/data/mock-network";
 
 /** Map user roles to sidebar view IDs */
 export type ViewId = "agent" | "manager" | "directeur" | "coach" | "reseau";
@@ -263,7 +263,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...mockNetworkUsers.map((u) => ({ ...u, onboardingStatus: "DONE" as const })),
         { ...mockReseauUser, onboardingStatus: "DONE" as const },
       ],
-      results: [...mockJanuaryResults, ...mockResults, ...mockNetworkJanuaryResults, ...mockNetworkResults],
+      results: [
+        ...mockJanuaryResults, ...mockResults, ...mockMarchResults,
+        ...mockNetworkJanuaryResults, ...mockNetworkResults, ...mockNetworkMarchResults,
+      ],
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
       coachAssignments: mockCoachAssignments,
       coachActions: mockCoachActions,

@@ -1,10 +1,18 @@
 import type { PeriodResults } from "@/types/results";
+import { makeResult } from "@/data/_mock-result-helpers";
 
 // TODO(provisoire): placeholder dev, valeur à calibrer — CA compromis mock =
 // compromisSignes × 15 000€. Les valeurs `chiffreAffairesCompromis` de ce
 // fichier sont des placeholders dérivés de cette règle, pas des valeurs
 // issues du CRM. À remplacer par des données réelles ou une règle calibrée
 // quand le backend sera branché. Voir docs/TECH_DEBT.md.
+
+// Paris (org-demo) perf factor : 1.05 (surperf moyenne)
+// Trends 3 mois : janv ×0.95, fév ×1.00, mars ×1.05.
+// Janvier/Février Paris déjà mockés ci-dessous (calibrés ad hoc avant 2026-04-29) ;
+// Mars Paris ajouté en bas de fichier via le helper makeResult (Task 1 réseau v2.0).
+const PARIS_PERF = 1.05;
+const PARIS_MAR_FACTOR = PARIS_PERF * 1.05; // ≈ 1.1025
 
 export const mockResults: PeriodResults[] = [
   // Manager (Jean-Guy Dupont - expert, aussi producteur)
@@ -665,6 +673,115 @@ export const mockJanuaryResults: PeriodResults[] = [
     createdAt: "2026-01-01T08:00:00Z",
     updatedAt: "2026-01-31T10:00:00Z",
   },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// March 2026 results — Paris (org-demo)
+// Generated via makeResult helper for the 11 Paris team members (1 directeur +
+// 2 managers + 8 conseillers from mock-users.ts). Calibrated on PARIS_MAR_FACTOR
+// (1.1025 = 1.05 perf × 1.05 month trend), part of the Vue Réseau v2.0 Phase 1.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockMarchResults: PeriodResults[] = [
+  // Jean-Guy Ourmières (m-demo, expert directeur, team-demo)
+  makeResult({
+    id: "r-manager-mar",
+    userId: "m-demo",
+    monthKey: "03",
+    category: "expert",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-mgr",
+  }),
+  // Alice Martin (u-demo-1, confirme, team-demo)
+  makeResult({
+    id: "r-u1-mar",
+    userId: "u-demo-1",
+    monthKey: "03",
+    category: "confirme",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-1",
+  }),
+  // Bob Bernard (u-demo-2, confirme, team-demo)
+  makeResult({
+    id: "r-u2-mar",
+    userId: "u-demo-2",
+    monthKey: "03",
+    category: "confirme",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-2",
+  }),
+  // Catherine Durand (u-demo-3, expert, team-demo)
+  makeResult({
+    id: "r-u3-mar",
+    userId: "u-demo-3",
+    monthKey: "03",
+    category: "expert",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-3",
+  }),
+  // Sophie Lemaire (m-demo-2, confirme manager, team-beta)
+  makeResult({
+    id: "r-m2-mar",
+    userId: "m-demo-2",
+    monthKey: "03",
+    category: "confirme",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-m2",
+  }),
+  // Lucas Morel (u-demo-b1, confirme, team-beta)
+  makeResult({
+    id: "r-ub1-mar",
+    userId: "u-demo-b1",
+    monthKey: "03",
+    category: "confirme",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-b1",
+  }),
+  // Marine Roche (u-demo-b2, expert, team-beta)
+  makeResult({
+    id: "r-ub2-mar",
+    userId: "u-demo-b2",
+    monthKey: "03",
+    category: "expert",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-b2",
+  }),
+  // Théo Vasseur (u-demo-b3, debutant, team-beta)
+  makeResult({
+    id: "r-ub3-mar",
+    userId: "u-demo-b3",
+    monthKey: "03",
+    category: "debutant",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-b3",
+  }),
+  // Marc Fontaine (m-demo-3, expert manager, team-gamma)
+  makeResult({
+    id: "r-m3-mar",
+    userId: "m-demo-3",
+    monthKey: "03",
+    category: "expert",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-m3",
+  }),
+  // Julie Carpentier (u-demo-g1, confirme, team-gamma)
+  makeResult({
+    id: "r-ug1-mar",
+    userId: "u-demo-g1",
+    monthKey: "03",
+    category: "confirme",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-g1",
+  }),
+  // Nicolas Mercier (u-demo-g2, debutant, team-gamma)
+  makeResult({
+    id: "r-ug2-mar",
+    userId: "u-demo-g2",
+    monthKey: "03",
+    category: "debutant",
+    factor: PARIS_MAR_FACTOR,
+    mandatPrefix: "mp-g2",
+  }),
 ];
 
 // Weekly results for u-demo-1 (current week)
