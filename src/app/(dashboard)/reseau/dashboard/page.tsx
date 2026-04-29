@@ -4,40 +4,55 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Compass, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNetworkProductionChain } from "@/hooks/use-network-production-chain";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import {
+  useNetworkProductionChain,
+  type NetworkScopeFilter,
+  type NetworkScopeMeta,
+  type CategoryMix,
+} from "@/hooks/use-network-production-chain";
 import { NetworkProductionChain } from "@/components/dashboard/network-production-chain";
+import { NetworkScopeSelector } from "@/components/dashboard/network-scope-selector";
 import type { ViewMode, PeriodMode } from "@/components/dashboard/production-chain";
-import type { CategoryMix } from "@/hooks/use-network-production-chain";
 
 /**
- * /reseau/dashboard — Tableau de bord Réseau (Vue Réseau v2.0 Phase 1 Task 4.2).
+ * /reseau/dashboard — Tableau de bord Réseau (Vue Réseau v2.0).
  *
- * Strict miroir visuel de /directeur/pilotage mais agrégé à l'échelle réseau
- * via useNetworkProductionChain (ruissellement total des objectifs).
+ * Phase 1 Task 4 + 4-bis : 4-niveau cascade scope filter (Réseau / Agence /
+ * Équipe / Conseiller) qui pilote `useNetworkProductionChain`. Tous les
+ * agrégats (steps, ratios, categoryMix, conseillerCount, scopeMeta) reflètent
+ * le scope sélectionné.
  *
  * Composition :
- * - Header (icône + titre + sous-titre + ScoreBadge réseau global)
+ * - Header : icône + H1 dynamique + sous-titre dynamique + ScoreBadge
+ * - <NetworkScopeSelector /> : 4 dropdowns cascade tolérante
  * - Toggle Volumes / Ratios / Les deux
- * - Sub-header [N] collaborateurs · Objectifs pondérés (popover) · période
+ * - Sub-header scope-aware : count|nom · breadcrumb? · Objectifs pondérés|catégorie · période
  * - Toggle Mois / Année
- * - <NetworkProductionChain /> (composant pur de présentation)
+ * - <NetworkProductionChain /> : les 12 cartes + 7 ratios
  *
- * Drill-down (Phase 2) : clic sur une carte → /reseau/volume-activite?step=...
+ * Drill-down : clic sur une carte → /reseau/volume-activite?step=... (Phase 2).
  */
 export default function ReseauDashboardPage() {
   const router = useRouter();
+  const [scope, setScope] = useState<NetworkScopeFilter>({ level: "network" });
+
   const {
     steps,
     ratios,
     conseillerCount,
     categoryMix,
+    availableAgencies,
+    availableTeams,
+    availableConseillers,
+    scopeMeta,
     period,
     setPeriod,
     displayMode,
     setDisplayMode,
-  } = useNetworkProductionChain();
+  } = useNetworkProductionChain(scope);
 
-  // Score global réseau = moyenne des pcts des 12 steps.
+  // Score global réseau = moyenne des pcts des 12 steps (recalculé pour le scope actif).
   const globalPct = useMemo(() => {
     if (steps.length === 0) return 0;
     return Math.round(steps.reduce((s, x) => s + x.pct, 0) / steps.length);
@@ -56,6 +71,20 @@ export default function ReseauDashboardPage() {
     return { label: "À améliorer", className: "bg-red-500/10 text-red-500 border-red-500/30" };
   }, [globalPct]);
 
+  // Titre H1 + sous-titre dynamiques selon le scope.
+  const h1 = scopeMeta.titleSuffix
+    ? `Tableau de bord — ${scopeMeta.titleSuffix}`
+    : "Tableau de bord";
+
+  const subtitle =
+    scope.level === "individual"
+      ? "GPS de performance individuelle — données mensuelles"
+      : scope.level === "team"
+        ? "GPS de performance équipe — données mensuelles"
+        : scope.level === "agency"
+          ? "GPS de performance agence — données mensuelles"
+          : "GPS de performance réseau — données mensuelles";
+
   return (
     <div className="space-y-6">
       {/* ═══ Header ═══ */}
@@ -65,10 +94,8 @@ export default function ReseauDashboardPage() {
             <Compass className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Tableau de bord Réseau</h1>
-            <p className="text-sm text-muted-foreground">
-              GPS de performance réseau — données mensuelles
-            </p>
+            <h1 className="text-2xl font-bold">{h1}</h1>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <span
@@ -82,18 +109,25 @@ export default function ReseauDashboardPage() {
         </span>
       </div>
 
+      {/* ═══ Sélecteur de scope cascade 4 niveaux ═══ */}
+      <NetworkScopeSelector
+        scope={scope}
+        onScopeChange={setScope}
+        agencies={availableAgencies}
+        teams={availableTeams}
+        conseillers={availableConseillers}
+      />
+
       {/* ═══ Toggle Volumes / Ratios / Les deux ═══ */}
       <ViewModeToggle value={displayMode} onChange={setDisplayMode} />
 
-      {/* ═══ Sub-header : [N] collaborateurs · Objectifs pondérés · période + Toggle Mois/Année ═══ */}
-      {/* Pas de flex-wrap : on garde sub-header gauche / toggle droite sur la
-          même ligne (évite que le toggle soit poussé en ligne séparée sur des
-          largeurs intermédiaires). Sur mobile très étroit, le sub-header
-          interne se condensera grâce à son propre flex-wrap interne. */}
+      {/* ═══ Sub-header scope-aware + Toggle Mois/Année ═══ */}
       <div className="flex items-center justify-between gap-3 text-sm">
         <SubHeader
           conseillerCount={conseillerCount}
           categoryMix={categoryMix}
+          scopeMeta={scopeMeta}
+          scopeLevel={scope.level}
           period={period}
         />
         <PeriodToggle value={period} onChange={setPeriod} />
@@ -113,70 +147,108 @@ export default function ReseauDashboardPage() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-header avec popover "Objectifs pondérés"
+// Sub-header scope-aware : count|nom · breadcrumb? · Objectifs|catégorie · période
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface SubHeaderProps {
+  conseillerCount: number;
+  categoryMix: CategoryMix;
+  scopeMeta: NetworkScopeMeta;
+  scopeLevel: NetworkScopeFilter["level"];
+  period: PeriodMode;
+}
 
 function SubHeader({
   conseillerCount,
   categoryMix,
+  scopeMeta,
+  scopeLevel,
   period,
-}: {
-  conseillerCount: number;
-  categoryMix: CategoryMix;
-  period: PeriodMode;
-}) {
+}: SubHeaderProps) {
   const [open, setOpen] = useState(false);
   const periodLabel = period === "ytd" ? "année à date" : "ce mois-ci";
+
+  // En mode individual, on affiche le nom du conseiller à la place du count
+  // et la catégorie réelle à la place de "Objectifs pondérés".
+  const isIndividual = scopeLevel === "individual";
+  const categoryLabel = scopeMeta.userCategory
+    ? CATEGORY_LABELS[scopeMeta.userCategory]
+    : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
       <Users className="h-4 w-4" />
-      <span>
-        <strong className="text-foreground tabular-nums">{conseillerCount}</strong> collaborateurs
-      </span>
+      {isIndividual ? (
+        <span className="font-semibold text-foreground">
+          {scopeMeta.titleSuffix}
+        </span>
+      ) : (
+        <span>
+          <strong className="text-foreground tabular-nums">
+            {conseillerCount}
+          </strong>{" "}
+          collaborateur{conseillerCount > 1 ? "s" : ""}
+        </span>
+      )}
+
+      {scopeMeta.contextLabel && (
+        <>
+          <span>·</span>
+          <span className="text-foreground/80">{scopeMeta.contextLabel}</span>
+        </>
+      )}
+
       <span>·</span>
-      <span
-        className="relative"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="cursor-help underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-          aria-expanded={open}
+
+      {isIndividual && categoryLabel ? (
+        <span className="font-medium text-foreground">{categoryLabel}</span>
+      ) : (
+        <span
+          className="relative"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
         >
-          Objectifs pondérés
-        </button>
-        {open && (
-          <span
-            role="tooltip"
-            className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg"
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="cursor-help underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+            aria-expanded={open}
           >
-            <p className="mb-2 font-semibold text-foreground">Répartition des conseillers</p>
-            <ul className="space-y-1">
-              <li className="flex justify-between">
-                <span>Junior</span>
-                <span className="tabular-nums">
-                  {categoryMix.debutant.count} ({categoryMix.debutant.pct}%)
-                </span>
-              </li>
-              <li className="flex justify-between">
-                <span>Confirmé</span>
-                <span className="tabular-nums">
-                  {categoryMix.confirme.count} ({categoryMix.confirme.pct}%)
-                </span>
-              </li>
-              <li className="flex justify-between">
-                <span>Expert</span>
-                <span className="tabular-nums">
-                  {categoryMix.expert.count} ({categoryMix.expert.pct}%)
-                </span>
-              </li>
-            </ul>
-          </span>
-        )}
-      </span>
+            Objectifs pondérés
+          </button>
+          {open && (
+            <span
+              role="tooltip"
+              className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg"
+            >
+              <p className="mb-2 font-semibold text-foreground">
+                Répartition des conseillers
+              </p>
+              <ul className="space-y-1">
+                <li className="flex justify-between">
+                  <span>Junior</span>
+                  <span className="tabular-nums">
+                    {categoryMix.debutant.count} ({categoryMix.debutant.pct}%)
+                  </span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Confirmé</span>
+                  <span className="tabular-nums">
+                    {categoryMix.confirme.count} ({categoryMix.confirme.pct}%)
+                  </span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Expert</span>
+                  <span className="tabular-nums">
+                    {categoryMix.expert.count} ({categoryMix.expert.pct}%)
+                  </span>
+                </li>
+              </ul>
+            </span>
+          )}
+        </span>
+      )}
+
       <span>·</span>
       <span>{periodLabel}</span>
     </div>
