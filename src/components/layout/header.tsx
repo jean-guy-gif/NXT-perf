@@ -53,6 +53,11 @@ const pageTitles: Record<string, string> = {
   "/directeur/pilotage-financier": "Pilotage Financier",
   "/coach/cockpit": "Cockpit Coach",
   "/reseau/dashboard": "Tableau de bord",
+  "/reseau/volume-activite": "Mon Volume d'Activité",
+  "/reseau/ratios-transformation": "Mes Ratios de Transformation",
+  "/reseau/comparaison": "Ma Comparaison",
+  "/reseau/formation": "Ma Formation",
+  "/reseau/pilotage-financier": "Pilotage Financier",
   "/admin/dpi": "Leads DPI",
 };
 
