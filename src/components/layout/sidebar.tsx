@@ -18,10 +18,8 @@ import {
   TrendingUp,
   Wallet,
   HeartHandshake,
-  Network,
   Navigation,
   ClipboardCheck,
-  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -62,8 +60,13 @@ const navItems: NavItem[] = [
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage Financier", directorOnly: true },
   { href: "/coach/dashboard", icon: HeartHandshake, label: "Portefeuille", coachOnly: true },
   { href: "/coach/cockpit", icon: Zap, label: "Cockpit Coach", coachOnly: true },
-  { href: "/reseau/dashboard", icon: Network, label: "Vue Réseau", networkOnly: true },
-  { href: "/reseau/agence", icon: Building2, label: "Mes Agences", networkOnly: true },
+  // Section RÉSEAU — miroir directeur (sans Leads DPI). Vue Réseau v2.0 Phase 1 Task 6.
+  { href: "/reseau/dashboard", icon: LayoutDashboard, label: "Mon Tableau de Bord", networkOnly: true },
+  { href: "/reseau/volume-activite", icon: BarChart3, label: "Mon Volume d'Activité", networkOnly: true },
+  { href: "/reseau/ratios-transformation", icon: Gauge, label: "Mes Ratios de Transformation", networkOnly: true },
+  { href: "/reseau/comparaison", icon: GitCompare, label: "Ma Comparaison", networkOnly: true },
+  { href: "/reseau/formation", icon: GraduationCap, label: "Ma Formation", networkOnly: true },
+  { href: "/reseau/pilotage-financier", icon: Wallet, label: "Pilotage Financier", networkOnly: true },
   { href: "/admin/dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
   { href: "/pourquoi-nxt", icon: Compass, label: "Notre approche" },
   { href: "/parametres", icon: Settings, label: "Paramètres" },
