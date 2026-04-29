@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useNetworkData } from "@/hooks/use-network-data";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { useAppStore } from "@/stores/app-store";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
 import { aggregateResults } from "@/lib/aggregate-results";
 import {
@@ -15,7 +16,7 @@ import {
   type PeriodMode,
 } from "@/components/dashboard/production-chain";
 import type { PeriodResults } from "@/types/results";
-import type { User } from "@/types/user";
+import type { User, UserCategory } from "@/types/user";
 
 /**
  * useNetworkProductionChain — cœur métier du tableau de bord réseau v2.0.
@@ -130,6 +131,52 @@ export interface CategoryMix {
   expert: { count: number; pct: number };
 }
 
+/**
+ * Filtre de scope pour le tableau de bord réseau (Vue Réseau v2.0 Task 4-bis).
+ *
+ * Cascade tolérante : tous les niveaux peuvent être sélectionnés indépendamment ;
+ * la page se charge de remplir les `agencyId` / `teamId` parents quand on
+ * sélectionne directement un niveau enfant (ex: choisir "Conseiller : Alice"
+ * sans avoir choisi son équipe → la page infère l'équipe et l'agence).
+ */
+export interface NetworkScopeFilter {
+  level: "network" | "agency" | "team" | "individual";
+  /** Requis si level >= "agency" (sauf cascade tolérante en cours d'inférence). */
+  agencyId?: string;
+  /** Requis si level >= "team". */
+  teamId?: string;
+  /** Requis si level === "individual". */
+  userId?: string;
+}
+
+export interface NetworkAgencyOption {
+  id: string;
+  name: string;
+}
+
+export interface NetworkTeamOption {
+  id: string;
+  name: string;
+  agencyId: string;
+}
+
+export interface NetworkConseillerOption {
+  id: string;
+  name: string;
+  agencyId: string;
+  teamId: string;
+  category: UserCategory;
+}
+
+export interface NetworkScopeMeta {
+  /** Suffixe à concaténer au H1 (ex: "NXT Paris", "Alice Dubois"). "" en mode network. */
+  titleSuffix: string;
+  /** Breadcrumb contextuel pour le sub-header (ex: "NXT Paris / Team Beta"). null en mode network. */
+  contextLabel: string | null;
+  /** Catégorie du conseiller — uniquement en scope individual. */
+  userCategory: UserCategory | null;
+}
+
 export interface NetworkProductionChainData {
   /** Les 12 cartes de la chaîne de production (volumes + CA). */
   steps: ChainStepData[];
@@ -141,6 +188,14 @@ export interface NetworkProductionChainData {
   ratios: ChainRatioData[];
   conseillerCount: number;
   categoryMix: CategoryMix;
+  /** Toutes les agences du réseau (non filtrées par scope). */
+  availableAgencies: NetworkAgencyOption[];
+  /** Toutes les équipes du réseau (non filtrées par scope, avec agencyId parent). */
+  availableTeams: NetworkTeamOption[];
+  /** Tous les conseillers du réseau (non filtrés par scope, avec parents + catégorie). */
+  availableConseillers: NetworkConseillerOption[];
+  /** Métadonnées scope-aware (titre, contexte breadcrumb, catégorie individu). */
+  scopeMeta: NetworkScopeMeta;
   period: PeriodMode;
   setPeriod: (p: PeriodMode) => void;
   displayMode: ViewMode;
@@ -200,16 +255,82 @@ function getPeriodMultiplier(period: PeriodMode): number {
   return 1;
 }
 
-export function useNetworkProductionChain(): NetworkProductionChainData {
+export function useNetworkProductionChain(
+  scope: NetworkScopeFilter = { level: "network" },
+): NetworkProductionChainData {
   const { agencies, allResults } = useNetworkData();
+  const teamInfos = useAppStore((s) => s.teamInfos);
   const [period, setPeriod] = usePersistedState<PeriodMode>(PERIOD_KEY, "mois");
   const [displayMode, setDisplayMode] = usePersistedState<ViewMode>(VIEW_KEY, "volumes");
 
-  const data = useMemo<Pick<NetworkProductionChainData, "steps" | "ratios" | "conseillerCount" | "categoryMix">>(() => {
-    // ── 1. Collecte tous les conseillers du réseau ──
+  const data = useMemo<
+    Pick<
+      NetworkProductionChainData,
+      | "steps"
+      | "ratios"
+      | "conseillerCount"
+      | "categoryMix"
+      | "availableAgencies"
+      | "availableTeams"
+      | "availableConseillers"
+      | "scopeMeta"
+    >
+  >(() => {
+    // ── 0. Listes globales (non filtrées par scope — le selector filtre côté UI) ──
+    const availableAgencies: NetworkAgencyOption[] = agencies.map((a) => ({
+      id: a.institutionId,
+      name: a.institutionName,
+    }));
+
+    const availableTeams: NetworkTeamOption[] = [];
+    const teamSeen = new Set<string>();
+    for (const agency of agencies) {
+      for (const agent of agency.agents) {
+        if (!agent.teamId || teamSeen.has(agent.teamId)) continue;
+        teamSeen.add(agent.teamId);
+        const teamInfo = teamInfos.find((t) => t.id === agent.teamId);
+        availableTeams.push({
+          id: agent.teamId,
+          name: teamInfo?.name ?? agent.teamId,
+          agencyId: agency.institutionId,
+        });
+      }
+    }
+
+    const availableConseillers: NetworkConseillerOption[] = [];
+    for (const agency of agencies) {
+      for (const agent of agency.agents) {
+        availableConseillers.push({
+          id: agent.id,
+          name: `${agent.firstName} ${agent.lastName}`,
+          agencyId: agency.institutionId,
+          teamId: agent.teamId ?? "",
+          category: agent.category,
+        });
+      }
+    }
+
+    // ── 1. Collecte des conseillers filtrés par le scope ──
     const allConseillers: User[] = [];
     for (const agency of agencies) {
-      allConseillers.push(...agency.agents);
+      for (const agent of agency.agents) {
+        if (
+          scope.level === "agency" &&
+          scope.agencyId !== undefined &&
+          agency.institutionId !== scope.agencyId
+        ) continue;
+        if (
+          scope.level === "team" &&
+          scope.teamId !== undefined &&
+          agent.teamId !== scope.teamId
+        ) continue;
+        if (
+          scope.level === "individual" &&
+          scope.userId !== undefined &&
+          agent.id !== scope.userId
+        ) continue;
+        allConseillers.push(agent);
+      }
     }
     const conseillerCount = allConseillers.length;
 
@@ -385,14 +506,62 @@ export function useNetworkProductionChain(): NetworkProductionChainData {
       exclusiviteObjectif: objExclusivePct,
     });
 
-    return { steps, ratios, conseillerCount, categoryMix };
-  }, [agencies, allResults, period]);
+    // ── 6. Métadonnées scope-aware (titre, breadcrumb, catégorie individu) ──
+    let titleSuffix = "";
+    let contextLabel: string | null = null;
+    let userCategory: UserCategory | null = null;
+
+    if (scope.level === "agency" && scope.agencyId) {
+      const agency = agencies.find((a) => a.institutionId === scope.agencyId);
+      titleSuffix = agency?.institutionName ?? "";
+      contextLabel = titleSuffix || null;
+    } else if (scope.level === "team" && scope.teamId) {
+      const team = availableTeams.find((t) => t.id === scope.teamId);
+      const agency = agencies.find((a) => a.institutionId === team?.agencyId);
+      const agencyName = agency?.institutionName ?? "";
+      const teamName = team?.name ?? scope.teamId;
+      titleSuffix = agencyName ? `${agencyName} / ${teamName}` : teamName;
+      contextLabel = titleSuffix;
+    } else if (scope.level === "individual" && scope.userId) {
+      const conseiller = availableConseillers.find((c) => c.id === scope.userId);
+      const agency = agencies.find((a) => a.institutionId === conseiller?.agencyId);
+      const team = availableTeams.find((t) => t.id === conseiller?.teamId);
+      titleSuffix = conseiller?.name ?? "";
+      const agencyName = agency?.institutionName ?? "";
+      const teamName = team?.name ?? "";
+      contextLabel =
+        agencyName && teamName
+          ? `${agencyName} / ${teamName}`
+          : agencyName || teamName || null;
+      userCategory = conseiller?.category ?? null;
+    }
+    const scopeMeta: NetworkScopeMeta = {
+      titleSuffix,
+      contextLabel,
+      userCategory,
+    };
+
+    return {
+      steps,
+      ratios,
+      conseillerCount,
+      categoryMix,
+      availableAgencies,
+      availableTeams,
+      availableConseillers,
+      scopeMeta,
+    };
+  }, [agencies, allResults, period, scope, teamInfos]);
 
   return {
     steps: data.steps,
     ratios: data.ratios,
     conseillerCount: data.conseillerCount,
     categoryMix: data.categoryMix,
+    availableAgencies: data.availableAgencies,
+    availableTeams: data.availableTeams,
+    availableConseillers: data.availableConseillers,
+    scopeMeta: data.scopeMeta,
     period,
     setPeriod,
     displayMode,
