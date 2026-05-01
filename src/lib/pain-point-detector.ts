@@ -25,6 +25,14 @@ export interface MeasuredRatio {
   currentValue: number;
   /** Volume de base servant au calcul d'impact (ex: mandats en stock, visites réalisées) */
   volumeBase: number;
+  /**
+   * Statut legacy issu de `determineRatioStatus(value, threshold, config)`.
+   * Sert de filet de sécurité pour `findCriticitePoints` qui force-inclut les
+   * ratios "warning" / "danger" non détectés par le scoring de douleur (cas
+   * du dénominateur nul → ratio = 0 → painScore = 0 mais sous-perf réelle).
+   * Optionnel pour ne pas casser les call-sites existants.
+   */
+  legacyStatus?: "ok" | "warning" | "danger";
 }
 
 export interface PainPointResult {

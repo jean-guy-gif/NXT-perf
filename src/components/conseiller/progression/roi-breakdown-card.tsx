@@ -44,9 +44,9 @@ export function RoiBreakdownCard({ summary }: Props) {
           const widthPct =
             totalEuros > 0 ? Math.round((entry.gainEur / totalEuros) * 100) : 0;
           return (
-            <li key={entry.ratioId + entry.createdAt.getTime()}>
+            <li key={entry.planId}>
               <Link
-                href={`/coaching-debrief?planId=${encodeURIComponent(entry.ratioId)}`}
+                href={`/coaching-debrief?planId=${encodeURIComponent(entry.planId)}`}
                 className="block rounded-lg border border-border bg-background px-4 py-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
                 <div className="flex items-center justify-between gap-3 text-sm">
@@ -66,7 +66,9 @@ export function RoiBreakdownCard({ summary }: Props) {
                       "h-full rounded-full transition-all",
                       entry.status === "termine"
                         ? "bg-emerald-500"
-                        : "bg-orange-500"
+                        : entry.status === "actif"
+                          ? "bg-primary"
+                          : "bg-orange-500"
                     )}
                     style={{ width: `${widthPct}%` }}
                   />
@@ -74,7 +76,9 @@ export function RoiBreakdownCard({ summary }: Props) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {entry.status === "termine"
                     ? "Plan terminé"
-                    : `Plan expiré · ${entry.pct}% des actions cochées`}{" "}
+                    : entry.status === "actif"
+                      ? `Plan en cours · ${entry.pct}% des actions cochées (gain projeté)`
+                      : `Plan expiré · ${entry.pct}% des actions cochées`}{" "}
                   · {entry.createdAt.toLocaleDateString("fr-FR")}
                 </p>
               </Link>

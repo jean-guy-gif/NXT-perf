@@ -50,6 +50,7 @@ export function buildMeasuredRatios(
       expertiseId,
       currentValue: computed.value,
       volumeBase: getVolumeBase(expertiseId, results),
+      legacyStatus: computed.status,
     });
   }
   return measured;

@@ -17,6 +17,7 @@
 
 import {
   ALL_EXPERTISE_RATIOS,
+  RATIO_EXPERTISE,
   type ProfileLevel,
 } from "@/data/ratio-expertise";
 import {
@@ -185,6 +186,43 @@ export function findCriticitePoints(
     });
     pool = pool.filter((m) => m.expertiseId !== next.expertiseId);
     if (pool.length === 0) break;
+  }
+
+  // ── Force-inclusion (PR3.5 fix BUG 2) : ratios warning/danger issus du
+  //    scoring legacy mais que detectBiggestPainPoint a écartés (cas du
+  //    dénominateur nul → ratio = 0 → painScore = 0 → faussement "OK").
+  //    On les ajoute avec un painScore minimal pour qu'ils apparaissent dans
+  //    le drawer "Voir les autres points en danger". Q4 : on ignore les
+  //    ratios sans activité upstream (volumeBase = 0).
+  for (const m of measured) {
+    if (seenRatios.has(m.expertiseId)) continue;
+    if (m.legacyStatus !== "warning" && m.legacyStatus !== "danger") continue;
+    if (m.volumeBase <= 0) continue;
+    const expertise = RATIO_EXPERTISE[m.expertiseId];
+    if (!expertise) continue;
+    seenRatios.add(m.expertiseId);
+    // Estimation prudente : volumeBase × avgCommission × 0.05 (heuristique
+    // 5 % du potentiel — placeholder V1, à calibrer).
+    const fallbackGain = Math.round(m.volumeBase * avgCommissionEur * 0.05);
+    const targetValue = expertise.thresholds[profile];
+    ratioPoints.push({
+      type: "ratio",
+      id: m.expertiseId,
+      label: expertise.label,
+      currentValue: m.currentValue,
+      targetValue,
+      gainEur: fallbackGain,
+      painScore: Math.max(1, fallbackGain),
+      _ratio: {
+        expertiseId: m.expertiseId,
+        expertise,
+        currentValue: m.currentValue,
+        targetValue,
+        normalizedGap: 0,
+        estimatedCaLossEur: fallbackGain,
+        painScore: Math.max(1, fallbackGain),
+      },
+    });
   }
 
   // ── Volumes sous-perf : gap × valeur unitaire ────────────────────────────

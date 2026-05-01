@@ -5,7 +5,7 @@ import { LineChart as LineChartIcon } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { useAllResults } from "@/hooks/use-results";
 import { useAppStore } from "@/stores/app-store";
-import { usePlans } from "@/hooks/use-plans";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { calculateCumulativeROI } from "@/lib/roi-calculator";
 import { getAvgCommissionEur } from "@/lib/get-avg-commission";
 import { RoiCompteurCard } from "@/components/conseiller/progression/roi-compteur-card";
@@ -19,15 +19,15 @@ export default function ConseillerProgressionPage() {
   const { user } = useUser();
   const allResults = useAllResults();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
-  const { plansWithMeta } = usePlans();
+  const { allPlans } = useImprovementResources();
 
   const roiSummary = useMemo(() => {
     const myHistory = user
       ? allResults.filter((r) => r.userId === user.id)
       : [];
     const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
-    return calculateCumulativeROI(plansWithMeta, avg);
-  }, [user, allResults, agencyObjective, plansWithMeta]);
+    return calculateCumulativeROI(allPlans, avg);
+  }, [user, allResults, agencyObjective, allPlans]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -54,7 +54,7 @@ export default function ConseillerProgressionPage() {
         <CaEvolutionChart />
 
         {/* Bloc 4 — Historique plans 30j */}
-        <PlansHistoryCard plans={plansWithMeta} />
+        <PlansHistoryCard plans={allPlans} />
 
         {/* Bloc 5 — DPI mensuel */}
         <DpiMonthlyCard />

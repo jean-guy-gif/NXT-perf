@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/stores/app-store";
 import {
   PLAN_30J_DURATION_DAYS,
@@ -61,7 +61,10 @@ export function useImprovementResources() {
 
     let rows: ImprovementResource[];
     try {
-      rows = await adapter.list(userId);
+      // PR3.5 : on inclut les archivés pour exposer l'historique complet à
+      // Ma Progression (Bloc Historique + ROI cumulé). Les filtres "actif"
+      // sont appliqués côté getters dérivés (getActivePlan, etc.).
+      rows = await adapter.list(userId, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
@@ -80,7 +83,7 @@ export function useImprovementResources() {
 
     if (plansToExpire.length > 0) {
       await handlePlanExpiration(plansToExpire, userId, adapter);
-      const refreshed = await adapter.list(userId);
+      const refreshed = await adapter.list(userId, true);
       setResources(refreshed);
     } else {
       setResources(rows);
@@ -95,10 +98,25 @@ export function useImprovementResources() {
 
   // ─── Getters utilitaires ─────────────────────────────────────────
 
+  /** Tous les plans 30j (actif + completed + expired + archived). */
+  const allPlans = useMemo<ImprovementResource[]>(
+    () => resources.filter((r) => r.resource_type === "plan_30j"),
+    [resources]
+  );
+
+  /** Plans archivés uniquement (archived_at !== null). */
+  const archivedPlans = useMemo<ImprovementResource[]>(
+    () => allPlans.filter((p) => p.archived_at !== null),
+    [allPlans]
+  );
+
   const getActivePlan = useCallback((): ImprovementResource | null => {
     return (
       resources.find(
-        (r) => r.resource_type === "plan_30j" && r.status === "active"
+        (r) =>
+          r.resource_type === "plan_30j" &&
+          r.status === "active" &&
+          r.archived_at === null
       ) ?? null
     );
   }, [resources]);
@@ -258,6 +276,8 @@ export function useImprovementResources() {
     loading,
     error,
     refresh,
+    allPlans,
+    archivedPlans,
     getActivePlan,
     getActivePlanForRatio,
     getNxtCoachingResource,

@@ -1,33 +1,101 @@
 "use client";
 
 import Link from "next/link";
-import { History, ArrowRight, CheckCircle2, AlertCircle, Hourglass } from "lucide-react";
+import {
+  History,
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle,
+  Hourglass,
+  Archive,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PlanWithMeta, PlanStatus } from "@/hooks/use-plans";
+import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import type { ImprovementResource } from "@/lib/improvement-resources-adapters";
+import type { Plan30jPayload } from "@/config/coaching";
 
-const STATUS_LABELS: Record<PlanStatus, { label: string; bg: string; text: string; icon: typeof CheckCircle2 }> = {
-  termine: {
-    label: "Réussi",
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-500",
-    icon: CheckCircle2,
-  },
-  expire: {
-    label: "Partiel",
-    bg: "bg-orange-500/10",
-    text: "text-orange-500",
-    icon: AlertCircle,
-  },
-  actif: {
+type DisplayStatus = "active" | "completed" | "expired" | "archived";
+
+const STATUS_LABELS: Record<
+  DisplayStatus,
+  { label: string; bg: string; text: string; icon: typeof CheckCircle2 }
+> = {
+  active: {
     label: "En cours",
     bg: "bg-primary/10",
     text: "text-primary",
     icon: Hourglass,
   },
+  completed: {
+    label: "Terminé",
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-500",
+    icon: CheckCircle2,
+  },
+  expired: {
+    label: "Expiré",
+    bg: "bg-orange-500/10",
+    text: "text-orange-500",
+    icon: AlertCircle,
+  },
+  archived: {
+    label: "Archivé",
+    bg: "bg-muted",
+    text: "text-muted-foreground",
+    icon: Archive,
+  },
 };
 
 interface Props {
-  plans: PlanWithMeta[];
+  plans: ImprovementResource[];
+}
+
+interface PlanRow {
+  id: string;
+  ratioId: string;
+  label: string;
+  displayStatus: DisplayStatus;
+  createdAt: Date;
+  total: number;
+  done: number;
+  pct: number;
+}
+
+function buildRow(plan: ImprovementResource): PlanRow {
+  const payload = plan.payload as unknown as Plan30jPayload;
+  const allActions = (payload?.weeks ?? []).flatMap((w) => w.actions ?? []);
+  const total = allActions.length;
+  const done = allActions.filter((a) => a.done).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  // Statut affiché : on distingue archived (archived_at != null + status pas
+  // explicitement completed/active) des autres états.
+  let displayStatus: DisplayStatus;
+  if (plan.status === "active" && plan.archived_at === null) {
+    displayStatus = "active";
+  } else if (plan.status === "completed") {
+    displayStatus = "completed";
+  } else if (plan.status === "expired") {
+    displayStatus = "expired";
+  } else {
+    displayStatus = "archived";
+  }
+
+  const ratioId = plan.pain_ratio_id ?? "";
+  const label =
+    RATIO_EXPERTISE[ratioId as ExpertiseRatioId]?.label ?? ratioId ?? "Plan";
+
+  return {
+    id: plan.id,
+    ratioId,
+    label,
+    displayStatus,
+    createdAt: new Date(plan.created_at),
+    total,
+    done,
+    pct,
+  };
 }
 
 export function PlansHistoryCard({ plans }: Props) {
@@ -46,12 +114,16 @@ export function PlansHistoryCard({ plans }: Props) {
     );
   }
 
-  // Tri : actif d'abord, puis par date desc
-  const sorted = [...plans].sort((a, b) => {
-    if (a.status === "actif" && b.status !== "actif") return -1;
-    if (b.status === "actif" && a.status !== "actif") return 1;
-    return b.createdAt.getTime() - a.createdAt.getTime();
-  });
+  // Tri : actifs d'abord, puis par date desc
+  const rows = plans
+    .map(buildRow)
+    .sort((a, b) => {
+      if (a.displayStatus === "active" && b.displayStatus !== "active")
+        return -1;
+      if (b.displayStatus === "active" && a.displayStatus !== "active")
+        return 1;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -75,23 +147,23 @@ export function PlansHistoryCard({ plans }: Props) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((p) => {
-              const cfg = STATUS_LABELS[p.status];
+            {rows.map((r) => {
+              const cfg = STATUS_LABELS[r.displayStatus];
               const Icon = cfg.icon;
               return (
                 <tr
-                  key={p.ratioId + p.createdAt.getTime()}
+                  key={r.id}
                   className="border-b border-border last:border-b-0"
                 >
                   <td className="px-2 py-3 text-xs text-muted-foreground">
-                    {p.createdAt.toLocaleDateString("fr-FR", {
+                    {r.createdAt.toLocaleDateString("fr-FR", {
                       day: "2-digit",
                       month: "short",
                       year: "2-digit",
                     })}
                   </td>
                   <td className="px-2 py-3 text-sm text-foreground">
-                    {p.plan.priorities[0]?.label ?? p.ratioId}
+                    {r.label}
                   </td>
                   <td className="px-2 py-3">
                     <span
@@ -106,11 +178,11 @@ export function PlansHistoryCard({ plans }: Props) {
                     </span>
                   </td>
                   <td className="px-2 py-3 text-right text-xs tabular-nums text-foreground">
-                    {p.doneActions}/{p.totalActions} ({p.progressPct}%)
+                    {r.done}/{r.total} ({r.pct}%)
                   </td>
                   <td className="px-2 py-3 text-right">
                     <Link
-                      href={`/coaching-debrief?planId=${encodeURIComponent(p.ratioId)}`}
+                      href={`/coaching-debrief?planId=${encodeURIComponent(r.id)}`}
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                       Revoir
