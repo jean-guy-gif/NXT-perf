@@ -52,7 +52,6 @@ export default function OnboardingGpsPage() {
   const getRedirectUrl = () => {
     if (role === "manager") return "/onboarding/equipe";
     if (role === "directeur") return "/onboarding/agence";
-    if (role === "coach") return "/onboarding/coach";
     return "/dashboard";
   };
 

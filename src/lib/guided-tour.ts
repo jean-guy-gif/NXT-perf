@@ -146,26 +146,6 @@ const directeurSteps: TourStep[] = [
   },
 ];
 
-const coachSteps: TourStep[] = [
-  {
-    title: "Bienvenue sur NXT Performance",
-    description: "Cette visite rapide te présente les principales fonctionnalités de ton espace coach. Tu peux la passer à tout moment.",
-  },
-  {
-    target: '[href="/coach/dashboard"]',
-    title: "Ton portefeuille clients",
-    description: "Ici, tu retrouves tous les clients que tu accompagnes : agences, managers et agents. Tu visualises leur score, leurs volumes et leurs alertes.",
-  },
-  {
-    title: "Clients prioritaires",
-    description: "Les clients avec des alertes critiques ou un score faible remontent automatiquement en priorité pour t'aider à prioriser ton coaching.",
-  },
-  {
-    title: "Détail individuel",
-    description: "En cliquant sur un client, tu accèdes à son détail complet : diagnostic, ratios, volumes, progression et outils de coaching (notes, sessions, plan d'action).",
-  },
-];
-
 const reseauSteps: TourStep[] = [
   {
     title: "Bienvenue sur NXT Performance",
@@ -194,8 +174,6 @@ export function getTourSteps(role: UserRole): TourStep[] {
       return managerSteps;
     case "directeur":
       return directeurSteps;
-    case "coach":
-      return coachSteps;
     case "reseau":
       return reseauSteps;
     default:
@@ -209,10 +187,9 @@ export function getTourSteps(role: UserRole): TourStep[] {
  * show the tour for their highest-level role.
  */
 export function getTourRole(availableRoles: UserRole[], mainRole: UserRole): UserRole {
-  // Prioritize: reseau > directeur > manager > coach > conseiller
+  // Prioritize: reseau > directeur > manager > conseiller
   if (mainRole === "reseau" || availableRoles.includes("reseau")) return "reseau";
   if (mainRole === "directeur" || availableRoles.includes("directeur")) return "directeur";
-  if (mainRole === "coach" || (availableRoles.includes("coach") && !availableRoles.includes("manager"))) return "coach";
   if (mainRole === "manager" || availableRoles.includes("manager")) return "manager";
   return "conseiller";
 }

@@ -11,7 +11,6 @@ import {
   RotateCcw,
   CheckCircle,
   AlertTriangle,
-  HeartHandshake,
   Play,
   Mic,
   ChevronRight,
@@ -30,20 +29,6 @@ export default function ParametresPage() {
   const [saved, setSaved] = useState(false);
 
   const user = useAppStore((s) => s.user);
-  const coachAssignments = useAppStore((s) => s.coachAssignments);
-  const allUsers = useAppStore((s) => s.users);
-  const revokeCoachAssignment = useAppStore((s) => s.revokeCoachAssignment);
-
-  const myCoachAssignment = coachAssignments.find(
-    (a) =>
-      a.status === "ACTIVE" &&
-      ((a.targetType === "AGENT" && a.targetId === user?.id) ||
-        (a.targetType === "MANAGER" && a.targetId === user?.id) ||
-        (a.targetType === "INSTITUTION" && a.targetId === user?.institutionId))
-  );
-  const myCoach = myCoachAssignment
-    ? allUsers.find((u) => u.id === myCoachAssignment.coachId)
-    : null;
 
   const ratioIds = Object.keys(ratioConfigs) as RatioId[];
 
@@ -143,10 +128,10 @@ export default function ParametresPage() {
 
       {/* Coaching card */}
       <Link href="/parametres/coaching" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><HeartHandshake className="h-5 w-5 text-primary" /></div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><Users className="h-5 w-5 text-primary" /></div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-foreground">Coaching</p>
-          <p className="text-xs text-muted-foreground">Rattacher ou gérer un coach</p>
+          <p className="text-sm font-semibold text-foreground">Mon Coach NXT</p>
+          <p className="text-xs text-muted-foreground">Bientôt disponible</p>
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </Link>
@@ -169,37 +154,6 @@ export default function ParametresPage() {
           </p>
         </div>
       </div>
-
-      {/* Mon coach */}
-      {myCoach && myCoachAssignment && (
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <HeartHandshake className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Mon coach</h3>
-          </div>
-          <p className="text-sm">
-            {myCoach.firstName} {myCoach.lastName}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Depuis le{" "}
-            {new Date(myCoachAssignment.createdAt).toLocaleDateString("fr-FR")}
-          </p>
-          <button
-            onClick={() => {
-              if (
-                confirm(
-                  "Voulez-vous vraiment retirer votre coach ? Il perdra immédiatement l'accès à vos données."
-                )
-              ) {
-                revokeCoachAssignment(myCoachAssignment.id);
-              }
-            }}
-            className="mt-3 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground hover:bg-destructive/90"
-          >
-            Retirer le coach
-          </button>
-        </div>
-      )}
 
       {/* Visite guidée */}
       <div className="rounded-xl border border-border bg-card p-4">

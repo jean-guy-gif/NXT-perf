@@ -12,12 +12,10 @@ import {
   Target,
   Trophy,
   Settings,
-  Zap,
   BookOpen,
   Compass,
   TrendingUp,
   Wallet,
-  HeartHandshake,
   Network,
   Navigation,
   ClipboardCheck,
@@ -37,7 +35,6 @@ interface NavItem {
   label: string;
   managerOnly?: boolean;
   directorOnly?: boolean;
-  coachOnly?: boolean;
   networkOnly?: boolean;
   /** Feature key for subscription lock check */
   lockedFeature?: string;
@@ -63,8 +60,6 @@ const navItems: NavItem[] = [
   { href: "/directeur/formation", icon: BookOpen, label: "Ma Formation", directorOnly: true },
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage Financier", directorOnly: true, separatorBefore: true },
   { href: "/directeur/leads-dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
-  { href: "/coach/dashboard", icon: HeartHandshake, label: "Portefeuille", coachOnly: true },
-  { href: "/coach/cockpit", icon: Zap, label: "Cockpit Coach", coachOnly: true },
   { href: "/reseau/dashboard", icon: Network, label: "Vue Réseau", networkOnly: true },
   { href: "/reseau/agence", icon: Building2, label: "Mes Agences", networkOnly: true },
   { href: "/pourquoi-nxt", icon: Compass, label: "Notre approche" },
@@ -93,16 +88,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     : null;
 
   const advisorItems = visibleViews.includes("agent")
-    ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.coachOnly && !item.networkOnly && item.href !== "/parametres")
+    ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.networkOnly && item.href !== "/parametres")
     : [];
   const managerItems = visibleViews.includes("manager")
     ? navItems.filter((item) => item.managerOnly)
     : [];
   const directorItems = visibleViews.includes("directeur")
     ? navItems.filter((item) => item.directorOnly)
-    : [];
-  const coachItems = visibleViews.includes("coach")
-    ? navItems.filter((item) => item.coachOnly)
     : [];
   const networkItems = visibleViews.includes("reseau")
     ? navItems.filter((item) => item.networkOnly)
@@ -182,15 +174,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )}
               <SidebarItem item={item} pathname={pathname} collapsed={collapsed} />
             </Fragment>
-          ))}
-        </SidebarSection>
-      )}
-
-      {/* Coach section */}
-      {coachItems.length > 0 && (
-        <SidebarSection label="Coach" collapsed={collapsed}>
-          {coachItems.map((item) => (
-            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
           ))}
         </SidebarSection>
       )}

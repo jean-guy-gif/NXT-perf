@@ -52,7 +52,6 @@ const pageTitles: Record<string, string> = {
   "/directeur/formation": "Ma Formation",
   "/directeur/pilotage-financier": "Pilotage Financier",
   "/directeur/leads-dpi": "Leads DPI",
-  "/coach/cockpit": "Cockpit Coach",
   "/reseau/dashboard": "Tableau de bord Réseau",
 };
 

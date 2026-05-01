@@ -37,7 +37,7 @@ export interface DbProfile {
   email: string;
   first_name: string;
   last_name: string;
-  role: "conseiller" | "manager" | "directeur" | "coach" | "reseau";
+  role: "conseiller" | "manager" | "directeur" | "reseau";
   available_roles: string[] | null;
   category: "debutant" | "confirme" | "expert";
   sub_profile: "producteur" | "non_producteur" | null;

@@ -1,4 +1,4 @@
-export type UserRole = "conseiller" | "manager" | "directeur" | "coach" | "reseau";
+export type UserRole = "conseiller" | "manager" | "directeur" | "reseau";
 export type UserCategory = "debutant" | "confirme" | "expert";
 export type OnboardingStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
 export type ProfileType = "INSTITUTION" | "MANAGER" | "AGENT" | "COACH" | "RESEAU";
@@ -38,11 +38,6 @@ export function hasManagerAccess(user: User | null): boolean {
 /** Check if a user has director-level access */
 export function hasDirectorAccess(user: User | null): boolean {
   return hasRole(user, "directeur");
-}
-
-/** Check if a user has coach-level access */
-export function hasCoachAccess(user: User | null): boolean {
-  return hasRole(user, "coach");
 }
 
 /** Check if a user has network-level access */

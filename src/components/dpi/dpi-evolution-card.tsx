@@ -9,7 +9,9 @@ import { TrendingUp, TrendingDown, Minus, Calendar, ChevronRight } from "lucide-
 import { useRatios } from "@/hooks/use-ratios";
 import { useResults } from "@/hooks/use-results";
 import { useAppStore } from "@/stores/app-store";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import type { DPIAxis } from "@/lib/dpi-axes";
+import type { Plan30jPayload } from "@/config/coaching";
 
 const SMILEY = {
   happy: { emoji: "\u{1F60A}", label: "En progression", color: "text-green-500", border: "border-green-500/30 bg-green-500/5" },
@@ -28,12 +30,13 @@ export function DPIEvolutionCard() {
   const { computedRatios, ratioConfigs } = useRatios();
   const results = useResults();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
-  const coachPlans = useAppStore((s) => s.coachPlans);
+  const { getActivePlan } = useImprovementResources();
 
-  const activePlan = coachPlans.find(
-    (p) => p.status === "ACTIVE" || p.status === "VALIDATED"
-  );
-  const allActions = activePlan?.weeks.flatMap((w) => w.actions ?? []) ?? [];
+  const activePlan = getActivePlan();
+  const planPayload = activePlan
+    ? (activePlan.payload as unknown as Plan30jPayload)
+    : null;
+  const allActions = planPayload?.weeks.flatMap((w) => w.actions ?? []) ?? [];
   const plan30Total = allActions.length;
   const plan30Done = allActions.filter((a) => a.done).length;
   const hasActivePlan = plan30Total > 0;

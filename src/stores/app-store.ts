@@ -6,22 +6,19 @@ import type { DbProfile } from "@/types/database";
 import { mockUsers } from "@/data/mock-users";
 import { mockResults, mockJanuaryResults } from "@/data/mock-results";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
-import type { CoachAssignment, CoachAction, CoachPlan, CoachNote, CoachSession, CoachQuickPlan } from "@/types/coach";
 import type { FinancialData, FinancialFieldId } from "@/types/finance";
 import { getMonthKey } from "@/lib/finance-trajectory";
-import { mockCoachAssignments, mockCoachActions, mockCoachPlans, mockCoachNotes, mockCoachSessions, mockCoachQuickPlans } from "@/data/mock-coach";
 import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 import { mockNetworkUsers, mockNetworkResults, mockNetworkJanuaryResults, mockNetworkInstitutions, mockNetworks, mockReseauUser, type Network } from "@/data/mock-network";
 
 /** Map user roles to sidebar view IDs */
-export type ViewId = "agent" | "manager" | "directeur" | "coach" | "reseau";
+export type ViewId = "agent" | "manager" | "directeur" | "reseau";
 
 export const VIEW_LABELS: Record<ViewId, string> = {
   agent: "Conseiller",
   manager: "Manager",
   directeur: "Agence",
-  coach: "Coach",
   reseau: "Réseau",
 };
 
@@ -30,7 +27,6 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
   if (roles.includes("conseiller")) views.push("agent");
   if (roles.includes("manager")) views.push("manager");
   if (roles.includes("directeur")) views.push("directeur");
-  if (roles.includes("coach")) views.push("coach");
   if (roles.includes("reseau")) views.push("reseau");
   return views;
 }
@@ -40,7 +36,6 @@ export const DEFAULT_ROUTES: Record<UserRole, string> = {
   conseiller: "/dashboard",
   manager: "/manager/dashboard",
   directeur: "/directeur/pilotage",
-  coach: "/coach/dashboard",
   reseau: "/reseau/dashboard",
 };
 
@@ -101,14 +96,6 @@ interface AppState {
   institutions: Institution[];
   teamInfos: TeamInfo[];
   networks: Network[];
-
-  // ── Coach ──
-  coachAssignments: CoachAssignment[];
-  coachActions: CoachAction[];
-  coachPlans: CoachPlan[];
-  coachNotes: CoachNote[];
-  coachSessions: CoachSession[];
-  coachQuickPlans: CoachQuickPlan[];
 
   // ── Director inputs (persisted in localStorage) ──
   agencyObjective: { annualCA: number; avgActValue: number } | null;
@@ -183,24 +170,6 @@ interface AppState {
   completeOnboarding: (profileType: ProfileType) => void;
   setOnboardingStatus: (status: OnboardingStatus) => void;
 
-  // ── Coach actions ──
-  addCoachAction: (action: CoachAction) => void;
-  toggleCoachAction: (id: string) => void;
-  removeCoachAction: (id: string) => void;
-  createCoachPlan: (plan: CoachPlan) => void;
-  completeCoachPlan: (id: string) => void;
-  cancelCoachPlan: (id: string) => void;
-  updateCoachPlan: (id: string, updates: Partial<CoachPlan>) => void;
-  validateCoachPlan: (id: string) => void;
-  revertCoachPlanToDraft: (id: string) => void;
-  revokeCoachAssignment: (assignmentId: string) => void;
-  updateExcludedManagers: (assignmentId: string, managerIds: string[]) => void;
-
-  // ── Coach notes / sessions / quick plans ──
-  upsertCoachNote: (assignmentId: string, content: string) => void;
-  addCoachSession: (session: CoachSession) => void;
-  removeCoachSession: (id: string) => void;
-  upsertCoachQuickPlan: (assignmentId: string, data: Omit<CoachQuickPlan, "id" | "coachAssignmentId" | "updatedAt">) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -217,12 +186,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   institutions: [],
   teamInfos: [],
   networks: [],
-  coachAssignments: [],
-  coachActions: [],
-  coachPlans: [],
-  coachNotes: [],
-  coachSessions: [],
-  coachQuickPlans: [],
   hiddenViews: [],
   agencyObjective: null,
   directorCosts: null,
@@ -337,12 +300,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       ],
       results: [...mockJanuaryResults, ...mockResults, ...mockNetworkJanuaryResults, ...mockNetworkResults],
       ratioConfigs: JSON.parse(JSON.stringify(defaultRatioConfigs)),
-      coachAssignments: mockCoachAssignments,
-      coachActions: mockCoachActions,
-      coachPlans: mockCoachPlans,
-      coachNotes: mockCoachNotes,
-      coachSessions: mockCoachSessions,
-      coachQuickPlans: mockCoachQuickPlans,
       institutions: [
         { id: "org-demo", name: "NXT Immobilier", inviteCode: "ORG-DEMO" },
         ...mockNetworkInstitutions,
@@ -406,13 +363,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       directorCosts: null,
       financialData: {},
       financialDataHistory: {},
-      // Purge coach state (aligné sur enterDemo)
-      coachAssignments: [],
-      coachActions: [],
-      coachPlans: [],
-      coachNotes: [],
-      coachSessions: [],
-      coachQuickPlans: [],
     });
   },
 
@@ -434,8 +384,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       user: null, isAuthenticated: false, isDemoMode: false, profile: null,
       orgInviteCode: null, orgLogoUrl: null, hiddenViews: [],
       users: [], results: [],
-      coachAssignments: [], coachActions: [], coachPlans: [],
-      coachNotes: [], coachSessions: [], coachQuickPlans: [],
     });
     }
   },
@@ -697,131 +645,4 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
-  // ── Coach actions ──
-
-  addCoachAction: (action) =>
-    set((s) => ({ coachActions: [...s.coachActions, action] })),
-
-  toggleCoachAction: (id) =>
-    set((s) => ({
-      coachActions: s.coachActions.map((a) =>
-        a.id === id ? { ...a, status: a.status === "TODO" ? "DONE" as const : "TODO" as const } : a
-      ),
-    })),
-
-  removeCoachAction: (id) =>
-    set((s) => ({
-      coachActions: s.coachActions.filter((a) => a.id !== id),
-    })),
-
-  createCoachPlan: (plan) =>
-    set((s) => ({ coachPlans: [...s.coachPlans, plan] })),
-
-  completeCoachPlan: (id) =>
-    set((s) => ({
-      coachPlans: s.coachPlans.map((p) =>
-        p.id === id ? { ...p, status: "COMPLETED" as const } : p
-      ),
-    })),
-
-  cancelCoachPlan: (id) =>
-    set((s) => ({
-      coachPlans: s.coachPlans.map((p) =>
-        p.id === id ? { ...p, status: "CANCELLED" as const } : p
-      ),
-    })),
-
-  updateCoachPlan: (id, updates) =>
-    set((s) => ({
-      coachPlans: s.coachPlans.map((p) =>
-        p.id === id ? { ...p, ...updates } : p
-      ),
-    })),
-
-  validateCoachPlan: (id) =>
-    set((s) => ({
-      coachPlans: s.coachPlans.map((p) =>
-        p.id === id && p.status === "DRAFT" ? { ...p, status: "VALIDATED" as const } : p
-      ),
-    })),
-
-  revertCoachPlanToDraft: (id) =>
-    set((s) => ({
-      coachPlans: s.coachPlans.map((p) =>
-        p.id === id && p.status === "VALIDATED" ? { ...p, status: "DRAFT" as const } : p
-      ),
-    })),
-
-  revokeCoachAssignment: (assignmentId) =>
-    set((s) => ({
-      coachAssignments: s.coachAssignments.map((a) =>
-        a.id === assignmentId ? { ...a, status: "REVOKED" as const } : a
-      ),
-    })),
-
-  updateExcludedManagers: (assignmentId, managerIds) =>
-    set((s) => ({
-      coachAssignments: s.coachAssignments.map((a) =>
-        a.id === assignmentId ? { ...a, excludedManagerIds: managerIds } : a
-      ),
-    })),
-
-  // ── Coach notes / sessions / quick plans ──
-
-  upsertCoachNote: (assignmentId, content) =>
-    set((s) => {
-      const existing = s.coachNotes.find((n) => n.coachAssignmentId === assignmentId);
-      if (existing) {
-        return {
-          coachNotes: s.coachNotes.map((n) =>
-            n.coachAssignmentId === assignmentId
-              ? { ...n, content, updatedAt: new Date().toISOString() }
-              : n
-          ),
-        };
-      }
-      return {
-        coachNotes: [
-          ...s.coachNotes,
-          {
-            id: "cnote-" + Date.now(),
-            coachAssignmentId: assignmentId,
-            content,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-      };
-    }),
-
-  addCoachSession: (session) =>
-    set((s) => ({ coachSessions: [...s.coachSessions, session] })),
-
-  removeCoachSession: (id) =>
-    set((s) => ({ coachSessions: s.coachSessions.filter((ss) => ss.id !== id) })),
-
-  upsertCoachQuickPlan: (assignmentId, data) =>
-    set((s) => {
-      const existing = s.coachQuickPlans.find((p) => p.coachAssignmentId === assignmentId);
-      if (existing) {
-        return {
-          coachQuickPlans: s.coachQuickPlans.map((p) =>
-            p.coachAssignmentId === assignmentId
-              ? { ...p, ...data, updatedAt: new Date().toISOString() }
-              : p
-          ),
-        };
-      }
-      return {
-        coachQuickPlans: [
-          ...s.coachQuickPlans,
-          {
-            id: "cqp-" + Date.now(),
-            coachAssignmentId: assignmentId,
-            ...data,
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-      };
-    }),
 }));

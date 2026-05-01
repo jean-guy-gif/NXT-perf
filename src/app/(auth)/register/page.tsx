@@ -15,7 +15,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   conseiller: "Conseiller",
   manager: "Manager",
   directeur: "Directeur",
-  coach: "Coach",
   reseau: "Réseau",
 };
 
@@ -28,8 +27,6 @@ function defaultRolesForProfile(profile: ProfileType | null): UserRole[] {
       return ["manager"];
     case "AGENT":
       return ["conseiller"];
-    case "COACH":
-      return ["coach"];
     default:
       return ["conseiller"];
   }
@@ -39,7 +36,6 @@ function defaultRolesForProfile(profile: ProfileType | null): UserRole[] {
 function primaryRole(roles: UserRole[]): UserRole {
   if (roles.includes("directeur")) return "directeur";
   if (roles.includes("manager")) return "manager";
-  if (roles.includes("coach")) return "coach";
   return "conseiller";
 }
 
@@ -165,9 +161,7 @@ function RegisterForm() {
     }
 
     // Compute context_mode (simple & robust)
-    const isCoachOnly = selectedRoles.every((r) => r === "coach");
     const contextMode: "invite" | "personal" = finalInviteCode ? "invite" : "personal";
-    const coachStandalone = !finalInviteCode && isCoachOnly;
 
     // Sign up with metadata (trigger will create profile + org if needed)
     const { data: signUpData, error: authError } = await supabase.auth.signUp({
@@ -183,7 +177,6 @@ function RegisterForm() {
           context_mode: contextMode,
           invite_code: finalInviteCode || null,
           org_name: orgName.trim() || null,
-          coach_standalone: coachStandalone,
         },
       },
     });
@@ -383,7 +376,7 @@ function RegisterForm() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2">
-                {(["conseiller", "manager", "directeur", "coach"] as UserRole[]).map((r) => {
+                {(["conseiller", "manager", "directeur"] as UserRole[]).map((r) => {
                   const selected = selectedRoles.includes(r);
                   return (
                     <button

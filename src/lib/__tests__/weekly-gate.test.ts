@@ -125,11 +125,6 @@ describe("getWeeklyGateState", () => {
     expect(result.showGate).toBe(false);
   });
 
-  it("coach role → gate NOT shown", () => {
-    const result = getWeeklyGateState({ ...baseInput, role: "coach", today: friday() });
-    expect(result.showGate).toBe(false);
-  });
-
   it("manager role → gate shown on Friday without submission", () => {
     const result = getWeeklyGateState({ ...baseInput, role: "manager", today: friday() });
     expect(result.showGate).toBe(true);

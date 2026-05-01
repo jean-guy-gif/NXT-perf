@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Download, X, FileSpreadsheet, ChevronDown, Check, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { UserRole } from "@/types/user";
 import { useAppStore } from "@/stores/app-store";
-import { useCoachData } from "@/hooks/use-coach-data";
 import { cn } from "@/lib/utils";
 import {
   generateExcelExport,
@@ -40,14 +39,11 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   const results = useAppStore((s) => s.results);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
 
-  const isCoach = !!user?.availableRoles?.includes("coach");
   const effectiveRole = (user?.role ?? "conseiller") as UserRole;
 
-  const coachData = useCoachData(user?.id ?? "");
-
   const scopeOptions = useMemo(
-    () => getScopeOptionsForRole(effectiveRole, !!isCoach),
-    [effectiveRole, isCoach]
+    () => getScopeOptionsForRole(effectiveRole),
+    [effectiveRole]
   );
 
   const availableMonths = useMemo(
@@ -61,7 +57,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   const [periodStart, setPeriodStart] = useState(availableMonths[0] ?? "2026-01");
   const [periodEnd, setPeriodEnd] = useState(availableMonths[availableMonths.length - 1] ?? "2026-02");
   const [detailLevel, setDetailLevel] = useState<ExportDetailLevel>("global-detail");
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedFields, setSelectedFields] = useState<Set<ExportFieldId>>(() => getDefaultFieldIds("all"));
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -96,39 +91,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
     }
   }, [scopeOptions, scope]);
 
-  // Coach clients for selection
-  const coachClients = useMemo(() => {
-    if (!isCoach || !coachData) return [];
-    return coachData.portfolioClients.map((pc) => ({
-      assignmentId: pc.assignment.id,
-      name: pc.name,
-      targetType: pc.targetType,
-      memberUserIds: (() => {
-        if (pc.targetType === "AGENT") return [pc.targetId];
-        if (pc.targetType === "MANAGER") {
-          return users
-            .filter((u) => u.managerId === pc.targetId || u.id === pc.targetId)
-            .map((u) => u.id);
-        }
-        if (pc.targetType === "INSTITUTION") {
-          return users
-            .filter((u) => u.institutionId === pc.targetId)
-            .map((u) => u.id);
-        }
-        return [];
-      })(),
-    }));
-  }, [isCoach, coachData, users]);
-
   const showDetailLevel = needsDetailLevel(scope);
-  const showClientSelector = scope === "client-coach";
-  const showPortfolioSelector = scope === "portefeuille-coach" && coachClients.length > 1;
-
-  const toggleClientSelection = (id: string) => {
-    setSelectedClientIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
 
   const toggleField = useCallback((fieldId: ExportFieldId) => {
     setSelectedFields((prev) => {
@@ -165,12 +128,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    if (scope === "client-coach" && selectedClientIds.length === 0) {
-      setError("Veuillez sélectionner un client à exporter.");
-      setIsExporting(false);
-      return;
-    }
-
     if (selectedFields.size === 0) {
       setError("Veuillez sélectionner au moins un champ à exporter.");
       setIsExporting(false);
@@ -184,7 +141,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       periodEnd,
       detailLevel: showDetailLevel ? detailLevel : "detail",
       selectedFields,
-      selectedClientIds: (showClientSelector || showPortfolioSelector) ? selectedClientIds : undefined,
     };
 
     const input: ExportInput = {
@@ -193,7 +149,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       allUsers: users,
       allResults: results,
       ratioConfigs,
-      coachClients: isCoach ? coachClients : undefined,
     };
 
     try {
@@ -276,7 +231,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
                 value={scope}
                 onChange={(e) => {
                   setScope(e.target.value as ExportScope);
-                  setSelectedClientIds([]);
                   setError(null);
                   setSuccessFilename(null);
                 }}
@@ -289,89 +243,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
               <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </fieldset>
-
-          {/* Coach client selector */}
-          {showClientSelector && coachClients.length > 0 && (
-            <fieldset className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Client à exporter</label>
-              <div className="max-h-36 overflow-y-auto rounded-lg border border-border bg-muted">
-                {coachClients.map((client) => (
-                  <button
-                    key={client.assignmentId}
-                    type="button"
-                    onClick={() => setSelectedClientIds([client.assignmentId])}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
-                      selectedClientIds.includes(client.assignmentId)
-                        ? "bg-primary/10 text-foreground"
-                        : "text-muted-foreground hover:bg-muted-foreground/5 hover:text-foreground"
-                    )}
-                  >
-                    <div className={cn(
-                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border",
-                      selectedClientIds.includes(client.assignmentId)
-                        ? "border-primary bg-primary"
-                        : "border-muted-foreground/30"
-                    )}>
-                      {selectedClientIds.includes(client.assignmentId) && (
-                        <Check className="h-3 w-3 text-primary-foreground" />
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-medium">{client.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {client.targetType === "AGENT" ? "Agent" :
-                         client.targetType === "MANAGER" ? "Manager" : "Agence"}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
-          {/* Coach portfolio multi-select */}
-          {showPortfolioSelector && (
-            <fieldset className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Sélection de clients
-                <span className="ml-1 text-xs text-muted-foreground">(optionnel, tout le portefeuille par défaut)</span>
-              </label>
-              <div className="max-h-36 overflow-y-auto rounded-lg border border-border bg-muted">
-                {coachClients.map((client) => (
-                  <button
-                    key={client.assignmentId}
-                    type="button"
-                    onClick={() => toggleClientSelection(client.assignmentId)}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
-                      selectedClientIds.includes(client.assignmentId)
-                        ? "bg-primary/10 text-foreground"
-                        : "text-muted-foreground hover:bg-muted-foreground/5 hover:text-foreground"
-                    )}
-                  >
-                    <div className={cn(
-                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border",
-                      selectedClientIds.includes(client.assignmentId)
-                        ? "border-primary bg-primary"
-                        : "border-muted-foreground/30"
-                    )}>
-                      {selectedClientIds.includes(client.assignmentId) && (
-                        <Check className="h-3 w-3 text-primary-foreground" />
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-medium">{client.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {client.targetType === "AGENT" ? "Agent" :
-                         client.targetType === "MANAGER" ? "Manager" : "Agence"}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          )}
 
           {/* Data type */}
           <fieldset className="space-y-2">

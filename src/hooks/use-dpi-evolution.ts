@@ -5,7 +5,9 @@ import { useRatios } from "@/hooks/use-ratios";
 import { useResults } from "@/hooks/use-results";
 import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/stores/app-store";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { computeDPIAxes, computeGlobalDPIScore, type DPIAxis } from "@/lib/dpi-axes";
+import type { Plan30jPayload } from "@/config/coaching";
 
 export interface DPISnapshot {
   userId: string;
@@ -37,7 +39,7 @@ export function useDPIEvolution() {
   const { category } = useUser();
   const user = useAppStore((s) => s.user);
   const isDemo = useAppStore((s) => s.isDemoMode);
-  const coachPlans = useAppStore((s) => s.coachPlans);
+  const { getActivePlan } = useImprovementResources();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const [initialSnapshot, setInitialSnapshot] = useState<DPISnapshot | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -51,15 +53,14 @@ export function useDPIEvolution() {
   }, [mounted, user]);
 
   const plan30Params = useMemo(() => {
-    const activePlan = coachPlans.find(
-      (p) => p.status === "ACTIVE" || p.status === "VALIDATED"
-    );
+    const activePlan = getActivePlan();
     if (!activePlan) return { total: 0, done: 0, hasActivePlan: false };
-    const allActions = activePlan.weeks.flatMap((w) => w.actions ?? []);
+    const payload = activePlan.payload as unknown as Plan30jPayload;
+    const allActions = (payload.weeks ?? []).flatMap((w) => w.actions ?? []);
     const total = allActions.length;
     const done = allActions.filter((a) => a.done).length;
     return { total, done, hasActivePlan: total > 0 };
-  }, [coachPlans]);
+  }, [getActivePlan]);
 
   const hasCustomObjectif = useMemo(
     () => !!(agencyObjective?.annualCA && agencyObjective.annualCA > 0),

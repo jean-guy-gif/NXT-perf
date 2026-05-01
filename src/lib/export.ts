@@ -12,8 +12,6 @@ export type ExportScope =
   | "mon-equipe"
   | "mon-agence"
   | "detail-collaborateurs"
-  | "client-coach"
-  | "portefeuille-coach"
   | "mon-reseau"
   | "reseau-detail-agences";
 
@@ -141,8 +139,6 @@ export interface ExportConfig {
   periodEnd: string;   // YYYY-MM
   detailLevel: ExportDetailLevel;
   selectedFields: Set<ExportFieldId>;
-  /** For coach: selected client assignment IDs */
-  selectedClientIds?: string[];
 }
 
 // ── Scope options per role ──
@@ -152,16 +148,8 @@ export interface ScopeOption {
   label: string;
 }
 
-export function getScopeOptionsForRole(role: UserRole, isCoach: boolean): ScopeOption[] {
+export function getScopeOptionsForRole(role: UserRole): ScopeOption[] {
   const options: ScopeOption[] = [];
-
-  if (role === "coach" && isCoach) {
-    options.push(
-      { value: "client-coach", label: "Un client coaché" },
-      { value: "portefeuille-coach", label: "Mon portefeuille coach" },
-    );
-    return options;
-  }
 
   options.push({ value: "mes-donnees", label: "Mes données" });
 
@@ -191,7 +179,7 @@ export function getScopeOptionsForRole(role: UserRole, isCoach: boolean): ScopeO
 }
 
 export function needsDetailLevel(scope: ExportScope): boolean {
-  return ["mon-equipe", "mon-agence", "portefeuille-coach", "mon-reseau", "reseau-detail-agences"].includes(scope);
+  return ["mon-equipe", "mon-agence", "mon-reseau", "reseau-detail-agences"].includes(scope);
 }
 
 // ── Period helpers ──
@@ -367,12 +355,6 @@ export interface ExportInput {
   allUsers: User[];
   allResults: PeriodResults[];
   ratioConfigs: Record<RatioId, RatioConfig>;
-  coachClients?: Array<{
-    assignmentId: string;
-    name: string;
-    targetType: string;
-    memberUserIds: string[];
-  }>;
 }
 
 export interface ExportResult {
@@ -488,7 +470,7 @@ export function generateExcelExport(input: ExportInput): ExportResult {
 // ── Scope resolution ──
 
 function resolveScope(input: ExportInput): User[] {
-  const { config, currentUser, allUsers, coachClients } = input;
+  const { config, currentUser, allUsers } = input;
 
   switch (config.scope) {
     case "mes-donnees":
@@ -519,29 +501,6 @@ function resolveScope(input: ExportInput): User[] {
       return allUsers.filter(
         (u) => u.teamId === currentUser.teamId && u.role === "conseiller"
       );
-    }
-
-    case "client-coach": {
-      if (!coachClients || !config.selectedClientIds?.length) return [];
-      const selectedId = config.selectedClientIds[0];
-      const client = coachClients.find((c) => c.assignmentId === selectedId);
-      if (!client) return [];
-      return allUsers.filter((u) => client.memberUserIds.includes(u.id));
-    }
-
-    case "portefeuille-coach": {
-      if (!coachClients) return [];
-      const allMemberIds = new Set<string>();
-      const selectedIds = config.selectedClientIds;
-      const clients = selectedIds?.length
-        ? coachClients.filter((c) => selectedIds.includes(c.assignmentId))
-        : coachClients;
-      for (const client of clients) {
-        for (const uid of client.memberUserIds) {
-          allMemberIds.add(uid);
-        }
-      }
-      return allUsers.filter((u) => allMemberIds.has(u.id));
     }
 
     case "mon-reseau":
@@ -594,12 +553,6 @@ export function buildFilename(config: ExportConfig, user: User): string {
       break;
     case "detail-collaborateurs":
       parts.push(user.role === "directeur" ? "directeur-detail" : "manager-detail");
-      break;
-    case "client-coach":
-      parts.push("coach-client");
-      break;
-    case "portefeuille-coach":
-      parts.push("coach-portefeuille");
       break;
     case "mon-reseau":
       parts.push("reseau-global");
