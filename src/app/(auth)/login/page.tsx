@@ -45,7 +45,7 @@ function LoginForm() {
     }
 
     // Full reload to ensure session cookies are sent
-    window.location.href = "/dashboard";
+    window.location.href = "/conseiller/diagnostic";
   };
 
   const handleDemo = () => {

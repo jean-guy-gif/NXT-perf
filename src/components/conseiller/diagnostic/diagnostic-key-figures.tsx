@@ -53,6 +53,11 @@ interface Props {
   category: UserCategory;
   /** Échelle d'objectif (1 = mois, 12 = année…) */
   periodMonths: number;
+  /**
+   * Identifiant de l'élément à mettre en surbrillance.
+   * Format : "ratio:<RatioId>" ou "volume:<volumeKey>".
+   */
+  highlightedItem?: string | null;
 }
 
 export function DiagnosticKeyFigures({
@@ -62,6 +67,7 @@ export function DiagnosticKeyFigures({
   ratioConfigs,
   category,
   periodMonths,
+  highlightedItem = null,
 }: Props) {
   if (!results) {
     return (
@@ -76,24 +82,28 @@ export function DiagnosticKeyFigures({
 
   const volumes = [
     {
+      key: "estimations",
       label: "Estimations",
       actual: results.vendeurs.estimationsRealisees,
       target: obj.estimations * m,
       unit: "",
     },
     {
+      key: "mandats",
       label: "Mandats signés",
       actual: results.vendeurs.mandatsSignes,
       target: obj.mandats * m,
       unit: "",
     },
     {
+      key: "visites",
       label: "Visites",
       actual: results.acheteurs.nombreVisites,
       target: obj.visites * m,
       unit: "",
     },
     {
+      key: "compromis",
       label: "Compromis",
       actual: results.acheteurs.compromisSignes,
       target: obj.compromis * m,
@@ -136,12 +146,16 @@ export function DiagnosticKeyFigures({
               const Icon = style.icon;
               const pct =
                 v.target > 0 ? Math.round((v.actual / v.target) * 100) : 0;
+              const isHighlighted = highlightedItem === `volume:${v.key}`;
               return (
                 <div
-                  key={v.label}
+                  key={v.key}
+                  data-highlight-id={`volume:${v.key}`}
                   className={cn(
-                    "rounded-xl border bg-card p-4 transition-colors",
-                    style.ring
+                    "rounded-xl border bg-card p-4 transition-all duration-300",
+                    style.ring,
+                    isHighlighted &&
+                      "scale-[1.02] ring-2 ring-primary shadow-lg animate-pulse"
                   )}
                 >
                   <p className="text-xs text-muted-foreground">{v.label}</p>
@@ -176,12 +190,16 @@ export function DiagnosticKeyFigures({
             {ratios.map(({ id, computed, config }) => {
               const style = STATUS_STYLE[computed.status];
               const Icon = style.icon;
+              const isHighlighted = highlightedItem === `ratio:${id}`;
               return (
                 <div
                   key={id}
+                  data-highlight-id={`ratio:${id}`}
                   className={cn(
-                    "rounded-xl border bg-card p-4 transition-colors",
-                    style.ring
+                    "rounded-xl border bg-card p-4 transition-all duration-300",
+                    style.ring,
+                    isHighlighted &&
+                      "scale-[1.02] ring-2 ring-primary shadow-lg animate-pulse"
                   )}
                 >
                   <p className="text-xs text-muted-foreground">{config.name}</p>

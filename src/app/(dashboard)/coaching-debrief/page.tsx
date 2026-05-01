@@ -112,7 +112,7 @@ export default function CoachingDebriefPage() {
           type: "info",
           message: "Aucun ratio mesuré disponible pour régénérer",
         });
-        router.push("/formation?tab=plan30");
+        router.push("/conseiller/ameliorer");
         return;
       }
       await createPlan30j({
@@ -127,7 +127,7 @@ export default function CoachingDebriefPage() {
       return;
     }
 
-    router.push("/formation?tab=plan30");
+    router.push("/conseiller/ameliorer");
   };
 
   const handleClose = async () => {
@@ -142,7 +142,7 @@ export default function CoachingDebriefPage() {
         },
       });
     }
-    router.push("/formation?tab=plan30");
+    router.push("/conseiller/ameliorer");
   };
 
   const handleRequestHumanCoach = async () => {
@@ -162,7 +162,7 @@ export default function CoachingDebriefPage() {
         },
       });
       setToast({ type: "success", message: "Coach assigné, votre plan va être suivi" });
-      router.push("/formation?tab=plan30");
+      router.push("/conseiller/ameliorer");
       return;
     }
 
@@ -196,7 +196,7 @@ export default function CoachingDebriefPage() {
         return;
       }
       setToast({ type: "success", message: "Coach assigné, votre plan va être suivi" });
-      router.push("/formation?tab=plan30");
+      router.push("/conseiller/ameliorer");
     } catch (err) {
       console.error("Erreur coaching request:", err);
       setToast({
@@ -283,7 +283,7 @@ function EmptyState({ title, body }: { title: string; body: string }) {
       <p className="max-w-md text-muted-foreground">{body}</p>
       <div className="flex gap-3">
         <Link
-          href="/formation?tab=plan30"
+          href="/conseiller/ameliorer"
           className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
         >
           Retour au plan

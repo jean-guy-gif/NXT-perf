@@ -20,7 +20,7 @@ export default function SaisiePage() {
   const results = useAppStore((s) => s.results);
 
   const handleDismiss = () => {
-    router.push("/dashboard");
+    router.push("/conseiller/diagnostic");
   };
 
   const handleSaisieDone = async () => {
@@ -63,7 +63,7 @@ export default function SaisiePage() {
       } catch { /* best-effort */ }
     }
 
-    router.push("/dashboard");
+    router.push("/conseiller/diagnostic");
   };
 
   return (

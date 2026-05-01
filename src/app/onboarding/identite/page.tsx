@@ -292,7 +292,7 @@ export default function OnboardingIdentitePage() {
 
     if (isDemo) {
       document.cookie = "nxt-demo-onboarding=true;path=/;max-age=28800";
-      window.location.href = "/dashboard?gate=1";
+      window.location.href = "/conseiller/diagnostic?gate=1";
       return;
     } else if (user?.id) {
       document.cookie = "nxt-demo-mode=;path=/;max-age=0";

@@ -1,20 +1,28 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, ListFilter } from "lucide-react";
+import { AlertTriangle, ArrowRight, Loader2, Wrench } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { PainPointResult } from "@/lib/pain-point-detector";
 
 interface Props {
   verdict: PainPointResult;
-  onWhyClick: () => void;
+  /** Active le toggle Volumes/Ratios + scroll auto + surbrillance (pas de drawer) */
+  onSavoirPourquoi: () => void;
+  /** Crée un plan 30j ciblé puis navigue vers /conseiller/ameliorer */
+  onAmeliorer: () => void;
+  /** Lien discret en bas — ouvre le drawer mode list */
   onSeeOthersClick: () => void;
+  /** Pending state pendant la création du plan */
+  improving?: boolean;
 }
 
 export function DiagnosticVerdictCard({
   verdict,
-  onWhyClick,
+  onSavoirPourquoi,
+  onAmeliorer,
   onSeeOthersClick,
+  improving = false,
 }: Props) {
   const expertise = RATIO_EXPERTISE[verdict.expertiseId];
   const monthLabel = new Date().toLocaleDateString("fr-FR", {
@@ -86,21 +94,39 @@ export function DiagnosticVerdictCard({
       <div className="mt-5 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={onWhyClick}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          onClick={onSavoirPourquoi}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
         >
           Savoir pourquoi
           <ArrowRight className="h-4 w-4" />
         </button>
         <button
           type="button"
-          onClick={onSeeOthersClick}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          onClick={onAmeliorer}
+          disabled={improving}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
         >
-          <ListFilter className="h-4 w-4" />
-          Voir les autres points
+          {improving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Génération…
+            </>
+          ) : (
+            <>
+              <Wrench className="h-4 w-4" />
+              M'améliorer
+            </>
+          )}
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={onSeeOthersClick}
+        className="mt-3 text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+      >
+        Voir les autres points en danger →
+      </button>
     </section>
   );
 }

@@ -55,7 +55,7 @@ export default function SouscrirePage() {
           </p>
           <button
             type="button"
-            onClick={() => window.location.href = "/dashboard"}
+            onClick={() => window.location.href = "/conseiller/diagnostic"}
             className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
           >
             Accéder à mon dashboard

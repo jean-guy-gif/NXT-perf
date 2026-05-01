@@ -68,7 +68,7 @@ export default function OnboardingAgencePage() {
       const supabase = createClient();
       await supabase.from("profiles").update({ onboarding_team_completed: true }).eq("id", user.id);
     }
-    window.location.href = "/dashboard";
+    window.location.href = "/conseiller/diagnostic";
   };
 
   const firstName = user?.firstName || "Directeur";

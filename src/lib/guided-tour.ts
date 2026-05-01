@@ -62,28 +62,37 @@ export function resetTourStatus(role: UserRole): void {
 
 const conseillerSteps: TourStep[] = [
   {
-    title: "Bienvenue sur NXT Performance",
-    description: "Cette visite rapide te présente les principales fonctionnalités de ton espace conseiller. Tu peux la passer à tout moment.",
+    title: "Bienvenue dans NXT Performance",
+    description: "Découvrez la méthode en 4 étapes : Diagnostic → Améliorer → Progression → Comparaison. Vous pouvez passer cette visite à tout moment.",
   },
   {
-    target: '[href="/dashboard"]',
-    title: "Ta saisie d'activité",
-    description: "Chaque lundi, un bilan rapide te permet de saisir ton activité : contacts, estimations, mandats, visites, offres, compromis et actes.",
+    target: '[href="/conseiller/diagnostic"]',
+    title: "Mon diagnostic",
+    description: "Voici votre point critique du mois — chiffré en € de gain potentiel sur 30 jours. C'est votre point de départ.",
+    navigateTo: "/conseiller/diagnostic",
   },
   {
-    target: '[href="/dashboard"]',
-    title: "Ton tableau de bord",
-    description: "Ici, tu retrouves une vue synthétique de tes résultats : KPI, évolution du CA, répartition des mandats et progression mensuelle.",
+    target: '[href="/conseiller/ameliorer"]',
+    title: "M'améliorer",
+    description: "Lancez un plan 30 jours sur votre levier prioritaire. Catalogue formations + financement CERFA intégrés.",
+    navigateTo: "/conseiller/ameliorer",
   },
   {
-    target: '[href="/performance"]',
-    title: "Ta performance",
-    description: "Ici, tu suis ta performance à travers tes 7 ratios clés. Chaque ratio t'indique si tu es conforme, en attention ou en zone critique.",
+    target: '[href="/conseiller/progression"]',
+    title: "Ma progression",
+    description: "Suivez votre ROI cumulé, l'évolution de votre CA vs marché et votre DPI mensuel.",
+    navigateTo: "/conseiller/progression",
   },
   {
-    target: '[href="/formation"]',
-    title: "Ta formation",
-    description: "Ici, tu identifies tes axes de progression prioritaires et les formations recommandées en fonction de tes ratios.",
+    target: '[href="/conseiller/comparaison"]',
+    title: "Ma comparaison",
+    description: "Comparez-vous à un confrère, un profil expert, le classement NXT ou un DPI.",
+    navigateTo: "/conseiller/comparaison",
+  },
+  {
+    target: '[data-tour="floating-copilote"]',
+    title: "Copilote ambiant",
+    description: "Bientôt : votre assistant ambiant pour pré-remplir votre saisie hebdomadaire et répondre à vos questions.",
   },
 ];
 

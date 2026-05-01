@@ -67,7 +67,7 @@ function ResetPasswordForm() {
     }
 
     setDone(true);
-    setTimeout(() => router.push("/dashboard"), 2000);
+    setTimeout(() => router.push("/conseiller/diagnostic"), 2000);
   };
 
   const inputClass =
