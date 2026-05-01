@@ -3,13 +3,14 @@
 import { AlertTriangle, ArrowRight, Loader2, Wrench } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
-import type { PainPointResult } from "@/lib/pain-point-detector";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import type { CriticitePoint } from "@/lib/diagnostic-criticite";
 
 interface Props {
-  verdict: PainPointResult;
-  /** Active le toggle Volumes/Ratios + scroll auto + surbrillance (pas de drawer) */
+  verdictPoint: CriticitePoint;
+  /** Navigue vers /conseiller/diagnostic?view=ratios|volumes&highlight= */
   onSavoirPourquoi: () => void;
-  /** Crée un plan 30j ciblé puis navigue vers /conseiller/ameliorer */
+  /** Crée un plan 30j ciblé (si ratio) puis navigue vers /conseiller/ameliorer */
   onAmeliorer: () => void;
   /** Lien discret en bas — ouvre le drawer mode list */
   onSeeOthersClick: () => void;
@@ -18,26 +19,51 @@ interface Props {
 }
 
 export function DiagnosticVerdictCard({
-  verdict,
+  verdictPoint,
   onSavoirPourquoi,
   onAmeliorer,
   onSeeOthersClick,
   improving = false,
 }: Props) {
-  const expertise = RATIO_EXPERTISE[verdict.expertiseId];
   const monthLabel = new Date().toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
   });
 
-  // Écart % vs cible (signé : positif si sous-perf)
-  const targetVal = verdict.targetValue || 1;
-  const gapPct = Math.round((verdict.normalizedGap || 0) * 100);
+  // ── Champs unifiés selon ratio | volume ─────────────────────────────
+  const isRatio = verdictPoint.type === "ratio";
+  const expertiseLabel = isRatio
+    ? RATIO_EXPERTISE[verdictPoint.id as ExpertiseRatioId]?.label ??
+      verdictPoint.label
+    : verdictPoint.label;
+  const expertiseNote =
+    isRatio
+      ? RATIO_EXPERTISE[verdictPoint.id as ExpertiseRatioId]?.caImpactNote
+      : undefined;
 
-  // Affichage des valeurs : %, ratio absolu selon ratio
-  const isPercent = verdict.expertiseId === "pct_exclusivite";
+  const currentVal = isRatio ? verdictPoint.currentValue : verdictPoint.current;
+  const targetVal = isRatio ? verdictPoint.targetValue : verdictPoint.target;
+
+  const isPercent = isRatio && verdictPoint.id === "pct_exclusivite";
   const formatVal = (v: number) =>
-    isPercent ? `${Math.round(v)} %` : v.toFixed(1);
+    isRatio
+      ? isPercent
+        ? `${Math.round(v)} %`
+        : v.toFixed(1)
+      : Math.round(v).toString();
+
+  // Écart vs cible
+  const gapPct = (() => {
+    if (isRatio) {
+      return Math.round((verdictPoint._ratio.normalizedGap || 0) * 100);
+    }
+    if (targetVal <= 0) return 0;
+    return Math.round(
+      Math.max(0, ((targetVal - currentVal) / targetVal) * 100)
+    );
+  })();
+
+  const verdictKindLabel = isRatio ? "Ratio" : "Volume";
 
   return (
     <section
@@ -49,15 +75,20 @@ export function DiagnosticVerdictCard({
         Point le plus critique du mois — {monthLabel}
       </div>
 
-      <h2 className="mt-3 text-2xl font-bold text-foreground md:text-3xl">
-        {expertise.label}
+      <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {verdictKindLabel}
+      </p>
+      <h2 className="mt-1 text-2xl font-bold text-foreground md:text-3xl">
+        {expertiseLabel}
       </h2>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
         <div>
-          <p className="text-xs text-muted-foreground">Ton ratio</p>
+          <p className="text-xs text-muted-foreground">
+            {isRatio ? "Ton ratio" : "Réalisé"}
+          </p>
           <p className="text-xl font-bold tabular-nums text-foreground">
-            {formatVal(verdict.currentValue)}
+            {formatVal(currentVal)}
           </p>
         </div>
         <div>
@@ -74,18 +105,18 @@ export function DiagnosticVerdictCard({
         </div>
       </div>
 
-      {verdict.estimatedCaLossEur > 0 && (
+      {verdictPoint.gainEur > 0 && (
         <div className="mt-5 rounded-xl border border-red-500/20 bg-background p-4">
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="text-base">{"\u{1F4B0}"}</span>
             Gain potentiel sur 30 jours
           </p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-500">
-            +{formatCurrency(Math.round(verdict.estimatedCaLossEur))}
+            +{formatCurrency(Math.round(verdictPoint.gainEur))}
           </p>
-          {expertise.caImpactNote && (
+          {expertiseNote && (
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              {expertise.caImpactNote}
+              {expertiseNote}
             </p>
           )}
         </div>

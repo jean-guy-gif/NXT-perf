@@ -43,14 +43,18 @@ export function LeverPicker({ preselected, onPlanCreated }: Props) {
     const profile = deriveProfileLevel(category);
     const myHistory = allResults.filter((r) => r.userId === user.id);
     const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
-    return findCriticitePoints(measured, profile, avg);
+    // LeverPicker = sélection ratio uniquement (createPlan30j est ratio-keyed).
+    // On passe results=null/period=0 pour neutraliser le pool volumes.
+    return findCriticitePoints(measured, profile, avg, null, category, 0);
   }, [user, results, computedRatios, category, allResults, agencyObjective]);
 
   const allLevers = useMemo(() => {
     const list = criticite.top
       ? [criticite.top, ...criticite.others]
       : criticite.others;
-    return list;
+    // Filtre défensif : un volume ne devrait jamais arriver ici (results=null
+    // exclut les volumes), mais on protège quand même.
+    return list.filter((p) => p.type === "ratio");
   }, [criticite]);
 
   const handleLaunch = async (ratioId: ExpertiseRatioId) => {
@@ -114,17 +118,19 @@ export function LeverPicker({ preselected, onPlanCreated }: Props) {
 
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {allLevers.map((p) => {
-          const expertise = RATIO_EXPERTISE[p.expertiseId];
-          const isPercent = p.expertiseId === "pct_exclusivite";
+          if (p.type !== "ratio") return null;
+          const expertiseId = p.id as ExpertiseRatioId;
+          const expertise = RATIO_EXPERTISE[expertiseId];
+          const isPercent = expertiseId === "pct_exclusivite";
           const fmt = (v: number) =>
             isPercent ? `${Math.round(v)} %` : v.toFixed(1);
-          const gapPct = Math.round((p.normalizedGap || 0) * 100);
-          const isPreselected = preselected === p.expertiseId;
-          const isPending = pending === p.expertiseId;
+          const gapPct = Math.round((p._ratio.normalizedGap || 0) * 100);
+          const isPreselected = preselected === expertiseId;
+          const isPending = pending === expertiseId;
 
           return (
             <li
-              key={p.expertiseId}
+              key={expertiseId}
               className={cn(
                 "rounded-xl border bg-card p-4 transition-all",
                 isPreselected
@@ -155,13 +161,13 @@ export function LeverPicker({ preselected, onPlanCreated }: Props) {
                 <div>
                   <span className="text-muted-foreground">Gain ~ </span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-500">
-                    +{formatCurrency(Math.round(p.estimatedCaLossEur))}
+                    +{formatCurrency(Math.round(p.gainEur))}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => handleLaunch(p.expertiseId)}
+                onClick={() => handleLaunch(expertiseId)}
                 disabled={isPending}
                 className={cn(
                   "mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",

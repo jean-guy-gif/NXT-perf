@@ -246,8 +246,10 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     id: "compromis_actes",
     label: "Compromis → Actes",
     formula: "compromis ÷ actes",
-    direction: "more_is_better",
-    thresholds: { junior: 90, confirme: 95, expert: 98 },
+    // Ratio brut : nombre de compromis pour 1 acte signé. 1.0 = parfait,
+    // > 1 = compromis qui cassent. Aligné avec defaultRatioConfigs.
+    direction: "less_is_better",
+    thresholds: { junior: 1.3, confirme: 1.15, expert: 1.05 },
     leverageWeight: 1.1,
     diagnosis:
       "Le dossier n'est pas maîtrisé : tous les éléments ne sont pas réunis au moment du compromis. Le financement n'a pas été vu, ou l'offre a été forcée sous pression sur l'acheteur. Le compromis casse en rétractation ou à la levée d'une condition suspensive.",

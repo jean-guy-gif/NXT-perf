@@ -5,13 +5,38 @@ import { useEffect } from "react";
 import { X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
-import type { PainPointResult } from "@/lib/pain-point-detector";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import type { CriticitePoint } from "@/lib/diagnostic-criticite";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Liste des autres points en danger (top exclu) */
-  otherPainPoints: PainPointResult[];
+  /** Liste des autres points en danger (top exclu), ratios + volumes */
+  otherPainPoints: CriticitePoint[];
+}
+
+function buildHref(p: CriticitePoint): string {
+  if (p.type === "ratio") {
+    return `/conseiller/diagnostic?view=ratios&highlight=${encodeURIComponent(p.id)}`;
+  }
+  return `/conseiller/diagnostic?view=volumes&highlight=${encodeURIComponent(p.id)}`;
+}
+
+function pointLabel(p: CriticitePoint): string {
+  if (p.type === "ratio") {
+    return (
+      RATIO_EXPERTISE[p.id as ExpertiseRatioId]?.label ?? p.label
+    );
+  }
+  return p.label;
+}
+
+function pointGap(p: CriticitePoint): number {
+  if (p.type === "ratio") {
+    return Math.round((p._ratio.normalizedGap || 0) * 100);
+  }
+  if (p.target <= 0) return 0;
+  return Math.round(Math.max(0, ((p.target - p.current) / p.target) * 100));
 }
 
 export function WhyDangerDrawer({ open, onClose, otherPainPoints }: Props) {
@@ -71,22 +96,25 @@ export function WhyDangerDrawer({ open, onClose, otherPainPoints }: Props) {
           ) : (
             <ul className="space-y-2">
               {otherPainPoints.map((p) => {
-                const expertise = RATIO_EXPERTISE[p.expertiseId];
-                const gapPct = Math.round((p.normalizedGap || 0) * 100);
+                const gap = pointGap(p);
+                const kind = p.type === "ratio" ? "Ratio" : "Volume";
                 return (
-                  <li key={p.expertiseId}>
+                  <li key={`${p.type}:${p.id}`}>
                     <Link
-                      href={`/conseiller/ameliorer?levier=${p.expertiseId}`}
+                      href={buildHref(p)}
                       onClick={onClose}
                       className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-primary/5"
                     >
                       <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {kind}
+                        </p>
                         <p className="truncate text-sm font-semibold text-foreground">
-                          {expertise.label}
+                          {pointLabel(p)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Écart : -{gapPct}% · Gain potentiel ~
-                          {Math.round(p.estimatedCaLossEur).toLocaleString("fr-FR")} €
+                          Écart : -{gap}% · Gain potentiel ~
+                          {Math.round(p.gainEur).toLocaleString("fr-FR")} €
                         </p>
                       </div>
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
