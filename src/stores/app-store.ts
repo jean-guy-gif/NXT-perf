@@ -33,7 +33,7 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
 
 /** Route par défaut pour chaque rôle */
 export const DEFAULT_ROUTES: Record<UserRole, string> = {
-  conseiller: "/dashboard",
+  conseiller: "/conseiller/diagnostic",
   manager: "/manager/dashboard",
   directeur: "/directeur/pilotage",
   reseau: "/reseau/dashboard",

@@ -33,6 +33,10 @@ function formatRelativeDate(iso: string): string {
 }
 
 const pageTitles: Record<string, string> = {
+  "/conseiller/diagnostic": "Mon diagnostic",
+  "/conseiller/ameliorer": "M'améliorer",
+  "/conseiller/progression": "Ma progression",
+  "/conseiller/comparaison": "Ma comparaison",
   "/dashboard": "Tableau de bord",
   "/resultats": "Mon Volume d'Activité",
   "/performance": "Mes Ratios de Transformation",

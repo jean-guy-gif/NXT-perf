@@ -8,18 +8,17 @@ import {
   BarChart3,
   Gauge,
   GitCompare,
-  GraduationCap,
-  Target,
-  Trophy,
   Settings,
   BookOpen,
   Compass,
-  TrendingUp,
   Wallet,
   Network,
-  Navigation,
   ClipboardCheck,
   Building2,
+  Search,
+  Wrench,
+  LineChart,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -43,11 +42,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
-  { href: "/resultats", icon: BarChart3, label: "Mon Volume d'Activité", lockedFeature: "resultats" },
-  { href: "/performance", icon: Gauge, label: "Mes Ratios de Transformation", lockedFeature: "performance" },
-  { href: "/comparaison", icon: GitCompare, label: "Ma Comparaison", lockedFeature: "comparaison" },
-  { href: "/formation", icon: GraduationCap, label: "Ma Formation", lockedFeature: "formation" },
+  { href: "/conseiller/diagnostic", icon: Search, label: "Mon diagnostic" },
+  { href: "/conseiller/ameliorer", icon: Wrench, label: "M'améliorer", lockedFeature: "formation" },
+  { href: "/conseiller/progression", icon: LineChart, label: "Ma progression" },
+  { href: "/conseiller/comparaison", icon: Users, label: "Ma comparaison", lockedFeature: "comparaison" },
   { href: "/manager/dashboard", icon: LayoutDashboard, label: "Tableau de bord", managerOnly: true },
   { href: "/manager/resultats", icon: BarChart3, label: "Mon Volume d'Activité", managerOnly: true },
   { href: "/manager/performance", icon: Gauge, label: "Mes Ratios de Transformation", managerOnly: true },
@@ -87,8 +85,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
     : null;
 
+  const utilityHrefs = new Set(["/pourquoi-nxt", "/parametres"]);
   const advisorItems = visibleViews.includes("agent")
-    ? navItems.filter((item) => !item.managerOnly && !item.directorOnly && !item.networkOnly && item.href !== "/parametres")
+    ? navItems.filter(
+        (item) =>
+          !item.managerOnly &&
+          !item.directorOnly &&
+          !item.networkOnly &&
+          !utilityHrefs.has(item.href)
+      )
     : [];
   const managerItems = visibleViews.includes("manager")
     ? navItems.filter((item) => item.managerOnly)
@@ -99,6 +104,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const networkItems = visibleViews.includes("reseau")
     ? navItems.filter((item) => item.networkOnly)
     : [];
+  const approachItem = navItems.find((item) => item.href === "/pourquoi-nxt")!;
   const settingsItem = navItems.find((item) => item.href === "/parametres")!;
 
   return (
@@ -108,7 +114,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     )}>
       {/* Profile avatar */}
       <Link
-        href="/dashboard"
+        href="/conseiller/diagnostic"
         className={cn(
           "mb-6 flex items-center flex-shrink-0",
           collapsed ? "justify-center" : "gap-3 px-2"
@@ -190,8 +196,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Spacer */}
       <div className="mt-auto" />
 
-      {/* Settings */}
-      <SidebarItem item={settingsItem} pathname={pathname} collapsed={collapsed} />
+      {/* Zone utilitaire bas */}
+      <div className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
+        <SidebarItem item={approachItem} pathname={pathname} collapsed={collapsed} />
+        <SidebarItem item={settingsItem} pathname={pathname} collapsed={collapsed} />
+      </div>
     </nav>
   );
 }
@@ -257,7 +266,7 @@ function SidebarItem({
       <Link
         href={item.href}
         title={item.label}
-        data-tour={item.href === "/parametres" ? "parametres-link" : item.href === "/saisie" ? "saisie-link" : undefined}
+        data-tour={item.href === "/parametres" ? "parametres-link" : undefined}
         className={cn(
           "group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] transition-all duration-[var(--transition-fast)]",
           isActive

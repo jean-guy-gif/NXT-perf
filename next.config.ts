@@ -20,6 +20,13 @@ const nextConfig: NextConfig = {
       { source: "/directeur/equipe", destination: "/directeur/dashboard", permanent: true },
       { source: "/directeur/formation-collective", destination: "/directeur/formation", permanent: true },
       { source: "/admin/dpi", destination: "/directeur/leads-dpi", permanent: true },
+      // PR3 — Refonte Conseiller : ancienne arborescence racine → /conseiller/*
+      { source: "/dashboard", destination: "/conseiller/diagnostic", permanent: true },
+      { source: "/resultats", destination: "/conseiller/diagnostic", permanent: true },
+      { source: "/performance", destination: "/conseiller/diagnostic", permanent: true },
+      { source: "/comparaison", destination: "/conseiller/comparaison", permanent: true },
+      { source: "/formation", destination: "/conseiller/ameliorer", permanent: true },
+      { source: "/objectifs", destination: "/conseiller/progression", permanent: true },
     ];
   },
 };
