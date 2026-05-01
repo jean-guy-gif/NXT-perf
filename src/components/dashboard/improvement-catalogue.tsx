@@ -50,8 +50,9 @@ export function ImprovementCatalogue({
   const roi = estimateROI(gap);
   const context = ratioName ? ` sur ${ratioName}` : "";
   const isDemoMode = useAppStore((s) => s.isDemoMode);
-  const { getNxtCoachingResource, updateResource, refresh } = useImprovementResources();
+  const { getNxtCoachingResource, getActivePlan, updateResource, refresh } = useImprovementResources();
   const nxtCoaching = getNxtCoachingResource();
+  const hasActivePlan = Boolean(getActivePlan());
 
   const canTargetPlan = Boolean(ratioId && onTargetedPlanRequest);
 
@@ -106,6 +107,7 @@ export function ImprovementCatalogue({
         context={context}
         roi={roi.coaching}
         nxtCoaching={nxtCoaching}
+        hasActivePlan={hasActivePlan}
         isDemoMode={isDemoMode}
         updateResource={updateResource}
         refresh={refresh}
@@ -232,6 +234,7 @@ function NxtCoachingCard({
   context,
   roi,
   nxtCoaching,
+  hasActivePlan,
   isDemoMode,
   updateResource,
   refresh,
@@ -239,11 +242,17 @@ function NxtCoachingCard({
   context: string;
   roi: string;
   nxtCoaching: NxtCoachingResource;
+  /** P0.5 : si un plan tourne, on cache la card debrief (ré-apparaît à expiration) */
+  hasActivePlan: boolean;
   isDemoMode: boolean;
   updateResource: (id: string, patch: Partial<ImprovementResource>) => Promise<void>;
   refresh: () => Promise<void>;
 }) {
-  if (nxtCoaching && nxtCoaching.status === "debrief_offered") {
+  if (
+    nxtCoaching &&
+    nxtCoaching.status === "debrief_offered" &&
+    !hasActivePlan
+  ) {
     return (
       <DebriefOfferedCard
         nxtCoaching={nxtCoaching}

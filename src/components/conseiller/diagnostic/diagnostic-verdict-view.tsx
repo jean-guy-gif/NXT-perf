@@ -30,7 +30,7 @@ export function DiagnosticVerdictView() {
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { createPlan30j } = useImprovementResources();
 
-  const [othersOpen, setOthersOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<"single" | "list" | null>(null);
   const [improving, setImproving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -51,16 +51,8 @@ export function DiagnosticVerdictView() {
     agencyObjective,
   ]);
 
-  const handleSavoirPourquoi = (point: CriticitePoint) => {
-    if (point.type === "ratio") {
-      router.push(
-        `/conseiller/diagnostic?view=ratios&highlight=${encodeURIComponent(point.id)}`
-      );
-    } else {
-      router.push(
-        `/conseiller/diagnostic?view=volumes&highlight=${encodeURIComponent(point.id)}`
-      );
-    }
+  const handleSavoirPourquoi = () => {
+    setDrawerMode("single");
   };
 
   const handleAmeliorer = async (point: CriticitePoint) => {
@@ -107,9 +99,9 @@ export function DiagnosticVerdictView() {
       {criticite.top ? (
         <DiagnosticVerdictCard
           verdictPoint={criticite.top}
-          onSavoirPourquoi={() => handleSavoirPourquoi(criticite.top!)}
+          onSavoirPourquoi={handleSavoirPourquoi}
           onAmeliorer={() => handleAmeliorer(criticite.top!)}
-          onSeeOthersClick={() => setOthersOpen(true)}
+          onSeeOthersClick={() => setDrawerMode("list")}
           improving={improving}
         />
       ) : (
@@ -131,9 +123,11 @@ export function DiagnosticVerdictView() {
       )}
 
       <WhyDangerDrawer
-        open={othersOpen}
-        onClose={() => setOthersOpen(false)}
-        otherPainPoints={criticite.others}
+        open={drawerMode !== null}
+        onClose={() => setDrawerMode(null)}
+        mode={drawerMode ?? "list"}
+        verdict={drawerMode === "single" ? criticite.top : null}
+        otherPainPoints={drawerMode === "list" ? criticite.others : []}
       />
     </div>
   );

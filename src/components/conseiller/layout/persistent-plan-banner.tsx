@@ -10,8 +10,10 @@ import type { Plan30jPayload } from "@/config/coaching";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 export function PersistentPlanBanner() {
-  const { getActivePlan } = useImprovementResources();
-  const activePlan = getActivePlan();
+  const { getActivePlan, loading } = useImprovementResources();
+  // P0.4 : tant que le hook charge, on ne montre rien (pas de flash UI).
+  // Le banner apparaîtra silencieusement quand un plan actif est détecté.
+  const activePlan = loading ? null : getActivePlan();
 
   const banner = useMemo(() => {
     if (!activePlan) return null;
