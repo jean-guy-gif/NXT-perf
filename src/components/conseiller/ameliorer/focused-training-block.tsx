@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { GraduationCap, ArrowRight, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GraduationCap, ArrowRight, Wallet, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { expertiseToFormationArea } from "@/lib/coaching/coach-brain";
 import {
@@ -34,6 +34,9 @@ interface Props {
 export function FocusedTrainingBlock({ expertiseId }: Props) {
   const [showAgefice, setShowAgefice] = useState(false);
   const [agePreselected, setAgePreselected] = useState<string | null>(null);
+  const [previewFormation, setPreviewFormation] = useState<FormationItem | null>(
+    null
+  );
 
   const area = expertiseToFormationArea(expertiseId);
   if (!area) return null;
@@ -44,6 +47,15 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
   const handleFinancer = (title: string) => {
     setAgePreselected(title);
     setShowAgefice(true);
+  };
+
+  const handleStart = (formation: FormationItem) => {
+    setPreviewFormation(formation);
+  };
+
+  const handleFinancerFromDrawer = (title: string) => {
+    setPreviewFormation(null);
+    handleFinancer(title);
   };
 
   // formationOptions reçues par AgeficeWizard = liste des titres
@@ -73,7 +85,12 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
 
       <ul className="mt-4 space-y-3">
         {formations.map((f) => (
-          <FormationCard key={f.id} item={f} onFinancer={handleFinancer} />
+          <FormationCard
+            key={f.id}
+            item={f}
+            onFinancer={handleFinancer}
+            onStart={handleStart}
+          />
         ))}
       </ul>
 
@@ -100,9 +117,11 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
 function FormationCard({
   item,
   onFinancer,
+  onStart,
 }: {
   item: FormationItem;
   onFinancer: (title: string) => void;
+  onStart: (formationId: string) => void;
 }) {
   return (
     <li className="rounded-lg border border-border bg-background p-4">
@@ -123,12 +142,9 @@ function FormationCard({
           <button
             type="button"
             className={cn(
-              "inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted hover:border-foreground/20"
             )}
-            onClick={() => {
-              // Placeholder V1 : pas de redirection externe encore.
-              // Le vrai catalogue NXT Training sera connecté plus tard.
-            }}
+            onClick={() => onStart(item.id)}
           >
             Démarrer
             <ArrowRight className="h-3.5 w-3.5" />

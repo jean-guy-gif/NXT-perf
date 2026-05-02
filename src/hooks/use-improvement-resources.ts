@@ -36,6 +36,23 @@ export interface CreatePlanInput {
   avgCommissionEur: number;
 }
 
+/**
+ * PR3.7.9 — broadcast cross-instances. Toute mutation d'une ressource (plan
+ * ou nxt_coaching) émet cet event. Toutes les instances du hook
+ * `useImprovementResources` montées ailleurs dans l'app l'écoutent et
+ * déclenchent leur propre `refresh()` — garantit que le sidebar badge,
+ * ContinuityBlock, PersistentPlanBanner se synchronisent immédiatement
+ * avec la mutation faite dans Plan30Jours.
+ *
+ * No-op côté serveur (SSR).
+ */
+const RESOURCES_MUTATED_EVENT = "nxt:plan-resources-mutated";
+
+function broadcastResourcesMutated(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(RESOURCES_MUTATED_EVENT));
+}
+
 // ─── Hook principal ───────────────────────────────────────────────────
 
 export function useImprovementResources() {
@@ -94,6 +111,31 @@ export function useImprovementResources() {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  /**
+   * PR3.7.9 — Broadcast cross-instances.
+   *
+   * Plusieurs composants consomment ce hook en parallèle (Plan30Jours,
+   * PlanProgressBadge sidebar, ContinuityBlock, PersistentPlanBanner). Chaque
+   * instance a son propre cache `resources`. Quand l'un mute (toggle action),
+   * les autres ne le voient pas — d'où des compteurs qui restent désynchros.
+   *
+   * Solution minimale : un custom event window que toute mutation émet, et
+   * que toute instance écoute pour déclencher son propre refresh.
+   *
+   * Évite : nouveau store global, refactor de l'API du hook, dépendance
+   * Zustand cross-cutting.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => {
+      refresh();
+    };
+    window.addEventListener(RESOURCES_MUTATED_EVENT, handler);
+    return () => {
+      window.removeEventListener(RESOURCES_MUTATED_EVENT, handler);
+    };
   }, [refresh]);
 
   // ─── Getters utilitaires ─────────────────────────────────────────
@@ -219,6 +261,7 @@ export function useImprovementResources() {
       });
 
       await refresh();
+      broadcastResourcesMutated();
       return plan;
     },
     [userId, isDemoMode, getActivePlan, refresh]
@@ -229,6 +272,7 @@ export function useImprovementResources() {
       const adapter = getAdapter(isDemoMode);
       await adapter.update(id, patch);
       await refresh();
+      broadcastResourcesMutated();
     },
     [isDemoMode, refresh]
   );
@@ -259,6 +303,7 @@ export function useImprovementResources() {
     }
 
     await refresh();
+    broadcastResourcesMutated();
   }, [userId, isDemoMode, refresh]);
 
   const getArchivedPlanById = useCallback(

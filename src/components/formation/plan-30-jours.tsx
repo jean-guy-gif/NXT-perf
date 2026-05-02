@@ -622,10 +622,23 @@ function ActionRow({
   );
 }
 
+/**
+ * PR3.7.9 — toggle bi-état done / todo.
+ *
+ * Avant : tri-état todo → in_progress → done → todo (demandait 2 clics
+ * pour cocher, le pourcentage restait à 0 % après le premier clic — bug
+ * UX reporté).
+ *
+ * Maintenant : un clic = bascule done. Cohérent avec la spec
+ * "cocher une action → % mis à jour immédiatement partout".
+ *
+ * Note : le statut "in_progress" reste défini dans Plan30jActionStatus
+ * (utilisé par production-chain Manager qui a son propre cycle inline)
+ * et l'icône CircleDashed reste affichée si la donnée arrive en
+ * in_progress (backward compat avec les plans existants).
+ */
 function cycleStatus(current: Plan30jActionStatus): Plan30jActionStatus {
-  if (current === "todo") return "in_progress";
-  if (current === "in_progress") return "done";
-  return "todo";
+  return current === "done" ? "todo" : "done";
 }
 
 function buildSimulatedResults(
