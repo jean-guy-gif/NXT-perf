@@ -12,9 +12,17 @@ import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalog
 import { AgeficeWizard } from "@/components/formation/agefice-wizard";
 import { ModalitesTuiles } from "./modalites-tuiles";
 import { LeverHeader } from "./lever-header";
-import { LeverPicker } from "./lever-picker";
 import { CoachRdvCard } from "./coach-rdv-card";
 import { ChangeLeverConfirm } from "./change-lever-confirm";
+import { RecommendedLeverCard } from "./recommended-lever-card";
+import { OtherLeversList } from "./other-levers-list";
+import { findCriticitePoints } from "@/lib/diagnostic-criticite";
+import { volumeToRelatedRatio } from "@/lib/coaching/coach-brain";
+import {
+  getAvgCommissionEur,
+} from "@/lib/get-avg-commission";
+import { useAppStore } from "@/stores/app-store";
+import { useAllResults } from "@/hooks/use-results";
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
@@ -113,7 +121,7 @@ export function AmeliorerAdaptiveFlow() {
         archived_at: now,
       });
       // refresh est déjà appelé par updateResource — le re-render bascule
-      // automatiquement sur le mode no-plan (LeverPicker).
+      // automatiquement sur le mode no-plan (RecommendedLeverCard).
       setShowChangeLever(false);
     } catch {
       // si erreur, on ferme la modal et on laisse l'utilisateur réessayer
@@ -224,37 +232,136 @@ function NoPlanFlow({
   setShowAgefice: (b: boolean) => void;
   onPlanCreated: () => void;
 }) {
-  // Calcul du headerData pour le LeverHeader (mode "no-plan-preselected")
-  const headerData = useMemo(() => {
-    if (!preselected || !results) return null;
-    const expertise = RATIO_EXPERTISE[preselected];
-    if (!expertise) return null;
+  const allResults = useAllResults();
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const userId = useAppStore((s) => s.user?.id);
+
+  /**
+   * PR3.7.5 — Synchronisation Diagnostic ↔ M'améliorer.
+   *
+   * Le levier recommandé est dérivé dans cet ordre :
+   *   1. URL `?levier=X` (préselection venant de "Améliorer ce point" du drawer)
+   *   2. Top criticité ratio si type === "ratio"
+   *   3. Top criticité volume → mappé vers le ratio le plus pertinent
+   *      via volumeToRelatedRatio (cohérence avec le diagnostic prioritaire,
+   *      ex: verdict "Contacts" → levier "contacts_estimations")
+   *   4. Premier "other" de criticité qui est un ratio
+   */
+  const recommended = useMemo(() => {
+    if (!results || !userId) return null;
     const profile = deriveProfileLevel(category);
     const measured = buildMeasuredRatios(computedRatios, results);
-    const found = measured.find((m) => m.expertiseId === preselected);
+    const myHistory = allResults.filter((r) => r.userId === userId);
+    const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
+    const criticite = findCriticitePoints(
+      measured,
+      profile,
+      avg,
+      results,
+      category,
+      1
+    );
+
+    // 1. Préselection URL prioritaire
+    if (preselected && RATIO_EXPERTISE[preselected]) {
+      const found = measured.find((m) => m.expertiseId === preselected);
+      const fromCriticite = [
+        criticite.top,
+        ...criticite.others,
+      ].find(
+        (p) => p && p.type === "ratio" && p.id === preselected
+      );
+      const expertise = RATIO_EXPERTISE[preselected];
+      return {
+        expertiseId: preselected,
+        currentValue: found?.currentValue ?? null,
+        targetValue: expertise.thresholds[profile],
+        estimatedGainEur:
+          fromCriticite && fromCriticite.type === "ratio"
+            ? fromCriticite.gainEur
+            : 0,
+        others: criticite.others.filter(
+          (p) => p.type === "ratio" && p.id !== preselected
+        ),
+      };
+    }
+
+    // 2-3. Top criticité (ratio direct ou volume mappé)
+    const top = criticite.top;
+    let chosen: { id: ExpertiseRatioId; gain: number } | null = null;
+    if (top) {
+      if (top.type === "ratio") {
+        chosen = { id: top.id as ExpertiseRatioId, gain: top.gainEur };
+      } else {
+        const mapped = volumeToRelatedRatio(top.id);
+        if (mapped) chosen = { id: mapped, gain: top.gainEur };
+      }
+    }
+
+    // 4. Fallback : premier other ratio
+    if (!chosen) {
+      const firstRatio = criticite.others.find((p) => p.type === "ratio");
+      if (firstRatio && firstRatio.type === "ratio") {
+        chosen = {
+          id: firstRatio.id as ExpertiseRatioId,
+          gain: firstRatio.gainEur,
+        };
+      }
+    }
+
+    if (!chosen) return null;
+
+    const expertise = RATIO_EXPERTISE[chosen.id];
+    if (!expertise) return null;
+    const found = measured.find((m) => m.expertiseId === chosen!.id);
     return {
-      expertiseId: preselected,
+      expertiseId: chosen.id,
       currentValue: found?.currentValue ?? null,
       targetValue: expertise.thresholds[profile],
+      estimatedGainEur: chosen.gain,
+      others: criticite.others.filter(
+        (p) => p.type === "ratio" && p.id !== chosen!.id
+      ),
     };
-  }, [preselected, results, computedRatios, category]);
+  }, [
+    preselected,
+    results,
+    computedRatios,
+    category,
+    allResults,
+    agencyObjective,
+    userId,
+  ]);
 
   return (
     <div className="space-y-6">
-      {headerData && (
-        <LeverHeader
-          expertiseId={headerData.expertiseId}
-          currentValue={headerData.currentValue}
-          targetValue={headerData.targetValue}
-          estimatedGainEur={0}
-          mode="no-plan-preselected"
+      {recommended ? (
+        <RecommendedLeverCard
+          expertiseId={recommended.expertiseId}
+          currentValue={recommended.currentValue}
+          targetValue={recommended.targetValue}
+          estimatedGainEur={recommended.estimatedGainEur}
+          onPlanCreated={onPlanCreated}
+        />
+      ) : (
+        <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500">
+            Aucun levier prioritaire détecté
+          </p>
+          <p className="mt-2 text-sm text-foreground">
+            Tes ratios sont conformes aux objectifs de ton profil. Continue ta
+            saisie hebdomadaire pour suivre ton évolution.
+          </p>
+        </section>
+      )}
+
+      {recommended && recommended.others.length > 0 && (
+        <OtherLeversList
+          others={recommended.others}
+          onPlanCreated={onPlanCreated}
         />
       )}
 
-      <LeverPicker
-        preselected={preselected}
-        onPlanCreated={onPlanCreated}
-      />
       <ModalitesTuiles state="none" />
 
       <section aria-label="Catalogue formations">
@@ -262,9 +369,11 @@ function NoPlanFlow({
           Catalogue formations
         </h2>
         <ImprovementCatalogue
-          ratioId={preselected ?? undefined}
+          ratioId={recommended?.expertiseId ?? undefined}
           ratioName={
-            preselected ? RATIO_EXPERTISE[preselected]?.label : undefined
+            recommended
+              ? RATIO_EXPERTISE[recommended.expertiseId]?.label
+              : undefined
           }
         />
       </section>

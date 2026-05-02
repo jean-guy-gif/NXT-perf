@@ -22,8 +22,42 @@ import {
   type ExpertiseRatioId,
 } from "@/data/ratio-expertise";
 import { TOP_PRACTICES } from "@/lib/coaching/top-practices";
+import type { VolumeKey } from "@/lib/diagnostic-criticite";
 
 const DEFAULT_MAX = 3;
+
+/**
+ * Mapping volume → ratio "le plus directement actionnable" pour ce volume.
+ * Sert quand un verdict est de type volume (ex: Contacts) et qu'on veut
+ * proposer un plan ciblé : on remonte au ratio le plus en amont qui pilote
+ * ce volume.
+ */
+const VOLUME_TO_RATIO: Record<VolumeKey, ExpertiseRatioId> = {
+  contactsTotaux: "contacts_estimations",
+  rdvEstimation: "contacts_estimations",
+  estimationsRealisees: "estimations_mandats",
+  mandatsSignes: "estimations_mandats",
+  nombreVisites: "visites_offres",
+  offresRecues: "offres_compromis",
+  compromisSignes: "compromis_actes",
+  actesSignes: "compromis_actes",
+};
+
+/**
+ * Mapping métier : associe chaque volume au ratio le plus actionnable.
+ * Ce mapping pilote directement le levier recommandé affiché à l'utilisateur.
+ * Toute modification doit être validée côté métier (impact direct sur les
+ * recommandations).
+ *
+ * Retourne le ratio expert le plus pertinent pour un volume donné.
+ * Utilisé par WhyDangerDrawer (volume verdict) et par ameliorer-adaptive-flow
+ * (recommended lever quand le top criticité est un volume).
+ */
+export function volumeToRelatedRatio(
+  volumeKey: VolumeKey
+): ExpertiseRatioId | null {
+  return VOLUME_TO_RATIO[volumeKey] ?? null;
+}
 
 // ─── Helpers internes ────────────────────────────────────────────────────
 

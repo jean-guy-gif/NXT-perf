@@ -78,8 +78,8 @@ export function DiagnosticVerdictView() {
           avgCommissionEur: avg,
         });
       }
-      // Pour un volume : on redirige sans plan ciblé — l'utilisateur choisira
-      // un levier dans LeverPicker.
+      // Pour un volume : on redirige sans plan ciblé — la page M'améliorer
+      // dérivera elle-même le levier recommandé (volumeToRelatedRatio).
       router.push("/conseiller/ameliorer");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

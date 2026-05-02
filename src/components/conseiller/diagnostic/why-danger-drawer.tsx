@@ -14,8 +14,11 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
-import type { CriticitePoint } from "@/lib/diagnostic-criticite";
-import { getTopPractices } from "@/lib/coaching/coach-brain";
+import type { CriticitePoint, VolumeKey } from "@/lib/diagnostic-criticite";
+import {
+  getTopPractices,
+  volumeToRelatedRatio,
+} from "@/lib/coaching/coach-brain";
 
 type DrawerMode = "single" | "list";
 
@@ -217,30 +220,37 @@ type Section = "why" | "how" | "best";
 function SingleContent({ verdict }: { verdict: CriticitePoint }) {
   const [active, setActive] = useState<Section | null>("why");
 
-  // Volumes V1 : pas de contenu pédagogique structuré, on affiche un
-  // message simple. Les 3 panneaux pédagogiques restent ratio-only.
+  // PR3.7.5 — Volumes : on dérive le ratio le plus pertinent via
+  // volumeToRelatedRatio et on affiche les 3 panneaux pédagogiques de ce
+  // ratio (au lieu du placeholder V1). Cohérent avec le levier recommandé
+  // qui sera proposé sur /conseiller/ameliorer.
+  let resolvedExpertiseId: ExpertiseRatioId;
+  let volumeContext: { gap: number } | null = null;
   if (verdict.type === "volume") {
-    const gap = pointGap(verdict);
-    return (
-      <div className="space-y-3">
-        <div className="rounded-xl border border-border bg-background p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Volume sous l'objectif
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-foreground">
-            Vous êtes <span className="font-bold text-red-500">{gap}%</span>{" "}
-            sous l'objectif sur ce volume. Lancer un plan ciblé sur le levier le
-            plus impactant peut faire bouger ce volume sur 30 jours.
-          </p>
+    const mapped = volumeToRelatedRatio(verdict.id as VolumeKey);
+    if (!mapped) {
+      const gap = pointGap(verdict);
+      return (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-background p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Volume sous l'objectif
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-foreground">
+              Vous êtes <span className="font-bold text-red-500">{gap}%</span>{" "}
+              sous l'objectif sur ce volume.
+            </p>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Détails pédagogiques par volume bientôt disponibles.
-        </p>
-      </div>
-    );
+      );
+    }
+    resolvedExpertiseId = mapped;
+    volumeContext = { gap: pointGap(verdict) };
+  } else {
+    resolvedExpertiseId = verdict.id as ExpertiseRatioId;
   }
 
-  const expertise = RATIO_EXPERTISE[verdict.id as ExpertiseRatioId];
+  const expertise = RATIO_EXPERTISE[resolvedExpertiseId];
   if (!expertise) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -251,6 +261,22 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
 
   return (
     <div className="space-y-2">
+      {volumeContext && (
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-orange-500">
+            Volume sous l'objectif — levier d'action
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Tu es <span className="font-bold text-red-500">{volumeContext.gap}%</span>{" "}
+            sous l'objectif sur ce volume. Le levier{" "}
+            <span className="font-semibold text-foreground">
+              {expertise.label}
+            </span>{" "}
+            est le plus directement actionnable pour le faire bouger.
+          </p>
+        </div>
+      )}
+
       <Panel
         active={active === "why"}
         onToggle={() => setActive(active === "why" ? null : "why")}
@@ -307,7 +333,7 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
         iconClass="text-emerald-500"
         title="Ce que font les meilleurs"
       >
-        <BestPracticesContent expertiseId={verdict.id as ExpertiseRatioId} />
+        <BestPracticesContent expertiseId={resolvedExpertiseId} />
       </Panel>
     </div>
   );
