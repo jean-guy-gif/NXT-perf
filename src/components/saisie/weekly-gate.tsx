@@ -21,14 +21,23 @@ import type { PersonaId } from "@/lib/personas";
 interface PersonaGreeting { line1: (firstName: string) => string; line2: string; }
 
 const CONTEXT_GREETINGS: Record<string, PersonaGreeting> = {
-  demo: { line1: (name) => `Bienvenue, ${name} 👋`, line2: "Découvre la saisie hebdomadaire. 2 minutes pour faire le point." },
-  friday_required: { line1: (name) => `Bonne fin de semaine, ${name} 👊`, line2: "Prends 2 minutes pour faire le bilan de ta semaine." },
-  monday_catchup: { line1: (name) => `${name}, ta saisie t'attend`, line2: "Tu n'as pas complété vendredi. Prends 2 minutes pour rattraper." },
+  demo: {
+    line1: (name) => `Bienvenue, ${name} 👋`,
+    line2: "Ton diagnostic hebdomadaire est prêt. 2 minutes pour identifier ton levier prioritaire.",
+  },
+  friday_required: {
+    line1: (name) => `Bonne fin de semaine, ${name} 👊`,
+    line2: "Faisons le point sur ta semaine. 2 minutes pour identifier ton levier prioritaire.",
+  },
+  monday_catchup: {
+    line1: (name) => `${name}, ton diagnostic hebdomadaire t'attend`,
+    line2: "Faisons le point sur ta semaine — 2 minutes pour identifier ton levier prioritaire.",
+  },
 };
 
 const DEFAULT_GREETING: PersonaGreeting = {
   line1: (name) => `Bonne semaine, ${name} 👊`,
-  line2: "Prends 2 minutes pour faire le point sur ta semaine.",
+  line2: "Faisons le point sur ta semaine. 2 minutes pour identifier ton levier prioritaire.",
 };
 
 // Questions are imported from SAISIE_STEPS (shared source of truth with voice mode)
@@ -189,7 +198,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
       const { fields, arrays } = buildExtractedData();
       setExtractedFields(fields);
       setExtractedArrays(arrays);
-      setConfirmDesc("Saisie manuelle");
+      setConfirmDesc("Diagnostic manuel");
       setScreen("confirmation");
       return;
     }
@@ -339,7 +348,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
         await supabase.from("notifications").insert({
           user_id: user.managerId,
           type: "saisie_skipped",
-          message: `${user.firstName} ${user.lastName} n'a pas saisi ses résultats cette semaine`,
+          message: `${user.firstName} ${user.lastName} n'a pas fait son diagnostic hebdomadaire cette semaine`,
         });
       } catch { /* notification is best-effort */ }
     }
@@ -368,8 +377,8 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
           <h2 className="text-xl font-bold text-foreground">Passer cette semaine ?</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {user?.managerId
-              ? "Votre manager sera notifié que vous n'avez pas saisi vos résultats."
-              : "Vous pourrez saisir vos résultats plus tard."}
+              ? "Votre manager sera notifié que vous n'avez pas fait votre diagnostic cette semaine."
+              : "Vous pourrez faire votre diagnostic plus tard."}
           </p>
           <div className="flex gap-3 w-full">
             <button
@@ -411,7 +420,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
             onClick={() => setScreen("mode")}
             className="w-full max-w-xs rounded-xl bg-primary px-8 py-4 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]"
           >
-            Démarrer mon bilan
+            Lancer mon diagnostic de la semaine
           </button>
           <div className="mt-4">{passBtn}</div>
         </div>
@@ -426,7 +435,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
         <div className={gradient} />
         <div className="relative z-10 flex max-w-lg flex-col items-center gap-10 px-6 text-center">
           <h2 className="text-xl font-bold text-foreground">
-            Comment tu veux saisir ?
+            Comment tu veux lancer ton diagnostic ?
           </h2>
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
             <button
@@ -464,7 +473,7 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
                 <PenLine className="h-7 w-7 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Saisir manuellement</p>
+                <p className="text-sm font-semibold text-foreground">Manuellement</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Question par question</p>
               </div>
             </button>

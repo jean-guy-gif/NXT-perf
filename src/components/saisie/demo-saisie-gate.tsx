@@ -13,7 +13,7 @@ interface DemoSaisieGateProps {
 const MODES = [
   { id: "vocal" as const, icon: Mic, emoji: "\u{1F3A4}", label: "Vocal", desc: "Dicter vos résultats à voix haute" },
   { id: "manuel" as const, icon: PenLine, emoji: "\u270F\uFE0F", label: "Manuel", desc: "Répondre question par question" },
-  { id: "tableau" as const, icon: Table2, emoji: "\u{1F4CA}", label: "Tableau", desc: "Saisie directe dans un tableau" },
+  { id: "tableau" as const, icon: Table2, emoji: "\u{1F4CA}", label: "Tableau", desc: "Renseigner directement dans un tableau" },
 ];
 
 const FIELDS = [
@@ -46,10 +46,10 @@ export function DemoSaisieGate({ onComplete }: DemoSaisieGateProps) {
         <div className="w-full max-w-2xl space-y-8">
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
-              Simulation de saisie hebdomadaire
+              Lance ton diagnostic de la semaine
             </h1>
             <p className="text-sm text-muted-foreground">
-              Choisissez votre mode de saisie
+              2 minutes pour identifier ton levier prioritaire
             </p>
           </div>
 
@@ -78,10 +78,10 @@ export function DemoSaisieGate({ onComplete }: DemoSaisieGateProps) {
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-xl font-bold text-foreground">
-            Saisie {MODES.find(m => m.id === mode)?.label}
+            Diagnostic — {MODES.find(m => m.id === mode)?.label}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Vos résultats de la semaine
+            Faisons le point sur ta semaine
           </p>
         </div>
 

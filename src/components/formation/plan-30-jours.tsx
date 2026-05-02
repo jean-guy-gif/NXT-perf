@@ -33,7 +33,7 @@ import {
   CircleDashed,
   BookOpen,
 } from "lucide-react";
-import { ResourceModal } from "@/components/formation/resource-modal";
+import { ActionObjectiveDrawer } from "@/components/conseiller/ameliorer/action-objective-drawer";
 import { buildResourceFromExpertise } from "@/data/action-resources";
 import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
@@ -591,14 +591,14 @@ function ActionRow({
       <button
         type="button"
         onClick={() => setResourceOpen(true)}
-        title="Voir la ressource associée"
-        aria-label="Voir la fiche associée à cette action"
+        title="Objectif de cette action"
+        aria-label="Objectif de cette action"
         className="flex shrink-0 items-center gap-1.5 self-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
       >
         <BookOpen className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Voir la fiche</span>
+        <span className="hidden sm:inline">Objectif de cette action</span>
       </button>
-      <ResourceModal
+      <ActionObjectiveDrawer
         open={resourceOpen}
         onClose={() => setResourceOpen(false)}
         title={resource.title}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useState } from "react";
+import { PlanProgressBadge } from "@/components/conseiller/layout/plan-progress-badge";
 
 interface LockedNavItemProps {
   feature: string;
@@ -15,11 +16,14 @@ interface LockedNavItemProps {
   collapsed: boolean;
 }
 
+const AMELIORER_HREF = "/conseiller/ameliorer";
+
 export function LockedNavItem({ feature, href, icon: Icon, label, isActive, collapsed }: LockedNavItemProps) {
   const { canAccess } = useSubscription();
   const [showToast, setShowToast] = useState(false);
 
   if (canAccess(feature)) {
+    const showAmeliorerBadge = href === AMELIORER_HREF;
     // Render normal nav item
     if (collapsed) {
       return (
@@ -37,6 +41,7 @@ export function LockedNavItem({ feature, href, icon: Icon, label, isActive, coll
             <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-agency-primary" />
           )}
           <Icon className="h-5 w-5" />
+          {showAmeliorerBadge && <PlanProgressBadge variant="dot" />}
           <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
             {label}
           </span>
@@ -58,6 +63,7 @@ export function LockedNavItem({ feature, href, icon: Icon, label, isActive, coll
         )}
         <Icon className="h-5 w-5 flex-shrink-0" />
         <span className="truncate">{label}</span>
+        {showAmeliorerBadge && <PlanProgressBadge variant="full" />}
       </Link>
     );
   }

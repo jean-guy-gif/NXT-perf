@@ -14,6 +14,7 @@ import { ModalitesTuiles } from "./modalites-tuiles";
 import { LeverHeader } from "./lever-header";
 import { LeverPicker } from "./lever-picker";
 import { CoachRdvCard } from "./coach-rdv-card";
+import { ChangeLeverConfirm } from "./change-lever-confirm";
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
@@ -35,7 +36,8 @@ export function AmeliorerAdaptiveFlow() {
   const { category } = useUser();
   const { computedRatios } = useRatios();
   const results = useResults();
-  const { getActivePlan, refresh, loading } = useImprovementResources();
+  const { resources, getActivePlan, refresh, loading, updateResource } =
+    useImprovementResources();
   const searchParams = useSearchParams();
   const preselectedRaw = searchParams.get("levier");
   const preselected =
@@ -44,6 +46,8 @@ export function AmeliorerAdaptiveFlow() {
       : null;
 
   const [showAgefice, setShowAgefice] = useState(false);
+  const [showChangeLever, setShowChangeLever] = useState(false);
+  const [archivingPlan, setArchivingPlan] = useState(false);
 
   // ─── État de chargement initial (P0.3) ───────────────────────────
   if (loading) {
@@ -51,6 +55,73 @@ export function AmeliorerAdaptiveFlow() {
   }
 
   const activePlan = getActivePlan();
+
+  const handleConfirmChangeLever = async () => {
+    if (!activePlan || archivingPlan) return;
+    setArchivingPlan(true);
+    const now = new Date().toISOString();
+    try {
+      // 1. Détacher un éventuel nxt_coaching lié à ce plan.
+      //    On cherche dans `resources` (toutes ressources) un nxt_coaching
+      //    dont le payload référence ce plan via `source_plan_id`.
+      //    Stati conservés tels quels (action déjà consommée ou hors plan) :
+      //      - human_coached : RDV déjà honoré
+      //      - subscribed    : abonnement actif hors plan
+      //      - cancelled     : déjà annulé
+      //      - debrief_used  : debrief IA déjà consommé
+      //      - none          : neutre
+      //    Stati passés en "cancelled" (en attente, non consommés) :
+      //      - debrief_offered, pending_human_coach
+      const coachings = resources.filter(
+        (r) => r.resource_type === "nxt_coaching"
+      );
+      for (const coaching of coachings) {
+        const payload = (coaching.payload ?? {}) as Record<string, unknown>;
+        if (payload.source_plan_id !== activePlan.id) continue;
+        const cancellableStatuses = new Set([
+          "debrief_offered",
+          "pending_human_coach",
+        ]);
+        const shouldCancel = cancellableStatuses.has(coaching.status);
+        if (shouldCancel) {
+          await updateResource(coaching.id, {
+            status: "cancelled",
+            payload: {
+              ...payload,
+              detached_from_plan_at: now,
+              detached_reason: "lever_changed",
+              cancelled_at: now,
+            },
+          });
+        } else {
+          // On conserve le statut, mais on marque le détachement dans payload
+          // pour traçabilité (cohérence : "ce coaching n'est plus rattaché
+          // à un plan actif").
+          await updateResource(coaching.id, {
+            payload: {
+              ...payload,
+              detached_from_plan_at: now,
+              detached_reason: "lever_changed",
+            },
+          });
+        }
+      }
+
+      // 2. Archiver le plan_30j actif.
+      await updateResource(activePlan.id, {
+        status: "expired",
+        archived_at: now,
+      });
+      // refresh est déjà appelé par updateResource — le re-render bascule
+      // automatiquement sur le mode no-plan (LeverPicker).
+      setShowChangeLever(false);
+    } catch {
+      // si erreur, on ferme la modal et on laisse l'utilisateur réessayer
+      setShowChangeLever(false);
+    } finally {
+      setArchivingPlan(false);
+    }
+  };
 
   const planMeta = activePlan
     ? (() => {
@@ -78,6 +149,7 @@ export function AmeliorerAdaptiveFlow() {
           targetValue={planMeta.target}
           estimatedGainEur={planMeta.gain}
           mode="plan-active"
+          onChangeLever={() => setShowChangeLever(true)}
         />
 
         <ModalitesTuiles state="plan" />
@@ -106,6 +178,13 @@ export function AmeliorerAdaptiveFlow() {
             formationOptions={FORMATION_OPTIONS}
           />
         )}
+
+        <ChangeLeverConfirm
+          open={showChangeLever}
+          onCancel={() => setShowChangeLever(false)}
+          onConfirm={handleConfirmChangeLever}
+          archiving={archivingPlan}
+        />
       </div>
     );
   }
