@@ -15,6 +15,7 @@ import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { CriticitePoint } from "@/lib/diagnostic-criticite";
+import { getTopPractices } from "@/lib/coaching/coach-brain";
 
 type DrawerMode = "single" | "list";
 
@@ -306,11 +307,49 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
         iconClass="text-emerald-500"
         title="Ce que font les meilleurs"
       >
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {expertise.bestPractices}
-        </p>
+        <BestPracticesContent expertiseId={verdict.id as ExpertiseRatioId} />
       </Panel>
     </div>
+  );
+}
+
+/**
+ * Affiche les top pratiques d'un levier via le coach-brain.
+ * - 1 seul item retourné → rendu en paragraphe (cas fallback narratif).
+ * - 2-3 items → rendu en liste à puces.
+ * - 0 item → message neutre (cas extrême, ne devrait jamais arriver).
+ */
+function BestPracticesContent({ expertiseId }: { expertiseId: ExpertiseRatioId }) {
+  const practices = getTopPractices(expertiseId, 3);
+
+  if (practices.length === 0) {
+    return (
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Pratiques terrain non disponibles pour ce levier.
+      </p>
+    );
+  }
+
+  if (practices.length === 1) {
+    return (
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {practices[0]}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-2">
+      {practices.map((p, i) => (
+        <li
+          key={i}
+          className="flex gap-2 text-sm leading-relaxed text-muted-foreground"
+        >
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60" />
+          {p}
+        </li>
+      ))}
+    </ul>
   );
 }
 
