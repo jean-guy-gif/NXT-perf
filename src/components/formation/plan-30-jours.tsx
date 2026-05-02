@@ -40,6 +40,7 @@ import {
   getTopPractices,
   getFirstAction,
 } from "@/lib/coaching/coach-brain";
+import { getActionContent } from "@/lib/coaching/action-brain";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
@@ -563,7 +564,15 @@ function ActionRow({
   painRatioId: string;
 }) {
   const [resourceOpen, setResourceOpen] = useState(false);
-  const resource = buildResourceFromExpertise(painRatioId);
+  // PR3.7.8 — Contenu spécifique par action via action-brain.
+  // Lookup hiérarchique : (expertiseId:actionId) → (:actionId) → fallback
+  // dérivé de RATIO_EXPERTISE. Si null, on retombe sur la fiche markdown
+  // legacy via buildResourceFromExpertise (backward compat).
+  const actionContent = getActionContent(
+    action.id,
+    painRatioId as ExpertiseRatioId
+  );
+  const fallbackResource = buildResourceFromExpertise(painRatioId);
 
   const status: Plan30jActionStatus =
     action.status ?? (action.done ? "done" : "todo");
@@ -604,9 +613,10 @@ function ActionRow({
       <ActionObjectiveDrawer
         open={resourceOpen}
         onClose={() => setResourceOpen(false)}
-        title={resource.title}
-        content={resource.content}
-        isPlaceholder={resource.isPlaceholder}
+        title={actionContent?.title ?? fallbackResource.title}
+        actionContent={actionContent}
+        content={fallbackResource.content}
+        isPlaceholder={fallbackResource.isPlaceholder}
       />
     </li>
   );
