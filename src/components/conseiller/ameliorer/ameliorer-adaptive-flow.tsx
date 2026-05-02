@@ -12,10 +12,12 @@ import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalog
 import { AgeficeWizard } from "@/components/formation/agefice-wizard";
 import { ModalitesTuiles } from "./modalites-tuiles";
 import { LeverHeader } from "./lever-header";
-import { CoachRdvCard } from "./coach-rdv-card";
 import { ChangeLeverConfirm } from "./change-lever-confirm";
 import { RecommendedLeverCard } from "./recommended-lever-card";
 import { OtherLeversList } from "./other-levers-list";
+import { ContinuityBlock } from "./continuity-block";
+import { CoachIaBlock } from "./coach-ia-block";
+import { FocusedTrainingBlock } from "./focused-training-block";
 import { findCriticitePoints } from "@/lib/diagnostic-criticite";
 import { volumeToRelatedRatio } from "@/lib/coaching/coach-brain";
 import {
@@ -151,6 +153,7 @@ export function AmeliorerAdaptiveFlow() {
   if (activePlan && planMeta) {
     return (
       <div className="space-y-6">
+        {/* 1. Header levier en cours (= levier recommandé pour le plan actif) */}
         <LeverHeader
           expertiseId={planMeta.expertiseId}
           currentValue={planMeta.current}
@@ -160,24 +163,34 @@ export function AmeliorerAdaptiveFlow() {
           onChangeLever={() => setShowChangeLever(true)}
         />
 
-        <ModalitesTuiles state="plan" />
-
+        {/* 2. Plan 30j détaillé — c'est l'action principale en mode plan-actif */}
         <section aria-label="Plan 30 jours détaillé">
           <Plan30Jours />
         </section>
 
-        <CoachRdvCard />
+        {/* 3. Coach IA — bloc discret "Tu veux aller plus vite ?" */}
+        <CoachIaBlock />
 
-        <section aria-label="Catalogue formations">
-          <h2 className="mb-3 text-lg font-bold text-foreground">
-            Aller plus loin — Formations
-          </h2>
-          <ImprovementCatalogue
-            ratioId={planMeta.expertiseId}
-            ratioName={RATIO_EXPERTISE[planMeta.expertiseId]?.label}
-          />
-        </section>
+        {/* 4. Modalités (tuiles M'entraîner / Me former à venir) */}
+        <ModalitesTuiles state="plan" />
 
+        {/* 5. Me former — formations contextuelles filtrées sur le levier actif */}
+        <FocusedTrainingBlock expertiseId={planMeta.expertiseId} />
+
+        {/* 6. Catalogue complet — replié, secondaire */}
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/40">
+            Catalogue complet
+          </summary>
+          <div className="border-t border-border px-5 py-4">
+            <ImprovementCatalogue
+              ratioId={planMeta.expertiseId}
+              ratioName={RATIO_EXPERTISE[planMeta.expertiseId]?.label}
+            />
+          </div>
+        </details>
+
+        {/* 7. Financement formation (option discrète) */}
         <FinancementCta onOpen={() => setShowAgefice(true)} />
 
         {showAgefice && (
@@ -335,6 +348,7 @@ function NoPlanFlow({
 
   return (
     <div className="space-y-6">
+      {/* 1. Levier recommandé cette semaine */}
       {recommended ? (
         <RecommendedLeverCard
           expertiseId={recommended.expertiseId}
@@ -355,6 +369,13 @@ function NoPlanFlow({
         </section>
       )}
 
+      {/* 2. Continuité — debrief du dernier plan archivé si récent */}
+      <ContinuityBlock />
+
+      {/* 3. Coach IA — bloc discret "Tu veux aller plus vite ?" */}
+      <CoachIaBlock />
+
+      {/* 4. Autres leviers (replié, max 3) */}
       {recommended && recommended.others.length > 0 && (
         <OtherLeversList
           others={recommended.others}
@@ -362,22 +383,33 @@ function NoPlanFlow({
         />
       )}
 
+      {/* 5. Modalités (M'entraîner / Me former à venir) */}
       <ModalitesTuiles state="none" />
 
-      <section aria-label="Catalogue formations">
-        <h2 className="mb-3 text-lg font-bold text-foreground">
-          Catalogue formations
-        </h2>
-        <ImprovementCatalogue
-          ratioId={recommended?.expertiseId ?? undefined}
-          ratioName={
-            recommended
-              ? RATIO_EXPERTISE[recommended.expertiseId]?.label
-              : undefined
-          }
-        />
-      </section>
+      {/* 6. Me former — formations contextuelles filtrées sur le levier
+            recommandé. Si pas de levier (état tout vert), bloc caché. */}
+      {recommended && (
+        <FocusedTrainingBlock expertiseId={recommended.expertiseId} />
+      )}
 
+      {/* 7. Catalogue complet — replié, secondaire */}
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/40">
+          Catalogue complet
+        </summary>
+        <div className="border-t border-border px-5 py-4">
+          <ImprovementCatalogue
+            ratioId={recommended?.expertiseId ?? undefined}
+            ratioName={
+              recommended
+                ? RATIO_EXPERTISE[recommended.expertiseId]?.label
+                : undefined
+            }
+          />
+        </div>
+      </details>
+
+      {/* 8. Financement formation (option) */}
       <FinancementCta onOpen={() => setShowAgefice(true)} />
 
       {showAgefice && (

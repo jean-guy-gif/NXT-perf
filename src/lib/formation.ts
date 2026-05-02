@@ -7,7 +7,7 @@ import type {
   Priority,
 } from "@/types/formation";
 
-const ratioToFormationArea: Record<RatioId, FormationArea> = {
+export const ratioToFormationArea: Record<RatioId, FormationArea> = {
   contacts_rdv: "prospection",
   rdv_mandats: "estimation",
   pct_mandats_exclusifs: "exclusivite",
@@ -18,7 +18,7 @@ const ratioToFormationArea: Record<RatioId, FormationArea> = {
   honoraires_moyens: "negociation",
 };
 
-const formationAreaLabels: Record<FormationArea, string> = {
+export const formationAreaLabels: Record<FormationArea, string> = {
   prospection: "Prospection",
   estimation: "Estimation",
   exclusivite: "Exclusivité",

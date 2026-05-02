@@ -23,6 +23,10 @@ import {
 } from "@/data/ratio-expertise";
 import { TOP_PRACTICES } from "@/lib/coaching/top-practices";
 import type { VolumeKey } from "@/lib/diagnostic-criticite";
+import { ratioToFormationArea } from "@/lib/formation";
+import { RATIO_ID_TO_EXPERTISE_ID } from "@/lib/ratio-to-expertise";
+import type { RatioId } from "@/types/ratios";
+import type { FormationArea } from "@/types/formation";
 
 const DEFAULT_MAX = 3;
 
@@ -57,6 +61,38 @@ export function volumeToRelatedRatio(
   volumeKey: VolumeKey
 ): ExpertiseRatioId | null {
   return VOLUME_TO_RATIO[volumeKey] ?? null;
+}
+
+// ─── Mapping ExpertiseRatioId → FormationArea ────────────────────────────
+
+/**
+ * Reverse map ExpertiseRatioId → RatioId (legacy) calculé une fois au load.
+ * Sert de pont vers `ratioToFormationArea` qui n'expose que des RatioId.
+ */
+const EXPERTISE_TO_RATIO_ID: Partial<Record<ExpertiseRatioId, RatioId>> = (
+  Object.entries(RATIO_ID_TO_EXPERTISE_ID) as [RatioId, ExpertiseRatioId | null][]
+).reduce(
+  (acc, [ratioId, expertiseId]) => {
+    if (expertiseId) acc[expertiseId] = ratioId;
+    return acc;
+  },
+  {} as Partial<Record<ExpertiseRatioId, RatioId>>
+);
+
+/**
+ * Retourne l'axe formation associé à un levier expert.
+ * Pont entre le cerveau coach (ExpertiseRatioId) et le système formation
+ * (FormationArea).
+ *
+ * Utilisé par FocusedTrainingBlock pour filtrer le catalogue formations
+ * selon le levier recommandé du jour.
+ */
+export function expertiseToFormationArea(
+  expertiseId: ExpertiseRatioId
+): FormationArea | null {
+  const ratioId = EXPERTISE_TO_RATIO_ID[expertiseId];
+  if (!ratioId) return null;
+  return ratioToFormationArea[ratioId] ?? null;
 }
 
 // ─── Helpers internes ────────────────────────────────────────────────────
