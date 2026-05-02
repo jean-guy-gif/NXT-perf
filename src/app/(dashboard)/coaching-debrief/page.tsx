@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -19,6 +19,12 @@ import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 export default function CoachingDebriefPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Mode "Revoir ce plan" depuis Ma Progression (PR3.7.3) : ?planId=<uuid>&readonly=1
+  const queryPlanId = searchParams.get("planId");
+  // Any direct planId access is treated as archived/read-only consultation.
+  // Interactive debrief flows should come from active coaching state, not query planId.
+  const isReadonly = searchParams.get("readonly") === "1" || !!queryPlanId;
   const user = useAppStore((s) => s.user);
   const allResults = useAppStore((s) => s.results);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
@@ -42,8 +48,12 @@ export default function CoachingDebriefPage() {
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   const nxtCoaching = getNxtCoachingResource();
+  // En mode readonly + queryPlanId, on bypass la résolution via nxt_coaching
+  // et on fetch directement le plan demandé depuis l'URL.
   const sourcePlanId =
-    (nxtCoaching?.payload as { source_plan_id?: string } | null)?.source_plan_id ?? null;
+    queryPlanId ??
+    ((nxtCoaching?.payload as { source_plan_id?: string } | null)
+      ?.source_plan_id ?? null);
 
   // Fetch archived plan
   useEffect(() => {
@@ -131,6 +141,12 @@ export default function CoachingDebriefPage() {
   };
 
   const handleClose = async () => {
+    // En mode readonly (consultation depuis Ma Progression), on ne consomme PAS
+    // le debrief — la nxt_coaching ne doit pas changer d'état.
+    if (isReadonly) {
+      router.push("/conseiller/progression");
+      return;
+    }
     if (nxtCoaching && nxtCoaching.status === "debrief_offered") {
       const now = new Date().toISOString();
       const currentPayload = (nxtCoaching.payload as Record<string, unknown>) ?? {};
@@ -218,8 +234,10 @@ export default function CoachingDebriefPage() {
     );
   }
 
-  // Pas de ressource nxt_coaching → rien à debriefer
-  if (!nxtCoaching) {
+  // Pas de ressource nxt_coaching → rien à debriefer.
+  // En mode readonly avec un planId explicite, on bypass cette garde
+  // (on consulte un plan archivé sans avoir besoin du contexte coaching).
+  if (!nxtCoaching && !isReadonly) {
     return (
       <EmptyState
         title="Aucun debrief disponible"
@@ -257,8 +275,9 @@ export default function CoachingDebriefPage() {
         debrief={debrief}
         onClose={handleClose}
         onRequestHumanCoach={handleRequestHumanCoach}
+        readonly={isReadonly}
       />
-      {isDemoMode && (
+      {isDemoMode && !isReadonly && (
         <div className="mx-auto flex max-w-3xl justify-center px-6 pb-6">
           <button
             type="button"

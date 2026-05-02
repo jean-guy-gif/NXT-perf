@@ -16,6 +16,12 @@ interface PlanDebriefScreenProps {
   debrief: PlanDebriefResult;
   onClose: () => void;
   onRequestHumanCoach: () => Promise<void>;
+  /**
+   * Mode lecture seule : utilisé pour "Revoir ce plan" depuis Ma Progression.
+   * Désactive les CTA interactifs (RDV, debrief), affiche un bandeau
+   * "Plan archivé" et bascule le bouton bas en "Retour à Ma progression".
+   */
+  readonly?: boolean;
 }
 
 function hasFieldGains(debrief: PlanDebriefResult): boolean {
@@ -43,6 +49,7 @@ export function PlanDebriefScreen({
   debrief,
   onClose,
   onRequestHumanCoach,
+  readonly = false,
 }: PlanDebriefScreenProps) {
   const [calendarOpened, setCalendarOpened] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -75,6 +82,13 @@ export function PlanDebriefScreen({
           Focalisé sur : <span className="font-medium text-foreground">{debrief.ratioLabel}</span>
         </p>
       </div>
+
+      {readonly && (
+        <div className="rounded-lg border border-muted-foreground/30 bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
+          <span aria-hidden="true">📁</span> Mode consultation — plan archivé, aucune
+          action n'est plus nécessaire ici.
+        </div>
+      )}
 
       {/* SECTION 1 — Ton plan en chiffres */}
       <section className="space-y-4 rounded-lg border border-border bg-card p-6">
@@ -173,7 +187,23 @@ export function PlanDebriefScreen({
         )}
       </section>
 
-      {/* SECTION 3 — Et après ? */}
+      {/* SECTION 3 — Et après ? (cachée en mode readonly — plan archivé,
+          on n'incite pas à prendre RDV ou cliquer pour fermer) */}
+      {readonly ? (
+        <section className="space-y-3 rounded-lg border border-border bg-card p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Ce plan est archivé. Tu peux retourner à Ma progression pour
+            consulter ton historique complet ou lancer un nouveau plan.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Retour à Ma progression
+          </button>
+        </section>
+      ) : (
       <section className="space-y-4 rounded-lg border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-blue-500/5 p-6">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Users className="h-5 w-5 text-primary" />
@@ -289,6 +319,7 @@ export function PlanDebriefScreen({
           </>
         )}
       </section>
+      )}
     </div>
   );
 }

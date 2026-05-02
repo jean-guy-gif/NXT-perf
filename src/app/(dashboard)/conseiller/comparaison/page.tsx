@@ -168,9 +168,33 @@ export default function ConseillerComparaisonPage() {
   const caDeltaPct =
     otherVerdict.ca > 0 ? Math.round((caDelta / otherVerdict.ca) * 100) : 0;
 
-  const volumeAxes = useMemo(
+  // PR3.7.3 Q5 : pondération mensuelle automatique sur les VOLUMES uniquement.
+  //   - Semaine (monthsInPeriod=0.25) : ×4.33 (projection mensuelle)
+  //   - Mois (=1) : valeur brute
+  //   - Trimestre (=3) : ÷3
+  //   - Semestre (=6) : ÷6
+  //   - Année (=12) : ÷12
+  // Les ratios (taux de transformation) restent calculés sur la période,
+  // pas de division.
+  const monthlyFactor = useMemo(() => {
+    const m = periodBounds.monthsInPeriod;
+    if (m <= 0) return 1;
+    if (m < 1) return 4.33; // semaine -> projection mensuelle 4.33×
+    return 1 / m;
+  }, [periodBounds]);
+
+  const rawVolumeAxes = useMemo(
     () => buildVolumeAxes(myAggregated, otherAggregated),
     [myAggregated, otherAggregated]
+  );
+  const volumeAxes = useMemo(
+    () =>
+      rawVolumeAxes.map((a) => ({
+        ...a,
+        me: Math.round(a.me * monthlyFactor),
+        other: Math.round(a.other * monthlyFactor),
+      })),
+    [rawVolumeAxes, monthlyFactor]
   );
   const ratioAxes = useMemo(
     () => buildEfficiencyAxes(myAggregated, otherAggregated),
@@ -297,8 +321,9 @@ export default function ConseillerComparaisonPage() {
             <section className="rounded-xl border border-border bg-card p-5">
               <h2 className="text-sm font-semibold text-foreground">Volumes</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Volumes absolus sur la période — plus le polygone est grand,
-                plus l'activité est intense.
+                Volumes ramenés à une base mensuelle moyenne pour comparer des
+                périodes différentes — plus le polygone est grand, plus
+                l'activité est intense.
               </p>
               <div className="mt-4 flex justify-center">
                 <ComparisonRadar
