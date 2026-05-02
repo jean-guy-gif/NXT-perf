@@ -18,6 +18,8 @@ import {
 } from "@/lib/diagnostic-criticite";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
 import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-drawer";
+import { ActivePlanCard } from "@/components/conseiller/diagnostic/active-plan-card";
+import { KeyFiguresAccordion } from "@/components/conseiller/diagnostic/key-figures-accordion";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import { useMemo } from "react";
 
@@ -96,6 +98,10 @@ export function DiagnosticVerdictView() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4">
+      {/* PR3.7 Q7=A : carte détaillée du plan en cours, AVANT le verdict.
+          Le PersistentPlanBanner du layout reste visible en parallèle. */}
+      <ActivePlanCard />
+
       {criticite.top ? (
         <DiagnosticVerdictCard
           verdictPoint={criticite.top}
@@ -121,6 +127,10 @@ export function DiagnosticVerdictView() {
           {toast}
         </div>
       )}
+
+      {/* PR3.7 Q1=C : accordéon replié par défaut, déplie toggles V/R, période,
+          KPI cards colorées, flux de production et mini-DPI. */}
+      <KeyFiguresAccordion />
 
       <WhyDangerDrawer
         open={drawerMode !== null}
