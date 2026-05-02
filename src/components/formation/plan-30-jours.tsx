@@ -36,6 +36,10 @@ import {
 import { ActionObjectiveDrawer } from "@/components/conseiller/ameliorer/action-objective-drawer";
 import { buildResourceFromExpertise } from "@/data/action-resources";
 import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
+import {
+  getTopPractices,
+  getFirstAction,
+} from "@/lib/coaching/coach-brain";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
@@ -392,18 +396,17 @@ export function Plan30Jours() {
         </div>
       </div>
 
-      {/* Diagnostic / best practices */}
+      {/* PR3.7.7 — "Comment réussir ce levier" :
+          Bloc UNIQUE en haut du plan. Compréhension condensée :
+          - 3 bullets actionnables via getTopPractices (coach-brain)
+          - 1 phrase "Première action concrète" via getFirstAction
+          Remplace l'ancien bloc Diagnostic / bestPractices narratif redondant
+          avec la fiche par-action. */}
       {painExpertise && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Diagnostic</p>
-            <p className="mt-1 text-sm text-foreground leading-relaxed">{painExpertise.diagnosis}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Ce que font les meilleurs</p>
-            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{painExpertise.bestPractices}</p>
-          </div>
-        </div>
+        <HowToSucceedBlock
+          expertiseId={localPayload.pain_ratio_id as ExpertiseRatioId}
+          label={painExpertise.label}
+        />
       )}
 
       {/* Progression globale */}
@@ -591,12 +594,12 @@ function ActionRow({
       <button
         type="button"
         onClick={() => setResourceOpen(true)}
-        title="Objectif de cette action"
-        aria-label="Objectif de cette action"
+        title="Pourquoi cette action ?"
+        aria-label="Pourquoi cette action ?"
         className="flex shrink-0 items-center gap-1.5 self-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
       >
         <BookOpen className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Objectif de cette action</span>
+        <span className="hidden sm:inline">Pourquoi cette action ?</span>
       </button>
       <ActionObjectiveDrawer
         open={resourceOpen}
@@ -747,6 +750,66 @@ function Toast({ state, onDismiss }: { state: NonNullable<ToastState>; onDismiss
       >
         Fermer
       </button>
+    </div>
+  );
+}
+
+/**
+ * HowToSucceedBlock — bloc de compréhension UNIQUE en haut du plan
+ * (PR3.7.7). Affiche 3 bullets terrain via le coach-brain, plus
+ * la "première action concrète" si disponible.
+ *
+ * Lu une seule fois. Chaque action du plan ouvre ensuite le drawer
+ * "Pourquoi cette action ?" qui contient la fiche détaillée.
+ */
+function HowToSucceedBlock({
+  expertiseId,
+  label,
+}: {
+  expertiseId: ExpertiseRatioId;
+  label: string;
+}) {
+  const tops = getTopPractices(expertiseId, 3);
+  const first = getFirstAction(expertiseId);
+
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+          Comment réussir ce levier
+        </p>
+      </div>
+      <h3 className="mt-1 text-sm font-bold text-foreground">{label}</h3>
+
+      {tops.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {tops.map((p, i) => (
+            <li
+              key={i}
+              className="flex gap-2 text-sm leading-relaxed text-foreground"
+            >
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+              {p}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          Pratiques terrain non disponibles pour ce levier.
+        </p>
+      )}
+
+      {first && (
+        <div className="mt-4 rounded-lg border border-primary/20 bg-background px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+            Première action concrète
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-foreground">
+            {first}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
