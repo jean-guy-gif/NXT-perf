@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamActivationSlides } from "./team-activation-slides";
+import { NxtTrainingCta } from "./nxt-training-cta";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { KitKind } from "@/lib/coaching/team-activation-kit";
 import type {
@@ -355,6 +356,13 @@ export function TeamActivationSteps({
                     </button>
                   )}
                 </div>
+
+                {/* CTA NXT Training — uniquement sur la card "Mise en pratique" */}
+                {card.kind === "practice" && (
+                  <div className="mt-2">
+                    <NxtTrainingCta />
+                  </div>
+                )}
 
                 {/* Message discret quand Gamma a réussi mais sans exportUrl encore */}
                 {state.status === "success" &&

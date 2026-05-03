@@ -10,6 +10,12 @@ interface TeamActionPlanProps {
   leverLabel: string;
   /** Nombre max d'actions affichées (default 3). */
   max?: number;
+  /**
+   * Callback déclenché au clic "Lancer ce plan avec mon équipe". Permet à
+   * la page d'activer l'affichage du bloc "Tout est prêt pour animer..."
+   * (PR3.8 follow-up — gating supports d'animation).
+   */
+  onPlanStarted?: () => void;
 }
 
 /**
@@ -26,6 +32,7 @@ export function TeamActionPlan({
   expertiseId,
   leverLabel,
   max = 3,
+  onPlanStarted,
 }: TeamActionPlanProps) {
   const actions = getTeamActions(expertiseId, max);
   const [launched, setLaunched] = useState(false);
@@ -40,6 +47,7 @@ export function TeamActionPlan({
     });
     setLaunched(true);
     window.setTimeout(() => setLaunched(false), 4000);
+    onPlanStarted?.();
   };
 
   return (

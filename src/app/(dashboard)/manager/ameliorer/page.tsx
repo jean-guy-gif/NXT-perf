@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Wrench, Sparkles, Users } from "lucide-react";
 import { ManagerViewSwitcher } from "@/components/manager/manager-view-switcher";
@@ -11,18 +11,26 @@ import { TeamActionPlan } from "@/components/manager/ameliorer/team-action-plan"
 import { TeamActivationSteps } from "@/components/manager/ameliorer/team-activation-steps";
 import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
 import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
-import { AmeliorerAdaptiveFlow } from "@/components/conseiller/ameliorer/ameliorer-adaptive-flow";
+import { ManagerIndividualAmeliorerView } from "@/components/manager/ameliorer/manager-individual-ameliorer-view";
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
 } from "@/data/ratio-expertise";
 
 /**
- * Manager — Faire progresser mon équipe (PR3.8.4).
+ * Manager — Faire progresser mon équipe (PR3.8 follow-up).
  *
- * Mode Collectif : plan d'action équipe sur le levier prioritaire (query
- * param `?levier=` ou fallback `useTeamDiagnostic().top`).
- * Mode Individuel : stub PR3.8.2 inchangé.
+ * Mode Collectif :
+ *   - "Plan d'action pour votre équipe" toujours visible.
+ *   - "Tout est prêt pour animer votre équipe" déplié uniquement après
+ *     clic "Lancer ce plan avec mon équipe" (gating teamPlanStarted,
+ *     persisté en localStorage par levier).
+ *
+ * Mode Individuel :
+ *   - On rend `ManagerIndividualAmeliorerView` (lecture seule du plan
+ *     conseiller + bloc "Préparer mon coaching individuel"), pas
+ *     `AmeliorerAdaptiveFlow` — le manager n'a pas à créer un plan à la
+ *     place du conseiller.
  */
 export default function ManagerAmeliorerPage() {
   const { isIndividual, selectedAdvisor, selectedAdvisorId } = useManagerView();
@@ -39,7 +47,7 @@ export default function ManagerAmeliorerPage() {
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           {isIndividual && selectedAdvisor
-            ? `Actions ciblées pour faire progresser ${selectedAdvisor.firstName} ${selectedAdvisor.lastName}.`
+            ? `Accompagnement individuel de ${selectedAdvisor.firstName} ${selectedAdvisor.lastName}.`
             : "Plan d'action collectif sur le levier prioritaire de votre équipe."}
         </p>
       </header>
@@ -49,9 +57,7 @@ export default function ManagerAmeliorerPage() {
       {isIndividual ? (
         selectedAdvisorId ? (
           <ConseillerProxy advisorId={selectedAdvisorId}>
-            <Suspense fallback={null}>
-              <AmeliorerAdaptiveFlow />
-            </Suspense>
+            <ManagerIndividualAmeliorerView />
           </ConseillerProxy>
         ) : (
           <NoAdvisorSelected />
@@ -79,6 +85,40 @@ function CollectiveAmeliorer() {
   const leverLabel = expertiseId
     ? RATIO_EXPERTISE[expertiseId]?.label ?? null
     : null;
+
+  // PR3.8 follow-up — gating "supports d'animation" : seulement après
+  // clic explicite "Lancer ce plan avec mon équipe". Persistance par levier
+  // (localStorage manager-team-plan-started-{expertiseId}).
+  const [teamPlanStarted, setTeamPlanStarted] = useState(false);
+
+  useEffect(() => {
+    if (!expertiseId) {
+      setTeamPlanStarted(false);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(
+        `manager-team-plan-started-${expertiseId}`,
+      );
+      setTeamPlanStarted(raw === "true");
+    } catch {
+      setTeamPlanStarted(false);
+    }
+  }, [expertiseId]);
+
+  const handlePlanStarted = () => {
+    setTeamPlanStarted(true);
+    if (!expertiseId) return;
+    try {
+      localStorage.setItem(
+        `manager-team-plan-started-${expertiseId}`,
+        "true",
+      );
+    } catch {
+      // localStorage indisponible — on garde l'état en mémoire.
+    }
+  };
 
   // Empty state — équipe vide en prod réel
   if (totalAdvisors === 0 && !isDemo) {
@@ -125,9 +165,39 @@ function CollectiveAmeliorer() {
 
   return (
     <div className="space-y-6">
-      <TeamActionPlan expertiseId={expertiseId} leverLabel={leverLabel} max={3} />
-      <TeamActivationSteps expertiseId={expertiseId} />
+      <TeamActionPlan
+        expertiseId={expertiseId}
+        leverLabel={leverLabel}
+        max={3}
+        onPlanStarted={handlePlanStarted}
+      />
+
+      {teamPlanStarted ? (
+        <TeamActivationSteps expertiseId={expertiseId} />
+      ) : (
+        <ActivationTeaser />
+      )}
     </div>
   );
 }
 
+/**
+ * Teaser court de "Comment l'activer concrètement" tant que le manager n'a
+ * pas cliqué "Lancer ce plan". Le bloc complet (3 cartes lanceur Gamma /
+ * slides / NXT Training) ne s'affiche qu'après l'engagement.
+ */
+function ActivationTeaser() {
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5">
+      <h3 className="text-sm font-semibold text-foreground">
+        Comment l&apos;activer concrètement
+      </h3>
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+        Réunion d&apos;équipe → Mise en pratique → 4 points hebdo. Cliquez
+        sur <span className="font-semibold text-foreground">« Lancer ce
+        plan avec mon équipe »</span> ci-dessus pour récupérer les supports
+        prêts à utiliser.
+      </p>
+    </div>
+  );
+}
