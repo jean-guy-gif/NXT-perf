@@ -42,10 +42,18 @@ function parseArgs(argv: string[]): CliOptions {
     dryRun: false,
     force: false,
   };
-  for (const arg of argv) {
+  // Supporte les deux formats : `--limit=N` (egal) et `--limit N` (espace).
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
     if (arg.startsWith("--limit=")) {
       const n = Number(arg.slice("--limit=".length));
       if (Number.isFinite(n) && n > 0) opts.limit = n;
+    } else if (arg === "--limit" && i + 1 < argv.length) {
+      const n = Number(argv[i + 1]);
+      if (Number.isFinite(n) && n > 0) {
+        opts.limit = n;
+        i++; // skip la valeur consommée
+      }
     } else if (arg === "--dry-run") {
       opts.dryRun = true;
     } else if (arg === "--force") {

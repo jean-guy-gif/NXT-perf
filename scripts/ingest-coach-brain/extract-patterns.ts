@@ -17,6 +17,26 @@
 import { ALL_AXES, ALL_EXPERTISE_IDS } from "./types";
 import type { Axis, ExpertiseRatioId, ExtractedPattern, ExtractionResult } from "./types";
 
+/**
+ * Garantit qu'une valeur de header HTTP est ASCII-only (compatible
+ * `fetch` qui exige une `ByteString`, code points 0..255). Les caractères
+ * non-ASCII fréquents (em dash —, accents, etc.) sont remplacés par leur
+ * équivalent ASCII si possible, sinon supprimés.
+ *
+ * Solution déterministe : NFKD-normalisation + suppression des marks +
+ * remplacement des tirets longs/courts unicode + filtrage final.
+ */
+function toAsciiHeader(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[‐-―]/g, "-") // tous les tirets unicode (—, –, ‒, …) → "-"
+    .replace(/[‘’]/g, "'") // guillemets typographiques simples
+    .replace(/[“”]/g, '"') // guillemets typographiques doubles
+    .replace(/[ ]/g, " ") // espace insécable → espace
+    .replace(/[̀-ͯ]/g, "") // marks de combinaison (accents)
+    .replace(/[^\x00-\x7F]/g, ""); // suppression de tout reste non-ASCII
+}
+
 interface RawPattern {
   expertise_id: unknown;
   axis: unknown;
@@ -71,8 +91,10 @@ export async function extractPatterns(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.openrouterApiKey}`,
-      "HTTP-Referer": "https://nxt-performance.app",
-      "X-Title": "NXT Performance — Coach Brain Ingestion",
+      "HTTP-Referer": toAsciiHeader("https://nxt-performance.app"),
+      // Tiret long "—" interdit par fetch (ByteString ASCII-only). Tout
+      // header est passé via toAsciiHeader pour neutraliser le risque.
+      "X-Title": toAsciiHeader("NXT Performance - Coach Brain Ingestion"),
     },
     body: JSON.stringify({
       model: config.openrouterModel,
