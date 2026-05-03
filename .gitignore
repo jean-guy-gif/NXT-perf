@@ -67,3 +67,6 @@ skills-lock.json
 
 # Sources XLSX de référentiels (donnée déjà transformée en TS)
 scripts/*.xlsx
+
+# Coach brain ingestion runtime state (file IDs déjà ingérés)
+scripts/ingest-coach-brain/state.json
