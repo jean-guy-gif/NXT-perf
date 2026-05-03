@@ -49,6 +49,12 @@ const KIND_ADDITIONAL: Record<KitKind, string> = {
 const STYLE_INSTRUCTIONS =
   "Style visuel : haut de gamme, sobre, premium. Texte très lisible, titres très grands, peu de texte par slide. Maximum 3 bullets par slide. Style professionnel immobilier / coaching commercial. Éviter les longs paragraphes.";
 
+// PR3.8.6 follow-up #5 — instructions fortes pour forcer Gamma à conserver
+// les chiffres tels quels et les afficher visuellement en grand. Sans cela,
+// Gamma peut paraphraser ou résumer les données chiffrées.
+const NUMERIC_INSTRUCTIONS =
+  "Do not omit numerical data. Always display the exact values provided. If numerical values are provided, they must be displayed prominently in the slide using large typography. Do not rewrite or remove the provided numbers. Keep numerical data exact and visible.";
+
 const STATUS_LABEL: Record<NonNullable<TeamKitContext["rhythmStatus"]>, string> = {
   behind: "En retard",
   on_track: "Dans le rythme",
@@ -120,69 +126,98 @@ function buildMeetingPrompt(
     ].join("\n"),
   );
 
-  // 2. Constat équipe (avec chiffres si fournis, sinon bullets génériques)
-  const constatBullets: string[] = [];
-  if (context && (isFiniteNumber(context.realised) || isFiniteNumber(context.toDate))) {
-    if (isFiniteNumber(context.realised))
-      constatBullets.push(`Réalisé équipe : ${fmtInt(context.realised)}`);
-    if (isFiniteNumber(context.toDate))
-      constatBullets.push(`Objectif à date : ${fmtInt(context.toDate)}`);
-    if (isFiniteNumber(context.monthly))
-      constatBullets.push(`Objectif mensuel : ${fmtInt(context.monthly)}`);
-    if (isFiniteNumber(context.gapPct))
-      constatBullets.push(`Écart : ${fmtPct(context.gapPct)}`);
-    if (context.rhythmStatus)
-      constatBullets.push(`Statut : ${STATUS_LABEL[context.rhythmStatus]}`);
+  // 2. Constat équipe — FORMAT FORCÉ label/value sur lignes séparées quand
+  // des chiffres sont fournis. Gamma doit afficher les valeurs telles
+  // quelles, en grand (cf. NUMERIC_INSTRUCTIONS dans additionalInstructions).
+  // Si aucun chiffre n'est fourni, fallback sur les bullets génériques du kit.
+  const hasNumericContext =
+    context &&
+    (isFiniteNumber(context.realised) ||
+      isFiniteNumber(context.toDate) ||
+      isFiniteNumber(context.monthly) ||
+      isFiniteNumber(context.gapPct) ||
+      !!context.rhythmStatus);
+  const constatLines: string[] = ["## Constat équipe", ""];
+  if (hasNumericContext && context) {
+    const realisedStr = isFiniteNumber(context.realised)
+      ? fmtInt(context.realised)
+      : "—";
+    const toDateStr = isFiniteNumber(context.toDate)
+      ? fmtInt(context.toDate)
+      : "—";
+    const monthlyStr = isFiniteNumber(context.monthly)
+      ? fmtInt(context.monthly)
+      : "—";
+    const gapStr = isFiniteNumber(context.gapPct)
+      ? fmtPct(context.gapPct)
+      : "—";
+    const statusStr = context.rhythmStatus
+      ? STATUS_LABEL[context.rhythmStatus]
+      : "—";
+    constatLines.push(
+      `**Réalisé équipe :**`,
+      realisedStr,
+      ``,
+      `**Objectif à date :**`,
+      toDateStr,
+      ``,
+      `**Objectif mensuel :**`,
+      monthlyStr,
+      ``,
+      `**Écart :**`,
+      gapStr,
+      ``,
+      `**Statut :**`,
+      statusStr,
+    );
   } else {
-    constatBullets.push(...(kit.sections[0]?.bullets ?? []));
+    for (const b of kit.sections[0]?.bullets ?? []) {
+      constatLines.push(`- ${b}`);
+    }
   }
-  slides.push(["## Constat équipe", "", ...constatBullets.map((b) => `- ${b}`)].join("\n"));
+  slides.push(constatLines.join("\n"));
 
-  // 3. Pourquoi ce levier est prioritaire (ratio + causes)
-  const pourquoiBullets: string[] = [];
-  if (context?.ratio) {
+  // 3. Pourquoi ce levier est prioritaire — ratio en label/value forcé +
+  // 3 causes en bullets. Format mixte délibéré : on veut que les chiffres
+  // ratio sortent visuellement de la liste à puces.
+  const pourquoiLines: string[] = ["## Pourquoi ce levier est prioritaire", ""];
+  if (
+    context?.ratio &&
+    isFiniteNumber(context.ratio.teamAvg) &&
+    isFiniteNumber(context.ratio.target)
+  ) {
     const r = context.ratio;
     const unit = r.isPercentage ? " %" : "";
-    if (isFiniteNumber(r.teamAvg) && isFiniteNumber(r.target)) {
-      pourquoiBullets.push(
-        `Ratio « ${r.label} » — moyenne équipe ${fmtInt(r.teamAvg)}${unit} vs cible ${fmtInt(r.target)}${unit}.`,
-      );
-    } else if (r.label) {
-      pourquoiBullets.push(`Ratio concerné : « ${r.label} ».`);
-    }
+    pourquoiLines.push(
+      `**Ratio équipe :** ${fmtInt(r.teamAvg)}${unit}`,
+      `**Objectif :** ${fmtInt(r.target)}${unit}`,
+      ``,
+    );
+  } else if (context?.ratio?.label) {
+    pourquoiLines.push(`**Ratio concerné :** « ${context.ratio.label} »`, ``);
   }
-  for (const c of causes.slice(0, 3)) pourquoiBullets.push(c);
-  slides.push(
-    [
-      "## Pourquoi ce levier est prioritaire",
-      "",
-      ...pourquoiBullets.slice(0, 4).map((b) => `- ${b}`),
-    ].join("\n"),
-  );
+  for (const c of causes.slice(0, 3)) pourquoiLines.push(`- ${c}`);
+  slides.push(pourquoiLines.join("\n"));
 
-  // 4. S'appuyer sur ce qui fonctionne déjà (conseiller référent)
+  // 4. S'appuyer sur ce qui fonctionne déjà — conseiller référent avec
+  // chiffres en label/value forcé.
   if (context?.refAdvisor && context.refAdvisor.name) {
     const ra = context.refAdvisor;
-    const refBullets: string[] = [];
-    refBullets.push(
-      ra.levelLabel
-        ? `Conseiller référent : ${ra.name} (${ra.levelLabel}).`
-        : `Conseiller référent : ${ra.name}.`,
+    const refLines: string[] = ["## S'appuyer sur ce qui fonctionne déjà", ""];
+    refLines.push(
+      `**Top performer :** ${ra.name}${ra.levelLabel ? ` (${ra.levelLabel})` : ""}`,
     );
     if (isFiniteNumber(ra.ratioValue)) {
-      refBullets.push(`Son résultat sur ce levier : ${fmtInt(ra.ratioValue)}.`);
+      refLines.push(`**Résultat :** ${fmtInt(ra.ratioValue)}`);
     }
     if (isFiniteNumber(ra.gapVsAvgPct)) {
-      refBullets.push(`Écart vs moyenne équipe : ${fmtPct(ra.gapVsAvgPct)}.`);
+      refLines.push(`**Écart vs moyenne équipe :** ${fmtPct(ra.gapVsAvgPct)}`);
     }
-    refBullets.push("À dupliquer : sa préparation et sa rigueur dans la séquence-clé.");
-    slides.push(
-      [
-        "## S'appuyer sur ce qui fonctionne déjà",
-        "",
-        ...refBullets.slice(0, 4).map((b) => `- ${b}`),
-      ].join("\n"),
+    refLines.push(
+      ``,
+      `À dupliquer : sa préparation et sa rigueur dans la séquence-clé.`,
     );
+    slides.push(refLines.join("\n"));
   }
 
   // 5. 3 actions à appliquer cette semaine
@@ -217,7 +252,7 @@ function buildMeetingPrompt(
   return {
     inputText,
     numCards: slides.length,
-    additionalInstructions: `${KIND_ADDITIONAL.meeting} ${STYLE_INSTRUCTIONS}`,
+    additionalInstructions: `${KIND_ADDITIONAL.meeting} ${STYLE_INSTRUCTIONS} ${NUMERIC_INSTRUCTIONS}`,
   };
 }
 
@@ -241,7 +276,7 @@ function buildPracticePrompt(
   return {
     inputText: slides.join("\n\n---\n\n"),
     numCards: slides.length,
-    additionalInstructions: `${KIND_ADDITIONAL.practice} ${STYLE_INSTRUCTIONS}`,
+    additionalInstructions: `${KIND_ADDITIONAL.practice} ${STYLE_INSTRUCTIONS} ${NUMERIC_INSTRUCTIONS}`,
   };
 }
 
@@ -265,7 +300,7 @@ function buildWeeklyPrompt(
   return {
     inputText: slides.join("\n\n---\n\n"),
     numCards: slides.length,
-    additionalInstructions: `${KIND_ADDITIONAL.weekly} ${STYLE_INSTRUCTIONS}`,
+    additionalInstructions: `${KIND_ADDITIONAL.weekly} ${STYLE_INSTRUCTIONS} ${NUMERIC_INSTRUCTIONS}`,
   };
 }
 
