@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, Dumbbell, FileText, LineChart, PlayCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Calendar,
+  Dumbbell,
+  ExternalLink,
+  FileText,
+  Loader2,
+  LineChart,
+  PlayCircle,
+  Sparkles,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamActivationSlides } from "./team-activation-slides";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { KitKind } from "@/lib/coaching/team-activation-kit";
+import type {
+  GammaGenerationResult,
+  GammaGenerateRequestBody,
+  TeamKitContext,
+} from "@/types/gamma";
 
 interface KitCard {
   kind: KitKind;
@@ -41,18 +55,191 @@ const CARDS: KitCard[] = [
 interface TeamActivationStepsProps {
   /** Levier prioritaire — null = bloc masqué. */
   expertiseId: ExpertiseRatioId | null;
+  /**
+   * Contexte équipe à transmettre à Gamma (chiffres réels). Optionnel — si
+   * non fourni, le serveur utilise des libellés génériques. Le serveur
+   * recalcule TOUT le contenu de référence (label, causes, actions) à
+   * partir d'`expertiseId`.
+   */
+  gammaContext?: TeamKitContext;
+}
+
+type GammaUiState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; result: GammaGenerationResult }
+  | { status: "error"; message: string };
+
+const POLL_MAX_ATTEMPTS = 30; // ~ 90 s à 3 s d'intervalle après le bref poll serveur
+const POLL_INTERVAL_MS = 3000;
+
+function gammaCacheKey(kind: KitKind, expertiseId: string): string {
+  return `gamma-kit-${kind}-${expertiseId}`;
 }
 
 /**
- * Bloc "Tout est prêt pour animer votre équipe" (PR3.8.6 follow-up).
+ * Bloc "Tout est prêt pour animer votre équipe" (PR3.8.6 follow-up #3).
  *
- * Remplace l'ancien bloc descriptif "Suivi hebdo / Réunion / Pratique" par
- * 3 kits prêts-à-présenter. Chaque carte ouvre un drawer (drawer unique
- * recyclé, géré localement) avec le contenu généré par
- * `lib/coaching/team-activation-kit`.
+ * 3 cartes lanceur :
+ *   - "Ouvrir" → mode présentation interne (TeamActivationSlides)
+ *   - "Générer avec Gamma" → POST /api/manager/gamma/generate, poll, ouvre
+ *     dans un nouvel onglet une fois prêt. Cache localStorage par kit+levier
+ *     pour ne pas régénérer en boucle.
+ *
+ * En cas d'échec Gamma, l'UX dégrade silencieusement vers les slides
+ * internes (qui restent toujours fonctionnels).
  */
-export function TeamActivationSteps({ expertiseId }: TeamActivationStepsProps) {
+export function TeamActivationSteps({
+  expertiseId,
+  gammaContext,
+}: TeamActivationStepsProps) {
   const [openKind, setOpenKind] = useState<KitKind | null>(null);
+  const [gammaState, setGammaState] = useState<Record<KitKind, GammaUiState>>({
+    meeting: { status: "idle" },
+    practice: { status: "idle" },
+    weekly: { status: "idle" },
+  });
+
+  // Hydrate from localStorage on mount / when expertise changes.
+  useEffect(() => {
+    if (!expertiseId) return;
+    if (typeof window === "undefined") return;
+    setGammaState((prev) => {
+      const next = { ...prev };
+      for (const card of CARDS) {
+        try {
+          const raw = localStorage.getItem(gammaCacheKey(card.kind, expertiseId));
+          if (!raw) continue;
+          const cached = JSON.parse(raw) as GammaGenerationResult;
+          if (cached.status === "completed" && cached.gammaUrl) {
+            next[card.kind] = { status: "success", result: cached };
+          }
+        } catch {
+          // ignore corrupted entry
+        }
+      }
+      return next;
+    });
+  }, [expertiseId]);
+
+  const persistResult = useCallback(
+    (kind: KitKind, result: GammaGenerationResult) => {
+      if (!expertiseId) return;
+      try {
+        localStorage.setItem(
+          gammaCacheKey(kind, expertiseId),
+          JSON.stringify(result),
+        );
+      } catch {
+        // localStorage indisponible : pas grave, juste pas de cache
+      }
+    },
+    [expertiseId],
+  );
+
+  const pollUntilDone = useCallback(
+    async (kind: KitKind, generationId: string) => {
+      let attempts = 0;
+      while (attempts < POLL_MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        attempts += 1;
+        try {
+          const res = await fetch(
+            `/api/manager/gamma/generate?id=${encodeURIComponent(generationId)}`,
+            { method: "GET", cache: "no-store" },
+          );
+          if (!res.ok) continue;
+          const data = (await res.json()) as GammaGenerationResult;
+          if (data.status === "completed" && data.gammaUrl) {
+            setGammaState((prev) => ({
+              ...prev,
+              [kind]: { status: "success", result: data },
+            }));
+            persistResult(kind, data);
+            return;
+          }
+          if (data.status === "failed") {
+            setGammaState((prev) => ({
+              ...prev,
+              [kind]: {
+                status: "error",
+                message: data.errorMessage ?? "Génération Gamma échouée.",
+              },
+            }));
+            return;
+          }
+        } catch {
+          // Erreur transitoire — on continue à poller jusqu'au max.
+        }
+      }
+      // Timeout client : on ne marque pas en erreur tant qu'on a un id (le
+      // manager pourra retenter plus tard) — bascule fallback discret.
+      setGammaState((prev) => ({
+        ...prev,
+        [kind]: {
+          status: "error",
+          message: "Génération en cours plus longue que prévu.",
+        },
+      }));
+    },
+    [persistResult],
+  );
+
+  const handleGenerate = (kind: KitKind) => async () => {
+    if (!expertiseId) return;
+    setGammaState((prev) => ({ ...prev, [kind]: { status: "loading" } }));
+    const body: GammaGenerateRequestBody = {
+      kitKind: kind,
+      expertiseId,
+      context: gammaContext,
+    };
+    try {
+      const res = await fetch("/api/manager/gamma/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setGammaState((prev) => ({
+          ...prev,
+          [kind]: {
+            status: "error",
+            message: "Gamma indisponible, utilisez le support intégré.",
+          },
+        }));
+        return;
+      }
+      const data = (await res.json()) as GammaGenerationResult;
+      if (data.status === "completed" && data.gammaUrl) {
+        setGammaState((prev) => ({
+          ...prev,
+          [kind]: { status: "success", result: data },
+        }));
+        persistResult(kind, data);
+        return;
+      }
+      if (data.status === "failed") {
+        setGammaState((prev) => ({
+          ...prev,
+          [kind]: {
+            status: "error",
+            message: data.errorMessage ?? "Génération Gamma échouée.",
+          },
+        }));
+        return;
+      }
+      // pending — on continue à poller côté client.
+      pollUntilDone(kind, data.generationId);
+    } catch {
+      setGammaState((prev) => ({
+        ...prev,
+        [kind]: {
+          status: "error",
+          message: "Gamma indisponible, utilisez le support intégré.",
+        },
+      }));
+    }
+  };
 
   if (!expertiseId) return null;
 
@@ -69,13 +256,14 @@ export function TeamActivationSteps({ expertiseId }: TeamActivationStepsProps) {
           </h3>
         </div>
         <p className="mb-5 text-sm text-muted-foreground">
-          Vous pouvez modifier, copier ou télécharger chaque support avant de
-          le présenter.
+          Vous pouvez ouvrir le support intégré, ou générer une présentation
+          Gamma haut de gamme à partager directement.
         </p>
 
         <ul className="grid gap-3 sm:grid-cols-3">
           {CARDS.map((card, i) => {
             const Icon = card.icon;
+            const state = gammaState[card.kind];
             return (
               <li
                 key={card.kind}
@@ -98,7 +286,8 @@ export function TeamActivationSteps({ expertiseId }: TeamActivationStepsProps) {
                 <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">
                   {card.description}
                 </p>
-                <div className="mt-3 flex items-center gap-2">
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={handleOpen(card.kind)}
@@ -107,7 +296,49 @@ export function TeamActivationSteps({ expertiseId }: TeamActivationStepsProps) {
                     <FileText className="h-3.5 w-3.5" />
                     Ouvrir
                   </button>
+
+                  {state.status === "success" && state.result.gammaUrl ? (
+                    <a
+                      href={state.result.gammaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Ouvrir dans Gamma
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleGenerate(card.kind)}
+                      disabled={state.status === "loading"}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {state.status === "loading" ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Génération…
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Générer avec Gamma
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
+
+                {state.status === "success" && state.result.credits != null && (
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    Crédits Gamma consommés : {state.result.credits}
+                  </p>
+                )}
+                {state.status === "error" && (
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    {state.message}
+                  </p>
+                )}
               </li>
             );
           })}
