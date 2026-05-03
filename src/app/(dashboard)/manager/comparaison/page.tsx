@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Award, Target, Eye } from "lucide-react";
+import { Users, Award, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useManagerScope } from "@/hooks/use-manager-scope";
 import { useTeamResults } from "@/hooks/team/use-team-results";
 import { useAppStore } from "@/stores/app-store";
+import { ManagerViewSwitcher } from "@/components/manager/manager-view-switcher";
 import { ComparaisonInternalView } from "@/components/manager/comparaison/comparaison-internal-view";
 import { TeamsComparisonTab } from "@/components/manager/comparaison/teams-comparison-tab";
 import { EnrichedLeaderboardTab } from "@/components/manager/comparaison/enriched-leaderboard-tab";
@@ -72,20 +73,10 @@ export default function ManagerComparaisonPage() {
         </div>
       </div>
 
-      {/* BANDEAU "Vous regardez X" — mode Indiv */}
-      {isIndividualScope && conseiller && (
-        <div className="mx-auto max-w-6xl px-4 pb-4">
-          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-foreground">
-            <Eye className="h-4 w-4 text-primary" />
-            <span>
-              Vous regardez :{" "}
-              <span className="font-semibold">
-                {conseiller.firstName} {conseiller.lastName}
-              </span>
-            </span>
-          </div>
-        </div>
-      )}
+      {/* PR3.8.2 — Toggle Collectif/Individuel + sélecteur conseiller V3 */}
+      <div className="mx-auto max-w-6xl px-4 pb-4">
+        <ManagerViewSwitcher />
+      </div>
 
       {/* TABS */}
       <div className="mx-auto max-w-6xl px-4">

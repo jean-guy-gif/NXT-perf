@@ -19,7 +19,17 @@ export default function ManagerLayout({
   return (
     <>
       <ManagerScopeBanner
-        hideOnRoutes={["/manager/equipe", "/manager/gps", "/manager/notifications"]}
+        hideOnRoutes={[
+          "/manager/equipe",
+          "/manager/gps",
+          "/manager/notifications",
+          // PR3.8.2 — Manager V3 routes use the inline <ManagerViewSwitcher>
+          // instead of this legacy banner.
+          "/manager/diagnostic",
+          "/manager/ameliorer",
+          "/manager/progression",
+          "/manager/comparaison",
+        ]}
       />
       {children}
     </>
