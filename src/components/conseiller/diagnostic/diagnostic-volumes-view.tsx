@@ -1,37 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ArrowLeft, Check, AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
+import {
+  computeEffectivePeriodMonths,
+  determineRhythmStatus,
+  isCurrentMonthInProgress,
+  RHYTHM_LABEL,
+  type RhythmStatus,
+} from "@/lib/performance/pro-rated-objective";
 import type { PeriodResults } from "@/types/results";
 
 const STATUS_STYLE = {
   ok: {
     icon: Check,
-    label: "Surperf",
     color: "text-emerald-500",
     bg: "bg-emerald-500/10",
     ring: "border-emerald-500/30",
   },
   warning: {
     icon: AlertTriangle,
-    label: "À surveiller",
     color: "text-orange-500",
     bg: "bg-orange-500/10",
     ring: "border-orange-500/30",
   },
   danger: {
     icon: X,
-    label: "Sous-perf",
     color: "text-red-500",
     bg: "bg-red-500/10",
     ring: "border-red-500/30",
   },
 } as const;
+
+// PR3.8.6 — mapping rythme → couleur (cf. DiagnosticKpiCards).
+const RHYTHM_STATUS_MAP: Record<RhythmStatus, keyof typeof STATUS_STYLE> = {
+  ahead: "ok",
+  on_track: "ok",
+  behind: "warning",
+};
 
 type VolumeKey =
   | "contactsTotaux"
@@ -47,15 +58,7 @@ interface VolumeRow {
   key: VolumeKey;
   label: string;
   current: number;
-  target: number;
-}
-
-function status(actual: number, target: number): "ok" | "warning" | "danger" {
-  if (target <= 0) return "warning";
-  const pct = actual / target;
-  if (pct >= 1.0) return "ok";
-  if (pct >= 0.8) return "warning";
-  return "danger";
+  monthly: number;
 }
 
 function buildRows(results: PeriodResults, category: string): VolumeRow[] {
@@ -66,49 +69,49 @@ function buildRows(results: PeriodResults, category: string): VolumeRow[] {
       key: "contactsTotaux",
       label: "Contacts",
       current: results.prospection.contactsTotaux,
-      target: obj.estimations * 15,
+      monthly: obj.estimations * 15,
     },
     {
       key: "rdvEstimation",
       label: "RDV estimation",
       current: results.prospection.rdvEstimation,
-      target: obj.estimations,
+      monthly: obj.estimations,
     },
     {
       key: "estimationsRealisees",
       label: "Estimations",
       current: results.vendeurs.estimationsRealisees,
-      target: obj.estimations,
+      monthly: obj.estimations,
     },
     {
       key: "mandatsSignes",
       label: "Mandats",
       current: results.vendeurs.mandatsSignes,
-      target: obj.mandats,
+      monthly: obj.mandats,
     },
     {
       key: "nombreVisites",
       label: "Visites",
       current: results.acheteurs.nombreVisites,
-      target: obj.visites,
+      monthly: obj.visites,
     },
     {
       key: "offresRecues",
       label: "Offres",
       current: results.acheteurs.offresRecues,
-      target: obj.offres,
+      monthly: obj.offres,
     },
     {
       key: "compromisSignes",
       label: "Compromis",
       current: results.acheteurs.compromisSignes,
-      target: obj.compromis,
+      monthly: obj.compromis,
     },
     {
       key: "actesSignes",
       label: "Actes",
       current: results.ventes.actesSignes,
-      target: obj.actes,
+      monthly: obj.actes,
     },
   ];
 }
@@ -121,6 +124,14 @@ interface Props {
 export function DiagnosticVolumesView({ highlightedItem }: Props) {
   const { user, category } = useUser();
   const results = useResults();
+
+  // PR3.8.6 — proration intra-mois (si la période couvre le mois en cours).
+  const { effectiveMonths, isProrated } = useMemo(() => {
+    const today = new Date();
+    const inProgress = isCurrentMonthInProgress(results, today);
+    const effective = computeEffectivePeriodMonths(1, today, inProgress);
+    return { effectiveMonths: effective, isProrated: inProgress };
+  }, [results]);
 
   // Scroll sur le volume ciblé
   useEffect(() => {
@@ -155,7 +166,9 @@ export function DiagnosticVolumesView({ highlightedItem }: Props) {
         <h2 className="text-2xl font-bold text-foreground">Mes volumes</h2>
         {user && (
           <p className="mt-1 text-sm text-muted-foreground">
-            Vos volumes du mois comparés à l'objectif mensuel de votre profil.
+            {isProrated
+              ? "Vos volumes du mois comparés à l'objectif à date — calculé au prorata du jour du mois."
+              : "Vos volumes du mois comparés à l'objectif mensuel de votre profil."}
           </p>
         )}
       </header>
@@ -168,12 +181,14 @@ export function DiagnosticVolumesView({ highlightedItem }: Props) {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {rows.map((row) => {
-            const s = status(row.current, row.target);
-            const sty = STATUS_STYLE[s];
+            const targetMonthly = Math.round(row.monthly);
+            const targetToDate = Math.ceil(row.monthly * effectiveMonths);
+            const rhythm = determineRhythmStatus(row.current, targetToDate);
+            const sty = STATUS_STYLE[RHYTHM_STATUS_MAP[rhythm]];
             const Icon = sty.icon;
             const pct =
-              row.target > 0
-                ? Math.round((row.current / row.target) * 100)
+              targetToDate > 0
+                ? Math.round((row.current / targetToDate) * 100)
                 : 0;
             const isHighlighted = highlightedItem === row.key;
             return (
@@ -192,9 +207,14 @@ export function DiagnosticVolumesView({ highlightedItem }: Props) {
                   {row.current}
                   <span className="text-xs font-normal text-muted-foreground">
                     {" "}
-                    / {row.target}
+                    / {targetToDate}
                   </span>
                 </p>
+                {isProrated && (
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Mensuel : {targetMonthly}
+                  </p>
+                )}
                 <span
                   className={cn(
                     "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
@@ -203,7 +223,7 @@ export function DiagnosticVolumesView({ highlightedItem }: Props) {
                   )}
                 >
                   <Icon className="h-3 w-3" />
-                  {pct}% — {sty.label}
+                  {pct}% — {RHYTHM_LABEL[rhythm]}
                 </span>
               </div>
             );

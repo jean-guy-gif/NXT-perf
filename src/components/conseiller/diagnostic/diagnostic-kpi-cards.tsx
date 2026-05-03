@@ -3,6 +3,11 @@
 import { Check, AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
+import {
+  determineRhythmStatus,
+  RHYTHM_LABEL,
+  type RhythmStatus,
+} from "@/lib/performance/pro-rated-objective";
 import type { PeriodResults } from "@/types/results";
 import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
@@ -37,13 +42,15 @@ const STATUS_STYLE: Record<
   },
 };
 
-function volumeStatus(actual: number, target: number): Status {
-  if (target === 0) return "warning";
-  const pct = actual / target;
-  if (pct >= 1.0) return "ok";
-  if (pct >= 0.8) return "warning";
-  return "danger";
-}
+// PR3.8.6 — mapping rythme → style. "Dans le rythme" = ok, "En avance" = ok
+// avec accent positif, "En retard" = warning. La criticité plus stricte (red)
+// est portée par `findCriticitePoints` qui pondère par gain € — pas par cette
+// carte de KPI.
+const RHYTHM_STATUS_MAP: Record<RhythmStatus, Status> = {
+  ahead: "ok",
+  on_track: "ok",
+  behind: "warning",
+};
 
 interface Props {
   view: DiagnosticView;
@@ -51,8 +58,13 @@ interface Props {
   computedRatios: ComputedRatio[];
   ratioConfigs: Record<RatioId, RatioConfig>;
   category: UserCategory;
-  /** Échelle d'objectif (1 = mois, 12 = année…) */
+  /** Échelle d'objectif mensuel brute (1 = mois, 12 = année…). Sert à
+   *  afficher l'objectif mensuel cumulé sur la période. */
   periodMonths: number;
+  /** Échelle d'objectif EFFECTIVE après proration intra-mois.
+   *  Sert au calcul de l'objectif "à date" et du statut rythme.
+   *  Si non fourni, retombe sur `periodMonths` (compat ancien comportement). */
+  effectiveMonths?: number;
   /**
    * Identifiant de l'élément à mettre en surbrillance.
    * Format : "ratio:<RatioId>" ou "volume:<volumeKey>".
@@ -64,9 +76,11 @@ interface Props {
  * DiagnosticKpiCards — cartes colorées rouge/orange/vert sur 4 volumes
  * prioritaires + 4 ratios prioritaires. Affichage filtré par toggle V/R/Les deux.
  *
- * NB : composant historique restauré depuis PR3.3 (commit ff48da2). Renommé
- * de `DiagnosticKeyFigures` à `DiagnosticKpiCards` pour aligner sur la
- * convention de nommage demandée en PR3.7.
+ * PR3.8.6 :
+ *   - Volumes : 2 cibles affichées — Objectif mensuel (référence) +
+ *     Objectif à date (proraté), statut "Dans le rythme / En avance / En
+ *     retard" calculé sur l'objectif à date.
+ *   - Ratios : aucun changement, pas de proration temporelle.
  */
 export function DiagnosticKpiCards({
   view,
@@ -75,6 +89,7 @@ export function DiagnosticKpiCards({
   ratioConfigs,
   category,
   periodMonths,
+  effectiveMonths,
   highlightedItem = null,
 }: Props) {
   if (!results) {
@@ -87,31 +102,32 @@ export function DiagnosticKpiCards({
 
   const obj = CATEGORY_OBJECTIVES[category] ?? CATEGORY_OBJECTIVES.confirme;
   const m = Math.max(1, periodMonths);
+  const mEffective = effectiveMonths ?? m;
 
   const volumes = [
     {
       key: "estimations",
       label: "Estimations",
       actual: results.vendeurs.estimationsRealisees,
-      target: obj.estimations * m,
+      monthly: obj.estimations,
     },
     {
       key: "mandats",
       label: "Mandats signés",
       actual: results.vendeurs.mandatsSignes,
-      target: obj.mandats * m,
+      monthly: obj.mandats,
     },
     {
       key: "visites",
       label: "Visites",
       actual: results.acheteurs.nombreVisites,
-      target: obj.visites * m,
+      monthly: obj.visites,
     },
     {
       key: "compromis",
       label: "Compromis",
       actual: results.acheteurs.compromisSignes,
-      target: obj.compromis * m,
+      monthly: obj.compromis,
     },
   ];
 
@@ -134,6 +150,7 @@ export function DiagnosticKpiCards({
 
   const showVolumes = view === "volumes" || view === "both";
   const showRatios = view === "ratios" || view === "both";
+  const isProrated = mEffective < m - 0.0001;
 
   return (
     <div className="space-y-6">
@@ -145,16 +162,21 @@ export function DiagnosticKpiCards({
               Volumes
             </h3>
             <span className="text-xs text-muted-foreground">
-              — réalisé / objectif
+              {isProrated ? "— réalisé / objectif à date" : "— réalisé / objectif"}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {volumes.map((v) => {
-              const s = volumeStatus(v.actual, v.target);
+              const targetMonthly = Math.round(v.monthly * m);
+              const targetToDate = Math.ceil(v.monthly * mEffective);
+              const rhythm = determineRhythmStatus(v.actual, targetToDate);
+              const s = RHYTHM_STATUS_MAP[rhythm];
               const style = STATUS_STYLE[s];
               const Icon = style.icon;
               const pct =
-                v.target > 0 ? Math.round((v.actual / v.target) * 100) : 0;
+                targetToDate > 0
+                  ? Math.round((v.actual / targetToDate) * 100)
+                  : 0;
               const isHighlighted = highlightedItem === `volume:${v.key}`;
               return (
                 <div
@@ -172,9 +194,14 @@ export function DiagnosticKpiCards({
                     {v.actual}
                     <span className="text-xs font-normal text-muted-foreground">
                       {" "}
-                      / {v.target}
+                      / {targetToDate}
                     </span>
                   </p>
+                  {isProrated && (
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      Mensuel : {targetMonthly}
+                    </p>
+                  )}
                   <span
                     className={cn(
                       "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
@@ -183,7 +210,7 @@ export function DiagnosticKpiCards({
                     )}
                   >
                     <Icon className="h-3 w-3" />
-                    {pct}% — {style.label}
+                    {pct}% — {isProrated ? RHYTHM_LABEL[rhythm] : style.label}
                   </span>
                 </div>
               );

@@ -16,6 +16,10 @@ import {
   findCriticitePoints,
   type CriticitePoint,
 } from "@/lib/diagnostic-criticite";
+import {
+  computeEffectivePeriodMonths,
+  isCurrentMonthInProgress,
+} from "@/lib/performance/pro-rated-objective";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
 import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-drawer";
 import { ActivePlanCard } from "@/components/conseiller/diagnostic/active-plan-card";
@@ -43,7 +47,19 @@ export function DiagnosticVerdictView() {
     const profile = deriveProfileLevel(category);
     const myHistory = allResults.filter((r) => r.userId === user.id);
     const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
-    return findCriticitePoints(measured, profile, avg, results, category, 1);
+    // PR3.8.6 — Pour le mois courant en cours, on prorate la cible volume sur
+    // la portion écoulée (cf. pro-rated-objective). Mois passé complet : 1.
+    const today = new Date();
+    const inProgress = isCurrentMonthInProgress(results, today);
+    const effectiveMonths = computeEffectivePeriodMonths(1, today, inProgress);
+    return findCriticitePoints(
+      measured,
+      profile,
+      avg,
+      results,
+      category,
+      effectiveMonths,
+    );
   }, [
     user,
     results,

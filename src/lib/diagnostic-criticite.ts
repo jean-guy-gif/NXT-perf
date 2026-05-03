@@ -153,6 +153,15 @@ export interface DiagnosticCriticite {
 
 // ─── API publique ─────────────────────────────────────────────────────────
 
+/**
+ * @param periodMonths Période en mois EFFECTIVE (déjà proratée par le caller
+ *   pour la portion du mois courant en cours — cf.
+ *   `computeEffectivePeriodMonths` dans `lib/performance/pro-rated-objective`).
+ *   Pour le 3 du mois sur une période "mois courant", la valeur attendue est
+ *   `~0.10` (3/31), pas `1`. Cela évite de marquer un volume sous-perf juste
+ *   parce que le mois est encore en début. Les ratios ne sont PAS
+ *   proratés ici — pas de notion temporelle.
+ */
 export function findCriticitePoints(
   measured: MeasuredRatio[],
   profile: ProfileLevel,

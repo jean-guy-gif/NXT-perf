@@ -8,6 +8,10 @@ import { useTeamRatios } from "@/hooks/team/use-team-ratios";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur } from "@/lib/get-avg-commission";
 import {
+  computeEffectivePeriodMonths,
+  isCurrentMonthInProgress,
+} from "@/lib/performance/pro-rated-objective";
+import {
   aggregateTeamDiagnostic,
   type AdvisorDiagnosticInput,
   type TeamDiagnosticResult,
@@ -48,6 +52,12 @@ export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
   const { perConseillerRatios, averages } = useTeamRatios();
 
   const advisorsInput = useMemo<AdvisorDiagnosticInput[]>(() => {
+    // PR3.8.6 — On prorate la cible volume sur la portion du mois écoulée
+    // pour chaque conseiller. Si les `results` couvrent un mois passé
+    // complet, `effectiveMonths` retombe à 1 (no-op). En mode démo où les
+    // données sont en Fév 2026 et today = May 2026, la proration ne
+    // s'applique pas.
+    const today = new Date();
     return conseillers.map((c) => {
       const results = perConseillerResults.get(c.id) ?? null;
       const computedRatios = perConseillerRatios.get(c.id) ?? [];
@@ -57,13 +67,15 @@ export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
         agencyObjective?.avgActValue,
         myHistory,
       );
+      const inProgress = isCurrentMonthInProgress(results, today);
+      const effectiveMonths = computeEffectivePeriodMonths(1, today, inProgress);
       return {
         user: c,
         results,
         computedRatios,
         measuredRatios,
         avgCommissionEur,
-        periodMonths: 1,
+        periodMonths: effectiveMonths,
       };
     });
   }, [conseillers, perConseillerResults, perConseillerRatios, allResults, agencyObjective]);

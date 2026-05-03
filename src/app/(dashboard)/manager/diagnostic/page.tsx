@@ -8,6 +8,7 @@ import { useAppStore } from "@/stores/app-store";
 import { TeamDiagnosticSummary } from "@/components/manager/diagnostic/team-diagnostic-summary";
 import { TeamPainBreakdown } from "@/components/manager/diagnostic/team-pain-breakdown";
 import { BestPracticesBlock } from "@/components/manager/diagnostic/best-practices-block";
+import { TeamProductionTracker } from "@/components/manager/diagnostic/team-production-tracker";
 import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
 import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
 import { DiagnosticVerdictView } from "@/components/conseiller/diagnostic/diagnostic-verdict-view";
@@ -96,6 +97,10 @@ function CollectiveDiagnostic() {
         secondaries={secondaries}
         totalAdvisors={totalAdvisors}
       />
+
+      {/* PR3.8.6 — Production équipe avec proration "à date" pour ne pas
+          comparer un volume de début de mois à l'objectif mensuel complet. */}
+      <TeamProductionTracker />
 
       {allLevers.length > 0 && (
         <TeamPainBreakdown

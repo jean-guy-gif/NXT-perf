@@ -12,6 +12,10 @@ import { usePersistedState } from "@/hooks/use-persisted-state";
 import { aggregateResults } from "@/lib/aggregate-results";
 import { mockWeeklyResults } from "@/data/mock-results";
 import {
+  computeEffectivePeriodMonths,
+  isCurrentMonthInProgress,
+} from "@/lib/performance/pro-rated-objective";
+import {
   DiagnosticToggle,
   type DiagnosticView,
 } from "./diagnostic-toggle";
@@ -77,6 +81,18 @@ export function KeyFiguresAccordion() {
     return 1;
   }, [period]);
 
+  // PR3.8.6 — Échelle d'objectif EFFECTIVE (proratée si la période contient
+  // le mois en cours). Pas de proration sur "semaine" : la période est déjà
+  // une fraction de mois, le caller est explicite. Pour "mois / trimestre /
+  // année / depuis_debut" : on retire le dernier mois entier et on le
+  // remplace par la fraction écoulée du mois courant si applicable.
+  const effectiveMonths = useMemo(() => {
+    if (period === "semaine") return periodMonths;
+    const today = new Date();
+    const inProgress = isCurrentMonthInProgress(periodResults, today);
+    return computeEffectivePeriodMonths(periodMonths, today, inProgress);
+  }, [period, periodMonths, periodResults]);
+
   const periodMode: "mois" | "ytd" | "custom" =
     period === "mois" ? "mois" : period === "personnalise" ? "custom" : "ytd";
 
@@ -136,6 +152,7 @@ export function KeyFiguresAccordion() {
               ratioConfigs={ratioConfigs}
               category={category}
               periodMonths={periodMonths}
+              effectiveMonths={effectiveMonths}
             />
           </div>
 
