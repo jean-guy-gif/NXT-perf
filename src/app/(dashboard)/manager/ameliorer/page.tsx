@@ -126,7 +126,7 @@ function CollectiveAmeliorer() {
   return (
     <div className="space-y-6">
       <TeamActionPlan expertiseId={expertiseId} leverLabel={leverLabel} max={3} />
-      <TeamActivationSteps />
+      <TeamActivationSteps expertiseId={expertiseId} />
     </div>
   );
 }
