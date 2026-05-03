@@ -110,6 +110,13 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
           formationOptions={orderedOptions}
         />
       )}
+
+      <FormationPreviewDrawer
+        formation={previewFormation}
+        areaLabel={formationAreaLabels[area]}
+        onClose={() => setPreviewFormation(null)}
+        onFinancer={handleFinancerFromDrawer}
+      />
     </section>
   );
 }
@@ -121,7 +128,7 @@ function FormationCard({
 }: {
   item: FormationItem;
   onFinancer: (title: string) => void;
-  onStart: (formationId: string) => void;
+  onStart: (formation: FormationItem) => void;
 }) {
   return (
     <li className="rounded-lg border border-border bg-background p-4">
@@ -144,7 +151,7 @@ function FormationCard({
             className={cn(
               "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted hover:border-foreground/20"
             )}
-            onClick={() => onStart(item.id)}
+            onClick={() => onStart(item)}
           >
             Démarrer
             <ArrowRight className="h-3.5 w-3.5" />
@@ -153,7 +160,7 @@ function FormationCard({
             <button
               type="button"
               onClick={() => onFinancer(item.title)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-amber-600 underline-offset-2 hover:underline"
+              className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-amber-600 underline-offset-2 hover:underline"
             >
               <Wallet className="h-3 w-3" />
               Financer cette formation
@@ -162,5 +169,125 @@ function FormationCard({
         </div>
       </div>
     </li>
+  );
+}
+
+function FormationPreviewDrawer({
+  formation,
+  areaLabel,
+  onClose,
+  onFinancer,
+}: {
+  formation: FormationItem | null;
+  areaLabel: string;
+  onClose: () => void;
+  onFinancer: (title: string) => void;
+}) {
+  const open = formation !== null;
+
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  return (
+    <>
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/40 transition-opacity",
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Aperçu de la formation"
+        aria-hidden={!open}
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-2xl transition-transform",
+          open ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <GraduationCap className="h-3.5 w-3.5" />
+              {areaLabel}
+            </p>
+            <h2 className="mt-1 truncate text-lg font-bold text-foreground">
+              {formation?.title ?? ""}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        {formation && (
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            <p className="text-sm leading-relaxed text-foreground">
+              {formation.benefit}
+            </p>
+
+            {formation.agefice && (
+              <span className="mt-4 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                <Wallet className="h-2.5 w-2.5" />
+                Prise en charge possible (AGEFICE)
+              </span>
+            )}
+
+            <div className="mt-6 flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <p className="leading-relaxed">
+                Le module complet sera bientôt disponible.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {formation && (
+          <footer className="flex flex-col gap-2 border-t border-border px-5 py-4">
+            {formation.agefice && (
+              <button
+                type="button"
+                onClick={() => onFinancer(formation.title)}
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-500/20"
+              >
+                <Wallet className="h-4 w-4" />
+                Financer cette formation
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-foreground px-3 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
+            >
+              Compris
+            </button>
+          </footer>
+        )}
+      </aside>
+    </>
   );
 }
