@@ -16,10 +16,7 @@ import {
   findCriticitePoints,
   type CriticitePoint,
 } from "@/lib/diagnostic-criticite";
-import {
-  computeEffectivePeriodMonths,
-  isCurrentMonthInProgress,
-} from "@/lib/performance/pro-rated-objective";
+import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
 import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-drawer";
 import { ActivePlanCard } from "@/components/conseiller/diagnostic/active-plan-card";
@@ -47,11 +44,13 @@ export function DiagnosticVerdictView() {
     const profile = deriveProfileLevel(category);
     const myHistory = allResults.filter((r) => r.userId === user.id);
     const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
-    // PR3.8.6 — Pour le mois courant en cours, on prorate la cible volume sur
-    // la portion écoulée (cf. pro-rated-objective). Mois passé complet : 1.
+    // PR3.8.6 hotfix #2 — Le verdict est sémantiquement "où j'en suis CE
+    // MOIS-CI", donc on prorate TOUJOURS sur la date du jour, indépendamment
+    // de la période réellement stockée dans `results` (ex: démo Fév 2026).
+    // Cela évite le bug où la carte affichait "Objectif à date = 300" en
+    // début de mois parce que la donnée provenait d'un mois passé.
     const today = new Date();
-    const inProgress = isCurrentMonthInProgress(results, today);
-    const effectiveMonths = computeEffectivePeriodMonths(1, today, inProgress);
+    const effectiveMonths = getProRationFactor(today);
     return findCriticitePoints(
       measured,
       profile,

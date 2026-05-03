@@ -19,10 +19,7 @@ import { ContinuityBlock } from "./continuity-block";
 import { CoachIaBlock } from "./coach-ia-block";
 import { FocusedTrainingBlock } from "./focused-training-block";
 import { findCriticitePoints } from "@/lib/diagnostic-criticite";
-import {
-  computeEffectivePeriodMonths,
-  isCurrentMonthInProgress,
-} from "@/lib/performance/pro-rated-objective";
+import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { volumeToRelatedRatio } from "@/lib/coaching/coach-brain";
 import {
   getAvgCommissionEur,
@@ -270,11 +267,11 @@ function NoPlanFlow({
     const measured = buildMeasuredRatios(computedRatios, results);
     const myHistory = allResults.filter((r) => r.userId === userId);
     const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
-    // PR3.8.6 — Proration intra-mois pour ne pas marquer un volume sous-perf
-    // sur la base de l'objectif mensuel complet en début de mois.
+    // PR3.8.6 hotfix #2 — Toujours proratiser sur today (cf. verdict view).
+    // Le levier recommandé reflète "où j'en suis CE MOIS-CI", peu importe la
+    // période effective stockée dans `results` (démo Fév 2026 inclus).
     const today = new Date();
-    const inProgress = isCurrentMonthInProgress(results, today);
-    const effectiveMonths = computeEffectivePeriodMonths(1, today, inProgress);
+    const effectiveMonths = getProRationFactor(today);
     const criticite = findCriticitePoints(
       measured,
       profile,

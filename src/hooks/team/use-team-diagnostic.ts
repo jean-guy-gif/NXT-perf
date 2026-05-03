@@ -7,10 +7,7 @@ import { useTeamResults } from "@/hooks/team/use-team-results";
 import { useTeamRatios } from "@/hooks/team/use-team-ratios";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur } from "@/lib/get-avg-commission";
-import {
-  computeEffectivePeriodMonths,
-  isCurrentMonthInProgress,
-} from "@/lib/performance/pro-rated-objective";
+import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import {
   aggregateTeamDiagnostic,
   type AdvisorDiagnosticInput,
@@ -52,12 +49,13 @@ export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
   const { perConseillerRatios, averages } = useTeamRatios();
 
   const advisorsInput = useMemo<AdvisorDiagnosticInput[]>(() => {
-    // PR3.8.6 — On prorate la cible volume sur la portion du mois écoulée
-    // pour chaque conseiller. Si les `results` couvrent un mois passé
-    // complet, `effectiveMonths` retombe à 1 (no-op). En mode démo où les
-    // données sont en Fév 2026 et today = May 2026, la proration ne
-    // s'applique pas.
+    // PR3.8.6 hotfix #2 — On prorate TOUJOURS la cible volume sur today,
+    // indépendamment de la période effective des résultats. Cela évite que la
+    // criticité équipe remonte un volume sous-perf juste parce qu'on regarde
+    // une donnée mensuelle pas encore complète à date (ou en démo, des
+    // données passées traitées comme "ce mois").
     const today = new Date();
+    const effectiveMonths = getProRationFactor(today);
     return conseillers.map((c) => {
       const results = perConseillerResults.get(c.id) ?? null;
       const computedRatios = perConseillerRatios.get(c.id) ?? [];
@@ -67,8 +65,6 @@ export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
         agencyObjective?.avgActValue,
         myHistory,
       );
-      const inProgress = isCurrentMonthInProgress(results, today);
-      const effectiveMonths = computeEffectivePeriodMonths(1, today, inProgress);
       return {
         user: c,
         results,
