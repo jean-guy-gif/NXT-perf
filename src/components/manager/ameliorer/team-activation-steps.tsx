@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Calendar,
+  Download,
   Dumbbell,
   ExternalLink,
   FileText,
@@ -288,15 +289,30 @@ export function TeamActivationSteps({
                 </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpen(card.kind)}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    Ouvrir
-                  </button>
+                  {state.status === "success" && state.result.exportUrl ? (
+                    // PDF prioritaire — bouton principal (pas de compte Gamma requis).
+                    <a
+                      href={state.result.exportUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Télécharger le PDF
+                    </a>
+                  ) : (
+                    // Pas (encore) de PDF disponible : slides internes en primary.
+                    <button
+                      type="button"
+                      onClick={handleOpen(card.kind)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Ouvrir
+                    </button>
+                  )}
 
+                  {/* Bouton secondaire — varie selon état Gamma */}
                   {state.status === "success" && state.result.gammaUrl ? (
                     <a
                       href={state.result.gammaUrl}
@@ -327,7 +343,27 @@ export function TeamActivationSteps({
                       )}
                     </button>
                   )}
+
+                  {/* Lien tertiaire vers slides internes quand le PDF a pris la primary */}
+                  {state.status === "success" && state.result.exportUrl && (
+                    <button
+                      type="button"
+                      onClick={handleOpen(card.kind)}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                    >
+                      Voir aperçu
+                    </button>
+                  )}
                 </div>
+
+                {/* Message discret quand Gamma a réussi mais sans exportUrl encore */}
+                {state.status === "success" &&
+                  !state.result.exportUrl &&
+                  state.result.gammaUrl && (
+                    <p className="mt-2 text-[10px] text-muted-foreground">
+                      Export PDF en cours de disponibilité.
+                    </p>
+                  )}
 
                 {state.status === "success" && state.result.credits != null && (
                   <p className="mt-2 text-[10px] text-muted-foreground">
