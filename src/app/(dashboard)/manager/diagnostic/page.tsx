@@ -1,15 +1,19 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { ManagerViewSwitcher } from "@/components/manager/manager-view-switcher";
 import { useManagerView } from "@/hooks/use-manager-view";
+import { useTeamDiagnostic } from "@/hooks/team/use-team-diagnostic";
+import { useAppStore } from "@/stores/app-store";
+import { TeamDiagnosticSummary } from "@/components/manager/diagnostic/team-diagnostic-summary";
+import { TeamPainBreakdown } from "@/components/manager/diagnostic/team-pain-breakdown";
+import { BestPracticesBlock } from "@/components/manager/diagnostic/best-practices-block";
 
 /**
- * Manager — Mon diagnostic (PR3.8.2 socle).
+ * Manager — Mon diagnostic (PR3.8.3).
  *
- * Le contenu Collectif et Individuel sera implémenté en PR3.8.x. Ici on
- * pose uniquement le toggle + le sélecteur conseiller via
- * <ManagerViewSwitcher /> et un placeholder par mode.
+ * Mode Collectif : diagnostic équipe (top levier + breakdown + best practices).
+ * Mode Individuel : stub (PR3.8.x — vue Conseiller exact).
  */
 export default function ManagerDiagnosticPage() {
   const { isIndividual, selectedAdvisor } = useManagerView();
@@ -25,7 +29,7 @@ export default function ManagerDiagnosticPage() {
         <p className="max-w-2xl text-sm text-muted-foreground">
           {isIndividual && selectedAdvisor
             ? `Diagnostic individuel de ${selectedAdvisor.firstName} ${selectedAdvisor.lastName}.`
-            : "Diagnostic collectif de votre équipe — verdict global, indicateurs clés et focus du mois."}
+            : "Identifiez en un coup d'œil le levier qui fait perdre le plus de performance à votre équipe."}
         </p>
       </header>
 
@@ -34,22 +38,69 @@ export default function ManagerDiagnosticPage() {
       {isIndividual ? (
         <IndividualStub advisorName={selectedAdvisor?.firstName ?? null} />
       ) : (
-        <CollectiveStub />
+        <CollectiveDiagnostic />
       )}
     </section>
   );
 }
 
-function CollectiveStub() {
+function CollectiveDiagnostic() {
+  const isDemo = useAppStore((s) => s.isDemo);
+  const {
+    top,
+    secondaries,
+    allLevers,
+    totalAdvisors,
+    teamAveragesByExpertise,
+  } = useTeamDiagnostic();
+
+  // Empty state — équipe vide en prod réel
+  if (totalAdvisors === 0 && !isDemo) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+          <Users className="h-6 w-6 text-primary" />
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-foreground">
+          Votre équipe est vide pour l&apos;instant
+        </h2>
+        <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
+          Partagez votre code équipe pour inviter vos conseillers. Le
+          diagnostic apparaîtra dès qu&apos;ils auront saisi leurs résultats.
+        </p>
+        <a
+          href="/parametres/equipe"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+        >
+          Gérer mon équipe
+        </a>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8">
-      <h2 className="text-lg font-semibold text-foreground">
-        Vue collective en construction
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        La vue Collectif du diagnostic Manager est en cours de refonte. Elle
-        sera livrée dans une prochaine PR3.8.x.
-      </p>
+    <div className="space-y-6">
+      <TeamDiagnosticSummary
+        top={top}
+        secondaries={secondaries}
+        totalAdvisors={totalAdvisors}
+      />
+
+      {allLevers.length > 0 && (
+        <TeamPainBreakdown
+          levers={allLevers}
+          teamAverages={teamAveragesByExpertise}
+          limit={3}
+        />
+      )}
+
+      {top && (
+        <BestPracticesBlock
+          expertiseId={top.expertiseId}
+          leverLabel={top.label}
+          max={3}
+        />
+      )}
     </div>
   );
 }
