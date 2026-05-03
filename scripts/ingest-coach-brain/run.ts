@@ -42,7 +42,7 @@ function parseArgs(argv: string[]): CliOptions {
     dryRun: false,
     force: false,
   };
-  // Supporte les deux formats : `--limit=N` (egal) et `--limit N` (espace).
+
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg.startsWith("--limit=")) {
@@ -52,7 +52,7 @@ function parseArgs(argv: string[]): CliOptions {
       const n = Number(argv[i + 1]);
       if (Number.isFinite(n) && n > 0) {
         opts.limit = n;
-        i++; // skip la valeur consommée
+        i++;
       }
     } else if (arg === "--dry-run") {
       opts.dryRun = true;
@@ -68,22 +68,39 @@ async function main() {
   console.info("[ingest] start", opts);
 
   const config = loadConfig();
+
+  // 🔥 DEBUG CRITIQUE
+  console.info(
+    "[debug] OPENROUTER_API_KEY:",
+    config.openrouterApiKey ? "OK" : "MISSING"
+  );
+
   const state = await loadState();
 
-  const drive = createDriveClient(config.googleServiceAccountKey, config.driveFolderId);
-  const supabase = createSupabase(config.supabaseUrl, config.supabaseServiceRoleKey);
+  const drive = createDriveClient(
+    config.googleServiceAccountKey,
+    config.driveFolderId
+  );
+
+  const supabase = createSupabase(
+    config.supabaseUrl,
+    config.supabaseServiceRoleKey
+  );
 
   console.info("[ingest] listing Drive folder…");
   const allFiles = await drive.listFiles();
   console.info(`[ingest] found ${allFiles.length} compatible file(s)`);
 
   const ingestedSet = new Set(state.ingestedFileIds);
+
   const candidates = opts.force
     ? allFiles
     : allFiles.filter((f) => !ingestedSet.has(f.id));
+
   const batch = candidates.slice(0, opts.limit);
+
   console.info(
-    `[ingest] ${candidates.length} new candidate(s), processing batch of ${batch.length} (limit=${opts.limit})`,
+    `[ingest] ${candidates.length} new candidate(s), processing batch of ${batch.length} (limit=${opts.limit})`
   );
 
   let totalPatternsUpserted = 0;
@@ -91,21 +108,26 @@ async function main() {
   let totalRejected = 0;
 
   for (const file of batch) {
-    console.info(`[ingest] processing "${file.name}" (${file.id}, ${file.mimeType})`);
+    console.info(
+      `[ingest] processing "${file.name}" (${file.id}, ${file.mimeType})`
+    );
 
     const text = await drive.downloadText(file);
+
     if (!text) {
       console.warn("[ingest] download empty, skip");
       totalSkipped += 1;
-      // On marque quand même comme ingéré pour ne pas réessayer indéfiniment
       ingestedSet.add(file.id);
       continue;
     }
 
     const { text: anonymized, substitutions } = anonymizeWithStats(text);
-    console.info(`[ingest] regex anonymized (${substitutions} substitution(s))`);
+    console.info(
+      `[ingest] regex anonymized (${substitutions} substitution(s))`
+    );
 
     let extraction;
+
     try {
       extraction = await extractPatterns(anonymized, {
         openrouterApiKey: config.openrouterApiKey,
@@ -117,7 +139,6 @@ async function main() {
         error: (err as Error).message,
       });
       totalSkipped += 1;
-      // Pas de marquage → on retentera au prochain run (problème transitoire LLM).
       continue;
     }
 
@@ -131,7 +152,7 @@ async function main() {
     if (opts.dryRun) {
       console.info(
         `[ingest][dry-run] would upsert ${extraction.patterns.length} pattern(s)`,
-        extraction.patterns,
+        extraction.patterns
       );
       totalPatternsUpserted += extraction.patterns.length;
       ingestedSet.add(file.id);
@@ -139,9 +160,11 @@ async function main() {
     }
 
     const stats = await upsertPatterns(supabase, extraction.patterns);
+
     console.info(
-      `[ingest] upsert: +${stats.inserted} inserted, ${stats.incremented} incremented, ${stats.errors} errors`,
+      `[ingest] upsert: +${stats.inserted} inserted, ${stats.incremented} incremented, ${stats.errors} errors`
     );
+
     totalPatternsUpserted += stats.inserted + stats.incremented;
     ingestedSet.add(file.id);
   }
@@ -156,6 +179,7 @@ async function main() {
         state.stats.totalPatternsUpserted + totalPatternsUpserted,
     },
   };
+
   if (!opts.dryRun) {
     await saveState(nextState);
   }

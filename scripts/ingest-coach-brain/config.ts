@@ -47,14 +47,20 @@ function decodeServiceAccountKey(raw: string): string {
 
 export function loadConfig(): IngestConfig {
   return {
-    driveFolderId: readRequired("COACH_BRAIN_DRIVE_FOLDER_ID"),
+    driveFolderId: process.env.COACH_BRAIN_DRIVE_FOLDER_ID!.trim(),
+
     googleServiceAccountKey: decodeServiceAccountKey(
-      readRequired("GOOGLE_SERVICE_ACCOUNT_KEY"),
+      process.env.GOOGLE_SERVICE_ACCOUNT_KEY!
     ),
-    openrouterApiKey: readRequired("OPENROUTER_API_KEY"),
-    supabaseUrl: readRequired("NEXT_PUBLIC_SUPABASE_URL"),
-    supabaseServiceRoleKey: readRequired("SUPABASE_SERVICE_ROLE_KEY"),
+
+    openrouterApiKey: process.env.OPENROUTER_API_KEY!.trim(),
+
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
+
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!.trim(),
+
     openrouterModel:
-      process.env.COACH_BRAIN_OPENROUTER_MODEL ?? "openai/gpt-4o-mini",
+      process.env.COACH_BRAIN_OPENROUTER_MODEL?.trim() ||
+      "openai/gpt-4o-mini",
   };
 }
