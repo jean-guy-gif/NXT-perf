@@ -141,7 +141,11 @@ export type CriticitePoint =
       id: VolumeKey;
       label: string;
       current: number;
+      /** Cible "à date" (mensuelle prorate × effectivePeriodMonths). */
       target: number;
+      /** Cible mensuelle brute pour la catégorie — sert à l'affichage de
+       *  référence dans le verdict (PR3.8.6 hotfix verdict card). */
+      monthlyTarget: number;
       gainEur: number;
       painScore: number;
     };
@@ -254,6 +258,7 @@ export function findCriticitePoints(
         label: VOLUME_LABELS[key],
         current,
         target: Math.round(target),
+        monthlyTarget: targetMonthly,
         gainEur,
         painScore: gainEur, // PDF : painScore volume = gainPotentielEur
       });

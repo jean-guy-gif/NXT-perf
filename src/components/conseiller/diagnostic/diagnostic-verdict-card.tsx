@@ -1,10 +1,15 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, Loader2, Wrench } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { CriticitePoint } from "@/lib/diagnostic-criticite";
+import {
+  determineRhythmStatus,
+  RHYTHM_LABEL,
+} from "@/lib/performance/pro-rated-objective";
 
 interface Props {
   verdictPoint: CriticitePoint;
@@ -41,28 +46,6 @@ export function DiagnosticVerdictCard({
       ? RATIO_EXPERTISE[verdictPoint.id as ExpertiseRatioId]?.caImpactNote
       : undefined;
 
-  const currentVal = isRatio ? verdictPoint.currentValue : verdictPoint.current;
-  const targetVal = isRatio ? verdictPoint.targetValue : verdictPoint.target;
-
-  const isPercent = isRatio && verdictPoint.id === "pct_exclusivite";
-  const formatVal = (v: number) =>
-    isRatio
-      ? isPercent
-        ? `${Math.round(v)} %`
-        : v.toFixed(1)
-      : Math.round(v).toString();
-
-  // Écart vs cible
-  const gapPct = (() => {
-    if (isRatio) {
-      return Math.round((verdictPoint._ratio.normalizedGap || 0) * 100);
-    }
-    if (targetVal <= 0) return 0;
-    return Math.round(
-      Math.max(0, ((targetVal - currentVal) / targetVal) * 100)
-    );
-  })();
-
   const verdictKindLabel = isRatio ? "Ratio" : "Volume";
 
   return (
@@ -82,28 +65,11 @@ export function DiagnosticVerdictCard({
         {expertiseLabel}
       </h2>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {isRatio ? "Ton ratio" : "Réalisé"}
-          </p>
-          <p className="text-xl font-bold tabular-nums text-foreground">
-            {formatVal(currentVal)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Objectif</p>
-          <p className="text-xl font-bold tabular-nums text-foreground">
-            {formatVal(targetVal)}
-          </p>
-        </div>
-        <div className="col-span-2 md:col-span-1">
-          <p className="text-xs text-muted-foreground">Écart vs objectif</p>
-          <p className="text-xl font-bold tabular-nums text-red-500">
-            -{gapPct}%
-          </p>
-        </div>
-      </div>
+      {isRatio ? (
+        <RatioMetrics point={verdictPoint} />
+      ) : (
+        <VolumeMetrics point={verdictPoint} />
+      )}
 
       {verdictPoint.gainEur > 0 && (
         <div className="mt-5 rounded-xl border border-red-500/20 bg-background p-4">
@@ -145,7 +111,7 @@ export function DiagnosticVerdictCard({
           ) : (
             <>
               <Wrench className="h-4 w-4" />
-              M'améliorer
+              M&apos;améliorer
             </>
           )}
         </button>
@@ -159,5 +125,113 @@ export function DiagnosticVerdictCard({
         Voir les autres points en danger →
       </button>
     </section>
+  );
+}
+
+// ─── Sous-blocs métriques ────────────────────────────────────────────────
+
+function RatioMetrics({ point }: { point: Extract<CriticitePoint, { type: "ratio" }> }) {
+  const isPercent = point.id === "pct_exclusivite";
+  const formatVal = (v: number) =>
+    isPercent ? `${Math.round(v)} %` : v.toFixed(1);
+
+  // Écart normalisé (pas de notion temporelle — pas de proration ratio)
+  const gapPct = Math.round((point._ratio.normalizedGap || 0) * 100);
+
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+      <div>
+        <p className="text-xs text-muted-foreground">Ton ratio</p>
+        <p className="text-xl font-bold tabular-nums text-foreground">
+          {formatVal(point.currentValue)}
+        </p>
+      </div>
+      <div>
+        <p className="text-xs text-muted-foreground">Cible</p>
+        <p className="text-xl font-bold tabular-nums text-foreground">
+          {formatVal(point.targetValue)}
+        </p>
+      </div>
+      <div className="col-span-2 md:col-span-1">
+        <p className="text-xs text-muted-foreground">Écart vs cible</p>
+        <p className="text-xl font-bold tabular-nums text-red-500">
+          -{gapPct}%
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function VolumeMetrics({ point }: { point: Extract<CriticitePoint, { type: "volume" }> }) {
+  // PR3.8.6 hotfix verdict card — affichage Mensuel + À date + écart signé.
+  const realised = Math.round(point.current);
+  const monthly = Math.round(point.monthlyTarget);
+  const toDate = Math.round(point.target);
+
+  // Écart signé : réalisé - objectif à date / objectif à date
+  const gap = toDate > 0 ? (realised - toDate) / toDate : 0;
+  const gapPctSigned = Math.round(gap * 100);
+  const gapDisplay = gap >= 0 ? `+${gapPctSigned}%` : `${gapPctSigned}%`;
+
+  // Statut rythme — calcul sur l'objectif à date, pas le mensuel.
+  const rhythm = determineRhythmStatus(realised, toDate);
+  const rhythmLabel = RHYTHM_LABEL[rhythm];
+
+  const RHYTHM_BADGE_CLASS: Record<typeof rhythm, string> = {
+    behind: "bg-red-500/10 text-red-600 dark:text-red-500",
+    on_track: "bg-muted text-muted-foreground",
+    ahead: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500",
+  };
+  const GAP_TEXT_CLASS: Record<typeof rhythm, string> = {
+    behind: "text-red-500",
+    on_track: "text-foreground",
+    ahead: "text-emerald-500",
+  };
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Réalisé</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">
+            {realised}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Objectif mensuel</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">
+            {monthly}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Objectif à date</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">
+            {toDate}
+          </p>
+        </div>
+        <div className="col-span-2 md:col-span-1">
+          <p className="text-xs text-muted-foreground">
+            Écart vs objectif à date
+          </p>
+          <p
+            className={cn(
+              "text-xl font-bold tabular-nums",
+              GAP_TEXT_CLASS[rhythm],
+            )}
+          >
+            {gapDisplay}
+          </p>
+        </div>
+      </div>
+
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
+          RHYTHM_BADGE_CLASS[rhythm],
+        )}
+      >
+        {rhythmLabel}
+      </span>
+    </div>
   );
 }
