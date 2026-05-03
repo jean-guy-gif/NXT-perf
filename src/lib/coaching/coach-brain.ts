@@ -22,6 +22,7 @@ import {
   type ExpertiseRatioId,
 } from "@/data/ratio-expertise";
 import { TOP_PRACTICES } from "@/lib/coaching/top-practices";
+import { TEAM_ACTIONS } from "@/lib/coaching/team-actions";
 import type { VolumeKey } from "@/lib/diagnostic-criticite";
 import { ratioToFormationArea } from "@/lib/formation";
 import { RATIO_ID_TO_EXPERTISE_ID } from "@/lib/ratio-to-expertise";
@@ -146,6 +147,30 @@ export function getTopPractices(
     return [expertise.bestPractices];
   }
   return [];
+}
+
+/**
+ * Retourne max N actions équipe (voix manager) pour un levier.
+ *
+ * Politique de fallback (parallèle à `getTopPractices`) :
+ *   1. TEAM_ACTIONS[id] si présent → tronqué à `max` items
+ *   2. Sinon : `getTopPractices(id, max)` (formulation conseiller en repli)
+ *
+ * Utilisé par le bloc "Plan d'action équipe" côté Manager (PR3.8.4) pour
+ * exposer des actions d'animation (mettre en place, faire travailler,
+ * suivre…) plutôt que des pratiques individuelles.
+ */
+export function getTeamActions(
+  id: ExpertiseRatioId,
+  max: number = DEFAULT_MAX
+): string[] {
+  const explicit = TEAM_ACTIONS[id];
+  if (explicit && explicit.length > 0) {
+    return clampList(explicit, max);
+  }
+  // Fallback : pratiques conseiller (la cascade interne de getTopPractices
+  // gère TOP_PRACTICES → split bestPractices → paragraphe brut).
+  return getTopPractices(id, max);
 }
 
 /**

@@ -1,15 +1,25 @@
 "use client";
 
-import { Wrench } from "lucide-react";
+import { Suspense, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import { Wrench, Sparkles, Users } from "lucide-react";
 import { ManagerViewSwitcher } from "@/components/manager/manager-view-switcher";
 import { useManagerView } from "@/hooks/use-manager-view";
+import { useTeamDiagnostic } from "@/hooks/team/use-team-diagnostic";
+import { useAppStore } from "@/stores/app-store";
+import { TeamActionPlan } from "@/components/manager/ameliorer/team-action-plan";
+import { TeamActivationSteps } from "@/components/manager/ameliorer/team-activation-steps";
+import {
+  RATIO_EXPERTISE,
+  type ExpertiseRatioId,
+} from "@/data/ratio-expertise";
 
 /**
- * Manager — Faire progresser mon équipe (PR3.8.2 socle).
+ * Manager — Faire progresser mon équipe (PR3.8.4).
  *
- * Toggle Collectif / Individuel + sélecteur conseiller posés via
- * <ManagerViewSwitcher />. Le contenu actionnable (1:1, assignation de
- * modules, plan 30 jours par conseiller) sera livré en PR3.8.x.
+ * Mode Collectif : plan d'action équipe sur le levier prioritaire (query
+ * param `?levier=` ou fallback `useTeamDiagnostic().top`).
+ * Mode Individuel : stub PR3.8.2 inchangé.
  */
 export default function ManagerAmeliorerPage() {
   const { isIndividual, selectedAdvisor } = useManagerView();
@@ -27,7 +37,7 @@ export default function ManagerAmeliorerPage() {
         <p className="max-w-2xl text-sm text-muted-foreground">
           {isIndividual && selectedAdvisor
             ? `Actions ciblées pour faire progresser ${selectedAdvisor.firstName} ${selectedAdvisor.lastName}.`
-            : "Plan d'action collectif et leviers prioritaires pour faire progresser l'équipe."}
+            : "Plan d'action collectif sur le levier prioritaire de votre équipe."}
         </p>
       </header>
 
@@ -36,22 +46,76 @@ export default function ManagerAmeliorerPage() {
       {isIndividual ? (
         <IndividualStub advisorName={selectedAdvisor?.firstName ?? null} />
       ) : (
-        <CollectiveStub />
+        <Suspense fallback={null}>
+          <CollectiveAmeliorer />
+        </Suspense>
       )}
     </section>
   );
 }
 
-function CollectiveStub() {
+function CollectiveAmeliorer() {
+  const isDemo = useAppStore((s) => s.isDemo);
+  const searchParams = useSearchParams();
+  const { top, totalAdvisors } = useTeamDiagnostic();
+
+  const expertiseId = useMemo<ExpertiseRatioId | null>(() => {
+    const raw = searchParams.get("levier");
+    if (raw && raw in RATIO_EXPERTISE) return raw as ExpertiseRatioId;
+    return top?.expertiseId ?? null;
+  }, [searchParams, top]);
+
+  const leverLabel = expertiseId
+    ? RATIO_EXPERTISE[expertiseId]?.label ?? null
+    : null;
+
+  // Empty state — équipe vide en prod réel
+  if (totalAdvisors === 0 && !isDemo) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+          <Users className="h-6 w-6 text-primary" />
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-foreground">
+          Votre équipe est vide pour l&apos;instant
+        </h2>
+        <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
+          Partagez votre code équipe pour inviter vos conseillers. Le plan
+          d&apos;action apparaîtra dès qu&apos;ils auront saisi leurs résultats.
+        </p>
+        <a
+          href="/parametres/equipe"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+        >
+          Gérer mon équipe
+        </a>
+      </div>
+    );
+  }
+
+  // Tout va bien — pas de levier prioritaire détecté
+  if (!expertiseId || !leverLabel) {
+    return (
+      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-6">
+        <div className="flex items-center gap-2 text-green-600 dark:text-green-500">
+          <Sparkles className="h-5 w-5" />
+          <h2 className="text-lg font-semibold">
+            Aucun levier prioritaire à activer
+          </h2>
+        </div>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Votre équipe est au-dessus des seuils ce mois-ci. Continuez le
+          pilotage régulier — un nouveau levier sera proposé dès qu&apos;un
+          écart significatif apparaîtra.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8">
-      <h2 className="text-lg font-semibold text-foreground">
-        Vue collective en construction
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        Les leviers d&apos;équipe et les actions Manager (programmer un 1:1,
-        assigner un module) seront livrés dans une prochaine PR3.8.x.
-      </p>
+    <div className="space-y-6">
+      <TeamActionPlan expertiseId={expertiseId} leverLabel={leverLabel} max={3} />
+      <TeamActivationSteps />
     </div>
   );
 }
