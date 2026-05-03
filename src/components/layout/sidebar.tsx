@@ -46,11 +46,14 @@ const navItems: NavItem[] = [
   { href: "/conseiller/ameliorer", icon: Wrench, label: "M'améliorer", lockedFeature: "formation" },
   { href: "/conseiller/progression", icon: LineChart, label: "Ma progression" },
   { href: "/conseiller/comparaison", icon: Users, label: "Ma comparaison", lockedFeature: "comparaison" },
-  { href: "/manager/dashboard", icon: LayoutDashboard, label: "Tableau de bord", managerOnly: true },
-  { href: "/manager/resultats", icon: BarChart3, label: "Mon Volume d'Activité", managerOnly: true },
-  { href: "/manager/performance", icon: Gauge, label: "Mes Ratios de Transformation", managerOnly: true },
-  { href: "/manager/comparaison", icon: GitCompare, label: "Ma Comparaison", managerOnly: true },
-  { href: "/manager/formation", icon: BookOpen, label: "Ma Formation", managerOnly: true },
+  // PR3.8.1 — refonte Manager alignée sur la nav Conseiller V3.
+  // Anciennes entrées (Tableau de bord / Mon Volume / Mes Ratios) absorbées
+  // par "Mon diagnostic". Routes legacy redirigées via next.config.ts.
+  { href: "/manager/diagnostic", icon: Search, label: "Mon diagnostic", managerOnly: true },
+  { href: "/manager/ameliorer", icon: Wrench, label: "Faire progresser mon équipe", managerOnly: true },
+  { href: "/manager/progression", icon: LineChart, label: "Notre progression", managerOnly: true },
+  { href: "/manager/comparaison", icon: Users, label: "Notre comparaison", managerOnly: true },
+  { href: "/manager/formation", icon: BookOpen, label: "Ma formation", managerOnly: true },
   { href: "/directeur/dashboard", icon: LayoutDashboard, label: "Tableau de bord", directorOnly: true },
   { href: "/directeur/resultats", icon: BarChart3, label: "Mon Volume d'Activité", directorOnly: true },
   { href: "/directeur/performance", icon: Gauge, label: "Mes Ratios de Transformation", directorOnly: true },
