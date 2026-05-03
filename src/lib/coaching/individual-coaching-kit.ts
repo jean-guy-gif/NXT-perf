@@ -13,10 +13,12 @@
  */
 
 import {
+  getCoachingPattern,
   getCommonCauses,
   getDiagnosis,
   getTopPractices,
 } from "@/lib/coaching/coach-brain";
+import type { CoachingPattern } from "@/lib/coaching/coaching-patterns";
 import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { Kit } from "@/lib/coaching/team-activation-kit";
 
@@ -62,6 +64,10 @@ export function buildIndividualCoachingKit(
   const diagnosis = expertiseId ? getDiagnosis(expertiseId) : "";
   const causes = expertiseId ? getCommonCauses(expertiseId, 2) : [];
   const practices = expertiseId ? getTopPractices(expertiseId, 3) : [];
+  // Pattern terrain extrait du cerveau du coach (300+ debriefs synthétisés).
+  // Null si le levier n'a pas encore d'entrée — on retombe sur les causes
+  // génériques de RATIO_EXPERTISE.
+  const pattern = expertiseId ? getCoachingPattern(expertiseId) : null;
 
   const title = `Trame coaching individuel — ${firstName}`;
   const subtitle = leverLabel
@@ -73,10 +79,10 @@ export function buildIndividualCoachingKit(
     subtitle,
     sections: [
       buildOuvertureSection(firstName, leverInline, metrics),
-      buildPriseDeConscienceSection(leverInline, diagnosis, causes),
-      buildTravailLevierSection(leverLabel, practices),
+      buildPriseDeConscienceSection(leverInline, diagnosis, causes, pattern),
+      buildTravailLevierSection(leverLabel, practices, pattern),
       buildEngagementSection(firstName),
-      buildDecisionManagerSection(),
+      buildDecisionManagerSection(pattern),
     ],
   };
 }
@@ -117,19 +123,31 @@ function buildPriseDeConscienceSection(
   leverInline: string,
   diagnosis: string,
   causes: string[],
+  pattern: CoachingPattern | null,
 ): { heading: string; bullets: string[]; paragraph?: string } {
-  const bullets: string[] = [
-    `Sur ${leverInline}, qu'est-ce que tes résultats te montrent ?`,
-    `À quel moment précis ça bloque dans ta démarche sur ${leverInline} ?`,
-    `Qu'est-ce que tu continues à faire qui limite ton résultat sur ${leverInline} ?`,
-  ];
-  // Si le coach-brain a une cause typique, on la met en référence (texte
-  // discret pour le manager, pas une question à poser brutalement).
-  if (causes.length > 0) {
+  const bullets: string[] = [];
+
+  // Questions calibrées issues du pattern terrain (« le système a déjà vu
+  // ce cas 100 fois ») — formulations précises, pas génériques.
+  if (pattern && pattern.signalQuestions.length > 0) {
+    bullets.push(...pattern.signalQuestions.slice(0, 3));
+  } else {
     bullets.push(
-      `(Référence manager — cause fréquente sur ce levier : « ${causes[0]} »)`,
+      `Sur ${leverInline}, qu'est-ce que tes résultats te montrent ?`,
+      `À quel moment précis ça bloque dans ta démarche sur ${leverInline} ?`,
+      `Qu'est-ce que tu continues à faire qui limite ton résultat sur ${leverInline} ?`,
     );
   }
+
+  // Référence manager discrète : un comportement observé typique (priorité
+  // au pattern terrain), sinon une cause générique de RATIO_EXPERTISE.
+  const reference = pattern?.observedBehaviors?.[0] ?? causes[0];
+  if (reference) {
+    bullets.push(
+      `(Référence manager — pattern fréquent : « ${reference} »)`,
+    );
+  }
+
   return {
     heading: "B. Prise de conscience",
     paragraph: diagnosis || undefined,
@@ -142,6 +160,7 @@ function buildPriseDeConscienceSection(
 function buildTravailLevierSection(
   leverLabel: string | null,
   practices: string[],
+  pattern: CoachingPattern | null,
 ): { heading: string; bullets: string[] } {
   const bullets: string[] = [];
   if (leverLabel) {
@@ -156,6 +175,12 @@ function buildTravailLevierSection(
   bullets.push(
     "Laquelle de ces pratiques te semble la plus actionnable cette semaine ?",
   );
+  // Erreur fréquente issue du pattern terrain — sert d'angle si le
+  // conseiller n'identifie pas de blocage clair.
+  const mistake = pattern?.recurringMistakes?.[0];
+  if (mistake) {
+    bullets.push(`Anti-pattern à débusquer : ${mistake}`);
+  }
   return { heading: "C. Travail sur le levier", bullets: bullets.slice(0, 6) };
 }
 
@@ -177,17 +202,20 @@ function buildEngagementSection(firstName: string): {
 
 // ─── E. Décision manager ─────────────────────────────────────────────────
 
-function buildDecisionManagerSection(): {
-  heading: string;
-  bullets: string[];
-} {
-  return {
-    heading: "E. Décision manager",
-    bullets: [
-      "Autonomie : le conseiller peut continuer seul, on garde le rythme actuel.",
-      "Accompagnement renforcé : prévoir un point individuel rapproché cette semaine.",
-      "Point de contrôle hebdo : caler un suivi hebdomadaire dédié à ce levier.",
-      "Réajustement du plan : ajuster une action ou changer de levier si besoin.",
-    ],
-  };
+function buildDecisionManagerSection(
+  pattern: CoachingPattern | null,
+): { heading: string; bullets: string[] } {
+  const bullets: string[] = [
+    "Autonomie : le conseiller peut continuer seul, on garde le rythme actuel.",
+    "Accompagnement renforcé : prévoir un point individuel rapproché cette semaine.",
+    "Point de contrôle hebdo : caler un suivi hebdomadaire dédié à ce levier.",
+    "Réajustement du plan : ajuster une action ou changer de levier si besoin.",
+  ];
+  // Angle de coaching concret si le manager opte pour "Accompagnement
+  // renforcé" — issu du pattern terrain.
+  const angle = pattern?.coachingAngles?.[0];
+  if (angle) {
+    bullets.push(`Piste si accompagnement renforcé : ${angle}`);
+  }
+  return { heading: "E. Décision manager", bullets };
 }

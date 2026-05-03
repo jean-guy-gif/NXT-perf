@@ -23,6 +23,10 @@ import {
 } from "@/data/ratio-expertise";
 import { TOP_PRACTICES } from "@/lib/coaching/top-practices";
 import { TEAM_ACTIONS } from "@/lib/coaching/team-actions";
+import {
+  getCoachingPattern as readCoachingPattern,
+  type CoachingPattern,
+} from "@/lib/coaching/coaching-patterns";
 import type { VolumeKey } from "@/lib/diagnostic-criticite";
 import { ratioToFormationArea } from "@/lib/formation";
 import { RATIO_ID_TO_EXPERTISE_ID } from "@/lib/ratio-to-expertise";
@@ -171,6 +175,25 @@ export function getTeamActions(
   // Fallback : pratiques conseiller (la cascade interne de getTopPractices
   // gère TOP_PRACTICES → split bestPractices → paragraphe brut).
   return getTopPractices(id, max);
+}
+
+/**
+ * Retourne le pattern coaching d'un levier — observations terrain, erreurs
+ * récurrentes, questions de signal et angles de coaching.
+ *
+ * Source actuelle (V1) : table hardcodée `COACHING_PATTERNS` extraite des
+ * 300+ debriefs et coachings réels du « cerveau du coach » NXT, anonymisés
+ * et synthétisés. Aucun transcript brut, aucun cas réel exposé.
+ *
+ * Forward-compat : si un service de query (LLM/embeddings sur transcripts)
+ * apparaît plus tard, cette fonction sera réimplémentée pour appeler le
+ * service ; les consommateurs (ex. `buildIndividualCoachingKit`) n'ont pas
+ * à changer.
+ */
+export function getCoachingPattern(
+  id: ExpertiseRatioId,
+): CoachingPattern | null {
+  return readCoachingPattern(id);
 }
 
 /**
