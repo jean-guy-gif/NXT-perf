@@ -16,7 +16,7 @@
  */
 
 import {
-  getDiagnosis,
+  getCommonCauses,
   getFirstAction,
   getTeamActions,
   getTopPractices,
@@ -53,28 +53,32 @@ function leverLabel(id: ExpertiseRatioId): string {
 
 export function buildTeamMeetingKit(expertiseId: ExpertiseRatioId): Kit {
   const label = leverLabel(expertiseId);
-  const diagnosis = getDiagnosis(expertiseId);
+  const causes = getCommonCauses(expertiseId, 3);
   const teamActions = getTeamActions(expertiseId, 3);
   const firstAction = getFirstAction(expertiseId);
 
   return {
     title: `Réunion équipe — ${label}`,
-    subtitle:
-      "Trame de brief à présenter à votre équipe pour cadrer le levier prioritaire.",
+    subtitle: "Brief équipe — activer le levier prioritaire.",
     sections: [
       {
-        heading: "Objectif de la réunion",
-        paragraph: `Aligner l'équipe sur le levier prioritaire « ${label} » et engager chacun sur des actions concrètes cette semaine.`,
-      },
-      {
         heading: "Constat équipe",
-        paragraph:
-          "Le diagnostic du mois fait remonter ce levier comme premier facteur de perte de performance équipe. Présentez les chiffres-clés (réalisé vs objectif à date, écart) avant d'entrer dans le pourquoi.",
+        bullets: [
+          `Le levier « ${label} » est en retard sur l'objectif à date.`,
+          "L'écart représente un manque à gagner significatif si rien ne change.",
+          "C'est notre priorité collective ce mois-ci.",
+        ],
       },
       {
         heading: "Pourquoi ce levier est prioritaire",
-        paragraph: diagnosis ||
-          `« ${label} » est le levier qui pèse le plus sur la conversion à ce stade du parcours. Le travailler en équipe a un effet immédiat sur les autres ratios en aval.`,
+        bullets:
+          causes.length > 0
+            ? causes
+            : [
+                `« ${label} » pèse plus que tout sur la conversion à ce stade.`,
+                "Le travailler en équipe a un effet immédiat sur les ratios en aval.",
+                "Chaque conseiller peut progresser dès cette semaine.",
+              ],
       },
       {
         heading: "3 actions à appliquer cette semaine",
@@ -91,9 +95,12 @@ export function buildTeamMeetingKit(expertiseId: ExpertiseRatioId): Kit {
         ],
       },
       {
-        heading: "Conclusion manager",
-        paragraph:
-          "Reformulez l'engagement collectif, fixez la date du prochain point, et rappelez que vous serez disponible pour accompagner individuellement les conseillers qui en ont besoin.",
+        heading: "Conclusion",
+        bullets: [
+          "Engagement collectif : chacun applique au moins une action cette semaine.",
+          "Prochain point : on se revoit la semaine prochaine pour faire le bilan.",
+          `Indicateur suivi : volume sur « ${label} », hebdomadairement.`,
+        ],
       },
     ],
   };
@@ -205,6 +212,51 @@ export function buildTeamWeeklyFollowUpKit(expertiseId: ExpertiseRatioId): Kit {
       },
     ],
   };
+}
+
+// ─── Slides (mode présentation) ───────────────────────────────────────────
+
+export interface Slide {
+  /** Titre principal de la slide. */
+  title: string;
+  /** Sous-titre / contexte court (slide titre essentiellement). */
+  subtitle?: string;
+  /** Liste à puces (slide contenu). */
+  bullets?: string[];
+  /** Phrase highlight (encadrée, slide contenu). */
+  highlight?: string;
+  /** Marque la slide d'ouverture pour rendu spécial (centrage, taille). */
+  variant?: "title" | "content";
+}
+
+/**
+ * Convertit un `Kit` en suite de slides exploitable par le mode présentation.
+ *
+ * Convention :
+ *   - Slide 1  : variant "title"   (kit.title + kit.subtitle)
+ *   - Slides N : variant "content" (1 par section : heading + bullets / paragraph)
+ *
+ * Pour le kit Réunion équipe (5 sections), le résultat fait donc 6 slides —
+ * conforme à la maquette PDF (Titre / Constat / Pourquoi / Actions /
+ * Engagement / Conclusion).
+ */
+export function buildSlidesFromKit(kit: Kit): Slide[] {
+  const slides: Slide[] = [
+    {
+      variant: "title",
+      title: kit.title,
+      subtitle: kit.subtitle,
+    },
+  ];
+  for (const section of kit.sections) {
+    slides.push({
+      variant: "content",
+      title: section.heading,
+      bullets: section.bullets,
+      highlight: section.paragraph,
+    });
+  }
+  return slides;
 }
 
 // ─── Sélecteur générique ──────────────────────────────────────────────────

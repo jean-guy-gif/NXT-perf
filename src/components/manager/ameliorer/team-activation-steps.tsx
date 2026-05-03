@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Calendar, Dumbbell, FileText, LineChart, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TeamActivationKitDrawer } from "./team-activation-kit-drawer";
+import { TeamActivationSlides } from "./team-activation-slides";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { KitKind } from "@/lib/coaching/team-activation-kit";
 
@@ -114,7 +114,7 @@ export function TeamActivationSteps({ expertiseId }: TeamActivationStepsProps) {
         </ul>
       </div>
 
-      <TeamActivationKitDrawer
+      <TeamActivationSlides
         open={openKind !== null}
         onClose={handleClose}
         kind={openKind}
