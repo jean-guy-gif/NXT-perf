@@ -291,7 +291,7 @@ export function TeamActivationSteps({
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {state.status === "success" && state.result.exportUrl ? (
-                    // PDF prioritaire — bouton principal (pas de compte Gamma requis).
+                    // ÉTAT PDF prêt → "Télécharger le PDF" en action principale.
                     <a
                       href={state.result.exportUrl}
                       target="_blank"
@@ -301,8 +301,20 @@ export function TeamActivationSteps({
                       <Download className="h-3.5 w-3.5" />
                       Télécharger le PDF
                     </a>
-                  ) : (
-                    // Pas (encore) de PDF disponible : slides internes en primary.
+                  ) : state.status === "loading" ? (
+                    // ÉTAT pendant génération → bouton désactivé avec spinner.
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground opacity-70 cursor-wait"
+                    >
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Génération…
+                    </button>
+                  ) : state.status === "success" && state.result.gammaUrl ? (
+                    // ÉTAT Gamma OK mais pas (encore) de PDF → slides internes
+                    // en fallback primary, "Ouvrir dans Gamma" en secondary
+                    // ci-dessous. On ne force JAMAIS le manager à ouvrir Gamma.
                     <button
                       type="button"
                       onClick={handleOpen(card.kind)}
@@ -311,9 +323,21 @@ export function TeamActivationSteps({
                       <FileText className="h-3.5 w-3.5" />
                       Ouvrir
                     </button>
+                  ) : (
+                    // ÉTAT idle / error → "Générer avec Gamma" en action
+                    // principale (le manager doit être incité à générer le
+                    // PDF prêt à présenter).
+                    <button
+                      type="button"
+                      onClick={handleGenerate(card.kind)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Générer avec Gamma
+                    </button>
                   )}
 
-                  {/* Bouton secondaire — varie selon état Gamma */}
+                  {/* Slot secondaire — varie selon état */}
                   {state.status === "success" && state.result.gammaUrl ? (
                     <a
                       href={state.result.gammaUrl}
@@ -325,27 +349,19 @@ export function TeamActivationSteps({
                       Ouvrir dans Gamma
                     </a>
                   ) : (
+                    // Idle / loading / error : "Ouvrir" (slides internes) reste
+                    // toujours accessible — ne jamais bloquer le manager.
                     <button
                       type="button"
-                      onClick={handleGenerate(card.kind)}
-                      disabled={state.status === "loading"}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-70"
+                      onClick={handleOpen(card.kind)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                     >
-                      {state.status === "loading" ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Génération…
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Générer avec Gamma
-                        </>
-                      )}
+                      <FileText className="h-3.5 w-3.5" />
+                      Ouvrir
                     </button>
                   )}
 
-                  {/* Lien tertiaire vers slides internes quand le PDF a pris la primary */}
+                  {/* Lien tertiaire "Voir aperçu" quand le PDF est prêt */}
                   {state.status === "success" && state.result.exportUrl && (
                     <button
                       type="button"
@@ -364,12 +380,20 @@ export function TeamActivationSteps({
                   </div>
                 )}
 
+                {/* Status message pendant génération */}
+                {state.status === "loading" && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Génération du support et préparation du PDF…
+                  </p>
+                )}
+
                 {/* Message discret quand Gamma a réussi mais sans exportUrl encore */}
                 {state.status === "success" &&
                   !state.result.exportUrl &&
                   state.result.gammaUrl && (
-                    <p className="mt-2 text-[10px] text-muted-foreground">
-                      Export PDF en cours de disponibilité.
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      PDF en préparation. Vous pouvez consulter l&apos;aperçu
+                      intégré en attendant.
                     </p>
                   )}
 

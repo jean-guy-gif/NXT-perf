@@ -5,10 +5,12 @@ import { CheckCircle2, ListTodo, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import { useTeamDiagnostic } from "@/hooks/team/use-team-diagnostic";
 import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import { PLAN_30J_DURATION_DAYS, type Plan30jPayload } from "@/config/coaching";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { IndividualCoachingPrep } from "@/components/manager/individual/individual-coaching-prep";
+import type { CoachingMetrics } from "@/lib/coaching/individual-coaching-kit";
 
 /**
  * ManagerIndividualAmeliorerView (PR3.8 follow-up).
@@ -32,6 +34,11 @@ export function ManagerIndividualAmeliorerView() {
   const { user, category } = useUser();
   const { getActivePlan, loading } = useImprovementResources();
   const activePlan = loading ? null : getActivePlan();
+  // Fallback levier pour la trame coaching quand le conseiller n'a pas de
+  // plan : on utilise le levier prioritaire équipe (contexte manager).
+  // useTeamDiagnostic lit le manager via useAppStore directement, pas via
+  // useUser — il n'est donc PAS impacté par l'override ConseillerProxy.
+  const { top: teamTopLever } = useTeamDiagnostic();
 
   const planSummary = useMemo(() => {
     if (!activePlan) return null;
@@ -74,15 +81,20 @@ export function ManagerIndividualAmeliorerView() {
     level: CATEGORY_LABELS[category] ?? category,
   };
 
-  // Levier en focus pour le coaching kit : celui du plan actif si disponible.
+  // Levier en focus pour le coaching kit :
+  //   1) celui du plan actif si disponible (cas nominal)
+  //   2) sinon le levier prioritaire équipe (contexte manager)
+  //   3) sinon null (cadrage générique)
   const coachingExpertiseId: ExpertiseRatioId | null =
-    planSummary?.ratioId ?? null;
-  const coachingProgress = planSummary
+    planSummary?.ratioId ?? teamTopLever?.expertiseId ?? null;
+  const coachingMetrics: CoachingMetrics | undefined = planSummary
     ? {
         dayOfPlan: planSummary.elapsedDays,
         totalDays: planSummary.totalDays,
         donePct: planSummary.pct,
-        remaining: planSummary.remaining,
+        doneActions: planSummary.done,
+        totalActions: planSummary.total,
+        remainingActions: planSummary.remaining,
       }
     : undefined;
 
@@ -114,7 +126,7 @@ export function ManagerIndividualAmeliorerView() {
       <IndividualCoachingPrep
         advisor={advisor}
         expertiseId={coachingExpertiseId}
-        progress={coachingProgress}
+        metrics={coachingMetrics}
       />
     </div>
   );

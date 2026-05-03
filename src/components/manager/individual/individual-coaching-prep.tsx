@@ -9,11 +9,11 @@ import {
 } from "@/lib/coaching/individual-coaching-kit";
 import { serializeKitToMarkdown } from "@/lib/coaching/team-activation-kit";
 
-interface Props extends IndividualCoachingInput {}
+type Props = IndividualCoachingInput;
 
 /**
  * IndividualCoachingPrep — bloc "Préparer mon coaching individuel"
- * (PR3.8 follow-up).
+ * (PR3.8 follow-up #2 — input contextualisé).
  *
  * Affiche un résumé du kit + 3 boutons :
  *   - "Ouvrir la trame" → slides plein écran (`IndividualCoachingSlides`)
@@ -25,14 +25,14 @@ interface Props extends IndividualCoachingInput {}
 export function IndividualCoachingPrep({
   advisor,
   expertiseId,
-  progress,
+  metrics,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const kit = useMemo(
-    () => buildIndividualCoachingKit({ advisor, expertiseId, progress }),
-    [advisor, expertiseId, progress],
+    () => buildIndividualCoachingKit({ advisor, expertiseId, metrics }),
+    [advisor, expertiseId, metrics],
   );
 
   const handleCopy = async () => {
