@@ -118,6 +118,10 @@ export function aggregateTeamDiagnostic(
     const seen = new Set<ExpertiseRatioId>();
 
     for (const p of allPoints) {
+      // V1: team diagnostic focuses on ratio levers because they are directly coachable.
+      // Volumes are intentionally excluded at this stage.
+      // They will be reintroduced later via a mapping (volume -> actionable ratio),
+      // similar to volumeToRelatedRatio on the conseiller side.
       if (p.type !== "ratio") continue;
       const id = p.id as ExpertiseRatioId;
       if (seen.has(id)) continue;
