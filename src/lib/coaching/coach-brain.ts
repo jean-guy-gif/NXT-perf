@@ -27,6 +27,10 @@ import {
   getCoachingPattern as readCoachingPattern,
   type CoachingPattern,
 } from "@/lib/coaching/coaching-patterns";
+
+// Re-export pour permettre aux consommateurs d'utiliser la façade unique
+// `coach-brain` sans avoir à importer le module fallback directement.
+export type { CoachingPattern };
 import type { VolumeKey } from "@/lib/diagnostic-criticite";
 import { ratioToFormationArea } from "@/lib/formation";
 import { RATIO_ID_TO_EXPERTISE_ID } from "@/lib/ratio-to-expertise";

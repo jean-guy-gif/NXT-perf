@@ -49,12 +49,18 @@ export interface IndividualCoachingInput {
    * passe en mode "cadrage" plutôt que "diagnostic d'écart".
    */
   metrics?: CoachingMetrics;
+  /**
+   * (PR-B) Pattern à utiliser explicitement, typiquement issu de
+   * `useCoachingPattern` qui privilégie la source serveur. Si omis ou
+   * `null`, on retombe sur le fallback synchrone `getCoachingPattern`.
+   */
+  patternOverride?: CoachingPattern | null;
 }
 
 export function buildIndividualCoachingKit(
   input: IndividualCoachingInput,
 ): Kit {
-  const { advisor, expertiseId, metrics } = input;
+  const { advisor, expertiseId, metrics, patternOverride } = input;
   const firstName = advisor.firstName.trim();
 
   const expertise = expertiseId ? RATIO_EXPERTISE[expertiseId] : null;
@@ -64,10 +70,15 @@ export function buildIndividualCoachingKit(
   const diagnosis = expertiseId ? getDiagnosis(expertiseId) : "";
   const causes = expertiseId ? getCommonCauses(expertiseId, 2) : [];
   const practices = expertiseId ? getTopPractices(expertiseId, 3) : [];
-  // Pattern terrain extrait du cerveau du coach (300+ debriefs synthétisés).
-  // Null si le levier n'a pas encore d'entrée — on retombe sur les causes
-  // génériques de RATIO_EXPERTISE.
-  const pattern = expertiseId ? getCoachingPattern(expertiseId) : null;
+  // Pattern terrain : priorité à la source explicite (typiquement
+  // `useCoachingPattern` côté Manager UI qui peut servir un pattern
+  // serveur), fallback sur le coach-brain synchrone (= COACHING_PATTERNS).
+  const pattern =
+    patternOverride !== undefined
+      ? patternOverride
+      : expertiseId
+        ? getCoachingPattern(expertiseId)
+        : null;
 
   const title = `Trame coaching individuel — ${firstName}`;
   const subtitle = leverLabel

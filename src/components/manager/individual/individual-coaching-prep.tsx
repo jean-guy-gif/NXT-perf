@@ -1,15 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Copy, Download, FileText, MessageCircle } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  FileText,
+  Loader2,
+  MessageCircle,
+} from "lucide-react";
 import { IndividualCoachingSlides } from "./individual-coaching-slides";
 import {
   buildIndividualCoachingKit,
   type IndividualCoachingInput,
 } from "@/lib/coaching/individual-coaching-kit";
 import { serializeKitToMarkdown } from "@/lib/coaching/team-activation-kit";
+import { useCoachingPattern } from "@/hooks/use-coaching-pattern";
 
-type Props = IndividualCoachingInput;
+// `patternOverride` est piloté en interne via `useCoachingPattern`. On
+// retire la prop de la surface publique pour garder l'API simple côté caller.
+type Props = Omit<IndividualCoachingInput, "patternOverride">;
 
 /**
  * IndividualCoachingPrep — bloc "Préparer mon coaching individuel"
@@ -30,9 +40,24 @@ export function IndividualCoachingPrep({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // PR-B — privilégie la source serveur (cerveau coach) puis bascule en
+  // silence sur le fallback hardcoded. Ne bloque jamais l'UI : `pattern`
+  // est synchroniquement le fallback au premier render.
+  const {
+    pattern: serverPattern,
+    isLoading,
+    source,
+  } = useCoachingPattern(expertiseId);
+
   const kit = useMemo(
-    () => buildIndividualCoachingKit({ advisor, expertiseId, metrics }),
-    [advisor, expertiseId, metrics],
+    () =>
+      buildIndividualCoachingKit({
+        advisor,
+        expertiseId,
+        metrics,
+        patternOverride: serverPattern,
+      }),
+    [advisor, expertiseId, metrics, serverPattern],
   );
 
   const handleCopy = async () => {
@@ -67,8 +92,14 @@ export function IndividualCoachingPrep({
             <MessageCircle className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
               Préparer mon coaching individuel
+              {isLoading && source === "fallback" && (
+                <Loader2
+                  aria-label="Synchronisation des patterns coaching"
+                  className="h-3.5 w-3.5 animate-spin text-muted-foreground"
+                />
+              )}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {kit.subtitle}
