@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Users, Award, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useManagerScope } from "@/hooks/use-manager-scope";
+import { useManagerView } from "@/hooks/use-manager-view";
 import { useTeamResults } from "@/hooks/team/use-team-results";
 import { useAppStore } from "@/stores/app-store";
 import { ManagerViewSwitcher } from "@/components/manager/manager-view-switcher";
@@ -11,11 +12,15 @@ import { ComparaisonInternalView } from "@/components/manager/comparaison/compar
 import { TeamsComparisonTab } from "@/components/manager/comparaison/teams-comparison-tab";
 import { EnrichedLeaderboardTab } from "@/components/manager/comparaison/enriched-leaderboard-tab";
 import { DpiComparisonTab } from "@/components/manager/comparaison/dpi-comparison-tab";
+import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
+import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
+import ConseillerComparaisonPage from "@/app/(dashboard)/conseiller/comparaison/page";
 
 type TabKey = "interne" | "equipes" | "classement" | "dpi";
 
 export default function ManagerComparaisonPage() {
   const { conseiller, isIndividualScope } = useManagerScope();
+  const { isIndividual, selectedAdvisorId } = useManagerView();
   const { conseillers } = useTeamResults();
   const isDemo = useAppStore((s) => s.isDemo);
 
@@ -78,6 +83,49 @@ export default function ManagerComparaisonPage() {
         <ManagerViewSwitcher />
       </div>
 
+      {/* PR3.8.5 — Mode Individuel : on rend la vue Conseiller "Ma
+          comparaison" telle quelle via ConseillerProxy. Les tabs Manager
+          (interne / classement / DPI) ne s'affichent que dans le mode
+          Collectif. */}
+      {isIndividual ? (
+        selectedAdvisorId ? (
+          <div className="mx-auto max-w-6xl px-4">
+            <ConseillerProxy advisorId={selectedAdvisorId}>
+              <ConseillerComparaisonPage />
+            </ConseillerProxy>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-6xl px-4">
+            <NoAdvisorSelected />
+          </div>
+        )
+      ) : (
+        <ManagerCollectiveTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isIndividualScope={isIndividualScope}
+          conseiller={conseiller}
+        />
+      )}
+    </div>
+  );
+}
+
+interface ManagerCollectiveTabsProps {
+  activeTab: TabKey;
+  setActiveTab: (t: TabKey) => void;
+  isIndividualScope: boolean;
+  conseiller: ReturnType<typeof useManagerScope>["conseiller"];
+}
+
+function ManagerCollectiveTabs({
+  activeTab,
+  setActiveTab,
+  isIndividualScope,
+  conseiller,
+}: ManagerCollectiveTabsProps) {
+  return (
+    <>
       {/* TABS */}
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
@@ -103,7 +151,7 @@ export default function ManagerComparaisonPage() {
       {activeTab === "equipes" && <TeamsComparisonTab />}
       {activeTab === "classement" && <EnrichedLeaderboardTab />}
       {activeTab === "dpi" && <DpiComparisonTab />}
-    </div>
+    </>
   );
 }
 

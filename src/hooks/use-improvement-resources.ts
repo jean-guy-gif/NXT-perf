@@ -23,6 +23,7 @@ import {
   getAdapter,
   type ImprovementResourcesAdapter,
 } from "@/lib/improvement-resources-adapters";
+import { useAdvisorOverride } from "@/contexts/advisor-override-context";
 
 // Re-export the shared row type so existing consumers of this hook keep working.
 export type { ImprovementResource } from "@/lib/improvement-resources-adapters";
@@ -58,11 +59,15 @@ function broadcastResourcesMutated(): void {
 export function useImprovementResources() {
   const user = useAppStore((s) => s.user);
   const isDemoMode = useAppStore((s) => s.isDemoMode);
+  const { advisorId } = useAdvisorOverride();
   const [resources, setResources] = useState<ImprovementResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const userId = user?.id;
+  // PR3.8.5 — Sous un AdvisorOverrideProvider (mode Manager → Individuel),
+  // l'override prend le pas sur l'utilisateur courant : les plans/ressources
+  // lus et créés ciblent alors le conseiller sélectionné.
+  const userId = advisorId ?? user?.id;
 
   const refresh = useCallback(async () => {
     if (!userId) {

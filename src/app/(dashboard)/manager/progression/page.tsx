@@ -3,16 +3,21 @@
 import { LineChart } from "lucide-react";
 import { ManagerViewSwitcher } from "@/components/manager/manager-view-switcher";
 import { useManagerView } from "@/hooks/use-manager-view";
+import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
+import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
+import ConseillerProgressionPage from "@/app/(dashboard)/conseiller/progression/page";
 
 /**
- * Manager — Notre progression (PR3.8.2 socle).
+ * Manager — Notre progression (PR3.8.5).
  *
- * Toggle Collectif / Individuel + sélecteur conseiller. Le contenu
- * (ROI cumulé équipe, plans 30j archivés, courbe CA équipe vs marché,
- * DPI mensuel collectif) sera livré en PR3.8.x.
+ * Mode Collectif  : stub PR3.8.2 (refonte à venir en PR3.8.x).
+ * Mode Individuel : page Conseiller "Ma progression" rendue via
+ *                   ConseillerProxy. L'override d'utilisateur permet à la
+ *                   page Conseiller de calculer ROI, plans archivés, courbe
+ *                   CA et DPI mensuel pour le conseiller sélectionné.
  */
 export default function ManagerProgressionPage() {
-  const { isIndividual, selectedAdvisor } = useManagerView();
+  const { isIndividual, selectedAdvisor, selectedAdvisorId } = useManagerView();
 
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -32,7 +37,13 @@ export default function ManagerProgressionPage() {
       <ManagerViewSwitcher />
 
       {isIndividual ? (
-        <IndividualStub advisorName={selectedAdvisor?.firstName ?? null} />
+        selectedAdvisorId ? (
+          <ConseillerProxy advisorId={selectedAdvisorId}>
+            <ConseillerProgressionPage />
+          </ConseillerProxy>
+        ) : (
+          <NoAdvisorSelected />
+        )
       ) : (
         <CollectiveStub />
       )}
@@ -50,21 +61,6 @@ function CollectiveStub() {
         ROI cumulé équipe, plans 30j archivés par conseiller, courbe CA
         équipe vs marché et DPI mensuel collectif arriveront dans une
         prochaine PR3.8.x.
-      </p>
-    </div>
-  );
-}
-
-function IndividualStub({ advisorName }: { advisorName: string | null }) {
-  return (
-    <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-8">
-      <h2 className="text-lg font-semibold text-foreground">
-        Vue conseiller en construction
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        {advisorName
-          ? `La vue individuelle de ${advisorName} affichera ici exactement la page "Ma progression" du Conseiller V3.`
-          : "Sélectionnez un conseiller pour voir sa progression."}
       </p>
     </div>
   );

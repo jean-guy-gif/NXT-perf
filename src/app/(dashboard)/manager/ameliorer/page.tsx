@@ -9,6 +9,9 @@ import { useTeamDiagnostic } from "@/hooks/team/use-team-diagnostic";
 import { useAppStore } from "@/stores/app-store";
 import { TeamActionPlan } from "@/components/manager/ameliorer/team-action-plan";
 import { TeamActivationSteps } from "@/components/manager/ameliorer/team-activation-steps";
+import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
+import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
+import { AmeliorerAdaptiveFlow } from "@/components/conseiller/ameliorer/ameliorer-adaptive-flow";
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
@@ -22,7 +25,7 @@ import {
  * Mode Individuel : stub PR3.8.2 inchangé.
  */
 export default function ManagerAmeliorerPage() {
-  const { isIndividual, selectedAdvisor } = useManagerView();
+  const { isIndividual, selectedAdvisor, selectedAdvisorId } = useManagerView();
 
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -44,7 +47,15 @@ export default function ManagerAmeliorerPage() {
       <ManagerViewSwitcher />
 
       {isIndividual ? (
-        <IndividualStub advisorName={selectedAdvisor?.firstName ?? null} />
+        selectedAdvisorId ? (
+          <ConseillerProxy advisorId={selectedAdvisorId}>
+            <Suspense fallback={null}>
+              <AmeliorerAdaptiveFlow />
+            </Suspense>
+          </ConseillerProxy>
+        ) : (
+          <NoAdvisorSelected />
+        )
       ) : (
         <Suspense fallback={null}>
           <CollectiveAmeliorer />
@@ -120,17 +131,3 @@ function CollectiveAmeliorer() {
   );
 }
 
-function IndividualStub({ advisorName }: { advisorName: string | null }) {
-  return (
-    <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-8">
-      <h2 className="text-lg font-semibold text-foreground">
-        Vue conseiller en construction
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        {advisorName
-          ? `La vue individuelle de ${advisorName} reproduira l'écran "M'améliorer" du Conseiller V3, augmenté des actions Manager (1:1, assignation de modules).`
-          : "Sélectionnez un conseiller pour voir ses leviers d'amélioration."}
-      </p>
-    </div>
-  );
-}

@@ -8,15 +8,20 @@ import { useAppStore } from "@/stores/app-store";
 import { TeamDiagnosticSummary } from "@/components/manager/diagnostic/team-diagnostic-summary";
 import { TeamPainBreakdown } from "@/components/manager/diagnostic/team-pain-breakdown";
 import { BestPracticesBlock } from "@/components/manager/diagnostic/best-practices-block";
+import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
+import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
+import { DiagnosticVerdictView } from "@/components/conseiller/diagnostic/diagnostic-verdict-view";
 
 /**
- * Manager — Mon diagnostic (PR3.8.3).
+ * Manager — Mon diagnostic (PR3.8.5).
  *
- * Mode Collectif : diagnostic équipe (top levier + breakdown + best practices).
- * Mode Individuel : stub (PR3.8.x — vue Conseiller exact).
+ * Mode Collectif  : diagnostic équipe (PR3.8.3 — top levier + breakdown +
+ *                   best practices).
+ * Mode Individuel : vue Conseiller V3 réutilisée via ConseillerProxy
+ *                   (override de l'utilisateur courant).
  */
 export default function ManagerDiagnosticPage() {
-  const { isIndividual, selectedAdvisor } = useManagerView();
+  const { isIndividual, selectedAdvisor, selectedAdvisorId } = useManagerView();
 
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -36,7 +41,13 @@ export default function ManagerDiagnosticPage() {
       <ManagerViewSwitcher />
 
       {isIndividual ? (
-        <IndividualStub advisorName={selectedAdvisor?.firstName ?? null} />
+        selectedAdvisorId ? (
+          <ConseillerProxy advisorId={selectedAdvisorId}>
+            <DiagnosticVerdictView />
+          </ConseillerProxy>
+        ) : (
+          <NoAdvisorSelected />
+        )
       ) : (
         <CollectiveDiagnostic />
       )}
@@ -101,21 +112,6 @@ function CollectiveDiagnostic() {
           max={3}
         />
       )}
-    </div>
-  );
-}
-
-function IndividualStub({ advisorName }: { advisorName: string | null }) {
-  return (
-    <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-8">
-      <h2 className="text-lg font-semibold text-foreground">
-        Vue conseiller en construction
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        {advisorName
-          ? `La vue individuelle de ${advisorName} affichera ici exactement le diagnostic Conseiller V3, avec ses leviers et son plan d'action.`
-          : "Sélectionnez un conseiller pour voir son diagnostic individuel."}
-      </p>
     </div>
   );
 }
