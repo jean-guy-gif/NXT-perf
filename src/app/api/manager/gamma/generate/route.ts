@@ -86,6 +86,11 @@ export async function POST(req: Request) {
       textMode: "preserve",
       numCards: prompt.numCards,
       additionalInstructions: prompt.additionalInstructions,
+      // Demande l'export PDF dès la création : Gamma renverra `exportUrl`
+      // dans la réponse `GET /generations/{id}` une fois la génération +
+      // l'export terminés. Le bouton "Télécharger le PDF" du UI affiche
+      // ce lien quand il est présent.
+      exportAs: "pdf",
     });
   } catch (err) {
     return mapGammaError(err);
