@@ -76,7 +76,10 @@ const POLL_MAX_ATTEMPTS = 30; // ~ 90 s à 3 s d'intervalle après le bref poll 
 const POLL_INTERVAL_MS = 3000;
 
 function gammaCacheKey(kind: KitKind, expertiseId: string): string {
-  return `gamma-kit-${kind}-${expertiseId}`;
+  // v2 — depuis le passage à `exportAs: "pdf"` côté création Gamma, les
+  // anciennes entrées cache n'ont pas `exportUrl`. Bump de version pour
+  // que les managers déjà ayant généré un kit récupèrent un PDF natif.
+  return `gamma-kit-v2-${kind}-${expertiseId}`;
 }
 
 /**
@@ -101,64 +104,6 @@ export function TeamActivationSteps({
     practice: { status: "idle" },
     weekly: { status: "idle" },
   });
-  /** Card actuellement en train de générer son PDF natif (Puppeteer). */
-  const [pdfBusyKind, setPdfBusyKind] = useState<KitKind | null>(null);
-  /** Erreur transitoire d'export PDF, affichée sous le bouton concerné. */
-  const [pdfErrorByKind, setPdfErrorByKind] = useState<
-    Partial<Record<KitKind, string>>
-  >({});
-
-  /**
-   * Télécharge un PDF natif via `/api/export-plan-pdf`. Pas de Gamma —
-   * Puppeteer rend le HTML du kit côté serveur. Indépendant du flow
-   * Gamma : ne touche pas à `gammaState`, juste `pdfBusyKind`.
-   */
-  const handleDownloadPdf = async (kind: KitKind) => {
-    if (!expertiseId) return;
-    console.info("[PDF] click", { kind, expertiseId });
-    setPdfBusyKind(kind);
-    setPdfErrorByKind((prev) => ({ ...prev, [kind]: undefined }));
-    try {
-      const res = await fetch("/api/export-plan-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kitKind: kind, expertiseId }),
-      });
-      if (!res.ok) {
-        let upstream = "";
-        try {
-          const data = (await res.json()) as { upstream?: string };
-          upstream = data.upstream ?? "";
-        } catch {
-          // ignore parse error
-        }
-        console.error("[PDF] api failed", { status: res.status, upstream });
-        setPdfErrorByKind((prev) => ({
-          ...prev,
-          [kind]: `Erreur génération PDF (${res.status})`,
-        }));
-        return;
-      }
-      const blob = await res.blob();
-      console.info("[PDF] blob received", { bytes: blob.size });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${kind}-plan-${expertiseId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch (err) {
-      console.error("[PDF] fetch error", err);
-      setPdfErrorByKind((prev) => ({
-        ...prev,
-        [kind]: "Erreur réseau — réessayer plus tard.",
-      }));
-    } finally {
-      setPdfBusyKind(null);
-    }
-  };
 
   // Hydrate from localStorage on mount / when expertise changes.
   useEffect(() => {
@@ -430,25 +375,7 @@ export function TeamActivationSteps({
                     </button>
                   )}
 
-                  {/* Export PDF natif (Puppeteer) — toujours visible, ne
-                      dépend pas de Gamma. Indépendant du flow de génération
-                      Gamma : un clic = un téléchargement direct. */}
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadPdf(card.kind)}
-                    disabled={pdfBusyKind === card.kind}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-70"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    {pdfBusyKind === card.kind ? "Génération…" : "Télécharger en PDF"}
-                  </button>
                 </div>
-
-                {pdfErrorByKind[card.kind] && (
-                  <p className="mt-2 text-[11px] text-red-600 dark:text-red-500">
-                    {pdfErrorByKind[card.kind]}
-                  </p>
-                )}
 
                 {/* CTA NXT Training — uniquement sur la card "Mise en pratique" */}
                 {card.kind === "practice" && (
@@ -463,11 +390,6 @@ export function TeamActivationSteps({
                     Génération du support et préparation du PDF…
                   </p>
                 )}
-
-                {/* Note : on ne montre plus "PDF en préparation" — l'export
-                    PDF natif (Puppeteer) est désormais toujours disponible
-                    via le bouton "Télécharger en PDF" ci-dessus, sans
-                    dépendre du flow Gamma. */}
 
                 {state.status === "success" && state.result.credits != null && (
                   <p className="mt-2 text-[10px] text-muted-foreground">

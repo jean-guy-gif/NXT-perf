@@ -25,6 +25,13 @@ export interface GammaCreateInput {
   additionalInstructions?: string;
   /** Thème Gamma (slug). */
   themeName?: string;
+  /**
+   * Demande à Gamma d'exporter la présentation au format choisi à la création.
+   * Quand fourni, la réponse `GET /generations/{id}` finit par contenir
+   * `exportUrl` pointant sur le fichier exporté (PDF/PPTX). Sans ce flag,
+   * Gamma renvoie uniquement `gammaUrl` (vue web).
+   */
+  exportAs?: "pdf" | "pptx";
 }
 
 export interface GammaApiGeneration {
@@ -137,6 +144,7 @@ export async function createGammaGeneration(
       ? { additionalInstructions: input.additionalInstructions }
       : {}),
     ...(input.themeName ? { themeName: input.themeName } : {}),
+    ...(input.exportAs ? { exportAs: input.exportAs } : {}),
   };
 
   const raw = await gammaFetch("/generations", {
