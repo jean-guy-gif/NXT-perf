@@ -139,38 +139,6 @@ export function TeamActivationSlides({
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const handleDownloadPdf = async () => {
-    if (!kit || !kind || !expertiseId) return;
-    setPdfBusy(true);
-    try {
-      const res = await fetch("/api/export-plan-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kitKind: kind, expertiseId }),
-      });
-      if (!res.ok) {
-        // Pas de gestion d'erreur intrusive — log + bouton revient en idle.
-        console.warn("[export-plan-pdf] failed", res.status);
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const slug = slugify(kit.title);
-      a.download = `${slug}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch {
-      // best-effort
-    } finally {
-      setPdfBusy(false);
-    }
-  };
-
   if (!open || !kit || slides.length === 0) return null;
 
   const slide = slides[index];
@@ -272,15 +240,6 @@ export function TeamActivationSlides({
             >
               <Download className="h-3.5 w-3.5" />
               .md
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={pdfBusy}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
-            >
-              <Download className="h-3.5 w-3.5" />
-              {pdfBusy ? "Génération…" : "Télécharger en PDF"}
             </button>
           </div>
         </footer>
