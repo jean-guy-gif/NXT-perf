@@ -101,6 +101,42 @@ export function TeamActivationSteps({
     practice: { status: "idle" },
     weekly: { status: "idle" },
   });
+  /** Card actuellement en train de générer son PDF natif (Puppeteer). */
+  const [pdfBusyKind, setPdfBusyKind] = useState<KitKind | null>(null);
+
+  /**
+   * Télécharge un PDF natif via `/api/export-plan-pdf`. Pas de Gamma —
+   * Puppeteer rend le HTML du kit côté serveur. Indépendant du flow
+   * Gamma : ne touche pas à `gammaState`, juste `pdfBusyKind`.
+   */
+  const handleDownloadPdf = async (kind: KitKind) => {
+    if (!expertiseId) return;
+    setPdfBusyKind(kind);
+    try {
+      const res = await fetch("/api/export-plan-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kitKind: kind, expertiseId }),
+      });
+      if (!res.ok) {
+        console.warn("[export-plan-pdf] failed", res.status);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${kind}-plan-${expertiseId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      // best-effort, le bouton revient en idle via le finally
+    } finally {
+      setPdfBusyKind(null);
+    }
+  };
 
   // Hydrate from localStorage on mount / when expertise changes.
   useEffect(() => {
@@ -371,6 +407,19 @@ export function TeamActivationSteps({
                       Voir aperçu
                     </button>
                   )}
+
+                  {/* Export PDF natif (Puppeteer) — toujours visible, ne
+                      dépend pas de Gamma. Indépendant du flow de génération
+                      Gamma : un clic = un téléchargement direct. */}
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPdf(card.kind)}
+                    disabled={pdfBusyKind === card.kind}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-wait disabled:opacity-70"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {pdfBusyKind === card.kind ? "Génération…" : "Télécharger en PDF"}
+                  </button>
                 </div>
 
                 {/* CTA NXT Training — uniquement sur la card "Mise en pratique" */}
@@ -387,15 +436,10 @@ export function TeamActivationSteps({
                   </p>
                 )}
 
-                {/* Message discret quand Gamma a réussi mais sans exportUrl encore */}
-                {state.status === "success" &&
-                  !state.result.exportUrl &&
-                  state.result.gammaUrl && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      PDF en préparation. Vous pouvez consulter l&apos;aperçu
-                      intégré en attendant.
-                    </p>
-                  )}
+                {/* Note : on ne montre plus "PDF en préparation" — l'export
+                    PDF natif (Puppeteer) est désormais toujours disponible
+                    via le bouton "Télécharger en PDF" ci-dessus, sans
+                    dépendre du flow Gamma. */}
 
                 {state.status === "success" && state.result.credits != null && (
                   <p className="mt-2 text-[10px] text-muted-foreground">
