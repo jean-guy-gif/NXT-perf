@@ -69,12 +69,6 @@ async function main() {
 
   const config = loadConfig();
 
-  // 🔥 DEBUG CRITIQUE
-  console.info(
-    "[debug] OPENROUTER_API_KEY:",
-    config.openrouterApiKey ? "OK" : "MISSING"
-  );
-
   const state = await loadState();
 
   const drive = createDriveClient(

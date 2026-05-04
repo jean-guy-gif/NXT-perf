@@ -8,8 +8,10 @@ import {
   FileText,
   Loader2,
   MessageCircle,
+  PlayCircle,
 } from "lucide-react";
 import { IndividualCoachingSlides } from "./individual-coaching-slides";
+import { IndividualCoachingLive } from "./individual-coaching-live";
 import {
   buildIndividualCoachingKit,
   type IndividualCoachingInput,
@@ -38,6 +40,7 @@ export function IndividualCoachingPrep({
   metrics,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [liveOpen, setLiveOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // PR-B — privilégie la source serveur (cerveau coach) puis bascule en
@@ -122,8 +125,16 @@ export function IndividualCoachingPrep({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => setLiveOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <PlayCircle className="h-3.5 w-3.5" />
+            Démarrer le coaching
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             <FileText className="h-3.5 w-3.5" />
             Ouvrir la trame
@@ -160,6 +171,15 @@ export function IndividualCoachingPrep({
         open={open}
         onClose={() => setOpen(false)}
         kit={kit}
+      />
+
+      <IndividualCoachingLive
+        open={liveOpen}
+        onClose={() => setLiveOpen(false)}
+        advisor={advisor}
+        expertiseId={expertiseId}
+        metrics={metrics}
+        pattern={serverPattern}
       />
     </>
   );
