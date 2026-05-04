@@ -5,6 +5,8 @@ import {
   Check,
   Copy,
   Download,
+  Mail,
+  MessageCircle,
   Sparkles,
   X,
 } from "lucide-react";
@@ -203,6 +205,29 @@ export function IndividualCoachingLive({
     a.click();
     a.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  // ─── Envoi direct (V1, sans backend) ─────────────────────────────────
+
+  const advisorFullName = `${advisor.firstName}${advisor.lastName ? " " + advisor.lastName : ""}`;
+
+  const handleSendEmail = () => {
+    const body = buildEmailRecap({ session, diagnosis: diagnosis ?? null });
+    const subject = `Récap coaching — ${advisorFullName}`;
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    // Note : on n'a pas l'email du conseiller dans le prop `advisor` côté
+    // V1, donc le destinataire reste vide — le manager le saisit dans son
+    // client mail. Aucune dépendance / API serveur ajoutée.
+    window.location.href = mailto;
+  };
+
+  const handleSendWhatsapp = () => {
+    const message = buildWhatsappRecap({ session, diagnosis: diagnosis ?? null });
+    // Pas de numéro disponible côté `advisor` en V1 → fallback `wa.me`
+    // sans numéro, ce qui ouvre WhatsApp Web et laisse le manager choisir
+    // le contact dans sa liste.
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   if (!open) return null;
@@ -500,6 +525,28 @@ export function IndividualCoachingLive({
                     </>
                   )}
                 </button>
+
+                {/* Envoi direct — visible uniquement dans l'onglet correspondant */}
+                {formatTab === "email" && (
+                  <button
+                    type="button"
+                    onClick={handleSendEmail}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    Envoyer par email
+                  </button>
+                )}
+                {formatTab === "whatsapp" && (
+                  <button
+                    type="button"
+                    onClick={handleSendWhatsapp}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Envoyer par WhatsApp
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleDownload}
