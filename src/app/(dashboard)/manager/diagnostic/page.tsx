@@ -11,7 +11,7 @@ import { BestPracticesBlock } from "@/components/manager/diagnostic/best-practic
 import { TeamProductionTracker } from "@/components/manager/diagnostic/team-production-tracker";
 import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
 import { NoAdvisorSelected } from "@/components/manager/individual/no-advisor-selected";
-import { DiagnosticVerdictView } from "@/components/conseiller/diagnostic/diagnostic-verdict-view";
+import { ManagerConseillerDiagnosticView } from "@/components/manager/individual/manager-conseiller-diagnostic-view";
 
 /**
  * Manager — Mon diagnostic (PR3.8.5).
@@ -42,9 +42,11 @@ export default function ManagerDiagnosticPage() {
       <ManagerViewSwitcher />
 
       {isIndividual ? (
-        selectedAdvisorId ? (
+        selectedAdvisorId && selectedAdvisor ? (
           <ConseillerProxy advisorId={selectedAdvisorId}>
-            <DiagnosticVerdictView />
+            <ManagerConseillerDiagnosticView
+              advisorDisplayName={`${selectedAdvisor.firstName} ${selectedAdvisor.lastName}`}
+            />
           </ConseillerProxy>
         ) : (
           <NoAdvisorSelected />

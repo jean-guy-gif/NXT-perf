@@ -28,6 +28,15 @@ import { ProductionFlow } from "./production-flow";
 import { MiniDpiGauge } from "./mini-dpi-gauge";
 import type { PeriodResults } from "@/types/results";
 
+interface Props {
+  /**
+   * Chantier C — Si fourni, les libellés "Mes/Mon" deviennent "de {prénom}".
+   * Cas d'usage : Manager observant un conseiller via ConseillerProxy.
+   * Optionnel + backward-compatible : Conseiller solo n'a pas à passer la prop.
+   */
+  displayName?: string;
+}
+
 /**
  * KeyFiguresAccordion — accordéon « Voir mes chiffres clés » (PR3.7 Q1=C).
  *
@@ -41,7 +50,7 @@ import type { PeriodResults } from "@/types/results";
  * État (view + period) persisté en localStorage pour conserver la préférence
  * de l'utilisateur entre sessions.
  */
-export function KeyFiguresAccordion() {
+export function KeyFiguresAccordion({ displayName }: Props = {}) {
   const [open, setOpen] = useState(false);
   const { user, category } = useUser();
   const { computedRatios, ratioConfigs } = useRatios();
@@ -116,7 +125,9 @@ export function KeyFiguresAccordion() {
           </span>
           <span>
             <span className="block text-sm font-semibold text-foreground">
-              Voir mes chiffres clés
+              {displayName
+                ? `Voir les chiffres clés de ${displayName}`
+                : "Voir mes chiffres clés"}
             </span>
             <span className="block text-xs text-muted-foreground">
               Volumes, ratios, flux de production et DPI synthétique
@@ -143,7 +154,9 @@ export function KeyFiguresAccordion() {
 
           <div>
             <h3 className="mb-3 text-sm font-bold text-foreground">
-              Mes chiffres clés
+              {displayName
+                ? `Chiffres clés de ${displayName}`
+                : "Mes chiffres clés"}
             </h3>
             <DiagnosticKpiCards
               view={view}
@@ -158,7 +171,9 @@ export function KeyFiguresAccordion() {
 
           <div>
             <h3 className="mb-3 text-sm font-bold text-foreground">
-              Mon flux de production
+              {displayName
+                ? `Flux de production de ${displayName}`
+                : "Mon flux de production"}
             </h3>
             <ProductionFlow
               userId={user.id}
@@ -170,9 +185,11 @@ export function KeyFiguresAccordion() {
 
           <div>
             <h3 className="mb-3 text-sm font-bold text-foreground">
-              Mon DPI synthétique
+              {displayName
+                ? `DPI synthétique de ${displayName}`
+                : "Mon DPI synthétique"}
             </h3>
-            <MiniDpiGauge />
+            <MiniDpiGauge displayName={displayName} />
           </div>
         </div>
       )}

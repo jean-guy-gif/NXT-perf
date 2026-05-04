@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
+import { useAdvisorOverride } from "@/contexts/advisor-override-context";
 import { aggregateResults } from "@/lib/aggregate-results";
 import type { PeriodResults } from "@/types/results";
 
@@ -9,11 +10,18 @@ import type { PeriodResults } from "@/types/results";
  * Returns year-to-date aggregated results for the given user (or current user).
  * Filters all monthly results whose periodStart falls in the current year,
  * then aggregates them into a single cumulative PeriodResults.
+ *
+ * Chantier C — Sous un AdvisorOverrideProvider (mode Manager → Individuel),
+ * l'override prend le pas sur l'utilisateur courant : le YTD ciblé devient
+ * celui du conseiller observé. Évite la fuite "Manager voit son propre YTD
+ * à la place du conseiller" dans KeyFiguresAccordion (période Trimestre /
+ * Année / Personnalisé).
  */
 export function useYTDResults(userId?: string): PeriodResults | null {
   const results = useAppStore((s) => s.results);
   const user = useAppStore((s) => s.user);
-  const targetUserId = userId ?? user?.id;
+  const { advisorId } = useAdvisorOverride();
+  const targetUserId = userId ?? advisorId ?? user?.id;
 
   return useMemo(() => {
     if (!targetUserId) return null;

@@ -15,8 +15,14 @@ interface Props {
   verdictPoint: CriticitePoint;
   /** Navigue vers /conseiller/diagnostic?view=ratios|volumes&highlight= */
   onSavoirPourquoi: () => void;
-  /** Crée un plan 30j ciblé (si ratio) puis navigue vers /conseiller/ameliorer */
-  onAmeliorer: () => void;
+  /**
+   * Crée un plan 30j ciblé (si ratio) puis navigue vers /conseiller/ameliorer.
+   *
+   * Chantier C : optionnel. Côté Manager (zoom Conseiller), on omet ce
+   * handler → le bouton "M'améliorer" disparaît (le manager n'a pas vocation
+   * à créer un plan à la place du conseiller — read-only).
+   */
+  onAmeliorer?: () => void;
   /** Lien discret en bas — ouvre le drawer mode list */
   onSeeOthersClick: () => void;
   /** Pending state pendant la création du plan */
@@ -97,24 +103,26 @@ export function DiagnosticVerdictCard({
           Savoir pourquoi
           <ArrowRight className="h-4 w-4" />
         </button>
-        <button
-          type="button"
-          onClick={onAmeliorer}
-          disabled={improving}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
-        >
-          {improving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Génération…
-            </>
-          ) : (
-            <>
-              <Wrench className="h-4 w-4" />
-              M&apos;améliorer
-            </>
-          )}
-        </button>
+        {onAmeliorer && (
+          <button
+            type="button"
+            onClick={onAmeliorer}
+            disabled={improving}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
+          >
+            {improving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Génération…
+              </>
+            ) : (
+              <>
+                <Wrench className="h-4 w-4" />
+                M&apos;améliorer
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <button

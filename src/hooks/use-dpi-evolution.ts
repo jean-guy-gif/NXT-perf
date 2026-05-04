@@ -36,8 +36,11 @@ function saveSnapshot(userId: string, snapshot: DPISnapshot) {
 export function useDPIEvolution() {
   const { computedRatios } = useRatios();
   const results = useResults();
-  const { category } = useUser();
-  const user = useAppStore((s) => s.user);
+  // Chantier C — useUser() respecte l'AdvisorOverrideProvider (PR3.8.5).
+  // Quand un Manager observe un conseiller, le snapshot DPI est désormais
+  // lu/écrit sous l'ID du conseiller observé, pas du manager. Évite la
+  // contamination cross-utilisateur du localStorage `nxt-dpi-snapshots`.
+  const { user, category } = useUser();
   const isDemo = useAppStore((s) => s.isDemoMode);
   const { getActivePlan } = useImprovementResources();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
