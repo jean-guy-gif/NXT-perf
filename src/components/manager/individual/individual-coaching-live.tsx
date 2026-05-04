@@ -36,7 +36,18 @@ import type { AdvisorDiagnosis } from "@/lib/coaching/advisor-diagnosis";
 interface Props {
   open: boolean;
   onClose: () => void;
-  advisor: { firstName: string; lastName?: string; level?: string };
+  /**
+   * Identité du conseiller. `email` et `phone` sont optionnels — si fournis,
+   * ils préremplissent le destinataire des envois (mailto + wa.me).
+   * Sinon, fallback sans destinataire (cf. handleSendEmail/handleSendWhatsapp).
+   */
+  advisor: {
+    firstName: string;
+    lastName?: string;
+    level?: string;
+    email?: string;
+    phone?: string;
+  };
   expertiseId: ExpertiseRatioId | null;
   metrics?: CoachingMetrics;
   /** Pattern coaching à utiliser pour les options causes/actions. */
@@ -214,19 +225,21 @@ export function IndividualCoachingLive({
   const handleSendEmail = () => {
     const body = buildEmailRecap({ session, diagnosis: diagnosis ?? null });
     const subject = `Récap coaching — ${advisorFullName}`;
-    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    // Note : on n'a pas l'email du conseiller dans le prop `advisor` côté
-    // V1, donc le destinataire reste vide — le manager le saisit dans son
-    // client mail. Aucune dépendance / API serveur ajoutée.
+    // Préremplit le destinataire si l'email est dispo. Sinon fallback
+    // `mailto:?…` (manager saisit le destinataire).
+    const recipient = advisor.email?.trim() ?? "";
+    const mailto = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailto;
   };
 
   const handleSendWhatsapp = () => {
     const message = buildWhatsappRecap({ session, diagnosis: diagnosis ?? null });
-    // Pas de numéro disponible côté `advisor` en V1 → fallback `wa.me`
-    // sans numéro, ce qui ouvre WhatsApp Web et laisse le manager choisir
-    // le contact dans sa liste.
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    // Préremplit le numéro si dispo (format international, espaces et "+"
+    // retirés). Sinon fallback `wa.me/?text=…` (manager choisit le contact).
+    const phone = normalizePhoneForWa(advisor.phone);
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -704,6 +717,21 @@ function LabeledInput({
       />
     </label>
   );
+}
+
+/**
+ * Normalise un numéro de téléphone pour `wa.me/`. WhatsApp veut juste les
+ * chiffres, sans "+", sans espace, sans tiret. Si le résultat est vide ou
+ * trop court (< 7 chiffres), renvoie `null` pour fallback wa.me sans numéro.
+ *
+ * Note : on ne devine PAS l'indicatif pays. Le numéro doit déjà être en
+ * format international (ex. "+33612345678" ou "33612345678" stockés en BDD).
+ */
+function normalizePhoneForWa(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 7) return null;
+  return digits;
 }
 
 function slugify(s: string): string {

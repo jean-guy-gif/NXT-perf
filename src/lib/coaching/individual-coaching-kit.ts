@@ -35,8 +35,18 @@ export interface CoachingMetrics {
 }
 
 export interface IndividualCoachingInput {
-  /** Conseiller accompagné — au moins le prénom est requis pour personnaliser. */
-  advisor: { firstName: string; lastName?: string; level?: string };
+  /**
+   * Conseiller accompagné — au moins le prénom est requis pour personnaliser.
+   * `email` et `phone` sont optionnels : ignorés par le kit lui-même mais
+   * propagés vers le panneau Live pour préremplir mailto et wa.me.
+   */
+  advisor: {
+    firstName: string;
+    lastName?: string;
+    level?: string;
+    email?: string;
+    phone?: string;
+  };
   /**
    * Levier en focus :
    *   - tiré du `pain_ratio_id` du plan actif quand disponible (cas 1)

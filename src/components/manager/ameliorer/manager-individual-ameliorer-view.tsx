@@ -104,10 +104,15 @@ export function ManagerIndividualAmeliorerView() {
 
   if (!user) return null;
 
+  // Coordonnées du conseiller — `User` expose `email` mais pas (encore)
+  // `phone`. Le jour où le profile gagne un champ téléphone, il suffit
+  // d'ajouter `phone: (user as User & { phone?: string }).phone` ici sans
+  // toucher Prep / Live (qui acceptent déjà la prop).
   const advisor = {
     firstName: user.firstName,
     lastName: user.lastName,
     level: CATEGORY_LABELS[category] ?? category,
+    email: user.email,
   };
 
   // Levier en focus pour le coaching kit — cascade par ordre de précision :
