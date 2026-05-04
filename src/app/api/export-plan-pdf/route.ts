@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import chromium from "@sparticuz/chromium";
+import puppeteer, { type Browser } from "puppeteer-core";
 import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import { buildKit, type KitKind } from "@/lib/coaching/team-activation-kit";
 import { buildKitHtml } from "@/lib/server/pdf/build-kit-html";
@@ -8,14 +10,19 @@ import { buildKitHtml } from "@/lib/server/pdf/build-kit-html";
  *
  * Génère un PDF natif du plan collectif (kit Réunion / Pratique / Hebdo)
  * sans dépendance Gamma. Pipeline :
- *   1. valider kitKind + expertiseId (mêmes garde-fous que la route Gamma)
- *   2. reconstruire le Kit côté serveur via `buildKit`
- *   3. générer le HTML (slide-style, page-break par section)
- *   4. lancer Puppeteer + Chromium serverless (@sparticuz/chromium en prod,
- *      PUPPETEER_EXECUTABLE_PATH en local dev — cf. README à venir)
- *   5. renvoyer le PDF en `application/pdf` avec Content-Disposition
+ *   1. Validation kitKind + expertiseId.
+ *   2. Reconstitution du Kit côté serveur via `buildKit`.
+ *   3. Génération HTML (slide-style, page-break par section).
+ *   4. Lancement Puppeteer + Chromium serverless (`@sparticuz/chromium`).
+ *   5. Réponse PDF en `application/pdf` avec `Content-Disposition`.
  *
- * Scope serveur uniquement — Puppeteer ne touche jamais le bundle client.
+ * Compat Vercel :
+ *   - `package.json.engines.node = "20.x"` (Node 24 a des incompatibilités
+ *     connues avec @sparticuz/chromium).
+ *   - `next.config.ts.serverExternalPackages` exclut puppeteer-core et
+ *     @sparticuz/chromium du bundle (sinon le tarball Chromium se casse).
+ *   - args Chromium augmentés : `--no-sandbox` + `--disable-setuid-sandbox`
+ *     + `--disable-dev-shm-usage` (robustesse Lambda environnement contraint).
  */
 
 export const runtime = "nodejs";
@@ -69,49 +76,35 @@ export async function POST(req: Request) {
   const kit = buildKit(body.kitKind, body.expertiseId as ExpertiseRatioId);
   const html = buildKitHtml(kit);
 
-  // Imports différés — gardent les modules Puppeteer hors du bundle si la
-  // route n'est jamais appelée + permettent de masquer les erreurs d'env
-  // local plus proprement (on ne crash pas à l'import).
-  let browser: import("puppeteer-core").Browser | null = null;
+  let browser: Browser | null = null;
   try {
-    const puppeteer = (await import("puppeteer-core")).default;
-
-    // En prod (Vercel) : @sparticuz/chromium fournit le binaire Chromium
-    // serverless-friendly. En dev local : on attend
-    // PUPPETEER_EXECUTABLE_PATH (chemin du Chrome système) sinon on bascule
-    // sur chromium aussi, ce qui peut échouer hors Linux.
-    let executablePath: string;
-    let args: string[];
-    let headless: boolean | "shell" = true;
-    let defaultViewport: import("puppeteer-core").Viewport | null = {
-      width: 1240,
-      height: 1754, // ratio A4 portrait à 150 DPI
-    };
-
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-      executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-      args = ["--no-sandbox", "--disable-setuid-sandbox"];
-    } else {
-      const chromium = (await import("@sparticuz/chromium")).default;
-      executablePath = await chromium.executablePath();
-      args = chromium.args;
-      headless = chromium.headless;
-      defaultViewport = chromium.defaultViewport ?? defaultViewport;
-    }
+    // En dev local : permet d'override par le Chrome système si la lib
+    // @sparticuz/chromium ne tourne pas hors Linux (Mac/Windows).
+    const localExec = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const launchOptions: Parameters<typeof puppeteer.launch>[0] = localExec
+      ? {
+          executablePath: localExec,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          headless: true,
+        }
+      : {
+          args: [
+            ...chromium.args,
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+          ],
+          executablePath: await chromium.executablePath(),
+          headless: chromium.headless,
+        };
 
     console.info("[PDF API] chromium executable", {
-      executablePath,
-      headless,
-      argsCount: args.length,
+      executablePath: launchOptions.executablePath,
+      headless: launchOptions.headless,
+      argsCount: Array.isArray(launchOptions.args) ? launchOptions.args.length : 0,
     });
 
-    browser = await puppeteer.launch({
-      args,
-      executablePath,
-      headless,
-      defaultViewport,
-    });
-
+    browser = await puppeteer.launch(launchOptions);
     console.info("[PDF API] browser launched, rendering HTML…");
 
     const page = await browser.newPage();
@@ -127,12 +120,9 @@ export async function POST(req: Request) {
     });
 
     const filename = `${slugify(kit.title)}.pdf`;
+    const responseBody = new Uint8Array(pdfBuffer);
 
-    // `page.pdf()` retourne `Uint8Array` ; on enveloppe explicitement dans
-    // un Buffer compatible BodyInit pour `Response`.
-    const body = new Uint8Array(pdfBuffer);
-
-    return new Response(body, {
+    return new Response(responseBody, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
