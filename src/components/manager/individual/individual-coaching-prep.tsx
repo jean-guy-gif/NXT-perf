@@ -18,10 +18,17 @@ import {
 } from "@/lib/coaching/individual-coaching-kit";
 import { serializeKitToMarkdown } from "@/lib/coaching/team-activation-kit";
 import { useCoachingPattern } from "@/hooks/use-coaching-pattern";
+import type { AdvisorDiagnosis } from "@/lib/coaching/advisor-diagnosis";
 
 // `patternOverride` est piloté en interne via `useCoachingPattern`. On
 // retire la prop de la surface publique pour garder l'API simple côté caller.
-type Props = Omit<IndividualCoachingInput, "patternOverride">;
+type Props = Omit<IndividualCoachingInput, "patternOverride"> & {
+  /**
+   * Diagnostic chiffres réels — propagé au panneau Live pour enrichir la
+   * synthèse (Email pro / WhatsApp). Optionnel : fonctionne sans.
+   */
+  diagnosis?: AdvisorDiagnosis | null;
+};
 
 /**
  * IndividualCoachingPrep — bloc "Préparer mon coaching individuel"
@@ -38,6 +45,7 @@ export function IndividualCoachingPrep({
   advisor,
   expertiseId,
   metrics,
+  diagnosis,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
@@ -180,6 +188,7 @@ export function IndividualCoachingPrep({
         expertiseId={expertiseId}
         metrics={metrics}
         pattern={serverPattern}
+        diagnosis={diagnosis ?? null}
       />
     </>
   );

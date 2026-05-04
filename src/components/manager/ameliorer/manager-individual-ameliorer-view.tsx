@@ -5,12 +5,15 @@ import { CheckCircle2, ListTodo, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import { useResults, useAllResults } from "@/hooks/use-results";
 import { useTeamDiagnostic } from "@/hooks/team/use-team-diagnostic";
 import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import { PLAN_30J_DURATION_DAYS, type Plan30jPayload } from "@/config/coaching";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { IndividualCoachingPrep } from "@/components/manager/individual/individual-coaching-prep";
+import { IndividualDiagnosticCard } from "@/components/manager/individual/individual-diagnostic-card";
 import type { CoachingMetrics } from "@/lib/coaching/individual-coaching-kit";
+import { diagnoseAdvisor } from "@/lib/coaching/advisor-diagnosis";
 
 /**
  * ManagerIndividualAmeliorerView (PR3.8 follow-up).
@@ -39,6 +42,32 @@ export function ManagerIndividualAmeliorerView() {
   // useTeamDiagnostic lit le manager via useAppStore directement, pas via
   // useUser — il n'est donc PAS impacté par l'override ConseillerProxy.
   const { top: teamTopLever } = useTeamDiagnostic();
+
+  // Période courante du conseiller (override actif via ConseillerProxy).
+  const currentResults = useResults();
+  // Toutes les périodes saisies — on cherche la précédente pour calculer
+  // les évolutions vs N-1.
+  const allResults = useAllResults();
+  const previousResults = useMemo(() => {
+    if (!user) return null;
+    const mine = allResults.filter((r) => r.userId === user.id);
+    if (mine.length < 2) return null;
+    const sorted = [...mine].sort((a, b) =>
+      b.periodStart.localeCompare(a.periodStart),
+    );
+    // [0] = current, [1] = previous
+    return sorted[1] ?? null;
+  }, [allResults, user]);
+
+  const diagnosis = useMemo(
+    () =>
+      diagnoseAdvisor({
+        current: currentResults,
+        previous: previousResults,
+        category,
+      }),
+    [currentResults, previousResults, category],
+  );
 
   const planSummary = useMemo(() => {
     if (!activePlan) return null;
@@ -81,12 +110,17 @@ export function ManagerIndividualAmeliorerView() {
     level: CATEGORY_LABELS[category] ?? category,
   };
 
-  // Levier en focus pour le coaching kit :
-  //   1) celui du plan actif si disponible (cas nominal)
-  //   2) sinon le levier prioritaire équipe (contexte manager)
-  //   3) sinon null (cadrage générique)
+  // Levier en focus pour le coaching kit — cascade par ordre de précision :
+  //   1) douleur prioritaire détectée par le diagnostic chiffres réels
+  //      (signal data-driven, plus actionnable pour le manager)
+  //   2) plan actif du conseiller (continuité)
+  //   3) levier prioritaire équipe (contexte manager)
+  //   4) null (cadrage générique)
   const coachingExpertiseId: ExpertiseRatioId | null =
-    planSummary?.ratioId ?? teamTopLever?.expertiseId ?? null;
+    diagnosis.primary?.expertiseId ??
+    planSummary?.ratioId ??
+    teamTopLever?.expertiseId ??
+    null;
   const coachingMetrics: CoachingMetrics | undefined = planSummary
     ? {
         dayOfPlan: planSummary.elapsedDays,
@@ -117,6 +151,13 @@ export function ManagerIndividualAmeliorerView() {
         </div>
       </div>
 
+      {/* Diagnostic chiffres réels — affiché en premier pour donner au
+          manager le focus avant d'ouvrir la trame coaching. */}
+      <IndividualDiagnosticCard
+        advisorFirstName={advisor.firstName}
+        diagnosis={diagnosis}
+      />
+
       {planSummary ? (
         <ActivePlanReadOnly summary={planSummary} />
       ) : (
@@ -127,6 +168,7 @@ export function ManagerIndividualAmeliorerView() {
         advisor={advisor}
         expertiseId={coachingExpertiseId}
         metrics={coachingMetrics}
+        diagnosis={diagnosis}
       />
     </div>
   );

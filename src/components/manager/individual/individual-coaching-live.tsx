@@ -24,7 +24,12 @@ import {
   type CoachingTag,
   type ManagerDecision,
 } from "@/lib/coaching/coaching-decision-summary";
+import {
+  buildEmailRecap,
+  buildWhatsappRecap,
+} from "@/lib/coaching/coaching-recap-formats";
 import type { CoachingMetrics } from "@/lib/coaching/individual-coaching-kit";
+import type { AdvisorDiagnosis } from "@/lib/coaching/advisor-diagnosis";
 
 interface Props {
   open: boolean;
@@ -34,7 +39,17 @@ interface Props {
   metrics?: CoachingMetrics;
   /** Pattern coaching à utiliser pour les options causes/actions. */
   pattern: CoachingPattern | null;
+  /** Diagnostic chiffres réels — enrichit les formats Email / WhatsApp. */
+  diagnosis?: AdvisorDiagnosis | null;
 }
+
+type RecapFormat = "markdown" | "email" | "whatsapp";
+
+const FORMAT_LABEL: Record<RecapFormat, string> = {
+  markdown: "Récap structuré",
+  email: "Email pro",
+  whatsapp: "WhatsApp",
+};
 
 type SectionKey = keyof CoachingSession["answers"];
 
@@ -83,7 +98,9 @@ export function IndividualCoachingLive({
   expertiseId,
   metrics,
   pattern,
+  diagnosis,
 }: Props) {
+  const [formatTab, setFormatTab] = useState<RecapFormat>("markdown");
   const [session, setSession] = useState<CoachingSession>(() =>
     emptySession({ advisor, expertiseId, metrics }),
   );
@@ -146,11 +163,23 @@ export function IndividualCoachingLive({
       answers: { ...s.answers, [section]: { ...s.answers[section], ...value } },
     }));
 
+  // ─── Récap par format (Markdown / Email pro / WhatsApp) ──────────────
+
+  const recapText = useMemo(() => {
+    if (formatTab === "email") {
+      return buildEmailRecap({ session, diagnosis: diagnosis ?? null });
+    }
+    if (formatTab === "whatsapp") {
+      return buildWhatsappRecap({ session, diagnosis: diagnosis ?? null });
+    }
+    return summary.markdown;
+  }, [formatTab, session, diagnosis, summary]);
+
   // ─── Handlers export ──────────────────────────────────────────────────
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(summary.markdown);
+      await navigator.clipboard.writeText(recapText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -159,14 +188,17 @@ export function IndividualCoachingLive({
   };
 
   const handleDownload = () => {
-    const slug = `synthese-coaching-${slugify(advisor.firstName)}`;
-    const blob = new Blob([summary.markdown], {
-      type: "text/markdown;charset=utf-8",
-    });
+    const slug = `synthese-coaching-${slugify(advisor.firstName)}-${formatTab}`;
+    const ext = formatTab === "markdown" ? "md" : "txt";
+    const mime =
+      formatTab === "markdown"
+        ? "text/markdown;charset=utf-8"
+        : "text/plain;charset=utf-8";
+    const blob = new Blob([recapText], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${slug}.md`;
+    a.download = `${slug}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -427,8 +459,27 @@ export function IndividualCoachingLive({
                 </span>
               </div>
 
+              {/* Onglets format de récap */}
+              <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+                {(["markdown", "email", "whatsapp"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFormatTab(f)}
+                    className={cn(
+                      "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                      formatTab === f
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {FORMAT_LABEL[f]}
+                  </button>
+                ))}
+              </div>
+
               <pre className="max-h-[24rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-4 text-xs leading-relaxed text-foreground">
-                {summary.markdown}
+                {recapText}
               </pre>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -453,6 +504,7 @@ export function IndividualCoachingLive({
                   type="button"
                   onClick={handleDownload}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  aria-label={`Télécharger en ${FORMAT_LABEL[formatTab]}`}
                 >
                   <Download className="h-3.5 w-3.5" />
                   Télécharger .md
