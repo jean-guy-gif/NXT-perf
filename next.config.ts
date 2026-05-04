@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // PR3.8 — Export PDF natif (Puppeteer). Ces packages embarquent un
+  // binaire Chromium et ne doivent PAS être bundlés par Next.js (sinon
+  // les chemins du tarball Chromium se cassent au runtime Vercel et la
+  // route /api/export-plan-pdf renvoie silencieusement 500). On les
+  // marque externes pour qu'ils restent installés normalement dans
+  // node_modules au runtime serverless.
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+
   images: {
     remotePatterns: [
       {

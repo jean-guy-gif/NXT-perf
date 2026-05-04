@@ -103,6 +103,10 @@ export function TeamActivationSteps({
   });
   /** Card actuellement en train de générer son PDF natif (Puppeteer). */
   const [pdfBusyKind, setPdfBusyKind] = useState<KitKind | null>(null);
+  /** Erreur transitoire d'export PDF, affichée sous le bouton concerné. */
+  const [pdfErrorByKind, setPdfErrorByKind] = useState<
+    Partial<Record<KitKind, string>>
+  >({});
 
   /**
    * Télécharge un PDF natif via `/api/export-plan-pdf`. Pas de Gamma —
@@ -111,7 +115,9 @@ export function TeamActivationSteps({
    */
   const handleDownloadPdf = async (kind: KitKind) => {
     if (!expertiseId) return;
+    console.info("[PDF] click", { kind, expertiseId });
     setPdfBusyKind(kind);
+    setPdfErrorByKind((prev) => ({ ...prev, [kind]: undefined }));
     try {
       const res = await fetch("/api/export-plan-pdf", {
         method: "POST",
@@ -119,10 +125,22 @@ export function TeamActivationSteps({
         body: JSON.stringify({ kitKind: kind, expertiseId }),
       });
       if (!res.ok) {
-        console.warn("[export-plan-pdf] failed", res.status);
+        let upstream = "";
+        try {
+          const data = (await res.json()) as { upstream?: string };
+          upstream = data.upstream ?? "";
+        } catch {
+          // ignore parse error
+        }
+        console.error("[PDF] api failed", { status: res.status, upstream });
+        setPdfErrorByKind((prev) => ({
+          ...prev,
+          [kind]: `Erreur génération PDF (${res.status})`,
+        }));
         return;
       }
       const blob = await res.blob();
+      console.info("[PDF] blob received", { bytes: blob.size });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -131,8 +149,12 @@ export function TeamActivationSteps({
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch {
-      // best-effort, le bouton revient en idle via le finally
+    } catch (err) {
+      console.error("[PDF] fetch error", err);
+      setPdfErrorByKind((prev) => ({
+        ...prev,
+        [kind]: "Erreur réseau — réessayer plus tard.",
+      }));
     } finally {
       setPdfBusyKind(null);
     }
@@ -421,6 +443,12 @@ export function TeamActivationSteps({
                     {pdfBusyKind === card.kind ? "Génération…" : "Télécharger en PDF"}
                   </button>
                 </div>
+
+                {pdfErrorByKind[card.kind] && (
+                  <p className="mt-2 text-[11px] text-red-600 dark:text-red-500">
+                    {pdfErrorByKind[card.kind]}
+                  </p>
+                )}
 
                 {/* CTA NXT Training — uniquement sur la card "Mise en pratique" */}
                 {card.kind === "practice" && (

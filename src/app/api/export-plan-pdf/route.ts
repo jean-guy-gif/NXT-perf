@@ -61,6 +61,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid expertiseId" }, { status: 400 });
   }
 
+  console.info("[PDF API] request received", {
+    kitKind: body.kitKind,
+    expertiseId: body.expertiseId,
+  });
+
   const kit = buildKit(body.kitKind, body.expertiseId as ExpertiseRatioId);
   const html = buildKitHtml(kit);
 
@@ -94,6 +99,12 @@ export async function POST(req: Request) {
       defaultViewport = chromium.defaultViewport ?? defaultViewport;
     }
 
+    console.info("[PDF API] chromium executable", {
+      executablePath,
+      headless,
+      argsCount: args.length,
+    });
+
     browser = await puppeteer.launch({
       args,
       executablePath,
@@ -101,12 +112,18 @@ export async function POST(req: Request) {
       defaultViewport,
     });
 
+    console.info("[PDF API] browser launched, rendering HTML…");
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
       margin: { top: "0", right: "0", bottom: "0", left: "0" },
+    });
+
+    console.info("[PDF API] PDF generated", {
+      bytes: pdfBuffer.byteLength ?? pdfBuffer.length,
     });
 
     const filename = `${slugify(kit.title)}.pdf`;
@@ -124,13 +141,18 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    console.error("[export-plan-pdf] failed", {
+    const e = err as Error;
+    console.error("[PDF API] error", {
       kitKind: body.kitKind,
       expertiseId: body.expertiseId,
-      error: (err as Error).message,
+      message: e.message,
+      stack: e.stack?.split("\n").slice(0, 5).join(" | "),
     });
     return NextResponse.json(
-      { error: "PDF generation failed", upstream: (err as Error).message?.slice(0, 200) },
+      {
+        error: "PDF generation failed",
+        upstream: e.message?.slice(0, 240),
+      },
       { status: 500 },
     );
   } finally {
