@@ -207,6 +207,10 @@ export function findCriticitePoints(
   //    On les ajoute avec un painScore minimal pour qu'ils apparaissent dans
   //    le drawer "Voir les autres points en danger". Q4 : on ignore les
   //    ratios sans activité upstream (volumeBase = 0).
+  //
+  //    Chantier A.1 : on assigne un painScoreV2 = 0.05 (faible) aux ratios
+  //    force-inclus pour qu'ils restent en bas du tri V2 sans être 0 (zéro
+  //    pourrait masquer la nuance "présent mais peu prioritaire").
   for (const m of measured) {
     if (seenRatios.has(m.expertiseId)) continue;
     if (m.legacyStatus !== "warning" && m.legacyStatus !== "danger") continue;
@@ -234,6 +238,10 @@ export function findCriticitePoints(
         normalizedGap: 0,
         estimatedCaLossEur: fallbackGain,
         painScore: Math.max(1, fallbackGain),
+        painScoreV2: 0.05,
+        impactScoreNormalized: 0,
+        chainScore: expertise.chainPosition,
+        feasibilityScore: 0,
       },
     });
   }
@@ -265,9 +273,24 @@ export function findCriticitePoints(
     }
   }
 
-  // ── Pool combiné, tri descendant sur painScore ──────────────────────────
+  // ── Pool combiné, tri descendant ────────────────────────────────────────
+  //
+  // Chantier A.1 — option grossissement (Q3 validée) : les ratios sont triés
+  // sur painScoreV2 × 1e6 pour rester comparables aux gainEur en € des
+  // volumes (échelle ~k€). Les volumes conservent painScore = gainEur.
+  //
+  // Justification du facteur 1e6 : painScoreV2 ∈ [0, 1] et un gainEur volume
+  // typique tourne autour de 1 000 – 50 000 €. Sans grossissement, les
+  // volumes domineraient toujours le tri. 1e6 place les ratios à 100k–1M
+  // unités, ce qui les met "naturellement" devant les volumes — cohérent
+  // avec la philosophie produit "le ratio cassé est plus important qu'un
+  // simple manque de volume" tant que l'algo V2 a identifié une vraie
+  // douleur (impactScoreNormalized + chainScore + feasibilityScore).
+  function sortKey(p: CriticitePoint): number {
+    return p.type === "ratio" ? p._ratio.painScoreV2 * 1e6 : p.gainEur;
+  }
   const all = [...ratioPoints, ...volumePoints].sort(
-    (a, b) => b.painScore - a.painScore
+    (a, b) => sortKey(b) - sortKey(a),
   );
 
   if (all.length === 0) return { top: null, others: [] };

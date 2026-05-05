@@ -1,10 +1,26 @@
 /**
  * Détecteur de plus grosse douleur pour un conseiller
  *
- * Formule : Douleur(ratio) = |Écart normalisé| × Impact_CA_estimé × Poids_levier
+ * Formule V1 (legacy, conservée comme `painScore`) :
+ *   painScore = |Écart normalisé| × Impact_CA_estimé × Poids_levier
+ *
+ * Formule V2 (chantier A.1, utilisée pour le tri du top) :
+ *   painScoreV2 = 0.4 × impactScoreNormalized
+ *               + 0.4 × chainScore
+ *               + 0.2 × feasibilityScore
+ *
+ * - `impactScoreNormalized` = `painScore / max(painScores du pool)` (0-1)
+ * - `chainScore`            = `expertise.chainPosition` (0-1, amont→aval)
+ * - `feasibilityScore`      = `FEASIBILITY_SCORE[expertise.feasibility]`
+ *                              (easy 1.0 / medium 0.6 / hard 0.3)
+ *
+ * Justification : l'ancienne formule mono-critère (impact € pur) ratait
+ * parfois le top quand plusieurs ratios étaient en sous-perf — un ratio aval
+ * à fort impact € peut être inutile à fixer si l'amont du funnel n'est pas
+ * alimenté. La formule V2 pondère impact / position chaîne / faisabilité.
  *
  * Alimenté par :
- *   - ratio-expertise.ts (seuils, poids, type d'impact)
+ *   - ratio-expertise.ts (seuils, poids, type d'impact, chainPosition, feasibility)
  *   - Les ratios calculés du conseiller (ComputedRatio)
  *   - Le profil du conseiller (junior/confirmé/expert)
  *   - La commission moyenne (pour quantifier l'impact en €)
@@ -15,7 +31,17 @@ import {
   type ExpertiseRatioId,
   type ProfileLevel,
   type RatioExpertise,
+  type RatioFeasibility,
 } from "@/data/ratio-expertise";
+
+/**
+ * Mapping faisabilité → score numérique (chantier A.1 — décisions Q2 validées).
+ */
+export const FEASIBILITY_SCORE: Record<RatioFeasibility, number> = {
+  easy: 1.0,
+  medium: 0.6,
+  hard: 0.3,
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -40,9 +66,26 @@ export interface PainPointResult {
   expertise: RatioExpertise;
   currentValue: number;
   targetValue: number;
-  normalizedGap: number;      // Écart normalisé (>0 si sous-perf)
-  estimatedCaLossEur: number; // Impact CA estimé (€)
-  painScore: number;          // Score composite final
+  normalizedGap: number;             // Écart normalisé (>0 si sous-perf)
+  estimatedCaLossEur: number;        // Impact CA estimé (€)
+  /**
+   * Score V1 legacy (impact brut). Conservé pour compat backward — c'est la
+   * valeur stockée en colonne DB `pain_score` (cf. `route.ts`,
+   * `use-improvement-resources.ts`). N'est plus utilisé pour le tri du top
+   * depuis chantier A.1.
+   */
+  painScore: number;
+  /**
+   * Score V2 composite (chantier A.1) : 0.4 impact + 0.4 chain + 0.2 feasibility.
+   * Échelle 0-1. Utilisé comme clé de tri pour désigner le top point.
+   */
+  painScoreV2: number;
+  /** Composante 1 du V2 — `painScore` divisé par max(painScores du pool). 0-1. */
+  impactScoreNormalized: number;
+  /** Composante 2 du V2 — = `expertise.chainPosition`. 0-1. */
+  chainScore: number;
+  /** Composante 3 du V2 — issue de `FEASIBILITY_SCORE[feasibility]`. 0-1. */
+  feasibilityScore: number;
 }
 
 // ─── Calcul de l'écart normalisé ──────────────────────────────────────────
@@ -115,19 +158,35 @@ function estimateCaImpact(
 // ─── Détection du point de douleur principal ──────────────────────────────
 
 /**
- * Retourne LE ratio le plus douloureux pour le conseiller, ou null si aucun écart.
- * Le plan 30j est construit exclusivement autour de ce ratio.
+ * Helper interne — applique la formule complète (V1 legacy + V2 composite)
+ * sur le pool de mesures et retourne le tableau **trié par painScoreV2 desc**.
+ *
+ * Étapes :
+ *   1. Pour chaque ratio sous-perf (normalizedGap > 0), calculer painScore V1.
+ *   2. Calculer maxPainScore du pool (fallback 1 si pool vide ou tous nuls).
+ *   3. Calculer impactScoreNormalized + chainScore + feasibilityScore.
+ *   4. painScoreV2 = 0.4 × impact + 0.4 × chain + 0.2 × feasibility.
+ *   5. Trier desc sur painScoreV2.
+ *
+ * Filtre force-skip ligne `normalizedGap === 0` : INCHANGÉ — la
+ * force-inclusion PR3.5 dans `diagnostic-criticite.ts` reste responsable de
+ * récupérer les ratios skippés (cas du dénominateur nul → ratio = 0).
  */
-export function detectBiggestPainPoint(
+function scoreAllPainPoints(
   measuredRatios: MeasuredRatio[],
   profile: ProfileLevel,
-  avgCommissionEur: number
-): PainPointResult | null {
-  const scored: PainPointResult[] = [];
+  avgCommissionEur: number,
+): PainPointResult[] {
+  // Pass 1 : painScore V1 (legacy, formule actuelle inchangée)
+  type Partial1 = Omit<
+    PainPointResult,
+    "painScoreV2" | "impactScoreNormalized" | "chainScore" | "feasibilityScore"
+  >;
+  const partials: Partial1[] = [];
 
   for (const measured of measuredRatios) {
     const expertise = ALL_EXPERTISE_RATIOS.find(
-      (e) => e.id === measured.expertiseId
+      (e) => e.id === measured.expertiseId,
     );
     if (!expertise) continue;
 
@@ -135,7 +194,7 @@ export function detectBiggestPainPoint(
     const normalizedGap = computeNormalizedGap(
       measured.currentValue,
       targetValue,
-      expertise.direction
+      expertise.direction,
     );
 
     // Si pas d'écart (surperf ou égal au seuil), on skip
@@ -145,14 +204,14 @@ export function detectBiggestPainPoint(
       measured,
       expertise,
       targetValue,
-      avgCommissionEur
+      avgCommissionEur,
     );
 
-    // Formule de douleur
+    // Formule de douleur V1 (legacy — préservée pour compat DB pain_score)
     const painScore =
       normalizedGap * estimatedCaLossEur * expertise.leverageWeight;
 
-    scored.push({
+    partials.push({
       expertiseId: measured.expertiseId,
       expertise,
       currentValue: measured.currentValue,
@@ -163,59 +222,58 @@ export function detectBiggestPainPoint(
     });
   }
 
-  if (scored.length === 0) return null;
+  if (partials.length === 0) return [];
 
-  // Tri décroissant sur le score de douleur, retour du top
-  scored.sort((a, b) => b.painScore - a.painScore);
-  return scored[0];
+  // Pass 2 : V2 composite (chantier A.1)
+  const maxPainScore = Math.max(1, ...partials.map((p) => p.painScore));
+
+  const scored: PainPointResult[] = partials.map((p) => {
+    const impactScoreNormalized = p.painScore / maxPainScore;
+    const chainScore = p.expertise.chainPosition;
+    const feasibilityScore = FEASIBILITY_SCORE[p.expertise.feasibility];
+    const painScoreV2 =
+      0.4 * impactScoreNormalized + 0.4 * chainScore + 0.2 * feasibilityScore;
+    return {
+      ...p,
+      painScoreV2,
+      impactScoreNormalized,
+      chainScore,
+      feasibilityScore,
+    };
+  });
+
+  // Tri décroissant sur le score V2 composite (≠ painScore legacy)
+  scored.sort((a, b) => b.painScoreV2 - a.painScoreV2);
+  return scored;
+}
+
+/**
+ * Retourne LE ratio le plus douloureux pour le conseiller, ou null si aucun écart.
+ * Le plan 30j est construit exclusivement autour de ce ratio.
+ *
+ * Tri par painScoreV2 (chantier A.1).
+ */
+export function detectBiggestPainPoint(
+  measuredRatios: MeasuredRatio[],
+  profile: ProfileLevel,
+  avgCommissionEur: number,
+): PainPointResult | null {
+  const scored = scoreAllPainPoints(measuredRatios, profile, avgCommissionEur);
+  return scored[0] ?? null;
 }
 
 /**
  * Retourne le top N des douleurs (utile pour affichage/debug, même si le plan 30j
  * n'en cible qu'une).
+ *
+ * Tri par painScoreV2 (chantier A.1).
  */
 export function detectTopPainPoints(
   measuredRatios: MeasuredRatio[],
   profile: ProfileLevel,
   avgCommissionEur: number,
-  limit = 3
+  limit = 3,
 ): PainPointResult[] {
-  const results: PainPointResult[] = [];
-
-  for (const measured of measuredRatios) {
-    const expertise = ALL_EXPERTISE_RATIOS.find(
-      (e) => e.id === measured.expertiseId
-    );
-    if (!expertise) continue;
-
-    const targetValue = expertise.thresholds[profile];
-    const normalizedGap = computeNormalizedGap(
-      measured.currentValue,
-      targetValue,
-      expertise.direction
-    );
-    if (normalizedGap === 0) continue;
-
-    const estimatedCaLossEur = estimateCaImpact(
-      measured,
-      expertise,
-      targetValue,
-      avgCommissionEur
-    );
-    const painScore =
-      normalizedGap * estimatedCaLossEur * expertise.leverageWeight;
-
-    results.push({
-      expertiseId: measured.expertiseId,
-      expertise,
-      currentValue: measured.currentValue,
-      targetValue,
-      normalizedGap,
-      estimatedCaLossEur,
-      painScore,
-    });
-  }
-
-  results.sort((a, b) => b.painScore - a.painScore);
-  return results.slice(0, limit);
+  const scored = scoreAllPainPoints(measuredRatios, profile, avgCommissionEur);
+  return scored.slice(0, limit);
 }

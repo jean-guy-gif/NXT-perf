@@ -41,6 +41,17 @@ export type CaImpactType =
   | "security"
   | "indirect";
 
+/**
+ * Faisabilité de la correction du ratio en 30j (chantier A.1).
+ * - `easy`   : changement comportemental simple (ex: appliquer "3 biens/sortie")
+ * - `medium` : ajustement process + formation (ex: roder R1→R2)
+ * - `hard`   : refonte profonde (ex: stratégie prospection, culture exclusivité)
+ *
+ * Mappé en score numérique via `FEASIBILITY_SCORE` côté pain-point-detector :
+ * easy = 1.0, medium = 0.6, hard = 0.3.
+ */
+export type RatioFeasibility = "easy" | "medium" | "hard";
+
 export interface RatioExpertise {
   id: ExpertiseRatioId;
   label: string;
@@ -73,6 +84,23 @@ export interface RatioExpertise {
 
   /** Délai d'impact attendu en jours (section E du doc : ~92j moyenne mandat) */
   expectedImpactDelayDays: number;
+
+  /**
+   * Position dans la chaîne de production immobilière (chantier A.1).
+   * Échelle 0-1 : 1.0 = le plus amont (génération de leads), 0.2 = le plus
+   * aval (sécurisation acte). Sert de `chainScore` dans `painScoreV2`.
+   * Justification : un ratio amont cassé rend les ratios aval inutiles à
+   * fixer (le funnel n'est jamais alimenté). Pondération 0.4 dans la formule.
+   */
+  chainPosition: number;
+
+  /**
+   * Faisabilité de la correction en 30j (chantier A.1). Voir `RatioFeasibility`.
+   * Mappé en score 1.0/0.6/0.3 via `FEASIBILITY_SCORE`. Pondération 0.2 dans
+   * la formule painScoreV2 — accélère la priorisation vers des actions
+   * immédiatement actionnables.
+   */
+  feasibility: RatioFeasibility;
 }
 
 // ─── Contenu expert des 8 ratios ───────────────────────────────────────────
@@ -99,6 +127,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Effet cascade fort : +contacts qualifiés → +estimations → +mandats → +ventes. Exemple doc : passer de 5 à 10 RDV d'estimation = +5 exclusivités potentielles = +3,5 ventes supplémentaires.",
     expectedImpactDelayDays: 90,
+    chainPosition: 1.0,
+    feasibility: "hard",
   },
 
   estimations_mandats: {
@@ -123,6 +153,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Gain direct : chaque estimation non convertie est un mandat perdu. Impact proportionnel à (estimations réalisées × commission moyenne).",
     expectedImpactDelayDays: 90,
+    chainPosition: 0.85,
+    feasibility: "medium",
   },
 
   pct_exclusivite: {
@@ -146,6 +178,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Calibration doc : passer de 30% à 40% d'exclusivité sur 100 mandats = 5 ventes supplémentaires (les exclus convertissent 2x mieux). Un des ratios les plus rentables à travailler.",
     expectedImpactDelayDays: 90,
+    chainPosition: 0.7,
+    feasibility: "hard",
   },
 
   acheteurs_tournee: {
@@ -170,6 +204,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Section D du doc : ratios plus éloignés d'un ROI CA direct. Impact via amélioration de la qualité de suivi acheteur.",
     expectedImpactDelayDays: 120,
+    chainPosition: 0.6,
+    feasibility: "medium",
   },
 
   visites_par_acheteur: {
@@ -193,6 +229,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Section D du doc : ratios plus éloignés d'un ROI CA direct. Impact via amélioration du taux de closing visites→offres en cascade.",
     expectedImpactDelayDays: 120,
+    chainPosition: 0.55,
+    feasibility: "easy",
   },
 
   visites_offres: {
@@ -217,6 +255,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Calibration doc : passer de 24 visites/2 offres à 18 visites/2 offres. Ou à 20 visites = 3 offres au lieu de 2 → +0,5 compromis supplémentaire × commission moyenne.",
     expectedImpactDelayDays: 90,
+    chainPosition: 0.5,
+    feasibility: "medium",
   },
 
   offres_compromis: {
@@ -240,6 +280,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Dernier mètre avant signature : chaque offre non transformée en compromis est une commission perdue. Impact proportionnel à (offres × commission moyenne × écart de ratio).",
     expectedImpactDelayDays: 60,
+    chainPosition: 0.35,
+    feasibility: "easy",
   },
 
   compromis_actes: {
@@ -265,6 +307,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     caImpactNote:
       "Sécurise du CA déjà engagé : chaque compromis cassé = commission intégralement perdue. Impact critique sur la régularité de trésorerie.",
     expectedImpactDelayDays: 60,
+    chainPosition: 0.2,
+    feasibility: "medium",
   },
 };
 

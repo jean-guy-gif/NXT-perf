@@ -6,6 +6,7 @@ import {
 } from "@/config/coaching";
 import {
   detectBiggestPainPoint,
+  FEASIBILITY_SCORE,
   type MeasuredRatio,
   type PainPointResult,
 } from "@/lib/pain-point-detector";
@@ -116,6 +117,12 @@ export async function POST(request: Request) {
     }
     const expertise = RATIO_EXPERTISE[ratioId];
     const target = expertise.thresholds[body.profile];
+    // Mode "targeted" : ratio choisi explicitement par le user. Les scores
+    // V1/V2 ne servent pas à hiérarchiser ici (un seul candidat) ; on calcule
+    // tout de même les composantes V2 à partir de l'expertise pour rester
+    // cohérent avec le contrat de PainPointResult (chantier A.1).
+    const feasibilityScore = FEASIBILITY_SCORE[expertise.feasibility];
+    const chainScore = expertise.chainPosition;
     painPoint = {
       expertiseId: ratioId,
       expertise,
@@ -125,6 +132,10 @@ export async function POST(request: Request) {
         Math.abs(measured.currentValue - target) / (target || 1),
       estimatedCaLossEur: 0,
       painScore: 0,
+      painScoreV2: 0.4 * chainScore + 0.2 * feasibilityScore,
+      impactScoreNormalized: 0,
+      chainScore,
+      feasibilityScore,
     };
   }
 

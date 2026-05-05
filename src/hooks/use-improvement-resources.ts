@@ -9,6 +9,7 @@ import {
 } from "@/config/coaching";
 import {
   detectBiggestPainPoint,
+  FEASIBILITY_SCORE,
   type MeasuredRatio,
   type PainPointResult,
 } from "@/lib/pain-point-detector";
@@ -224,6 +225,9 @@ export function useImprovementResources() {
         }
         const expertise = RATIO_EXPERTISE[input.ratioId];
         const target = expertise.thresholds[input.profile];
+        // Mode "targeted" : V2 dérivé de l'expertise (chantier A.1).
+        const feasibilityScore = FEASIBILITY_SCORE[expertise.feasibility];
+        const chainScore = expertise.chainPosition;
         painPoint = {
           expertiseId: input.ratioId,
           expertise,
@@ -233,6 +237,10 @@ export function useImprovementResources() {
             Math.abs(measured.currentValue - target) / (target || 1),
           estimatedCaLossEur: 0,
           painScore: 0,
+          painScoreV2: 0.4 * chainScore + 0.2 * feasibilityScore,
+          impactScoreNormalized: 0,
+          chainScore,
+          feasibilityScore,
         };
       }
 

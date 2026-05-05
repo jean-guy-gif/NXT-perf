@@ -14,7 +14,10 @@ import {
   type ExpertiseRatioId,
   type RatioExpertise,
 } from "@/data/ratio-expertise";
-import type { PainPointResult } from "@/lib/pain-point-detector";
+import {
+  FEASIBILITY_SCORE,
+  type PainPointResult,
+} from "@/lib/pain-point-detector";
 import type {
   Plan30jAction,
   Plan30jPayload,
@@ -339,7 +342,11 @@ export function generatePlan30Days(
   const expertiseId = areaToExpertiseId[mainPriority.area];
   const expertise = RATIO_EXPERTISE[expertiseId];
 
-  const fakePainPoint = {
+  // Chantier A.1 — composantes V2 dérivées de l'expertise (le pain n'est pas
+  // détecté ici, on construit un fake pour générer le contenu pédagogique).
+  const feasibilityScore = FEASIBILITY_SCORE[expertise.feasibility];
+  const chainScore = expertise.chainPosition;
+  const fakePainPoint: PainPointResult = {
     expertiseId,
     expertise,
     currentValue: mainPriority.currentValue,
@@ -349,6 +356,10 @@ export function generatePlan30Days(
       (mainPriority.targetValue || 1),
     estimatedCaLossEur: 0,
     painScore: 0,
+    painScoreV2: 0.4 * chainScore + 0.2 * feasibilityScore,
+    impactScoreNormalized: 0,
+    chainScore,
+    feasibilityScore,
   };
 
   const newPlan = generatePlan30j(fakePainPoint);
