@@ -35,6 +35,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "agent_commercial",
   },
   {
     id: "u-demo-2",
@@ -52,6 +53,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "salarie",
   },
   {
     id: "u-demo-3",
@@ -69,6 +71,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "mandataire",
   },
   // ── Team 2 (team-beta) — Manager: Sophie Lemaire ──
   {
@@ -103,6 +106,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "agent_commercial",
   },
   {
     id: "u-demo-b2",
@@ -120,6 +124,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "mandataire",
   },
   {
     id: "u-demo-b3",
@@ -137,6 +142,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "salarie",
   },
   // ── Team 3 (team-gamma) — Manager: Marc Fontaine ──
   {
@@ -171,6 +177,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "agent_commercial",
   },
   {
     id: "u-demo-g2",
@@ -188,6 +195,7 @@ export const mockUsers: User[] = [
     onboardingStatus: "DONE",
     profileType: "AGENT",
     institutionId: "org-demo",
+    agentStatus: "salarie",
   },
 ];
 

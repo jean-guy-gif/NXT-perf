@@ -27,6 +27,10 @@ import {
   type CriticitePoint,
 } from "@/lib/diagnostic-criticite";
 import type { MeasuredRatio } from "@/lib/pain-point-detector";
+import {
+  bucketTeamSize,
+  type ThresholdContext,
+} from "@/lib/diagnostic/resolve-threshold";
 import { deriveProfileLevel } from "@/lib/get-avg-commission";
 import type { ComputedRatio } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
@@ -100,12 +104,21 @@ export function aggregateTeamDiagnostic(
     { count: number; totalGain: number }
   >();
 
+  // Chantier A.3 — taille équipe = nombre de conseillers évaluables (pool
+  // analysé). Approximation V1 raisonnable côté Manager qui aggrège par
+  // équipe complète. Bucketé une fois pour tout le pool.
+  const teamSizeBucket = bucketTeamSize(evaluable.length);
+
   for (const a of evaluable) {
-    const profile = deriveProfileLevel(a.user.category);
+    const ctx: ThresholdContext = {
+      seniority: deriveProfileLevel(a.user.category),
+      agentStatus: a.user.agentStatus ?? null,
+      teamSizeBucket,
+      avgCommissionEur: a.avgCommissionEur,
+    };
     const { top, others } = findCriticitePoints(
       a.measuredRatios,
-      profile,
-      a.avgCommissionEur,
+      ctx,
       a.results,
       a.user.category,
       a.periodMonths ?? 1,

@@ -14,6 +14,11 @@ import {
   type PainPointResult,
 } from "@/lib/pain-point-detector";
 import {
+  bucketTeamSize,
+  resolveThreshold,
+  type ThresholdContext,
+} from "@/lib/diagnostic/resolve-threshold";
+import {
   generatePlan30j,
   planToPayload,
   type GeneratedPlan30j,
@@ -36,6 +41,10 @@ export interface CreatePlanInput {
   measuredRatios: MeasuredRatio[];
   profile: ProfileLevel;
   avgCommissionEur: number;
+  // Chantier A.3 — contexte 4 axes (optionnels en V1 pour compat). Si
+  // absents, fallback agentStatus null + teamSize 1 → exigence quasi-neutre.
+  agentStatus?: "salarie" | "agent_commercial" | "mandataire" | null;
+  teamSize?: number;
 }
 
 /**
@@ -203,14 +212,18 @@ export function useImprovementResources() {
         );
       }
 
+      // Chantier A.3 — contexte 4 axes pour resolveThreshold + detector.
+      const ctx: ThresholdContext = {
+        seniority: input.profile,
+        agentStatus: input.agentStatus ?? null,
+        teamSizeBucket: bucketTeamSize(input.teamSize ?? 1),
+        avgCommissionEur: input.avgCommissionEur,
+      };
+
       // Détection de la douleur ciblée
       let painPoint: PainPointResult | null;
       if (input.mode === "auto") {
-        painPoint = detectBiggestPainPoint(
-          input.measuredRatios,
-          input.profile,
-          input.avgCommissionEur
-        );
+        painPoint = detectBiggestPainPoint(input.measuredRatios, ctx);
       } else {
         if (!input.ratioId) {
           throw new Error("targeted mode requires ratioId");
@@ -224,7 +237,8 @@ export function useImprovementResources() {
           );
         }
         const expertise = RATIO_EXPERTISE[input.ratioId];
-        const target = expertise.thresholds[input.profile];
+        // Chantier A.3 — seuil contextualisé 4 axes.
+        const target = resolveThreshold(expertise, ctx);
         // Mode "targeted" : V2 dérivé de l'expertise (chantier A.1).
         const feasibilityScore = FEASIBILITY_SCORE[expertise.feasibility];
         const chainScore = expertise.chainPosition;

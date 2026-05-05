@@ -3,14 +3,10 @@
 import { useMemo, useState } from "react";
 import { MessageCircleHeart, Sparkles, X } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { useResults, useAllResults } from "@/hooks/use-results";
+import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
-import { useAppStore } from "@/stores/app-store";
+import { useUserContext } from "@/hooks/use-user-context";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
-import {
-  deriveProfileLevel,
-  getAvgCommissionEur,
-} from "@/lib/get-avg-commission";
 import { findCriticitePoints } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
@@ -53,8 +49,6 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
   const { user, category } = useUser();
   const { computedRatios } = useRatios();
   const results = useResults();
-  const allResults = useAllResults();
-  const agencyObjective = useAppStore((s) => s.agencyObjective);
 
   const [drawerMode, setDrawerMode] = useState<"single" | "list" | null>(null);
   const [coachingPrepOpen, setCoachingPrepOpen] = useState(false);
@@ -66,24 +60,25 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
     [advisorDisplayName],
   );
 
+  // Chantier A.3 — useUserContext est override-aware (chantier C). Sous
+  // ConseillerProxy, retourne le contexte du conseiller observé (seniority,
+  // agentStatus, teamSizeBucket, avgCommissionEur).
+  const userCtx = useUserContext();
+
   const criticite = useMemo(() => {
     if (!user || !results || computedRatios.length === 0)
       return { top: null, others: [] };
     const measured = buildMeasuredRatios(computedRatios, results);
-    const profile = deriveProfileLevel(category);
-    const myHistory = allResults.filter((r) => r.userId === user.id);
-    const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
     return findCriticitePoints(
       measured,
-      profile,
-      avg,
+      userCtx,
       results,
       category,
       effectiveMonths,
     );
-  }, [user, results, computedRatios, category, allResults, agencyObjective]);
+  }, [user, results, computedRatios, category, userCtx]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4">

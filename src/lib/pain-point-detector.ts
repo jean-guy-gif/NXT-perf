@@ -29,10 +29,13 @@
 import {
   ALL_EXPERTISE_RATIOS,
   type ExpertiseRatioId,
-  type ProfileLevel,
   type RatioExpertise,
   type RatioFeasibility,
 } from "@/data/ratio-expertise";
+import {
+  resolveThreshold,
+  type ThresholdContext,
+} from "@/lib/diagnostic/resolve-threshold";
 
 /**
  * Mapping faisabilité → score numérique (chantier A.1 — décisions Q2 validées).
@@ -174,8 +177,7 @@ function estimateCaImpact(
  */
 function scoreAllPainPoints(
   measuredRatios: MeasuredRatio[],
-  profile: ProfileLevel,
-  avgCommissionEur: number,
+  ctx: ThresholdContext,
 ): PainPointResult[] {
   // Pass 1 : painScore V1 (legacy, formule actuelle inchangée)
   type Partial1 = Omit<
@@ -190,7 +192,9 @@ function scoreAllPainPoints(
     );
     if (!expertise) continue;
 
-    const targetValue = expertise.thresholds[profile];
+    // Chantier A.3 — résolution contextuelle (4 axes) du seuil au lieu de
+    // l'accès direct expertise.thresholds[profile].
+    const targetValue = resolveThreshold(expertise, ctx);
     const normalizedGap = computeNormalizedGap(
       measured.currentValue,
       targetValue,
@@ -204,7 +208,7 @@ function scoreAllPainPoints(
       measured,
       expertise,
       targetValue,
-      avgCommissionEur,
+      ctx.avgCommissionEur,
     );
 
     // Formule de douleur V1 (legacy — préservée pour compat DB pain_score)
@@ -251,14 +255,13 @@ function scoreAllPainPoints(
  * Retourne LE ratio le plus douloureux pour le conseiller, ou null si aucun écart.
  * Le plan 30j est construit exclusivement autour de ce ratio.
  *
- * Tri par painScoreV2 (chantier A.1).
+ * Tri par painScoreV2 (chantier A.1). Seuils contextualisés 4 axes (A.3).
  */
 export function detectBiggestPainPoint(
   measuredRatios: MeasuredRatio[],
-  profile: ProfileLevel,
-  avgCommissionEur: number,
+  ctx: ThresholdContext,
 ): PainPointResult | null {
-  const scored = scoreAllPainPoints(measuredRatios, profile, avgCommissionEur);
+  const scored = scoreAllPainPoints(measuredRatios, ctx);
   return scored[0] ?? null;
 }
 
@@ -266,14 +269,13 @@ export function detectBiggestPainPoint(
  * Retourne le top N des douleurs (utile pour affichage/debug, même si le plan 30j
  * n'en cible qu'une).
  *
- * Tri par painScoreV2 (chantier A.1).
+ * Tri par painScoreV2 (chantier A.1). Seuils contextualisés 4 axes (A.3).
  */
 export function detectTopPainPoints(
   measuredRatios: MeasuredRatio[],
-  profile: ProfileLevel,
-  avgCommissionEur: number,
+  ctx: ThresholdContext,
   limit = 3,
 ): PainPointResult[] {
-  const scored = scoreAllPainPoints(measuredRatios, profile, avgCommissionEur);
+  const scored = scoreAllPainPoints(measuredRatios, ctx);
   return scored.slice(0, limit);
 }

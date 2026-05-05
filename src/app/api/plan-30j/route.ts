@@ -11,6 +11,11 @@ import {
   type PainPointResult,
 } from "@/lib/pain-point-detector";
 import {
+  bucketTeamSize,
+  resolveThreshold,
+  type ThresholdContext,
+} from "@/lib/diagnostic/resolve-threshold";
+import {
   generatePlan30j,
   planToPayload,
 } from "@/lib/plan-30-jours";
@@ -26,6 +31,11 @@ interface RequestBody {
   measuredRatios: MeasuredRatio[];
   profile: ProfileLevel;
   avgCommissionEur: number;
+  // Chantier A.3 — contexte 4 axes pour le scoring contextualisé.
+  // Optionnels en V1 pour compat avec d'anciens clients (le serveur fallback
+  // sur agentStatus null + teamSize 1 si absents).
+  agentStatus?: "salarie" | "agent_commercial" | "mandataire" | null;
+  teamSize?: number;
 }
 
 export async function POST(request: Request) {
@@ -93,14 +103,18 @@ export async function POST(request: Request) {
     );
   }
 
+  // Chantier A.3 — construction du contexte 4 axes côté serveur.
+  const ctx: ThresholdContext = {
+    seniority: body.profile,
+    agentStatus: body.agentStatus ?? null,
+    teamSizeBucket: bucketTeamSize(body.teamSize ?? 1),
+    avgCommissionEur: body.avgCommissionEur,
+  };
+
   // Détection douleur
   let painPoint: PainPointResult | null;
   if (body.mode === "auto") {
-    painPoint = detectBiggestPainPoint(
-      body.measuredRatios,
-      body.profile,
-      body.avgCommissionEur
-    );
+    painPoint = detectBiggestPainPoint(body.measuredRatios, ctx);
   } else {
     const ratioId = body.ratioId!;
     const measured = body.measuredRatios.find(
@@ -116,7 +130,8 @@ export async function POST(request: Request) {
       );
     }
     const expertise = RATIO_EXPERTISE[ratioId];
-    const target = expertise.thresholds[body.profile];
+    // Chantier A.3 — seuil contextualisé 4 axes.
+    const target = resolveThreshold(expertise, ctx);
     // Mode "targeted" : ratio choisi explicitement par le user. Les scores
     // V1/V2 ne servent pas à hiérarchiser ici (un seul candidat) ; on calcule
     // tout de même les composantes V2 à partir de l'expertise pour rester

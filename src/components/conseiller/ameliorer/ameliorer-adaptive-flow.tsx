@@ -7,6 +7,8 @@ import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
+import { useUserContext } from "@/hooks/use-user-context";
+import { resolveThreshold } from "@/lib/diagnostic/resolve-threshold";
 import { Plan30Jours } from "@/components/formation/plan-30-jours";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 import { AgeficeWizard } from "@/components/formation/agefice-wizard";
@@ -21,16 +23,12 @@ import { FocusedTrainingBlock } from "./focused-training-block";
 import { findCriticitePoints } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { volumeToRelatedRatio } from "@/lib/coaching/coach-brain";
-import {
-  getAvgCommissionEur,
-} from "@/lib/get-avg-commission";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
 } from "@/data/ratio-expertise";
-import { deriveProfileLevel } from "@/lib/get-avg-commission";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import type { Plan30jPayload } from "@/config/coaching";
 
@@ -47,6 +45,8 @@ export function AmeliorerAdaptiveFlow() {
   const { category } = useUser();
   const { computedRatios } = useRatios();
   const results = useResults();
+  // Chantier A.3 — contexte 4 axes (override-aware via AdvisorOverrideProvider).
+  const userCtx = useUserContext();
   const { resources, getActivePlan, refresh, loading, updateResource } =
     useImprovementResources();
   const searchParams = useSearchParams();
@@ -138,13 +138,13 @@ export function AmeliorerAdaptiveFlow() {
     ? (() => {
         const payload = activePlan.payload as unknown as Plan30jPayload;
         const expertiseId = payload.pain_ratio_id as ExpertiseRatioId;
-        const profile = deriveProfileLevel(category);
         const expertise = RATIO_EXPERTISE[expertiseId];
         if (!expertise) return null;
         return {
           expertiseId,
           current: payload.baseline_ratio_value ?? null,
-          target: expertise.thresholds[profile],
+          // Chantier A.3 — seuil contextualisé 4 axes via resolveThreshold.
+          target: resolveThreshold(expertise, userCtx),
           gain: payload.estimated_ca_loss_eur ?? 0,
         };
       })()
@@ -249,6 +249,8 @@ function NoPlanFlow({
   const allResults = useAllResults();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const userId = useAppStore((s) => s.user?.id);
+  // Chantier A.3 — contexte 4 axes (override-aware).
+  const userCtx = useUserContext();
 
   /**
    * PR3.7.5 — Synchronisation Diagnostic ↔ M'améliorer.
@@ -263,22 +265,19 @@ function NoPlanFlow({
    */
   const recommended = useMemo(() => {
     if (!results || !userId) return null;
-    const profile = deriveProfileLevel(category);
     const measured = buildMeasuredRatios(computedRatios, results);
-    const myHistory = allResults.filter((r) => r.userId === userId);
-    const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
     // PR3.8.6 hotfix #2 — Toujours proratiser sur today (cf. verdict view).
     // Le levier recommandé reflète "où j'en suis CE MOIS-CI", peu importe la
     // période effective stockée dans `results` (démo Fév 2026 inclus).
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
+    // Chantier A.3 — passe le contexte 4 axes (userCtx override-aware).
     const criticite = findCriticitePoints(
       measured,
-      profile,
-      avg,
+      userCtx,
       results,
       category,
-      effectiveMonths
+      effectiveMonths,
     );
 
     // 1. Préselection URL prioritaire
@@ -294,7 +293,8 @@ function NoPlanFlow({
       return {
         expertiseId: preselected,
         currentValue: found?.currentValue ?? null,
-        targetValue: expertise.thresholds[profile],
+        // Chantier A.3 — seuil contextualisé 4 axes.
+        targetValue: resolveThreshold(expertise, userCtx),
         estimatedGainEur:
           fromCriticite && fromCriticite.type === "ratio"
             ? fromCriticite.gainEur
@@ -336,7 +336,8 @@ function NoPlanFlow({
     return {
       expertiseId: chosen.id,
       currentValue: found?.currentValue ?? null,
-      targetValue: expertise.thresholds[profile],
+      // Chantier A.3 — seuil contextualisé 4 axes.
+      targetValue: resolveThreshold(expertise, userCtx),
       estimatedGainEur: chosen.gain,
       others: criticite.others.filter(
         (p) => p.type === "ratio" && p.id !== chosen!.id

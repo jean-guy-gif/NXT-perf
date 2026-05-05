@@ -4,14 +4,14 @@ import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/stores/app-store";
 import { useTeamGPS } from "@/hooks/use-team-gps";
 import type { ProfileLevel } from "@/data/ratio-expertise";
+import {
+  bucketTeamSize,
+  type TeamSizeBucket,
+} from "@/lib/diagnostic/resolve-threshold";
+import type { AgentStatus } from "@/types/user";
 
-/**
- * Statut juridique métier — chantier A.2.
- *
- * Source : `profiles.agent_status` (text + CHECK, migration 034 prod).
- * NULL = profil pré-A.2 qui n'a pas encore vu l'étape onboarding "Statut".
- */
-export type AgentStatus = "salarie" | "agent_commercial" | "mandataire";
+// Re-export pour compat des call-sites qui importaient AgentStatus depuis ce hook.
+export type { AgentStatus } from "@/types/user";
 
 const FALLBACK_AVG_COMMISSION_EUR = 8000;
 
@@ -22,6 +22,11 @@ export interface UserContext {
   agentStatus: AgentStatus | null;
   /** Taille équipe — dérivée live (`teamConseillers.length`), ≥ 1. */
   teamSize: number;
+  /**
+   * Bucket taille équipe (chantier A.3) — dérivé via `bucketTeamSize`.
+   * Sert directement à `resolveThreshold` côté pain-point-detector.
+   */
+  teamSizeBucket: TeamSizeBucket;
   /**
    * Honoraires moyens par acte (€). Source : `agencyObjective.avgActValue`
    * Zustand, hydraté au login depuis `objectives.input.avg_commission_eur`.
@@ -52,13 +57,11 @@ export interface UserContext {
  * (lecture directe de `objectives` filtrée par `advisorId`).
  */
 export function useUserContext(): UserContext {
-  const { category } = useUser();
-  // Note V1 : `agent_status` est lu depuis le `profile` (DbProfile) du user
-  // courant en Zustand. Sous override (Manager → zoom Conseiller, chantier C),
-  // ce sera donc le `agent_status` du manager, pas du conseiller observé.
-  // Limitation acceptée pour A.2 (plumberie data, l'algo ne consomme pas
-  // encore agentStatus — Q4 minimal). A.3 pourra étendre le store pour
-  // mettre les profils observés à disposition (per-user DbProfile cache).
+  // Chantier A.3 — `useUser()` est override-aware (chantier C). Sous
+  // `<AdvisorOverrideProvider>` (mode Manager → zoom Conseiller), retourne
+  // le User du conseiller observé, donc `user.agentStatus` est désormais
+  // celui du conseiller observé. La limitation V1 d'A.2 est levée.
+  const { user, category } = useUser();
   const profile = useAppStore((s) => s.profile);
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { memberCount } = useTeamGPS();
@@ -70,17 +73,24 @@ export function useUserContext(): UserContext {
         ? "expert"
         : "confirme";
 
-  const agentStatus: AgentStatus | null = profile?.agent_status ?? null;
+  // Priorité : User.agentStatus (propagé via mapper, override-aware)
+  // > profile.agent_status (DbProfile current — fallback si users[] pas
+  // encore chargé en prod, ou pour le user courant solo).
+  const agentStatus: AgentStatus | null =
+    user?.agentStatus ?? profile?.agent_status ?? null;
 
   const avgCommissionEur =
     agencyObjective?.avgActValue && agencyObjective.avgActValue > 0
       ? agencyObjective.avgActValue
       : FALLBACK_AVG_COMMISSION_EUR;
 
+  const teamSize = Math.max(1, memberCount ?? 1);
+
   return {
     seniority,
     agentStatus,
-    teamSize: Math.max(1, memberCount ?? 1),
+    teamSize,
+    teamSizeBucket: bucketTeamSize(teamSize),
     avgCommissionEur,
     annualTargetCaEur:
       agencyObjective?.annualCA && agencyObjective.annualCA > 0

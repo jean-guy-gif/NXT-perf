@@ -18,13 +18,16 @@
 import {
   ALL_EXPERTISE_RATIOS,
   RATIO_EXPERTISE,
-  type ProfileLevel,
 } from "@/data/ratio-expertise";
 import {
   detectBiggestPainPoint,
   type MeasuredRatio,
   type PainPointResult,
 } from "@/lib/pain-point-detector";
+import {
+  resolveThreshold,
+  type ThresholdContext,
+} from "@/lib/diagnostic/resolve-threshold";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 import type { UserCategory } from "@/types/user";
@@ -168,13 +171,12 @@ export interface DiagnosticCriticite {
  */
 export function findCriticitePoints(
   measured: MeasuredRatio[],
-  profile: ProfileLevel,
-  avgCommissionEur: number,
+  ctx: ThresholdContext,
   results: PeriodResults | null,
   category: UserCategory,
   periodMonths: number
 ): DiagnosticCriticite {
-  if (avgCommissionEur <= 0) {
+  if (ctx.avgCommissionEur <= 0) {
     return { top: null, others: [] };
   }
 
@@ -184,7 +186,7 @@ export function findCriticitePoints(
   let pool = [...measured];
 
   for (let i = 0; i < ALL_EXPERTISE_RATIOS.length; i++) {
-    const next = detectBiggestPainPoint(pool, profile, avgCommissionEur);
+    const next = detectBiggestPainPoint(pool, ctx);
     if (!next || seenRatios.has(next.expertiseId)) break;
     seenRatios.add(next.expertiseId);
     ratioPoints.push({
@@ -220,8 +222,9 @@ export function findCriticitePoints(
     seenRatios.add(m.expertiseId);
     // Estimation prudente : volumeBase × avgCommission × 0.05 (heuristique
     // 5 % du potentiel — placeholder V1, à calibrer).
-    const fallbackGain = Math.round(m.volumeBase * avgCommissionEur * 0.05);
-    const targetValue = expertise.thresholds[profile];
+    const fallbackGain = Math.round(m.volumeBase * ctx.avgCommissionEur * 0.05);
+    // Chantier A.3 — seuil contextualisé 4 axes via resolveThreshold.
+    const targetValue = resolveThreshold(expertise, ctx);
     ratioPoints.push({
       type: "ratio",
       id: m.expertiseId,
@@ -257,7 +260,7 @@ export function findCriticitePoints(
       if (target <= 0) continue;
       const gap = target - current;
       if (gap <= 0) continue; // OK ou surperf
-      const unitValue = volumeUnitValue(key, category, avgCommissionEur);
+      const unitValue = volumeUnitValue(key, category, ctx.avgCommissionEur);
       const gainEur = gap * unitValue;
       if (gainEur <= 0) continue;
       volumePoints.push({

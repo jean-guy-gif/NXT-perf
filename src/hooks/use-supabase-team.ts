@@ -61,6 +61,9 @@ export function useSupabaseTeam() {
         avatarUrl: p.avatar_url ?? undefined,
         createdAt: p.created_at,
         institutionId: p.org_id ?? undefined,
+        // Chantier A.3 — propage agent_status pour que useUserContext sous
+        // AdvisorOverrideProvider retourne le statut du conseiller observé.
+        agentStatus: p.agent_status,
       }));
 
       setUsers(users);

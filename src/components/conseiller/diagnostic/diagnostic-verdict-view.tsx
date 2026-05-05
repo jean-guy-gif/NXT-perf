@@ -6,6 +6,7 @@ import { useUser } from "@/hooks/use-user";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import { useUserContext } from "@/hooks/use-user-context";
 import { useAppStore } from "@/stores/app-store";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import {
@@ -33,6 +34,7 @@ export function DiagnosticVerdictView() {
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { createPlan30j } = useImprovementResources();
 
+  const userCtx = useUserContext();
   const [drawerMode, setDrawerMode] = useState<"single" | "list" | null>(null);
   const [improving, setImproving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -41,9 +43,6 @@ export function DiagnosticVerdictView() {
     if (!user || !results || computedRatios.length === 0)
       return { top: null, others: [] };
     const measured = buildMeasuredRatios(computedRatios, results);
-    const profile = deriveProfileLevel(category);
-    const myHistory = allResults.filter((r) => r.userId === user.id);
-    const avg = getAvgCommissionEur(agencyObjective?.avgActValue, myHistory);
     // PR3.8.6 hotfix #2 — Le verdict est sémantiquement "où j'en suis CE
     // MOIS-CI", donc on prorate TOUJOURS sur la date du jour, indépendamment
     // de la période réellement stockée dans `results` (ex: démo Fév 2026).
@@ -51,22 +50,16 @@ export function DiagnosticVerdictView() {
     // début de mois parce que la donnée provenait d'un mois passé.
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
+    // Chantier A.3 — passage du contexte 4 axes à findCriticitePoints. Le
+    // hook useUserContext est override-aware (chantier C respect total).
     return findCriticitePoints(
       measured,
-      profile,
-      avg,
+      userCtx,
       results,
       category,
       effectiveMonths,
     );
-  }, [
-    user,
-    results,
-    computedRatios,
-    category,
-    allResults,
-    agencyObjective,
-  ]);
+  }, [user, results, computedRatios, category, userCtx]);
 
   const handleSavoirPourquoi = () => {
     setDrawerMode("single");
@@ -91,6 +84,10 @@ export function DiagnosticVerdictView() {
           measuredRatios: measured,
           profile,
           avgCommissionEur: avg,
+          // Chantier A.3 — propage les axes contextuels depuis useUserContext
+          // pour que `resolveThreshold` côté hook calcule le bon seuil cible.
+          agentStatus: userCtx.agentStatus,
+          teamSize: userCtx.teamSize,
         });
       }
       // Pour un volume : on redirige sans plan ciblé — la page M'améliorer
