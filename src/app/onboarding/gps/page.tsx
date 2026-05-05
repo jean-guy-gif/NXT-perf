@@ -76,10 +76,18 @@ export default function OnboardingGpsPage() {
 
         if (breakdown && ca > 0) {
           const currentYear = new Date().getFullYear();
+          // Chantier A.2 — fix bug persistance : `avg_commission_eur`
+          // était auparavant uniquement hydraté en Zustand puis perdu au
+          // refresh. On le persiste désormais dans `objectives.input` jsonb
+          // pour qu'il survive à un re-login. Charge associée côté hydrate
+          // dans `use-supabase-profile.ts`.
           await supabase.from("objectives").upsert({
             user_id: user.id,
             year: currentYear,
-            input: { objectifFinancierAnnuel: ca },
+            input: {
+              objectifFinancierAnnuel: ca,
+              avg_commission_eur: commission,
+            },
             breakdown,
             updated_at: new Date().toISOString(),
           }, { onConflict: "user_id,year" });

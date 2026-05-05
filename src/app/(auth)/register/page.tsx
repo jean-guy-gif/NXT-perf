@@ -219,6 +219,8 @@ function RegisterForm() {
       onboarding_status: "DONE",
       profile_type: derivedProfile,
       sub_profile: null,
+      // Chantier A.2 — sera renseigné par /onboarding/statut.
+      agent_status: null,
       coach_code: null,
       onboarding_completed: false,
       last_voice_saisie_date: null,

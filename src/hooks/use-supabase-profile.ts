@@ -9,6 +9,16 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
 /**
+ * Chantier A.2 — shape attendu de `objectives.input` (jsonb). On garde un
+ * type souple pour ne pas casser sur des entrées historiques sans
+ * `avg_commission_eur`.
+ */
+interface ObjectivesInputJson {
+  objectifFinancierAnnuel?: number;
+  avg_commission_eur?: number;
+}
+
+/**
  * Loads the current user's profile from Supabase on mount.
  * Retries up to 3 times if the profile isn't found (trigger may be slow).
  * As a last resort, creates the profile from auth user metadata.
@@ -19,6 +29,7 @@ export function useSupabaseProfile() {
   const isDemo = useAppStore((s) => s.isDemo);
   const setProfile = useAppStore((s) => s.setProfile);
   const setOrgInviteCode = useAppStore((s) => s.setOrgInviteCode);
+  const setAgencyObjective = useAppStore((s) => s.setAgencyObjective);
   const profile = useAppStore((s) => s.profile);
   const attemptedRef = useRef(false);
 
@@ -101,8 +112,34 @@ export function useSupabaseProfile() {
           setOrgInviteCode(org.invite_code);
         }
       }
+
+      // Chantier A.2 — hydrate agencyObjective Zustand depuis objectives row
+      // courant. Sans cette étape, `avgActValue` redevient null après chaque
+      // reload → diagnostic dégradé via FALLBACK 8000€ (cf. PRIORITE 1 audit).
+      const currentYear = new Date().getFullYear();
+      const { data: objectivesRow } = await supabase
+        .from("objectives")
+        .select("input")
+        .eq("user_id", dbProfile.id)
+        .eq("year", currentYear)
+        .single();
+
+      if (objectivesRow?.input) {
+        const input = objectivesRow.input as ObjectivesInputJson;
+        const annualCA =
+          typeof input.objectifFinancierAnnuel === "number"
+            ? input.objectifFinancierAnnuel
+            : 0;
+        const avgActValue =
+          typeof input.avg_commission_eur === "number"
+            ? input.avg_commission_eur
+            : 0;
+        if (annualCA > 0 || avgActValue > 0) {
+          setAgencyObjective({ annualCA, avgActValue });
+        }
+      }
     }
 
     load();
-  }, [supabase, isDemo, setProfile, setOrgInviteCode, profile]);
+  }, [supabase, isDemo, setProfile, setOrgInviteCode, setAgencyObjective, profile]);
 }

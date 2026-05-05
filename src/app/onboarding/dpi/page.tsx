@@ -51,12 +51,12 @@ export default function OnboardingDpiPage() {
     } catch {
       // Continue even if Supabase fails
     }
-    window.location.href = "/onboarding/gps";
+    window.location.href = "/onboarding/statut";
   };
 
   // Skip = aucun flag marqué, simple redirection
   const handleSkip = () => {
-    window.location.href = "/onboarding/gps";
+    window.location.href = "/onboarding/statut";
   };
 
   const firstName = user?.firstName || "Conseiller";

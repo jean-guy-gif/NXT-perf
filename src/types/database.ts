@@ -44,6 +44,12 @@ export interface DbProfile {
   avatar_url: string | null;
   onboarding_status: string | null;
   profile_type: string | null;
+  /**
+   * Chantier A.2 — statut juridique métier du conseiller (NULL pour profils
+   * pré-A.2 qui n'ont pas vu l'étape onboarding "Statut").
+   * Migration 034_profiles_agent_status (text + CHECK) appliquée prod.
+   */
+  agent_status: "salarie" | "agent_commercial" | "mandataire" | null;
   coach_code: string | null;
   last_voice_saisie_date: string | null;
   agency_logo_url: string | null;

@@ -139,12 +139,168 @@ export default function ProfilParametresPage() {
         )}
       </section>
 
+      {/* Statut & honoraires moyens (chantier A.2) */}
+      <StatusAndCommissionSection />
+
       {/* Performance Badges */}
       <PerformanceBadgeGrid />
 
       {/* Gamification Badges */}
       <BadgeGridSection />
     </div>
+  );
+}
+
+// ─── Section Statut & Honoraires (chantier A.2) ──────────────────────────
+
+type AgentStatus = "salarie" | "agent_commercial" | "mandataire";
+
+const AGENT_STATUSES: { id: AgentStatus; label: string; desc: string }[] = [
+  { id: "salarie", label: "Salarié", desc: "Contrat de travail." },
+  { id: "agent_commercial", label: "Agent commercial", desc: "RSAC indépendant." },
+  { id: "mandataire", label: "Mandataire", desc: "Réseau de mandataires." },
+];
+
+function StatusAndCommissionSection() {
+  const user = useAppStore((s) => s.user);
+  const profile = useAppStore((s) => s.profile);
+  const setProfile = useAppStore((s) => s.setProfile);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const setAgencyObjective = useAppStore((s) => s.setAgencyObjective);
+  const isDemo = useAppStore((s) => s.isDemo);
+
+  const [status, setStatus] = useState<AgentStatus | null>(
+    (profile?.agent_status as AgentStatus | null) ?? null,
+  );
+  const [commission, setCommission] = useState<string>(
+    String(agencyObjective?.avgActValue ?? 8000),
+  );
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const commissionNum = Number(commission) || 0;
+
+  const handleSave = async () => {
+    if (isDemo || !user?.id || !status || commissionNum <= 0) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+
+      // 1. profiles.agent_status
+      await supabase
+        .from("profiles")
+        .update({ agent_status: status })
+        .eq("id", user.id);
+      if (profile) setProfile({ ...profile, agent_status: status });
+
+      // 2. objectives.input.avg_commission_eur (merge)
+      const currentYear = new Date().getFullYear();
+      const { data: existing } = await supabase
+        .from("objectives")
+        .select("input")
+        .eq("user_id", user.id)
+        .eq("year", currentYear)
+        .single();
+      const existingInput =
+        (existing?.input as Record<string, unknown> | null) ?? {};
+      const mergedInput = {
+        ...existingInput,
+        avg_commission_eur: commissionNum,
+      };
+      await supabase.from("objectives").upsert(
+        {
+          user_id: user.id,
+          year: currentYear,
+          input: mergedInput,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,year" },
+      );
+
+      // Hydrate Zustand
+      setAgencyObjective({
+        annualCA: agencyObjective?.annualCA ?? 0,
+        avgActValue: commissionNum,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+        Statut et honoraires
+      </h2>
+      <p className="text-xs text-muted-foreground">
+        Servent à adapter votre diagnostic et chiffrer le manque à gagner.
+      </p>
+
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Statut</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {AGENT_STATUSES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setStatus(s.id)}
+              className={`flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-all ${
+                status === s.id
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-card/50 hover:border-primary/30 hover:bg-primary/5"
+              }`}
+            >
+              <span className="text-sm font-semibold text-foreground">
+                {s.label}
+              </span>
+              <span className="text-xs leading-snug text-muted-foreground">
+                {s.desc}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">
+          Honoraires moyens par acte (€)
+        </p>
+        <div className="relative max-w-xs">
+          <input
+            type="number"
+            value={commission}
+            onChange={(e) => setCommission(e.target.value)}
+            min={0}
+            step={500}
+            className="h-10 w-full rounded-lg border border-input bg-background px-3 pr-10 text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            €
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !status || commissionNum <= 0}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Check className="h-3 w-3" />
+          )}
+          Enregistrer
+        </button>
+        {saved && (
+          <span className="text-xs text-green-500">Préférence sauvegardée</span>
+        )}
+      </div>
+    </section>
   );
 }
 
