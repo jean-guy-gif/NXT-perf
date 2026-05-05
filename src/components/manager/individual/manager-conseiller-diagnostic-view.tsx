@@ -3,16 +3,30 @@
 import { useMemo, useState } from "react";
 import { MessageCircleHeart, Sparkles, X } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { useResults } from "@/hooks/use-results";
+import { useResults, useAllResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUserContext } from "@/hooks/use-user-context";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { findCriticitePoints } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
+import {
+  diagnoseAdvisor,
+  type AdvisorDiagnosis,
+} from "@/lib/coaching/advisor-diagnosis";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import {
+  RATIO_EXPERTISE,
+  type ExpertiseRatioId,
+} from "@/data/ratio-expertise";
+import { PLAN_30J_DURATION_DAYS, type Plan30jPayload } from "@/config/coaching";
+import type { CoachingMetrics } from "@/lib/coaching/individual-coaching-kit";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
 import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-drawer";
 import { KeyFiguresAccordion } from "@/components/conseiller/diagnostic/key-figures-accordion";
 import { AdvisorActivePlanReadOnly } from "@/components/manager/individual/advisor-active-plan-readonly";
+import { IndividualDiagnosticCard } from "@/components/manager/individual/individual-diagnostic-card";
+import { IndividualCoachingPrep } from "@/components/manager/individual/individual-coaching-prep";
 
 interface Props {
   /**
@@ -49,6 +63,8 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
   const { user, category } = useUser();
   const { computedRatios } = useRatios();
   const results = useResults();
+  const allResults = useAllResults();
+  const { getActivePlan, loading: plansLoading } = useImprovementResources();
 
   const [drawerMode, setDrawerMode] = useState<"single" | "list" | null>(null);
   const [coachingPrepOpen, setCoachingPrepOpen] = useState(false);
@@ -59,6 +75,10 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
     () => advisorDisplayName.split(" ")[0] || advisorDisplayName,
     [advisorDisplayName],
   );
+  const lastName = useMemo(() => {
+    const parts = advisorDisplayName.split(" ");
+    return parts.slice(1).join(" ");
+  }, [advisorDisplayName]);
 
   // Chantier A.3 — useUserContext est override-aware (chantier C). Sous
   // ConseillerProxy, retourne le contexte du conseiller observé (seniority,
@@ -79,6 +99,99 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
       effectiveMonths,
     );
   }, [user, results, computedRatios, category, userCtx]);
+
+  // Chantier D — Inputs de la prep coaching. Dupliqués depuis
+  // `manager-individual-ameliorer-view.tsx` (Option 1 inline V1, refacto en
+  // hook partagé `useManagerCoachingInputs` envisageable plus tard).
+
+  // Période N-1 du conseiller observé pour les évolutions (ca/mandats/etc.)
+  const previousResults = useMemo(() => {
+    if (!user) return null;
+    const mine = allResults.filter((r) => r.userId === user.id);
+    if (mine.length < 2) return null;
+    const sorted = [...mine].sort((a, b) =>
+      b.periodStart.localeCompare(a.periodStart),
+    );
+    return sorted[1] ?? null;
+  }, [allResults, user]);
+
+  // Diagnostic chiffres réels (rules-based) — alimente IndividualDiagnosticCard
+  // et enrichit les recaps email/whatsapp dans IndividualCoachingLive.
+  const diagnosis: AdvisorDiagnosis = useMemo(
+    () =>
+      diagnoseAdvisor({
+        current: results,
+        previous: previousResults,
+        category,
+      }),
+    [results, previousResults, category],
+  );
+
+  // Snapshot du plan actif observé — alimente coachingMetrics si plan en cours.
+  const planSummary = useMemo(() => {
+    const activePlan = plansLoading ? null : getActivePlan();
+    if (!activePlan) return null;
+    const payload = activePlan.payload as unknown as Plan30jPayload;
+    const allActions = (payload.weeks ?? []).flatMap((w) => w.actions ?? []);
+    const total = allActions.length;
+    const done = allActions.filter((a) => a.done).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const remaining = Math.max(0, total - done);
+    const startedAt = new Date(activePlan.created_at);
+    const elapsedDays = Math.max(
+      1,
+      Math.min(
+        PLAN_30J_DURATION_DAYS,
+        Math.ceil((Date.now() - startedAt.getTime()) / (1000 * 60 * 60 * 24)),
+      ),
+    );
+    const ratioId = payload.pain_ratio_id as ExpertiseRatioId | undefined;
+    return {
+      ratioId: ratioId ?? null,
+      total,
+      done,
+      remaining,
+      pct,
+      elapsedDays,
+      totalDays: PLAN_30J_DURATION_DAYS,
+    };
+  }, [plansLoading, getActivePlan]);
+
+  // Cascade de fallback du levier en focus pour le coaching :
+  //   1. douleur prioritaire rules-based (data-driven, plus actionnable)
+  //   2. plan actif du conseiller (continuité)
+  //   3. top criticité ratio (gainEur-driven via findCriticitePoints A.3)
+  //   4. null (cadrage générique du coach-brain)
+  const coachingExpertiseId: ExpertiseRatioId | null = useMemo(() => {
+    if (diagnosis.primary?.expertiseId) return diagnosis.primary.expertiseId;
+    if (planSummary?.ratioId) return planSummary.ratioId;
+    if (criticite.top && criticite.top.type === "ratio") {
+      const id = criticite.top.id;
+      if (id in RATIO_EXPERTISE) return id as ExpertiseRatioId;
+    }
+    return null;
+  }, [diagnosis, planSummary, criticite.top]);
+
+  const coachingMetrics: CoachingMetrics | undefined = planSummary
+    ? {
+        dayOfPlan: planSummary.elapsedDays,
+        totalDays: planSummary.totalDays,
+        donePct: planSummary.pct,
+        doneActions: planSummary.done,
+        totalActions: planSummary.total,
+        remainingActions: planSummary.remaining,
+      }
+    : undefined;
+
+  const advisor = useMemo(
+    () => ({
+      firstName,
+      lastName,
+      level: CATEGORY_LABELS[category] ?? category,
+      email: user?.email ?? "",
+    }),
+    [firstName, lastName, category, user?.email],
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4">
@@ -150,27 +263,63 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
         open={coachingPrepOpen}
         onClose={() => setCoachingPrepOpen(false)}
         advisorName={advisorDisplayName}
+        advisorFirstName={firstName}
+        advisor={advisor}
+        expertiseId={coachingExpertiseId}
+        metrics={coachingMetrics}
+        diagnosis={diagnosis}
       />
     </div>
   );
 }
 
-// ─── Drawer Coaching Prep (placeholder Chantier D) ───────────────────────
+// ─── Drawer Coaching Prep (Chantier D — rebranchement) ───────────────────
 
 interface CoachingPrepDrawerProps {
   open: boolean;
   onClose: () => void;
   advisorName: string;
+  advisorFirstName: string;
+  advisor: {
+    firstName: string;
+    lastName: string;
+    level: string;
+    email: string;
+  };
+  expertiseId: ExpertiseRatioId | null;
+  metrics: CoachingMetrics | undefined;
+  diagnosis: AdvisorDiagnosis;
 }
 
 /**
- * Drawer latéral V1 placeholder — le contenu IA détaillé arrive en Chantier D.
- * Cohérent avec la philosophie "drawer partout" introduite en PR3.6 (brief P1).
+ * CoachingPrepDrawer — Chantier D.
+ *
+ * Drawer latéral qui héberge la prep coaching contextualisée. Réutilise
+ * 1:1 les briques déjà livrées dans `manager-individual-ameliorer-view`
+ * (chantier paralèle "feat(manager/coaching) rules-based + email/whatsapp"
+ * + "feat(coach-brain) ingestion patterns") :
+ *
+ *   - `<IndividualDiagnosticCard>` : diagnostic chiffres rules-based
+ *     (primary pain + métriques + écarts vs N-1), complémentaire du
+ *     verdict gainEur-driven déjà visible sur la page Diagnostic.
+ *   - `<IndividualCoachingPrep>` : kit coaching alimenté par
+ *     `coach_brain_patterns` via `useCoachingPattern`. 4 actions :
+ *     Démarrer le coaching (live + email/whatsapp recaps), Ouvrir la
+ *     trame (slides plein écran), Copier markdown, Télécharger .md.
+ *
+ * Largeur élargie à `max-w-2xl` pour confort de lecture des sections kit
+ * (Q5 audit). Cadrage générique préservé si `coachingExpertiseId === null`
+ * (Q4 audit — coach-brain produit un fallback utile).
  */
 function CoachingPrepDrawer({
   open,
   onClose,
   advisorName,
+  advisorFirstName,
+  advisor,
+  expertiseId,
+  metrics,
+  diagnosis,
 }: CoachingPrepDrawerProps) {
   if (!open) return null;
   return (
@@ -184,7 +333,7 @@ function CoachingPrepDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={`Préparation de l'entretien individuel avec ${advisorName}`}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-background shadow-2xl"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-border bg-background shadow-2xl"
       >
         <header className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
           <div className="min-w-0">
@@ -204,19 +353,17 @@ function CoachingPrepDrawer({
             <X className="h-5 w-5" />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
-            <Sparkles className="mx-auto h-8 w-8 text-primary" />
-            <h3 className="mt-3 text-base font-semibold text-foreground">
-              Bientôt disponible
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Le contenu de cet entretien sera généré par IA en Chantier D
-              (à venir) : synthèse du diagnostic, points
-              d&apos;attention, axes de discussion, et trame d&apos;échange
-              recommandée.
-            </p>
-          </div>
+        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+          <IndividualDiagnosticCard
+            advisorFirstName={advisorFirstName}
+            diagnosis={diagnosis}
+          />
+          <IndividualCoachingPrep
+            advisor={advisor}
+            expertiseId={expertiseId}
+            metrics={metrics}
+            diagnosis={diagnosis}
+          />
         </div>
       </aside>
     </>
