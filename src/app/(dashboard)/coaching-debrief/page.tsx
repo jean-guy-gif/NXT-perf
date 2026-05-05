@@ -15,6 +15,7 @@ import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { useRatios } from "@/hooks/use-ratios";
 import { useResults } from "@/hooks/use-results";
 import { useUser } from "@/hooks/use-user";
+import { useUserContext } from "@/hooks/use-user-context";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 export default function CoachingDebriefPage() {
@@ -40,6 +41,8 @@ export default function CoachingDebriefPage() {
     loading,
   } = useImprovementResources();
   const { category } = useUser();
+  // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j.
+  const userCtx = useUserContext();
   const { computedRatios } = useRatios();
   const latestResults = useResults();
 
@@ -131,6 +134,8 @@ export default function CoachingDebriefPage() {
         measuredRatios,
         profile,
         avgCommissionEur,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
     } catch {
       setToast({ type: "error", message: "Erreur lors de la création du plan" });

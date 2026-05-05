@@ -6,6 +6,7 @@ import { ProgressBar } from "@/components/charts/progress-bar";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useAppStore } from "@/stores/app-store";
 import { useUser } from "@/hooks/use-user";
+import { useUserContext } from "@/hooks/use-user-context";
 import { useRatios } from "@/hooks/use-ratios";
 import { useResults } from "@/hooks/use-results";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
@@ -50,6 +51,8 @@ function daysBetween(fromIso: string, toIso: string): number {
 
 export function Plan30Jours() {
   const { user, category } = useUser();
+  // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j (auto + targeted).
+  const userCtx = useUserContext();
   const { computedRatios } = useRatios();
   const latestResults = useResults();
   const allResults = useAppStore((s) => s.results);
@@ -102,6 +105,8 @@ export function Plan30Jours() {
         measuredRatios,
         profile,
         avgCommissionEur,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
       setToast({ type: "success", message: "Plan 30 jours généré" });
     } catch (err) {
@@ -176,6 +181,8 @@ export function Plan30Jours() {
         measuredRatios,
         profile,
         avgCommissionEur,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
       setToast({ type: "success", message: "Nouveau plan 30 jours généré" });
     } catch {

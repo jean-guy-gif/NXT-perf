@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
+import { useUserContext } from "@/hooks/use-user-context";
 import { useResults, useAllResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useAppStore } from "@/stores/app-store";
@@ -42,6 +43,8 @@ export function OtherLeversList({ others, onPlanCreated }: Props) {
   const allResults = useAllResults();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { createPlan30j } = useImprovementResources();
+  // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j.
+  const userCtx = useUserContext();
   const [pending, setPending] = useState<ExpertiseRatioId | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +69,8 @@ export function OtherLeversList({ others, onPlanCreated }: Props) {
         measuredRatios: measured,
         profile,
         avgCommissionEur: avg,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
       onPlanCreated?.();
     } catch (err) {

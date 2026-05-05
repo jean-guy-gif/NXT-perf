@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useUser } from "@/hooks/use-user";
+import { useUserContext } from "@/hooks/use-user-context";
 import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
@@ -115,6 +116,8 @@ const tabs: { id: ObjectifsTab; label: string; icon: typeof Target }[] = [
 
 export default function ObjectifsPage() {
   const { category } = useUser();
+  // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j.
+  const userCtx = useUserContext();
   const results = useResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
 
@@ -175,6 +178,8 @@ export default function ObjectifsPage() {
         measuredRatios,
         profile,
         avgCommissionEur,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
       setImproveToast({ type: "success", message: "Plan 30 jours généré" });
       router.push("/formation?tab=plan30");

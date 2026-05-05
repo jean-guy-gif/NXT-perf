@@ -10,6 +10,7 @@ import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
+import { useUserContext } from "@/hooks/use-user-context";
 import { useAppStore } from "@/stores/app-store";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
@@ -115,6 +116,8 @@ export function DPIAxisDrawer({
   const router = useRouter();
   const { createPlan30j } = useImprovementResources();
   const { user, category } = useUser();
+  // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j.
+  const userCtx = useUserContext();
   const allResults = useAppStore((s) => s.results);
   const [boosting, setBoosting] = useState(false);
   const [boostToast, setBoostToast] = useState<
@@ -144,6 +147,8 @@ export function DPIAxisDrawer({
         measuredRatios,
         profile,
         avgCommissionEur,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
       router.push("/formation?tab=plan30");
     } catch (err) {

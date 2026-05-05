@@ -15,6 +15,7 @@ import { generatePlan30Days } from "@/lib/plan-30-jours";
 import type { Plan30Days, PlanPriority, ActionStatus } from "@/lib/plan-30-jours";
 import { usePlans } from "@/hooks/use-plans";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import { useUserContext } from "@/hooks/use-user-context";
 import { useRouter } from "next/navigation";
 import { RATIO_ID_TO_EXPERTISE_ID, buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
@@ -621,6 +622,10 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
   const { getPlan, savePlan, updateActionStatus, updateActionNote } = usePlans();
   const router = useRouter();
   const { getActivePlan, getActivePlanForRatio, createPlan30j } = useImprovementResources();
+  // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j.
+  // Sous override (Manager zoom Conseiller via ConseillerProxy), retourne le
+  // contexte du conseiller observé. En scope Directeur, fallback neutre OK.
+  const userCtx = useUserContext();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { computedRatios } = useRatios(userId);
   const [boostToast, setBoostToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
@@ -655,6 +660,8 @@ export function ProductionChain({ scope, userId, teamId, profile: profileProp, r
         measuredRatios,
         profile,
         avgCommissionEur,
+        agentStatus: userCtx.agentStatus,
+        teamSize: userCtx.teamSize,
       });
       setBoostToast({ type: "success", message: "Plan 30 jours généré" });
       router.push("/formation?tab=plan30");
