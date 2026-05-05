@@ -16,6 +16,7 @@ import {
   TEAM_PLAN_DURATION_DAYS,
   computeTeamPlanDay,
 } from "@/lib/manager/team-plan";
+import { TeamPlanProgressMatrix } from "./team-plan-progress-matrix";
 
 interface TeamActionPlanProps {
   expertiseId: ExpertiseRatioId;
@@ -243,6 +244,15 @@ export function TeamActionPlan({
           </p>
         )}
       </div>
+
+      {/* Chantier d.3 — Suivi hebdo équipe : matrice action × conseiller
+          rendue uniquement si le team plan actif correspond à CE levier. */}
+      {isLaunchedForThisLever && activePlan && (
+        <TeamPlanProgressMatrix
+          planResourceId={activePlan.id}
+          actions={activePlan.payload.actions}
+        />
+      )}
     </div>
   );
 }
