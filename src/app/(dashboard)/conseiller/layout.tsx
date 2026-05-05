@@ -4,6 +4,7 @@ import { useAppStore, DEFAULT_ROUTES } from "@/stores/app-store";
 import { redirect } from "next/navigation";
 import { MethodBreadcrumb } from "@/components/conseiller/layout/method-breadcrumb";
 import { PersistentPlanBanner } from "@/components/conseiller/layout/persistent-plan-banner";
+import { TeamPlanBanner } from "@/components/conseiller/layout/team-plan-banner";
 import { FloatingCopilote } from "@/components/conseiller/layout/floating-copilote";
 
 export default function ConseillerLayout({
@@ -23,6 +24,7 @@ export default function ConseillerLayout({
     <>
       <MethodBreadcrumb />
       <PersistentPlanBanner />
+      <TeamPlanBanner />
       {children}
       <FloatingCopilote />
     </>
