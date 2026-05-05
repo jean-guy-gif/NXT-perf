@@ -20,8 +20,7 @@ import type {
 import type { PeriodResults } from "@/types/results";
 import {
   CalendarCheck,
-  ChevronDown,
-  ChevronUp,
+  ChevronRight,
   RefreshCw,
   ExternalLink,
   Sparkles,
@@ -30,7 +29,6 @@ import {
   XCircle,
   FastForward,
   Circle,
-  CircleDashed,
   BookOpen,
 } from "lucide-react";
 import { ActionObjectiveDrawer } from "@/components/conseiller/ameliorer/action-objective-drawer";
@@ -66,7 +64,6 @@ export function Plan30Jours() {
     resetPlan,
   } = useImprovementResources();
 
-  const [expandedWeek, setExpandedWeek] = useState<number>(1);
   const [toast, setToast] = useState<ToastState>(null);
   const [generating, setGenerating] = useState(false);
   const [localPayload, setLocalPayload] = useState<Plan30jPayload | null>(null);
@@ -106,7 +103,6 @@ export function Plan30Jours() {
         profile,
         avgCommissionEur,
       });
-      setExpandedWeek(1);
       setToast({ type: "success", message: "Plan 30 jours généré" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -181,7 +177,6 @@ export function Plan30Jours() {
         profile,
         avgCommissionEur,
       });
-      setExpandedWeek(1);
       setToast({ type: "success", message: "Nouveau plan 30 jours généré" });
     } catch {
       setToast({ type: "error", message: "Erreur lors de la création du plan" });
@@ -426,16 +421,13 @@ export function Plan30Jours() {
         />
       </div>
 
-      {/* Semaines (accordéon) */}
-      <div className="space-y-3">
+      {/* Chantier B — fiches semaines fixes (4 cards toujours visibles).
+          1 action par semaine, card entièrement cliquable, bouton CTA XL. */}
+      <div className="space-y-4">
         {localPayload.weeks.map((week) => (
-          <WeekAccordion
+          <WeekCard
             key={week.week_number}
             week={week}
-            isExpanded={expandedWeek === week.week_number}
-            onToggle={() =>
-              setExpandedWeek(expandedWeek === week.week_number ? 0 : week.week_number)
-            }
             onToggleAction={(actionId) => toggleAction(week.week_number, actionId)}
             painRatioId={localPayload.pain_ratio_id}
           />
@@ -445,180 +437,164 @@ export function Plan30Jours() {
   );
 }
 
-function WeekAccordion({
+/**
+ * Helper chantier B — sélectionne l'action à afficher pour une semaine donnée.
+ * Plans NEW (post-B) : 1 action native, retournée directement.
+ * Plans OLD : 3 actions, on retourne `wN-action-1` (la plus structurante)
+ * avec fallback sur `actions[0]` si l'ID canonique manque.
+ */
+function getDisplayedActionForWeek(week: Plan30jWeek): Plan30jAction | null {
+  return (
+    week.actions.find((a) => a.id === `w${week.week_number}-action-1`) ??
+    week.actions[0] ??
+    null
+  );
+}
+
+/**
+ * WeekCard — fiche fixe semaine (chantier B, remplace `WeekAccordion`).
+ *
+ * - Toujours visible (pas de toggle expand/collapse)
+ * - Card action entièrement cliquable → ouvre le drawer "Pourquoi cette action"
+ * - Bouton CTA "Pourquoi cette action ?" XL pleine largeur en bas (double
+ *   affordance Q2=γ : card click ET CTA click ouvrent le drawer)
+ * - Click sur checkbox → stopPropagation pour toggle done isolé
+ * - Section "Exercice NXT associé" + bouton "Je bloque 20 min" conservée
+ */
+function WeekCard({
   week,
-  isExpanded,
-  onToggle,
   onToggleAction,
   painRatioId,
 }: {
   week: Plan30jWeek;
-  isExpanded: boolean;
-  onToggle: () => void;
   onToggleAction: (actionId: string) => void;
   painRatioId: string;
 }) {
-  const weekDone = week.actions.filter(
-    (a) => a.status === "done" || a.done === true
-  ).length;
-  const weekTotal = week.actions.length;
-  const weekProgress = weekTotal > 0 ? (weekDone / weekTotal) * 100 : 0;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const action = getDisplayedActionForWeek(week);
+
+  // Action-brain content (lookup hiérarchique expertiseId:actionId → :actionId
+  // → fallback markdown via buildResourceFromExpertise).
+  const actionContent = action
+    ? getActionContent(action.id, painRatioId as ExpertiseRatioId)
+    : null;
+  const fallbackResource = buildResourceFromExpertise(painRatioId);
+
+  const isDone = !!action && (action.status === "done" || action.done === true);
+  const Icon = isDone ? CheckCircle2 : Circle;
+  const iconClass = isDone ? "text-green-500" : "text-muted-foreground/60";
+  const labelClass = isDone
+    ? "text-muted-foreground line-through"
+    : "text-foreground";
+  const checkboxTooltip = isDone ? "Remettre à faire" : "Marquer comme fait";
+
+  if (!action) {
+    return null;
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
-      >
+      {/* Header semaine — toujours visible, pas de toggle */}
+      <div className="flex items-center gap-4 px-5 py-4">
         <div
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold",
-            weekProgress === 100
-              ? "bg-green-500/20 text-green-500"
-              : "bg-primary/10 text-primary"
+            isDone ? "bg-green-500/20 text-green-500" : "bg-primary/10 text-primary",
           )}
         >
           S{week.week_number}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-foreground">
-              Semaine {week.week_number} — {week.focus}
-            </span>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">
-                {weekDone}/{weekTotal}
-              </span>
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <span className="font-semibold text-foreground">
+            Semaine {week.week_number} — {week.focus}
+          </span>
+        </div>
+      </div>
+
+      {/* Card action principale — cliquable entièrement (drawer trigger) */}
+      <div className="border-t border-border px-5 py-4">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setDrawerOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setDrawerOpen(true);
+            }
+          }}
+          className="group cursor-pointer rounded-lg border border-border bg-background p-4 transition-all hover:bg-primary/5 hover:ring-2 hover:ring-primary/20"
+        >
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleAction(action.id);
+              }}
+              aria-label={checkboxTooltip}
+              title={checkboxTooltip}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted/60"
+            >
+              <Icon className={cn("h-6 w-6", iconClass)} />
+            </button>
+            <span
+              className={cn(
+                "flex-1 min-w-0 self-center text-sm leading-relaxed",
+                labelClass,
               )}
-            </div>
-          </div>
-          <div className="mt-1.5">
-            <ProgressBar
-              value={weekProgress}
-              status={
-                weekProgress === 100 ? "ok" : weekProgress >= 50 ? "warning" : "danger"
-              }
-              showValue={false}
-              size="sm"
+            >
+              {action.label}
+            </span>
+            <ChevronRight
+              className="h-5 w-5 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+              aria-hidden
             />
           </div>
+
+          {/* CTA "Pourquoi cette action ?" pleine largeur en bas — Q4 */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDrawerOpen(true);
+            }}
+            aria-label="Pourquoi cette action ?"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+          >
+            <BookOpen className="h-4 w-4" />
+            Pourquoi cette action ?
+          </button>
         </div>
-      </button>
 
-      {isExpanded && (
-        <div className="border-t border-border px-5 pb-5 pt-3">
-          <ul className="space-y-2">
-            {week.actions.map((action) => (
-              <ActionRow
-                key={action.id}
-                action={action}
-                onToggle={() => onToggleAction(action.id)}
-                painRatioId={painRatioId}
-              />
-            ))}
-          </ul>
+        {/* Section "Exercice NXT associé" — conservée */}
+        {week.exercice && (
+          <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
+              Exercice NXT associé
+            </p>
+            <p className="mt-1 text-sm text-foreground">{week.exercice}</p>
+            <button
+              type="button"
+              onClick={() => window.open("https://nxt.antigravity.fr", "_blank")}
+              className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
+            >
+              Je bloque 20 minutes maintenant
+              <ExternalLink className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
 
-          {week.exercice && (
-            <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
-                Exercice NXT associé
-              </p>
-              <p className="mt-1 text-sm text-foreground">{week.exercice}</p>
-              <button
-                onClick={() => window.open("https://nxt.antigravity.fr", "_blank")}
-                className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
-              >
-                Je bloque 20 minutes maintenant
-                <ExternalLink className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function getTooltipForStatus(status: Plan30jActionStatus): string {
-  switch (status) {
-    case "todo":
-      return "Marquer comme en cours";
-    case "in_progress":
-      return "Marquer comme terminé";
-    case "done":
-      return "Remettre à faire";
-  }
-}
-
-function ActionRow({
-  action,
-  onToggle,
-  painRatioId,
-}: {
-  action: Plan30jAction;
-  onToggle: () => void;
-  painRatioId: string;
-}) {
-  const [resourceOpen, setResourceOpen] = useState(false);
-  // PR3.7.8 — Contenu spécifique par action via action-brain.
-  // Lookup hiérarchique : (expertiseId:actionId) → (:actionId) → fallback
-  // dérivé de RATIO_EXPERTISE. Si null, on retombe sur la fiche markdown
-  // legacy via buildResourceFromExpertise (backward compat).
-  const actionContent = getActionContent(
-    action.id,
-    painRatioId as ExpertiseRatioId
-  );
-  const fallbackResource = buildResourceFromExpertise(painRatioId);
-
-  const status: Plan30jActionStatus =
-    action.status ?? (action.done ? "done" : "todo");
-
-  const config =
-    status === "done"
-      ? { Icon: CheckCircle2, iconClass: "text-green-500", labelClass: "text-muted-foreground line-through", aria: "Terminé" }
-      : status === "in_progress"
-      ? { Icon: CircleDashed, iconClass: "text-amber-500", labelClass: "text-foreground", aria: "En cours" }
-      : { Icon: Circle, iconClass: "text-muted-foreground/60", labelClass: "text-foreground", aria: "À faire" };
-  const Icon = config.Icon;
-  const tooltip = getTooltipForStatus(status);
-
-  return (
-    <li className="flex items-start gap-2 rounded-lg py-3 px-2 transition-colors hover:bg-muted/40">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={tooltip}
-        title={tooltip}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted/60"
-      >
-        <Icon className={cn("h-6 w-6", config.iconClass)} />
-      </button>
-      <span className={cn("flex-1 min-w-0 self-center text-sm", config.labelClass)}>
-        {action.label}
-      </span>
-      <button
-        type="button"
-        onClick={() => setResourceOpen(true)}
-        title="Pourquoi cette action ?"
-        aria-label="Pourquoi cette action ?"
-        className="flex shrink-0 items-center gap-1.5 self-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-      >
-        <BookOpen className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Pourquoi cette action ?</span>
-      </button>
       <ActionObjectiveDrawer
-        open={resourceOpen}
-        onClose={() => setResourceOpen(false)}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         title={actionContent?.title ?? fallbackResource.title}
         actionContent={actionContent}
         content={fallbackResource.content}
         isPlaceholder={fallbackResource.isPlaceholder}
       />
-    </li>
+    </div>
   );
 }
 
