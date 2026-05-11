@@ -7,6 +7,7 @@ import {
   ArrowRight,
   AlertTriangle,
   Calculator,
+  Loader2,
   Sparkles,
   ChevronDown,
 } from "lucide-react";
@@ -19,6 +20,13 @@ import {
   getTopPractices,
   volumeToRelatedRatio,
 } from "@/lib/coaching/coach-brain";
+
+/** Sous-PR Coach-5 : shape des données RAG retournées par /api/why-danger. */
+interface RagWhyDanger {
+  diagnosis: string;
+  causes: string[];
+  practices: string[];
+}
 
 type DrawerMode = "single" | "list";
 
@@ -219,6 +227,8 @@ type Section = "why" | "how" | "best";
 
 function SingleContent({ verdict }: { verdict: CriticitePoint }) {
   const [active, setActive] = useState<Section | null>("why");
+  const [ragData, setRagData] = useState<RagWhyDanger | null>(null);
+  const [ragLoading, setRagLoading] = useState(false);
 
   // PR3.7.5 — Volumes : on dérive le ratio le plus pertinent via
   // volumeToRelatedRatio et on affiche les 3 panneaux pédagogiques de ce
@@ -251,6 +261,45 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
   }
 
   const expertise = RATIO_EXPERTISE[resolvedExpertiseId];
+
+  // Sous-PR Coach-5 : fetch lazy /api/why-danger au mount de SingleContent.
+  // Cache local par instance — re-mount = re-fetch (Map cache serveur).
+  useEffect(() => {
+    if (!expertise) return;
+    let cancelled = false;
+    setRagLoading(true);
+    setRagData(null);
+    const currentValue =
+      verdict.type === "ratio" ? verdict.currentValue : verdict.current;
+    const targetValue =
+      verdict.type === "ratio" ? verdict.targetValue : verdict.target;
+    fetch("/api/why-danger", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expertiseId: resolvedExpertiseId,
+        currentValue,
+        targetValue,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { whyDanger: RagWhyDanger | null };
+        if (!cancelled && data.whyDanger) {
+          setRagData(data.whyDanger);
+        }
+      })
+      .catch((err) => {
+        console.error("[why-danger-drawer] RAG fetch failed", err);
+      })
+      .finally(() => {
+        if (!cancelled) setRagLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedExpertiseId, verdict, expertise]);
+
   if (!expertise) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -259,8 +308,21 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
     );
   }
 
+  // Utilise les données RAG si dispo, sinon fallback hardcoded expertise.
+  const diagnosisText = ragData?.diagnosis ?? expertise.diagnosis;
+  const causesList =
+    ragData?.causes && ragData.causes.length > 0
+      ? ragData.causes
+      : expertise.commonCauses;
+
   return (
     <div className="space-y-2">
+      {ragLoading && !ragData && (
+        <div className="flex items-center gap-2 rounded-lg border border-indigo-200/50 bg-indigo-50/30 px-3 py-2 text-xs text-indigo-700 dark:border-indigo-900/30 dark:bg-indigo-950/20 dark:text-indigo-300">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Coach NXT enrichit l&apos;analyse...
+        </div>
+      )}
       {volumeContext && (
         <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-orange-500">
@@ -284,12 +346,12 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
         iconClass="text-red-500"
         title="Pourquoi c'est en danger"
       >
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {expertise.diagnosis}
+        <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+          {diagnosisText}
         </p>
-        {expertise.commonCauses.length > 0 && (
+        {causesList.length > 0 && (
           <ul className="mt-3 space-y-2">
-            {expertise.commonCauses.map((cause, i) => (
+            {causesList.map((cause, i) => (
               <li
                 key={i}
                 className="flex gap-2 text-sm leading-relaxed text-muted-foreground"
@@ -333,7 +395,10 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
         iconClass="text-emerald-500"
         title="Ce que font les meilleurs"
       >
-        <BestPracticesContent expertiseId={resolvedExpertiseId} />
+        <BestPracticesContent
+          expertiseId={resolvedExpertiseId}
+          ragPractices={ragData?.practices ?? null}
+        />
       </Panel>
     </div>
   );
@@ -345,8 +410,19 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
  * - 2-3 items → rendu en liste à puces.
  * - 0 item → message neutre (cas extrême, ne devrait jamais arriver).
  */
-function BestPracticesContent({ expertiseId }: { expertiseId: ExpertiseRatioId }) {
-  const practices = getTopPractices(expertiseId, 3);
+function BestPracticesContent({
+  expertiseId,
+  ragPractices,
+}: {
+  expertiseId: ExpertiseRatioId;
+  ragPractices: string[] | null;
+}) {
+  // Sous-PR Coach-5 : préfère les practices RAG si dispo, sinon fallback
+  // sur getTopPractices() hardcoded.
+  const practices =
+    ragPractices && ragPractices.length > 0
+      ? ragPractices
+      : getTopPractices(expertiseId, 3);
 
   if (practices.length === 0) {
     return (
