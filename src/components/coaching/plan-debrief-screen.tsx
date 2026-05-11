@@ -8,9 +8,22 @@ import {
   Users,
   ExternalLink,
   Loader2,
+  Sparkles,
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
 } from "lucide-react";
 import { DEMO_COACH_CALENDAR_URL } from "@/config/coaching";
 import type { PlanDebriefResult } from "@/lib/plan-debrief";
+
+/** Sous-PR Coach-6 : shape narratif RAG J+30. */
+export interface PlanDebriefRagNarrative {
+  intro: string;
+  whatWorked: string[];
+  whatToImprove: string[];
+  nextStep: string[];
+  comparisonCorpus: string;
+}
 
 interface PlanDebriefScreenProps {
   debrief: PlanDebriefResult;
@@ -22,6 +35,11 @@ interface PlanDebriefScreenProps {
    * "Plan archivé" et bascule le bouton bas en "Retour à Ma progression".
    */
   readonly?: boolean;
+  /** Sous-PR Coach-6 : narratif RAG J+30 (Sonnet 4.5 + corpus) injecté par
+   * le parent. Affiché dans une section dédiée si présent. */
+  ragNarrative?: PlanDebriefRagNarrative | null;
+  /** Sous-PR Coach-6 : true si le narratif RAG est en cours de fetch. */
+  ragNarrativeLoading?: boolean;
 }
 
 function hasFieldGains(debrief: PlanDebriefResult): boolean {
@@ -50,6 +68,8 @@ export function PlanDebriefScreen({
   onClose,
   onRequestHumanCoach,
   readonly = false,
+  ragNarrative = null,
+  ragNarrativeLoading = false,
 }: PlanDebriefScreenProps) {
   const [calendarOpened, setCalendarOpened] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -88,6 +108,83 @@ export function PlanDebriefScreen({
           <span aria-hidden="true">📁</span> Mode consultation — plan archivé, aucune
           action n'est plus nécessaire ici.
         </div>
+      )}
+
+      {/* SECTION COACH NXT — Narratif RAG J+30 (sous-PR Coach-6) */}
+      {(ragNarrative || ragNarrativeLoading) && (
+        <section className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-6 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            Le mot du Coach NXT
+          </h2>
+          {ragNarrativeLoading && !ragNarrative ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Ton Coach NXT prépare ton debrief personnalisé...
+            </div>
+          ) : ragNarrative ? (
+            <div className="space-y-5">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {ragNarrative.intro}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-emerald-200 bg-card p-3 dark:border-emerald-900/40">
+                  <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Ce qui a marché
+                  </p>
+                  <ul className="space-y-1.5 text-sm text-foreground">
+                    {ragNarrative.whatWorked.map((w, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                        <span className="leading-relaxed">{w}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-lg border border-orange-200 bg-card p-3 dark:border-orange-900/40">
+                  <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 dark:text-orange-400">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    À retravailler
+                  </p>
+                  <ul className="space-y-1.5 text-sm text-foreground">
+                    {ragNarrative.whatToImprove.map((w, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500" />
+                        <span className="leading-relaxed">{w}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <div className="rounded-lg border border-indigo-200 bg-card p-3 dark:border-indigo-900/40">
+                <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400">
+                  <ArrowRight className="h-3.5 w-3.5" />
+                  Ton prochain 30 jours
+                </p>
+                <ul className="space-y-1.5 text-sm text-foreground">
+                  {ragNarrative.nextStep.map((n, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                        {i + 1}
+                      </span>
+                      <span className="leading-relaxed">{n}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="mb-1 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Ce que font les meilleurs (corpus NXT)
+                </p>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                  {ragNarrative.comparisonCorpus}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </section>
       )}
 
       {/* SECTION 1 — Ton plan en chiffres */}
