@@ -4,10 +4,6 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  BarChart3,
-  Gauge,
-  GitCompare,
   Settings,
   BookOpen,
   Compass,
@@ -54,11 +50,14 @@ const navItems: NavItem[] = [
   { href: "/manager/progression", icon: LineChart, label: "Notre progression", managerOnly: true },
   { href: "/manager/comparaison", icon: Users, label: "Notre comparaison", managerOnly: true },
   { href: "/manager/formation", icon: BookOpen, label: "Ma formation", managerOnly: true },
-  { href: "/directeur/dashboard", icon: LayoutDashboard, label: "Tableau de bord", directorOnly: true },
-  { href: "/directeur/resultats", icon: BarChart3, label: "Mon Volume d'Activité", directorOnly: true },
-  { href: "/directeur/performance", icon: Gauge, label: "Mes Ratios de Transformation", directorOnly: true },
-  { href: "/directeur/comparaison", icon: GitCompare, label: "Ma Comparaison", directorOnly: true },
-  { href: "/directeur/formation", icon: BookOpen, label: "Ma Formation", directorOnly: true },
+  // PR-Refonte-Directeur sous-PR 0 — sidebar alignée sur la nav Conseiller/Manager V3.
+  // Anciennes entrées (Tableau de bord / Mon Volume / Mes Ratios) absorbées par
+  // "Mon diagnostic". Routes legacy redirigées via next.config.ts.
+  { href: "/directeur/diagnostic", icon: Search, label: "Mon diagnostic", directorOnly: true },
+  { href: "/directeur/ameliorer", icon: Wrench, label: "Faire progresser ma direction", directorOnly: true },
+  { href: "/directeur/progression", icon: LineChart, label: "Notre progression", directorOnly: true },
+  { href: "/directeur/comparaison", icon: Users, label: "Ma comparaison", directorOnly: true },
+  { href: "/directeur/formation", icon: BookOpen, label: "Ma formation", directorOnly: true },
   { href: "/directeur/pilotage-financier", icon: Wallet, label: "Pilotage Financier", directorOnly: true, separatorBefore: true },
   { href: "/directeur/leads-dpi", icon: ClipboardCheck, label: "Leads DPI", directorOnly: true },
   { href: "/reseau/dashboard", icon: Network, label: "Vue Réseau", networkOnly: true },
