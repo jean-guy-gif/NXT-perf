@@ -6,6 +6,7 @@ import { MethodBreadcrumb } from "@/components/conseiller/layout/method-breadcru
 import { PersistentPlanBanner } from "@/components/conseiller/layout/persistent-plan-banner";
 import { TeamPlanBanner } from "@/components/conseiller/layout/team-plan-banner";
 import { FloatingCopilote } from "@/components/conseiller/layout/floating-copilote";
+import { useDpiSnapshotEnsure } from "@/hooks/use-dpi-snapshot-ensure";
 
 export default function ConseillerLayout({
   children,
@@ -14,6 +15,8 @@ export default function ConseillerLayout({
 }) {
   const user = useAppStore((s) => s.user);
   const roles = user?.availableRoles ?? [];
+  // Trigger client-side : assure 1 snapshot DPI par mois en DB.
+  useDpiSnapshotEnsure(user?.id ?? null);
 
   // Bootstrap : if user not loaded yet, render children (avoids flash redirect)
   if (user && !roles.includes("conseiller")) {

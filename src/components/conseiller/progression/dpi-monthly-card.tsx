@@ -1,8 +1,19 @@
 "use client";
 
-import { Activity, Download, Smile, Meh, Frown } from "lucide-react";
+import { useState } from "react";
+import {
+  Activity,
+  Download,
+  Frown,
+  Meh,
+  Radar as RadarIcon,
+  Smile,
+  TrendingUp,
+} from "lucide-react";
 import { useDPIEvolution } from "@/hooks/use-dpi-evolution";
+import { useAppStore } from "@/stores/app-store";
 import { MiniRadar } from "@/components/dpi/mini-radar";
+import { DpiDeltasView } from "@/components/conseiller/progression/dpi-deltas-view";
 import { cn } from "@/lib/utils";
 
 export function DpiMonthlyCard() {
@@ -16,6 +27,10 @@ export function DpiMonthlyCard() {
     initializeSnapshot,
     mounted,
   } = useDPIEvolution();
+  const userId = useAppStore((s) => s.user?.id);
+
+  // Toggle radar / deltas (chantier vue évolution DPI).
+  const [viewMode, setViewMode] = useState<"radar" | "deltas">("radar");
 
   if (!mounted || currentAxes.length === 0) {
     return (
@@ -94,7 +109,38 @@ export function DpiMonthlyCard() {
         Score actuel : {currentGlobalScore}/100
       </h3>
 
-      {hasSnapshot && initialSnapshot ? (
+      {/* Toggle radar / deltas — bouton indigo prominent (Q6). */}
+      {userId && (
+        <button
+          type="button"
+          onClick={() =>
+            setViewMode((m) => (m === "radar" ? "deltas" : "radar"))
+          }
+          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+        >
+          {viewMode === "radar" ? (
+            <>
+              <TrendingUp className="h-4 w-4" />
+              Voir l&apos;amélioration de mon DPI
+            </>
+          ) : (
+            <>
+              <RadarIcon className="h-4 w-4" />
+              Voir le radar
+            </>
+          )}
+        </button>
+      )}
+
+      {viewMode === "deltas" && userId ? (
+        <div className="mt-4">
+          <DpiDeltasView
+            userId={userId}
+            currentAxes={currentAxes}
+            currentGlobalScore={currentGlobalScore}
+          />
+        </div>
+      ) : hasSnapshot && initialSnapshot ? (
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-lg border border-border bg-background p-3">
             <p className="mb-2 text-xs font-semibold text-muted-foreground">
