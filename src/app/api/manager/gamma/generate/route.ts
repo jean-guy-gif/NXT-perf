@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
   let prompt;
   try {
-    prompt = buildGammaPrompt({
+    prompt = await buildGammaPrompt({
       kitKind,
       expertiseId: expertiseId as ExpertiseRatioId,
       context: sanitizedContext,

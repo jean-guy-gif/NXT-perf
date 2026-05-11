@@ -14,10 +14,12 @@
 
 import {
   buildKit,
+  type Kit,
   type KitKind,
 } from "@/lib/coaching/team-activation-kit";
 import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { TeamKitContext } from "@/types/gamma";
+import { generateKitRag } from "@/lib/server/coach-rag/gamma-kit-rag";
 
 interface BuildPromptInput {
   kitKind: KitKind;
@@ -77,7 +79,9 @@ function fmtPct(n: number): string {
 
 // ─── Builder principal ────────────────────────────────────────────────────
 
-export function buildGammaPrompt(input: BuildPromptInput): BuildPromptResult {
+export async function buildGammaPrompt(
+  input: BuildPromptInput,
+): Promise<BuildPromptResult> {
   const { kitKind, expertiseId, context } = input;
   const expertise = RATIO_EXPERTISE[expertiseId];
   if (!expertise) {
@@ -85,8 +89,16 @@ export function buildGammaPrompt(input: BuildPromptInput): BuildPromptResult {
   }
   const leverLabel = expertise.label;
 
-  // Reconstruit le kit côté serveur via coach-brain — source de vérité.
-  const kit = buildKit(kitKind, expertiseId);
+  // Sous-PR Coach-3 : tente d'enrichir le kit via RAG (Claude Sonnet 4.5 +
+  // corpus NXT-Coach + doctrine NXT). Fallback silencieux sur buildKit()
+  // hardcoded si fail.
+  let kit: Kit;
+  const ragKit = await generateKitRag(kitKind, expertiseId, context);
+  if (ragKit) {
+    kit = ragKit;
+  } else {
+    kit = buildKit(kitKind, expertiseId);
+  }
 
   if (kitKind === "meeting") {
     return buildMeetingPrompt(leverLabel, kit, context);
