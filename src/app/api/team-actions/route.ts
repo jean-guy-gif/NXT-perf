@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { getOptionalAuth, getClientIp } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getOrGenerateTeamActions } from "@/lib/server/coach-rag/team-actions-generator";
 import {
@@ -26,14 +26,13 @@ function isValidExpertiseId(value: unknown): value is ExpertiseRatioId {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth.error) return auth.error;
-
-  const { allowed } = checkRateLimit(
-    `team-actions:${auth.user.id}`,
-    10,
-    60_000,
-  );
+  // Sous-PR Coach-4 : mode démo supporté.
+  const { user } = await getOptionalAuth();
+  const rateKey = user
+    ? `team-actions:user:${user.id}`
+    : `team-actions:ip:${getClientIp(request)}`;
+  const rateMax = user ? 10 : 5;
+  const { allowed } = checkRateLimit(rateKey, rateMax, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

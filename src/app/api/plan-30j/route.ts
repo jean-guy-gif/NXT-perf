@@ -34,24 +34,19 @@ interface RequestBody {
   // sur agentStatus null + teamSize 1 si absents).
   agentStatus?: "salarie" | "agent_commercial" | "mandataire" | null;
   teamSize?: number;
+  /**
+   * Sous-PR Coach-4 : mode démo. Si `false`, on génère le plan via RAG mais
+   * on ne l'insère PAS en DB. L'auth n'est pas requise. Le caller (hook
+   * démo) sauvegarde le plan en localStorage.
+   * Défaut : `true` (comportement legacy : auth requise + insert DB).
+   */
+  persistInDb?: boolean;
 }
 
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient();
 
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { error: "UNAUTHORIZED", message: "Vous devez etre connecte" },
-      { status: 401 }
-    );
-  }
-
-  // Parse body
+  // Parse body avant auth pour lire le flag persistInDb.
   let body: RequestBody;
   try {
     body = await request.json();
@@ -59,6 +54,20 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "INVALID_BODY", message: "Corps de requete invalide" },
       { status: 400 }
+    );
+  }
+
+  const persistInDb = body.persistInDb !== false; // défaut true (legacy)
+
+  // Auth check — bypass si mode démo (persistInDb === false).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (persistInDb && !user) {
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "Vous devez etre connecte" },
+      { status: 401 }
     );
   }
 
@@ -80,25 +89,27 @@ export async function POST(request: Request) {
     );
   }
 
-  // Blocage (µQ2 option C) : refuser si plan actif
-  const { data: existingPlan } = await supabase
-    .from("user_improvement_resources")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("resource_type", "plan_30j")
-    .eq("status", "active")
-    .is("archived_at", null)
-    .maybeSingle();
+  // Blocage (µQ2 option C) : refuser si plan actif — uniquement en mode persisté.
+  if (persistInDb && user) {
+    const { data: existingPlan } = await supabase
+      .from("user_improvement_resources")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("resource_type", "plan_30j")
+      .eq("status", "active")
+      .is("archived_at", null)
+      .maybeSingle();
 
-  if (existingPlan) {
-    return NextResponse.json(
-      {
-        error: "PLAN_ACTIVE_ALREADY",
-        message: `Un plan est deja actif (${existingPlan.pain_ratio_id}). Terminez-le ou attendez son expiration.`,
-        activePlan: existingPlan,
-      },
-      { status: 409 }
-    );
+    if (existingPlan) {
+      return NextResponse.json(
+        {
+          error: "PLAN_ACTIVE_ALREADY",
+          message: `Un plan est deja actif (${existingPlan.pain_ratio_id}). Terminez-le ou attendez son expiration.`,
+          activePlan: existingPlan,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Chantier A.3 — construction du contexte 4 axes côté serveur.
@@ -168,7 +179,17 @@ export async function POST(request: Request) {
   const plan = await generatePlan30jRag(painPoint, ctx);
   const payload: Plan30jPayload = planToPayload(plan);
 
-  // Insertion BDD
+  // Sous-PR Coach-4 : mode démo (persistInDb=false). On retourne le plan
+  // sans insérer en DB. Le caller (hook démo) saveugarde via localStorage.
+  if (!persistInDb || !user) {
+    return NextResponse.json({
+      success: true,
+      resource: null,
+      plan,
+    });
+  }
+
+  // Insertion BDD (mode prod authentifié)
   const now = new Date();
   const expiresAt = new Date(
     now.getTime() + PLAN_30J_DURATION_DAYS * 24 * 60 * 60 * 1000

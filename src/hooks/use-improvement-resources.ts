@@ -299,8 +299,36 @@ export function useImprovementResources() {
         return data.plan;
       }
 
-      // ─── Mode démo : génération client-side hardcoded + adapter LocalStorage
-      const plan = generatePlan30j(painPoint);
+      // ─── Mode démo : appel RAG via /api/plan-30j avec persistInDb=false,
+      // puis save via localStorage adapter (Sous-PR Coach-4).
+      // Fallback silencieux sur génération client hardcoded si le RAG fail.
+      let plan: GeneratedPlan30j;
+      try {
+        const res = await fetch("/api/plan-30j", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: input.mode,
+            ratioId: input.ratioId,
+            measuredRatios: input.measuredRatios,
+            profile: input.profile,
+            avgCommissionEur: input.avgCommissionEur,
+            agentStatus: input.agentStatus ?? null,
+            teamSize: input.teamSize ?? 1,
+            persistInDb: false,
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { plan: GeneratedPlan30j };
+        plan = data.plan;
+      } catch (err) {
+        console.error(
+          "[use-improvement-resources] demo RAG fetch failed, falling back to hardcoded",
+          err,
+        );
+        plan = generatePlan30j(painPoint);
+      }
+
       const payload: Plan30jPayload = {
         ...planToPayload(plan),
         baseline_ratio_value: painPoint.currentValue,
