@@ -6,6 +6,7 @@ import { MethodBreadcrumb } from "@/components/conseiller/layout/method-breadcru
 import { PersistentPlanBanner } from "@/components/conseiller/layout/persistent-plan-banner";
 import { TeamPlanBanner } from "@/components/conseiller/layout/team-plan-banner";
 import { FloatingCopilote } from "@/components/conseiller/layout/floating-copilote";
+import { CoachNudgeBanner } from "@/components/conseiller/coach-nudge-banner";
 import { useDpiSnapshotEnsure } from "@/hooks/use-dpi-snapshot-ensure";
 
 export default function ConseillerLayout({
@@ -28,6 +29,9 @@ export default function ConseillerLayout({
       <MethodBreadcrumb />
       <PersistentPlanBanner />
       <TeamPlanBanner />
+      <div className="px-4 pt-3 sm:px-6">
+        <CoachNudgeBanner />
+      </div>
       {children}
       <FloatingCopilote />
     </>
