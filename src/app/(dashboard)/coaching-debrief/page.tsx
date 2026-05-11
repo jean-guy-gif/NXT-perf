@@ -93,6 +93,76 @@ export default function CoachingDebriefPage() {
     return computePlanDebrief(archivedPlan, userResults, ratioConfigs, avgCommissionEur);
   }, [archivedPlan, userResults, ratioConfigs, agencyObjective]);
 
+  // Sous-PR Coach-6 : fetch narratif RAG J+30 (voix Tedesco + corpus) en
+  // parallèle du debrief structuré. Affiché en section additionnelle dans
+  // PlanDebriefScreen. Fallback silencieux : null = pas de section narrative.
+  const [ragNarrative, setRagNarrative] = useState<{
+    intro: string;
+    whatWorked: string[];
+    whatToImprove: string[];
+    nextStep: string[];
+    comparisonCorpus: string;
+  } | null>(null);
+  const [ragNarrativeLoading, setRagNarrativeLoading] = useState(false);
+
+  useEffect(() => {
+    if (!archivedPlan || !debrief) return;
+    let cancelled = false;
+    setRagNarrativeLoading(true);
+    setRagNarrative(null);
+
+    const payload = (archivedPlan.payload ?? {}) as Record<string, unknown>;
+    const weeks = (payload.weeks ?? []) as Array<{
+      actions: Array<{ label: string; done: boolean; status?: string }>;
+    }>;
+    const allActions = weeks.flatMap((w) => w.actions);
+    const doneActionLabels = allActions
+      .filter((a) => a.status === "done" || a.done === true)
+      .map((a) => a.label);
+    const pendingActionLabels = allActions
+      .filter((a) => !(a.status === "done" || a.done === true))
+      .map((a) => a.label);
+
+    fetch("/api/plan-debrief-narrative", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        planId: archivedPlan.id,
+        painRatioId: archivedPlan.pain_ratio_id,
+        ratioBaseline: debrief.ratioBaseline,
+        ratioCurrent: debrief.ratioCurrent,
+        ratioDeltaPoints: debrief.ratioDeltaPoints,
+        isImproving: debrief.isImproving,
+        actionsDone: debrief.actionsStats.done,
+        actionsTotal: debrief.actionsStats.total,
+        percentDone: debrief.actionsStats.percentDone,
+        weeksWithSaisie: debrief.weeksWithSaisie,
+        monthlyGainEur: debrief.monthlyGainEur,
+        annualProjectedEur: debrief.annualProjectedEur,
+        doneActionLabels,
+        pendingActionLabels,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { narrative: typeof ragNarrative };
+        if (!cancelled && data.narrative) {
+          setRagNarrative(data.narrative);
+        }
+      })
+      .catch((err) => {
+        console.error("[coaching-debrief] narrative RAG fetch failed", err);
+      })
+      .finally(() => {
+        if (!cancelled) setRagNarrativeLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archivedPlan?.id, debrief?.actionsStats.done]);
+
   const handleResetPlanDemo = async () => {
     if (!latestResults) {
       setToast({ type: "error", message: "Données de performance introuvables" });
@@ -281,6 +351,8 @@ export default function CoachingDebriefPage() {
         onClose={handleClose}
         onRequestHumanCoach={handleRequestHumanCoach}
         readonly={isReadonly}
+        ragNarrative={ragNarrative}
+        ragNarrativeLoading={ragNarrativeLoading}
       />
       {isDemoMode && !isReadonly && (
         <div className="mx-auto flex max-w-3xl justify-center px-6 pb-6">
