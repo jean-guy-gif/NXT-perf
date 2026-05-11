@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   CheckCircle2,
   Loader2,
   ListChecks,
   Rocket,
+  Sparkles,
 } from "lucide-react";
 import { getTeamActions } from "@/lib/coaching/coach-brain";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
@@ -56,7 +57,52 @@ export function TeamActionPlan({
   max = 3,
   onPlanStarted,
 }: TeamActionPlanProps) {
-  const actions = getTeamActions(expertiseId, max);
+  // Sous-PR Coach-2a : fetch RAG lazy au mount. Fallback hardcoded immédiat
+  // pour éviter un flash vide pendant le fetch. Le RAG marche aussi en mode
+  // démo car /api/team-actions ne touche pas à la DB (juste OpenRouter +
+  // retrieval Supabase corpus).
+  const fallbackActions = useMemo(
+    () => getTeamActions(expertiseId, max),
+    [expertiseId, max],
+  );
+  const [actions, setActions] = useState<string[]>(fallbackActions);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [actionsRagSucceeded, setActionsRagSucceeded] = useState(false);
+  const fetchedExpertiseRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (fetchedExpertiseRef.current === expertiseId) return;
+    fetchedExpertiseRef.current = expertiseId;
+
+    let cancelled = false;
+    setActionsLoading(true);
+    setActions(fallbackActions); // affichage immédiat fallback pendant fetch
+    fetch("/api/team-actions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expertiseId }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { actions: string[] };
+        if (!cancelled && data.actions && data.actions.length >= 3) {
+          setActions(data.actions);
+          setActionsRagSucceeded(true);
+        }
+      })
+      .catch((err) => {
+        console.error("[team-action-plan] RAG fetch failed", err);
+        // fallbackActions déjà dans le state
+      })
+      .finally(() => {
+        if (!cancelled) setActionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expertiseId, fallbackActions]);
+
   const [launching, setLaunching] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -140,9 +186,29 @@ export function TeamActionPlan({
           <ListChecks className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-foreground">
-            Plan d&apos;action pour votre équipe
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground">
+              Plan d&apos;action pour votre équipe
+            </h2>
+            {actionsLoading && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400"
+                role="status"
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Coach NXT
+              </span>
+            )}
+            {!actionsLoading && actionsRagSucceeded && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400"
+                title="Actions générées par Claude Sonnet 4.5 + corpus NXT-Coach"
+              >
+                <Sparkles className="h-3 w-3" />
+                Coach NXT
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Objectif : améliorer{" "}
             <span className="font-semibold text-foreground">{leverLabel}</span>{" "}
