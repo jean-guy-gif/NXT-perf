@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { getOptionalAuth, getClientIp } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { retrieveHybrid } from "@/lib/server/coach-rag/retrieve";
 
@@ -13,14 +13,13 @@ import { retrieveHybrid } from "@/lib/server/coach-rag/retrieve";
  * Response : { chunks: RetrievedChunk[]; syntheses: RetrievedSynthesis[] }
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth.error) return auth.error;
-
-  const { allowed } = checkRateLimit(
-    `coach-brain-retrieve:${auth.user.id}`,
-    10,
-    60_000,
-  );
+  // Sous-PR Coach-4 : mode démo supporté. Rate-limit user-based si auth, sinon IP.
+  const { user } = await getOptionalAuth();
+  const rateKey = user
+    ? `coach-brain-retrieve:user:${user.id}`
+    : `coach-brain-retrieve:ip:${getClientIp(request)}`;
+  const rateMax = user ? 10 : 5;
+  const { allowed } = checkRateLimit(rateKey, rateMax, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
