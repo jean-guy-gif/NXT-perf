@@ -446,7 +446,34 @@ async function handlePlanExpiration(
       archived_at: now.toISOString(),
     });
 
-    // 2. Créer ou update la ressource nxt_coaching en debrief_offered
+    // 2. Sous-PR Coach-5 : pré-bake le message d'invitation personnalisé via
+    // RAG (Sonnet 4.5 + corpus). Fallback silencieux sur null si fail —
+    // le composant continuity-block affichera alors un message hardcoded.
+    let coachingOffer: Record<string, unknown> | null = null;
+    if (plan.pain_ratio_id) {
+      try {
+        const res = await fetch("/api/coaching-offer-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            painRatioId: plan.pain_ratio_id,
+            profile: "confirme",
+            painScore: plan.pain_score ?? 0,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { offer: Record<string, unknown> | null };
+          if (data.offer) coachingOffer = data.offer;
+        }
+      } catch (err) {
+        console.error(
+          "[use-improvement-resources] coaching-offer-message RAG failed, using fallback",
+          err,
+        );
+      }
+    }
+
+    // 3. Créer ou update la ressource nxt_coaching en debrief_offered
     const existingCoaching = allRows.find(
       (r) => r.resource_type === "nxt_coaching"
     );
@@ -461,6 +488,7 @@ async function handlePlanExpiration(
           ...(existingCoaching.payload as Record<string, unknown>),
           debrief_offered_at: now.toISOString(),
           source_plan_id: plan.id,
+          ...(coachingOffer ? { rag_offer: coachingOffer } : {}),
         },
       });
     } else {
@@ -473,6 +501,7 @@ async function handlePlanExpiration(
         payload: {
           debrief_offered_at: now.toISOString(),
           source_plan_id: plan.id,
+          ...(coachingOffer ? { rag_offer: coachingOffer } : {}),
         },
       });
     }

@@ -7,6 +7,14 @@ import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { PLAN_30J_DURATION_DAYS } from "@/config/coaching";
 import type { Plan30jPayload } from "@/config/coaching";
 
+/** Sous-PR Coach-5 : shape du message d'invitation RAG pré-baked dans payload nxt_coaching. */
+interface RagOffer {
+  title: string;
+  body: string;
+  ctaLabel: string;
+  prepQuestions?: string[];
+}
+
 /**
  * ContinuityBlock — bloc dynamique sous le levier recommandé sur
  * /conseiller/ameliorer (PR3.7.6 spec section 2).
@@ -21,9 +29,32 @@ import type { Plan30jPayload } from "@/config/coaching";
  * (on ne propose pas le debrief sur des archives très anciennes).
  */
 export function ContinuityBlock() {
-  const { getActivePlan, archivedPlans, loading } = useImprovementResources();
+  const {
+    getActivePlan,
+    archivedPlans,
+    getNxtCoachingResource,
+    loading,
+  } = useImprovementResources();
 
   const activePlan = loading ? null : getActivePlan();
+  const nxtCoaching = loading ? null : getNxtCoachingResource();
+
+  // Sous-PR Coach-5 : lire le message d'invitation RAG pré-baked dans
+  // payload.rag_offer si présent. Fallback sur message hardcoded.
+  const ragOffer: RagOffer | null = useMemo(() => {
+    if (!nxtCoaching) return null;
+    const payload = nxtCoaching.payload as Record<string, unknown> | null;
+    const offer = payload?.rag_offer as RagOffer | undefined;
+    if (
+      offer &&
+      typeof offer.title === "string" &&
+      typeof offer.body === "string" &&
+      typeof offer.ctaLabel === "string"
+    ) {
+      return offer;
+    }
+    return null;
+  }, [nxtCoaching]);
 
   const lastArchived = useMemo(() => {
     if (loading || activePlan) return null;
@@ -104,22 +135,27 @@ export function ContinuityBlock() {
 
   // ─── CAS 2 : Plan terminé récent ────────────────────────────────
   if (lastArchived) {
+    // Sous-PR Coach-5 : utilise le message RAG pre-baked si présent.
+    const title = ragOffer?.title ?? "Ton analyse est prête";
+    const body =
+      ragOffer?.body ??
+      "Découvre ce que tu as gagné et ce que tu peux améliorer.";
+    const ctaLabel = ragOffer?.ctaLabel ?? "Voir mon debrief IA";
+
     return (
       <section
         aria-label="Debrief disponible"
         className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15">
               <Sparkles className="h-4 w-4 text-emerald-500" />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                Ton analyse est prête
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Découvre ce que tu as gagné et ce que tu peux améliorer.
+              <p className="text-sm font-semibold text-foreground">{title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {body}
               </p>
             </div>
           </div>
@@ -127,7 +163,7 @@ export function ContinuityBlock() {
             href={`/coaching-debrief?planId=${encodeURIComponent(lastArchived.id)}&readonly=1`}
             className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
           >
-            Voir mon debrief IA
+            {ctaLabel}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
