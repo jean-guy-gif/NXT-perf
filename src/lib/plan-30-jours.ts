@@ -71,13 +71,10 @@ export function generatePlan30j(painPoint: PainPointResult): GeneratedPlan30j {
   };
 }
 
-// Chantier B — refonte 1 action par semaine (au lieu de 3) :
-// chaque builder ne retourne plus que l'action `wN-action-1` (la plus
-// structurante), avec le label conservé. Les anciens IDs `wN-action-2`
-// et `wN-action-3` continuent d'exister dans `action-brain.ts` pour les
-// plans existants en DB, mais ne sont plus générés pour les nouveaux plans.
-// Le champ `exercice` de chaque semaine est conservé (Exercice NXT visible
-// en bas de chaque fiche semaine — décision §6 audit).
+// Revert chantier B — restauration des 3 actions par semaine (état pré-6f1c8c4).
+// Le contenu pédagogique se trouve désormais dans une FICHE par SEMAINE
+// (et plus par action) via `src/data/weekly-briefs.ts` + `<WeeklyBriefDrawer>`,
+// accessible via le badge "Voir la fiche" dans le header de chaque WeekCard.
 
 // Semaine 1 - Diagnostic + premiere action
 
@@ -86,6 +83,16 @@ function buildWeek1Diagnostic(expertise: RatioExpertise): Plan30jWeek {
     {
       id: "w1-action-1",
       label: `Identifier precisement les 3 derniers cas ou vous avez constate ce probleme sur ${expertise.label}`,
+      done: false,
+    },
+    {
+      id: "w1-action-2",
+      label: `Appliquer la premiere action recommandee : ${expertise.firstAction}`,
+      done: false,
+    },
+    {
+      id: "w1-action-3",
+      label: "Tenir un journal de bord : noter chaque situation rencontree cette semaine liee a ce ratio",
       done: false,
     },
   ];
@@ -109,6 +116,16 @@ function buildWeek2Ancrage(expertise: RatioExpertise): Plan30jWeek {
       label: firstBestPracticeSentence,
       done: false,
     },
+    {
+      id: "w2-action-2",
+      label: "Preparer 3 situations professionnelles cette semaine ou vous appliquerez la methode des meilleurs",
+      done: false,
+    },
+    {
+      id: "w2-action-3",
+      label: "Demander un retour a un collegue ou a votre manager apres chaque tentative",
+      done: false,
+    },
   ];
 
   return {
@@ -128,6 +145,16 @@ function buildWeek3MisePratique(_expertise: RatioExpertise): Plan30jWeek {
       label: "Appliquer la methode complete sur au moins 5 dossiers reels cette semaine",
       done: false,
     },
+    {
+      id: "w3-action-2",
+      label: "Documenter chaque application : ce qui a fonctionne, ce qui a resiste",
+      done: false,
+    },
+    {
+      id: "w3-action-3",
+      label: "Ajuster votre approche en cours de route selon les retours terrain",
+      done: false,
+    },
   ];
 
   return {
@@ -145,6 +172,16 @@ function buildWeek4Consolidation(expertise: RatioExpertise): Plan30jWeek {
     {
       id: "w4-action-1",
       label: `Mesurer l\'evolution de votre ratio ${expertise.label} sur les 30 derniers jours`,
+      done: false,
+    },
+    {
+      id: "w4-action-2",
+      label: "Identifier 2 comportements a conserver definitivement",
+      done: false,
+    },
+    {
+      id: "w4-action-3",
+      label: "Preparer le debrief NXT Coaching offert pour affiner la suite",
       done: false,
     },
   ];

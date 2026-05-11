@@ -21,7 +21,6 @@ import type {
 import type { PeriodResults } from "@/types/results";
 import {
   CalendarCheck,
-  ChevronRight,
   RefreshCw,
   ExternalLink,
   Sparkles,
@@ -32,14 +31,13 @@ import {
   Circle,
   BookOpen,
 } from "lucide-react";
-import { ActionObjectiveDrawer } from "@/components/conseiller/ameliorer/action-objective-drawer";
-import { buildResourceFromExpertise } from "@/data/action-resources";
+import { WeeklyBriefDrawer } from "@/components/formation/weekly-brief-drawer";
+import { getWeeklyBrief } from "@/data/weekly-briefs";
 import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
 import {
   getTopPractices,
   getFirstAction,
 } from "@/lib/coaching/coach-brain";
-import { getActionContent } from "@/lib/coaching/action-brain";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
@@ -445,28 +443,17 @@ export function Plan30Jours() {
 }
 
 /**
- * Helper chantier B — sélectionne l'action à afficher pour une semaine donnée.
- * Plans NEW (post-B) : 1 action native, retournée directement.
- * Plans OLD : 3 actions, on retourne `wN-action-1` (la plus structurante)
- * avec fallback sur `actions[0]` si l'ID canonique manque.
- */
-function getDisplayedActionForWeek(week: Plan30jWeek): Plan30jAction | null {
-  return (
-    week.actions.find((a) => a.id === `w${week.week_number}-action-1`) ??
-    week.actions[0] ??
-    null
-  );
-}
-
-/**
- * WeekCard — fiche fixe semaine (chantier B, remplace `WeekAccordion`).
+ * WeekCard — fiche fixe semaine (sous-PR 1 refonte plan 30j).
  *
- * - Toujours visible (pas de toggle expand/collapse)
- * - Card action entièrement cliquable → ouvre le drawer "Pourquoi cette action"
- * - Bouton CTA "Pourquoi cette action ?" XL pleine largeur en bas (double
- *   affordance Q2=γ : card click ET CTA click ouvrent le drawer)
- * - Click sur checkbox → stopPropagation pour toggle done isolé
- * - Section "Exercice NXT associé" + bouton "Je bloque 20 min" conservée
+ * Évolution par rapport au chantier B :
+ *   - 3 actions empilées par semaine (au lieu de 1) — revert du generateur
+ *   - SUPPRESSION du drawer "Pourquoi cette action" par action (et de la
+ *     cliquabilité de la card action + bouton CTA pleine largeur)
+ *   - NEW : badge "Voir la fiche" cliquable dans le header de la semaine,
+ *     ouvre `<WeeklyBriefDrawer>` avec la fiche pédagogique de la SEMAINE
+ *     (3 panneaux : Pourquoi ces 3 actions / Ce que font les meilleurs /
+ *     L'erreur à éviter). Sous-PR 2 enrichira les 32 fiches.
+ *   - Section "Exercice NXT associé" + bouton "Je bloque 20 min" CONSERVÉE
  */
 function WeekCard({
   week,
@@ -477,36 +464,28 @@ function WeekCard({
   onToggleAction: (actionId: string) => void;
   painRatioId: string;
 }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const action = getDisplayedActionForWeek(week);
+  const [briefDrawerOpen, setBriefDrawerOpen] = useState(false);
 
-  // Action-brain content (lookup hiérarchique expertiseId:actionId → :actionId
-  // → fallback markdown via buildResourceFromExpertise).
-  const actionContent = action
-    ? getActionContent(action.id, painRatioId as ExpertiseRatioId)
-    : null;
-  const fallbackResource = buildResourceFromExpertise(painRatioId);
+  const weekNumber = week.week_number as 1 | 2 | 3 | 4;
+  const brief = getWeeklyBrief(painRatioId as ExpertiseRatioId, weekNumber);
 
-  const isDone = !!action && (action.status === "done" || action.done === true);
-  const Icon = isDone ? CheckCircle2 : Circle;
-  const iconClass = isDone ? "text-green-500" : "text-muted-foreground/60";
-  const labelClass = isDone
-    ? "text-muted-foreground line-through"
-    : "text-foreground";
-  const checkboxTooltip = isDone ? "Remettre à faire" : "Marquer comme fait";
-
-  if (!action) {
-    return null;
-  }
+  // Compteur done/total de la semaine pour styler le badge S{N} en vert
+  // si toutes les actions de la semaine sont cochées.
+  const weekDone = week.actions.filter(
+    (a) => a.status === "done" || a.done === true,
+  ).length;
+  const allDone = week.actions.length > 0 && weekDone === week.actions.length;
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      {/* Header semaine — toujours visible, pas de toggle */}
+      {/* Header semaine — titre + badge "Voir la fiche" à droite */}
       <div className="flex items-center gap-4 px-5 py-4">
         <div
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold",
-            isDone ? "bg-green-500/20 text-green-500" : "bg-primary/10 text-primary",
+            allDone
+              ? "bg-green-500/20 text-green-500"
+              : "bg-primary/10 text-primary",
           )}
         >
           S{week.week_number}
@@ -516,63 +495,28 @@ function WeekCard({
             Semaine {week.week_number} — {week.focus}
           </span>
         </div>
+        <button
+          type="button"
+          onClick={() => setBriefDrawerOpen(true)}
+          aria-label="Voir la fiche pédagogique de la semaine"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          Voir la fiche
+        </button>
       </div>
 
-      {/* Card action principale — cliquable entièrement (drawer trigger) */}
+      {/* Liste des actions de la semaine — 3 actions empilées avec checkbox */}
       <div className="border-t border-border px-5 py-4">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => setDrawerOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setDrawerOpen(true);
-            }
-          }}
-          className="group cursor-pointer rounded-lg border border-border bg-background p-4 transition-all hover:bg-primary/5 hover:ring-2 hover:ring-primary/20"
-        >
-          <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleAction(action.id);
-              }}
-              aria-label={checkboxTooltip}
-              title={checkboxTooltip}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted/60"
-            >
-              <Icon className={cn("h-6 w-6", iconClass)} />
-            </button>
-            <span
-              className={cn(
-                "flex-1 min-w-0 self-center text-sm leading-relaxed",
-                labelClass,
-              )}
-            >
-              {action.label}
-            </span>
-            <ChevronRight
-              className="h-5 w-5 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-              aria-hidden
+        <ul className="space-y-2">
+          {week.actions.map((a) => (
+            <ActionRow
+              key={a.id}
+              action={a}
+              onToggle={() => onToggleAction(a.id)}
             />
-          </div>
-
-          {/* CTA "Pourquoi cette action ?" pleine largeur en bas — Q4 */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDrawerOpen(true);
-            }}
-            aria-label="Pourquoi cette action ?"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
-          >
-            <BookOpen className="h-4 w-4" />
-            Pourquoi cette action ?
-          </button>
-        </div>
+          ))}
+        </ul>
 
         {/* Section "Exercice NXT associé" — conservée */}
         {week.exercice && (
@@ -593,15 +537,59 @@ function WeekCard({
         )}
       </div>
 
-      <ActionObjectiveDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title={actionContent?.title ?? fallbackResource.title}
-        actionContent={actionContent}
-        content={fallbackResource.content}
-        isPlaceholder={fallbackResource.isPlaceholder}
+      <WeeklyBriefDrawer
+        open={briefDrawerOpen}
+        onClose={() => setBriefDrawerOpen(false)}
+        weekNumber={weekNumber}
+        weekFocus={week.focus}
+        brief={brief}
       />
     </div>
+  );
+}
+
+/**
+ * ActionRow — ligne d'action simple : checkbox + label.
+ *
+ * Pas de cliquabilité card pour ouvrir un drawer (la fiche pédagogique est
+ * désormais au niveau de la SEMAINE via le badge "Voir la fiche" du
+ * header). Click checkbox → toggle done.
+ */
+function ActionRow({
+  action,
+  onToggle,
+}: {
+  action: Plan30jAction;
+  onToggle: () => void;
+}) {
+  const isDone = action.status === "done" || action.done === true;
+  const Icon = isDone ? CheckCircle2 : Circle;
+  const iconClass = isDone ? "text-green-500" : "text-muted-foreground/60";
+  const labelClass = isDone
+    ? "text-muted-foreground line-through"
+    : "text-foreground";
+  const tooltip = isDone ? "Remettre à faire" : "Marquer comme fait";
+
+  return (
+    <li className="flex items-start gap-3 rounded-lg border border-border bg-background p-3 transition-colors hover:bg-muted/30">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={tooltip}
+        title={tooltip}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted/60"
+      >
+        <Icon className={cn("h-5 w-5", iconClass)} />
+      </button>
+      <span
+        className={cn(
+          "flex-1 min-w-0 self-center text-sm leading-relaxed",
+          labelClass,
+        )}
+      >
+        {action.label}
+      </span>
+    </li>
   );
 }
 
