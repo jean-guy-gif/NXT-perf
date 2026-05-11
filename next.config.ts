@@ -15,9 +15,15 @@ const nextConfig: NextConfig = {
   // sidebar Manager. Anciens liens externes/bookmarks redirigés en 301.
   async redirects() {
     return [
-      { source: "/directeur/pilotage", destination: "/directeur/dashboard", permanent: true },
-      { source: "/directeur/equipes", destination: "/directeur/resultats", permanent: true },
-      { source: "/directeur/equipe", destination: "/directeur/dashboard", permanent: true },
+      // PR-Refonte-Directeur sous-PR 0 — sidebar refonte V3. Anciennes URLs
+      // (dashboard / resultats / performance) absorbées par /directeur/diagnostic.
+      { source: "/directeur", destination: "/directeur/diagnostic", permanent: true },
+      { source: "/directeur/dashboard", destination: "/directeur/diagnostic", permanent: true },
+      { source: "/directeur/resultats", destination: "/directeur/diagnostic", permanent: true },
+      { source: "/directeur/performance", destination: "/directeur/diagnostic", permanent: true },
+      { source: "/directeur/pilotage", destination: "/directeur/diagnostic", permanent: true },
+      { source: "/directeur/equipes", destination: "/directeur/diagnostic", permanent: true },
+      { source: "/directeur/equipe", destination: "/directeur/diagnostic", permanent: true },
       { source: "/directeur/formation-collective", destination: "/directeur/formation", permanent: true },
       { source: "/admin/dpi", destination: "/directeur/leads-dpi", permanent: true },
       // PR3 — Refonte Conseiller : ancienne arborescence racine → /conseiller/*
