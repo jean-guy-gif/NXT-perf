@@ -45,6 +45,9 @@ export interface CreatePlanInput {
   // absents, fallback agentStatus null + teamSize 1 → exigence quasi-neutre.
   agentStatus?: "salarie" | "agent_commercial" | "mandataire" | null;
   teamSize?: number;
+  // Sous-PR Coach-8 — volumes bruts pour la détection contextuelle de
+  // blocage downstream. Si absent, comportement legacy painScoreV2 seul.
+  latestResults?: import("@/types/results").PeriodResults | null;
 }
 
 /**
@@ -280,6 +283,7 @@ export function useImprovementResources() {
             avgCommissionEur: input.avgCommissionEur,
             agentStatus: input.agentStatus ?? null,
             teamSize: input.teamSize ?? 1,
+            latestResults: input.latestResults ?? null,
           }),
         });
         if (!res.ok) {
@@ -315,6 +319,7 @@ export function useImprovementResources() {
             avgCommissionEur: input.avgCommissionEur,
             agentStatus: input.agentStatus ?? null,
             teamSize: input.teamSize ?? 1,
+            latestResults: input.latestResults ?? null,
             persistInDb: false,
           }),
         });

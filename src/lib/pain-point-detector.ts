@@ -279,3 +279,57 @@ export function detectTopPainPoints(
   const scored = scoreAllPainPoints(measuredRatios, ctx);
   return scored.slice(0, limit);
 }
+
+// ─── Sous-PR Coach-8 : détection contextuelle (override downstream) ──────
+
+import { detectContextualBlockage, type PainContextOverride } from "@/lib/pain-point-context-override";
+import type { PeriodResults } from "@/types/results";
+
+/**
+ * Résultat enrichi : pain point + indicateur si override contextuel appliqué.
+ */
+export interface PainPointWithContext {
+  painPoint: PainPointResult;
+  /** Override appliqué — null si painScoreV2 est resté source de vérité. */
+  override: PainContextOverride | null;
+}
+
+/**
+ * Détecte le top pain en arbitrant entre painScoreV2 (algo amont biased)
+ * et la détection contextuelle de blocage downstream.
+ *
+ * Si un override est détecté ET que ce ratio existe dans le pool scoré
+ * (= a un écart > 0), il est promu top pain. Sinon le top scored par
+ * painScoreV2 reste roi.
+ *
+ * Fallback gracieux : si results absent, comportement identique à
+ * detectBiggestPainPoint (pas d'override possible).
+ */
+export function detectBiggestPainPointWithContext(
+  measuredRatios: MeasuredRatio[],
+  ctx: ThresholdContext,
+  results: PeriodResults | null,
+): PainPointWithContext | null {
+  const scored = scoreAllPainPoints(measuredRatios, ctx);
+  if (scored.length === 0) return null;
+
+  if (!results) {
+    return { painPoint: scored[0], override: null };
+  }
+
+  const override = detectContextualBlockage(measuredRatios, results, ctx);
+  if (!override) {
+    return { painPoint: scored[0], override: null };
+  }
+
+  const overriddenPainPoint = scored.find(
+    (s) => s.expertiseId === override.expertiseId,
+  );
+  if (!overriddenPainPoint) {
+    // L'override pointe vers un ratio non détecté comme pain (ratio OK selon
+    // painScoreV2 — pas d'écart normalizedGap > 0). Pas de promotion.
+    return { painPoint: scored[0], override: null };
+  }
+
+  return { painPoint: overriddenPainPoint, override };
+}

@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowRight, Loader2, Target, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  Loader2,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
@@ -18,6 +24,7 @@ import {
   getAvgCommissionEur,
 } from "@/lib/get-avg-commission";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import type { PainContextOverride } from "@/lib/pain-point-context-override";
 
 interface Props {
   /** Ratio recommandé (issu du diagnostic prioritaire ou ?levier=…) */
@@ -30,6 +37,13 @@ interface Props {
   estimatedGainEur: number;
   /** Callback succès création de plan */
   onPlanCreated?: () => void;
+  /** Sous-PR Coach-8 : si non null, ce levier a été choisi via override
+   *  contextuel d'un blocage downstream. Le composant affiche un panneau
+   *  "Pourquoi ce levier et pas l'amont" avec narratif RAG. */
+  override?: PainContextOverride | null;
+  /** Sous-PR Coach-8 : levier que l'algo upstream aurait choisi sans
+   *  override. Affiché dans le narratif pour comparaison. */
+  originalExpertiseId?: ExpertiseRatioId | null;
 }
 
 /**
@@ -49,7 +63,48 @@ export function RecommendedLeverCard({
   targetValue,
   estimatedGainEur,
   onPlanCreated,
+  override = null,
+  originalExpertiseId = null,
 }: Props) {
+  // Sous-PR Coach-8 : fetch lazy l'explication RAG du shift downstream.
+  const [overrideExplanation, setOverrideExplanation] = useState<{
+    narrative: string;
+    keyQuestion: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!override || !originalExpertiseId) {
+      setOverrideExplanation(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/pain-override-explanation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originalExpertiseId,
+        overrideExpertiseId: override.expertiseId,
+        ruleId: override.ruleId,
+        factualReason: override.reason,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as {
+          explanation: { narrative: string; keyQuestion: string } | null;
+        };
+        if (!cancelled && data.explanation) {
+          setOverrideExplanation(data.explanation);
+        }
+      })
+      .catch((err) => {
+        console.error("[recommended-lever-card] override explanation failed", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [override, originalExpertiseId]);
+
   const { category } = useUser();
   const { computedRatios } = useRatios();
   const results = useResults();
@@ -134,6 +189,30 @@ export function RecommendedLeverCard({
       <h2 className="mt-3 text-2xl font-bold text-foreground md:text-3xl">
         {expertise.label}
       </h2>
+
+      {/* Sous-PR Coach-8 : narratif shift downstream si override appliqué */}
+      {override && (overrideExplanation || originalExpertiseId) && (
+        <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+          <p className="mb-1 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+            <Sparkles className="h-3.5 w-3.5" />
+            Pourquoi ce levier (et pas l&apos;amont) ?
+          </p>
+          {overrideExplanation ? (
+            <>
+              <p className="text-sm leading-relaxed text-foreground">
+                {overrideExplanation.narrative}
+              </p>
+              <p className="mt-2 rounded-md bg-card px-2 py-1.5 text-xs font-medium italic text-indigo-700 dark:text-indigo-300">
+                💬 {overrideExplanation.keyQuestion}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {override.reason}
+            </p>
+          )}
+        </div>
+      )}
 
       {cause && (
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

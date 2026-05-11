@@ -23,6 +23,10 @@ import { FocusedTrainingBlock } from "./focused-training-block";
 import { findCriticitePoints } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { volumeToRelatedRatio } from "@/lib/coaching/coach-brain";
+import {
+  detectContextualBlockage,
+  type PainContextOverride,
+} from "@/lib/pain-point-context-override";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import {
@@ -330,6 +334,27 @@ function NoPlanFlow({
 
     if (!chosen) return null;
 
+    // Sous-PR Coach-8 : applique l'override contextuel downstream si une des
+    // 5 règles détecte un blocage de pipe aval. Le `chosen` upstream-biased
+    // est remplacé par l'expertiseId override (sous réserve qu'il soit
+    // présent dans la liste criticite avec un écart > 0).
+    let appliedOverride: PainContextOverride | null = null;
+    const originalChosenId = chosen.id;
+    const ctxOverride = detectContextualBlockage(measured, results, userCtx);
+    if (ctxOverride && ctxOverride.expertiseId !== chosen.id) {
+      const overrideInCriticite = [criticite.top, ...criticite.others].find(
+        (p): p is typeof p & { type: "ratio" } =>
+          !!p && p.type === "ratio" && p.id === ctxOverride.expertiseId,
+      );
+      if (overrideInCriticite) {
+        appliedOverride = ctxOverride;
+        chosen = {
+          id: ctxOverride.expertiseId,
+          gain: overrideInCriticite.gainEur,
+        };
+      }
+    }
+
     const expertise = RATIO_EXPERTISE[chosen.id];
     if (!expertise) return null;
     const found = measured.find((m) => m.expertiseId === chosen!.id);
@@ -342,6 +367,11 @@ function NoPlanFlow({
       others: criticite.others.filter(
         (p) => p.type === "ratio" && p.id !== chosen!.id
       ),
+      override: appliedOverride,
+      originalExpertiseId:
+        appliedOverride && originalChosenId !== chosen.id
+          ? originalChosenId
+          : null,
     };
   }, [
     preselected,
@@ -362,6 +392,8 @@ function NoPlanFlow({
           currentValue={recommended.currentValue}
           targetValue={recommended.targetValue}
           estimatedGainEur={recommended.estimatedGainEur}
+          override={recommended.override ?? null}
+          originalExpertiseId={recommended.originalExpertiseId ?? null}
           onPlanCreated={onPlanCreated}
         />
       ) : (

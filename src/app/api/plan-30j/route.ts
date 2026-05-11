@@ -5,11 +5,12 @@ import {
   type Plan30jPayload,
 } from "@/config/coaching";
 import {
-  detectBiggestPainPoint,
+  detectBiggestPainPointWithContext,
   FEASIBILITY_SCORE,
   type MeasuredRatio,
   type PainPointResult,
 } from "@/lib/pain-point-detector";
+import type { PeriodResults } from "@/types/results";
 import {
   bucketTeamSize,
   resolveThreshold,
@@ -41,6 +42,12 @@ interface RequestBody {
    * Défaut : `true` (comportement legacy : auth requise + insert DB).
    */
   persistInDb?: boolean;
+  /**
+   * Sous-PR Coach-8 : volumes bruts pour la détection contextuelle de
+   * blocage downstream (5 règles override painScoreV2). Optionnel pour
+   * compat. Quand absent, comportement legacy = painScoreV2 seul.
+   */
+  latestResults?: PeriodResults | null;
 }
 
 export async function POST(request: Request) {
@@ -123,7 +130,15 @@ export async function POST(request: Request) {
   // Détection douleur
   let painPoint: PainPointResult | null;
   if (body.mode === "auto") {
-    painPoint = detectBiggestPainPoint(body.measuredRatios, ctx);
+    // Sous-PR Coach-8 : detectBiggestPainPointWithContext arbitre entre
+    // painScoreV2 (algo amont biased) et override contextuel downstream.
+    // Si body.latestResults est null, comportement = legacy painScoreV2 seul.
+    const detected = detectBiggestPainPointWithContext(
+      body.measuredRatios,
+      ctx,
+      body.latestResults ?? null,
+    );
+    painPoint = detected?.painPoint ?? null;
   } else {
     const ratioId = body.ratioId!;
     const measured = body.measuredRatios.find(
