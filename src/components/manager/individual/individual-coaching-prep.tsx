@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Kit } from "@/lib/coaching/team-activation-kit";
 import {
   Check,
   Copy,
@@ -60,7 +61,7 @@ export function IndividualCoachingPrep({
     source,
   } = useCoachingPattern(expertiseId);
 
-  const kit = useMemo(
+  const fallbackKit = useMemo(
     () =>
       buildIndividualCoachingKit({
         advisor,
@@ -70,6 +71,45 @@ export function IndividualCoachingPrep({
       }),
     [advisor, expertiseId, metrics, serverPattern],
   );
+
+  // Sous-PR Coach-7 : fetch lazy RAG kit (Sonnet 4.5 + corpus). Override
+  // le fallback si succès. Pas de blocage UI — le fallback est affiché
+  // immédiatement pendant le fetch.
+  const [ragKit, setRagKit] = useState<Kit | null>(null);
+  useEffect(() => {
+    if (!expertiseId) return;
+    let cancelled = false;
+    fetch("/api/individual-coaching-kit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: advisor.firstName,
+        level: advisor.level,
+        expertiseId,
+        metrics,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { kit: Kit | null };
+        if (!cancelled && data.kit) setRagKit(data.kit);
+      })
+      .catch((err) => {
+        console.error("[individual-coaching-prep] RAG kit fetch failed", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    advisor.firstName,
+    advisor.level,
+    expertiseId,
+    metrics?.dayOfPlan,
+    metrics?.donePct,
+  ]);
+
+  const kit = ragKit ?? fallbackKit;
 
   const handleCopy = async () => {
     try {
