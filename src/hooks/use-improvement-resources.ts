@@ -264,6 +264,42 @@ export function useImprovementResources() {
         );
       }
 
+      // ─── Mode prod : POST /api/plan-30j (génération via RAG côté serveur) ──
+      // Sous-PR Coach-1 : le serveur appelle generatePlan30jRag() avec
+      // fallback silencieux sur la version hardcoded si OpenRouter fail.
+      // L'insert en DB est fait côté serveur (auth + RLS via session cookie).
+      if (!isDemoMode) {
+        const res = await fetch("/api/plan-30j", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: input.mode,
+            ratioId: input.ratioId,
+            measuredRatios: input.measuredRatios,
+            profile: input.profile,
+            avgCommissionEur: input.avgCommissionEur,
+            agentStatus: input.agentStatus ?? null,
+            teamSize: input.teamSize ?? 1,
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const message =
+            typeof body?.message === "string"
+              ? body.message
+              : `HTTP ${res.status}`;
+          if (body?.error === "PLAN_ACTIVE_ALREADY") {
+            throw new Error(`PLAN_ACTIVE_ALREADY: ${message}`);
+          }
+          throw new Error(message);
+        }
+        const data = (await res.json()) as { plan: GeneratedPlan30j };
+        await refresh();
+        broadcastResourcesMutated();
+        return data.plan;
+      }
+
+      // ─── Mode démo : génération client-side hardcoded + adapter LocalStorage
       const plan = generatePlan30j(painPoint);
       const payload: Plan30jPayload = {
         ...planToPayload(plan),

@@ -15,10 +15,8 @@ import {
   resolveThreshold,
   type ThresholdContext,
 } from "@/lib/diagnostic/resolve-threshold";
-import {
-  generatePlan30j,
-  planToPayload,
-} from "@/lib/plan-30-jours";
+import { planToPayload } from "@/lib/plan-30-jours";
+import { generatePlan30jRag } from "@/lib/server/coach-rag/plan-30j-generator";
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
@@ -164,8 +162,10 @@ export async function POST(request: Request) {
     );
   }
 
-  // Génération du plan
-  const plan = generatePlan30j(painPoint);
+  // Génération du plan — sous-PR Coach-1 : enrichi par RAG (corpus NXT-Coach +
+  // doctrine méthode + Claude Sonnet 4.5). Fallback silencieux vers logique
+  // hardcoded si OpenRouter/parsing fail (cf. plan-30j-generator.ts).
+  const plan = await generatePlan30jRag(painPoint, ctx);
   const payload: Plan30jPayload = planToPayload(plan);
 
   // Insertion BDD

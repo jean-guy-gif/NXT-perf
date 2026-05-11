@@ -1,50 +1,53 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   HelpCircle,
+  Loader2,
   Sparkles,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WeeklyBrief } from "@/data/weekly-briefs";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   weekNumber: 1 | 2 | 3 | 4;
   weekFocus: string;
-  /** Fiche pédagogique pour ce (ratio, semaine). `null` → empty state. */
-  brief: WeeklyBrief | null;
+  /** Levier (ratio) — sert au fetch RAG /api/weekly-brief. */
+  expertiseId: ExpertiseRatioId;
+  /** Fiche fallback (hardcoded) — utilisée si fetch RAG échoue. */
+  fallbackBrief?: WeeklyBrief | null;
 }
 
 /**
- * WeeklyBriefDrawer — sous-PR 1 refonte plan 30j.
+ * WeeklyBriefDrawer — fiche pédagogique de la semaine.
  *
- * Drawer slide-in droite (max-w-md) ouvert au click du badge "Voir la
- * fiche" du header `<WeekCard>`. Affiche la fiche pédagogique de la
- * SEMAINE (pas de l'action).
+ * Sous-PR Coach-1 : fetch lazy via /api/weekly-brief (RAG corpus NXT-Coach +
+ * Claude Sonnet 4.5) au premier open, avec cache local par instance.
+ * Fallback silencieux sur `fallbackBrief` si le RAG fail. Empty state
+ * gracieux si tout fail.
  *
  * 3 panneaux :
  *   1. "Pourquoi ces 3 actions" — paragraphe `why3Actions`
  *   2. "Ce que font les meilleurs" — liste bullets `bestPractices`
  *   3. "L'erreur à éviter" — liste bullets `errorsToAvoid`
- *
- * Empty state gracieux si `brief === null` (fiche pas encore rédigée —
- * la sous-PR 2 enrichira les 32 fiches).
- *
- * Pattern visuel inspiré d'`ActionObjectiveDrawer` (chantier B) mais avec
- * sémantique semaine (et plus action). `ActionObjectiveDrawer` reste
- * vivant dans le repo mais n'est plus consommé par cette page.
  */
 export function WeeklyBriefDrawer({
   open,
   onClose,
   weekNumber,
   weekFocus,
-  brief,
+  expertiseId,
+  fallbackBrief,
 }: Props) {
+  const [brief, setBrief] = useState<WeeklyBrief | null>(fallbackBrief ?? null);
+  const [loading, setLoading] = useState(false);
+  const fetchedRef = useRef(false);
+
   // Body scroll lock + Esc to close
   useEffect(() => {
     if (!open) return;
@@ -59,6 +62,42 @@ export function WeeklyBriefDrawer({
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
+
+  // Fetch RAG lazy à l'ouverture (1 seule fois par instance)
+  useEffect(() => {
+    if (!open || fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    let cancelled = false;
+    setLoading(true);
+    fetch("/api/weekly-brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expertiseId,
+        weekNumber,
+        weekTheme: weekFocus,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { brief: WeeklyBrief | null };
+        if (!cancelled && data.brief) {
+          setBrief(data.brief);
+        }
+      })
+      .catch((err) => {
+        console.error("[weekly-brief-drawer] fetch failed", err);
+        // fallbackBrief déjà dans le state — on garde
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, expertiseId, weekNumber, weekFocus]);
 
   return (
     <>
@@ -99,7 +138,17 @@ export function WeeklyBriefDrawer({
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
-          {brief ? (
+          {loading && !brief ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+              <p className="mt-3 text-sm font-medium text-foreground">
+                Le coach NXT prépare ta fiche...
+              </p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Génération en cours via le corpus NXT-Coach (méthode + livre Tedesco + sessions réelles).
+              </p>
+            </div>
+          ) : brief ? (
             <div className="space-y-6">
               {/* Panneau 1 — Pourquoi ces 3 actions */}
               <section>
@@ -107,7 +156,7 @@ export function WeeklyBriefDrawer({
                   <HelpCircle className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                   Pourquoi ces 3 actions
                 </h3>
-                <p className="text-sm leading-relaxed text-foreground">
+                <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
                   {brief.why3Actions}
                 </p>
               </section>
@@ -151,15 +200,15 @@ export function WeeklyBriefDrawer({
               </section>
             </div>
           ) : (
-            // Empty state — fiche pas encore rédigée (sous-PR 2 enrichira)
+            // Empty state — RAG fail + pas de fallback
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <HelpCircle className="h-10 w-10 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-foreground">
-                Fiche pédagogique en cours de rédaction
+                Fiche pédagogique indisponible
               </p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Le contenu pédagogique de cette semaine pour ce levier sera
-                disponible prochainement.
+                Le coach NXT n&apos;a pas pu générer la fiche. Réessaie dans
+                quelques instants.
               </p>
             </div>
           )}

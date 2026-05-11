@@ -542,7 +542,8 @@ function WeekCard({
         onClose={() => setBriefDrawerOpen(false)}
         weekNumber={weekNumber}
         weekFocus={week.focus}
-        brief={brief}
+        expertiseId={painRatioId as ExpertiseRatioId}
+        fallbackBrief={brief}
       />
     </div>
   );
