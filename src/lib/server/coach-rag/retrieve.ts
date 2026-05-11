@@ -10,7 +10,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { embedText } from "@/lib/server/coach-rag/voyage-embed";
+import { embedText } from "@/lib/server/coach-rag/openai-embed";
 
 const DEFAULT_TOP_CHUNKS = 6;
 const DEFAULT_TOP_SYNTHESES = 4;

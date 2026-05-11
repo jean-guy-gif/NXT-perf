@@ -12,19 +12,25 @@
  *
  * Migration douce :
  *   - Idempotent : upsert sur hash pour les sources, et re-create pour chunks/syntheses
- *   - Re-embed via Voyage AI (les vectors SQLite étaient en nomic-embed-text 768 dims,
- *     Voyage 2 / 3 = 1024 dims, donc incompatible).
+ *   - Re-embed via OpenRouter → OpenAI text-embedding-3-small (1536 dims,
+ *     les vectors SQLite étaient en nomic-embed-text 768 dims, incompatibles).
  *
  * Coût estimé : ~10 641 chunks × ~500 tokens ≈ 5M tokens input
- *               → Voyage 2 = 0.12$/1M input → ~0.60$ one-time. Négligeable.
+ *               → text-embedding-3-small = 0.02$/1M tokens → ~0.10$ one-time.
  *
- * Durée estimée : ~20-30 min (rate-limited par Voyage AI).
+ * Durée estimée : ~5-10 min (OpenRouter accepte des batches de 256).
  */
 
+import { config as loadEnv } from "dotenv";
 import Database from "better-sqlite3";
 import { createClient } from "@supabase/supabase-js";
 import path from "node:path";
-import { embedTexts } from "../../src/lib/server/coach-rag/voyage-embed";
+
+// Charge .env.local (Next.js convention) — tsx ne le fait pas par défaut.
+loadEnv({ path: ".env.local" });
+loadEnv(); // fallback .env
+
+import { embedTexts } from "../../src/lib/server/coach-rag/openai-embed";
 
 // ─── Config ───────────────────────────────────────────────────────────────
 
@@ -36,7 +42,7 @@ const SQLITE_PATH = path.resolve(
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const BATCH_SIZE = 64; // sous le cap Voyage MAX_BATCH=128 pour éviter timeouts
+const BATCH_SIZE = 128; // sous le cap OpenRouter/OpenAI MAX_BATCH=256, garde marge
 const UPSERT_BATCH = 100;
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -137,11 +143,11 @@ async function main() {
     console.log(`  Sources upserted: ${Math.min(i + UPSERT_BATCH, sources.length)}/${sources.length}`);
   }
 
-  // ─── 2. Chunks (re-embed via Voyage AI) ────────────────────────────────
+  // ─── 2. Chunks (re-embed via OpenRouter → OpenAI embeddings) ──────────
   const chunks = sqlite
     .prepare("SELECT id, source_id, ordinal, content, token_count FROM chunks")
     .all() as ChunkRow[];
-  console.log(`Found ${chunks.length} chunks. Embedding via Voyage AI...`);
+  console.log(`Found ${chunks.length} chunks. Embedding via OpenRouter...`);
 
   // Clear existing chunks for re-ingestion idempotence
   const sourceIdsArray = Array.from(sourceIdMap.values());
