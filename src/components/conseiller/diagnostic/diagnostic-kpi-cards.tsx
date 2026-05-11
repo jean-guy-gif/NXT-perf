@@ -153,10 +153,10 @@ export function DiagnosticKpiCards({
   const isProrated = mEffective < m - 0.0001;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {showVolumes && (
         <div>
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
             <h3 className="text-sm font-bold uppercase tracking-wide text-foreground">
               Volumes
@@ -221,7 +221,7 @@ export function DiagnosticKpiCards({
 
       {showRatios && (
         <div>
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
             <h3 className="text-sm font-bold uppercase tracking-wide text-foreground">
               Ratios
@@ -247,22 +247,22 @@ export function DiagnosticKpiCards({
                   )}
                 >
                   <p className="text-xs text-muted-foreground">{config.name}</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+                  {/* Modif 2 — Result % en héros chromatique (couleur status). */}
+                  <p
+                    className={cn(
+                      "mt-1 text-4xl font-bold tabular-nums",
+                      style.text
+                    )}
+                  >
                     {config.isPercentage
                       ? `${Math.round(computed.value)}%`
                       : computed.value.toFixed(1)}
                   </p>
-                  <span
-                    className={cn(
-                      "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
-                      style.bg,
-                      style.text
-                    )}
-                  >
-                    <Icon className="h-3 w-3" />
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Icon className={cn("h-3 w-3", style.text)} />
                     Cible {computed.thresholdForCategory}
                     {config.isPercentage ? "%" : ""}
-                  </span>
+                  </p>
                 </div>
               );
             })}

@@ -126,7 +126,6 @@ export function DiagnosticRatiosView({ highlightedItem }: Props) {
                 ratio={ratio}
                 config={config}
                 category={category}
-                statusBg={sc.bg}
                 statusColor={sc.color}
                 statusRing={sc.ring}
                 statusLabel={sc.label}
@@ -145,7 +144,6 @@ interface RatioCardProps {
   ratio: ComputedRatio;
   config: RatioConfig;
   category: string;
-  statusBg: string;
   statusColor: string;
   statusRing: string;
   statusLabel: string;
@@ -157,7 +155,6 @@ function RatioCard({
   ratio,
   config,
   category,
-  statusBg,
   statusColor,
   statusRing,
   statusLabel,
@@ -178,10 +175,10 @@ function RatioCard({
         <p className="text-sm font-semibold leading-tight text-foreground">
           {config.name}
         </p>
+        {/* Modif 2 — Badge status déplacé en sub-text discret (pas de bg). */}
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
-            statusBg,
+            "inline-flex shrink-0 items-center gap-1 text-xs font-semibold",
             statusColor
           )}
         >
@@ -190,7 +187,13 @@ function RatioCard({
         </span>
       </div>
 
-      <p className="mt-3 text-3xl font-bold tabular-nums text-foreground">
+      {/* Modif 2 — Result % en héros chromatique (text-5xl + couleur status). */}
+      <p
+        className={cn(
+          "mt-3 text-5xl font-bold tabular-nums",
+          statusColor
+        )}
+      >
         {config.isPercentage
           ? `${Math.round(ratio.value)}%`
           : ratio.value.toFixed(1)}

@@ -475,9 +475,15 @@ function OtherPainPointsList({
     );
   }
 
+  // Modif 3 — Tri local par gainEur desc (présentation). Le tri painScoreV2
+  // de `diagnostic-criticite.ts` reste vivant pour les autres consommateurs
+  // (team-diagnostic.ts), zéro touche à l'algo. Sort JS stable : ordre
+  // d'origine préservé pour les égalités de gainEur.
+  const sortedByGain = [...items].sort((a, b) => b.gainEur - a.gainEur);
+
   return (
     <ul className="space-y-2">
-      {items.map((p) => {
+      {sortedByGain.map((p) => {
         const gap = pointGap(p);
         const kind = p.type === "ratio" ? "Ratio" : "Volume";
         return (
