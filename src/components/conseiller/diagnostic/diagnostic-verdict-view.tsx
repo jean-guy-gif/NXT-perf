@@ -23,6 +23,10 @@ import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-d
 import { ActivePlanCard } from "@/components/conseiller/diagnostic/active-plan-card";
 import { KeyFiguresAccordion } from "@/components/conseiller/diagnostic/key-figures-accordion";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import {
+  detectContextualBlockage,
+  type PainContextOverride,
+} from "@/lib/pain-point-context-override";
 import { useMemo } from "react";
 
 export function DiagnosticVerdictView() {
@@ -41,24 +45,77 @@ export function DiagnosticVerdictView() {
 
   const criticite = useMemo(() => {
     if (!user || !results || computedRatios.length === 0)
-      return { top: null, others: [] };
+      return {
+        top: null,
+        others: [],
+        override: null as PainContextOverride | null,
+        originalTopId: null as ExpertiseRatioId | null,
+      };
     const measured = buildMeasuredRatios(computedRatios, results);
     // PR3.8.6 hotfix #2 — Le verdict est sémantiquement "où j'en suis CE
     // MOIS-CI", donc on prorate TOUJOURS sur la date du jour, indépendamment
     // de la période réellement stockée dans `results` (ex: démo Fév 2026).
-    // Cela évite le bug où la carte affichait "Objectif à date = 300" en
-    // début de mois parce que la donnée provenait d'un mois passé.
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
-    // Chantier A.3 — passage du contexte 4 axes à findCriticitePoints. Le
-    // hook useUserContext est override-aware (chantier C respect total).
-    return findCriticitePoints(
+    // Chantier A.3 — passage du contexte 4 axes à findCriticitePoints.
+    const base = findCriticitePoints(
       measured,
       userCtx,
       results,
       category,
       effectiveMonths,
     );
+
+    // Sous-PR Coach-8.1 : applique l'override contextuel downstream sur le
+    // verdict aussi. Si une règle détecte un blocage aval, on promeut ce
+    // ratio en top et on stocke l'override + l'expertiseId originale pour
+    // que le drawer puisse afficher le shift narrative RAG.
+    const override = detectContextualBlockage(measured, results, userCtx);
+    if (!override) {
+      return {
+        top: base.top,
+        others: base.others,
+        override: null,
+        originalTopId: null,
+      };
+    }
+    const overrideInList = [base.top, ...base.others].find(
+      (p): p is typeof p & { type: "ratio" } =>
+        !!p && p.type === "ratio" && p.id === override.expertiseId,
+    );
+    if (!overrideInList) {
+      return {
+        top: base.top,
+        others: base.others,
+        override: null,
+        originalTopId: null,
+      };
+    }
+    // Promotion : le verdict.top devient l'override. Ancien top relégué dans others.
+    const oldTop = base.top;
+    const oldTopId =
+      oldTop && oldTop.type === "ratio"
+        ? (oldTop.id as ExpertiseRatioId)
+        : null;
+    if (oldTopId === override.expertiseId) {
+      // Déjà top, pas de promotion nécessaire mais on garde override pour drawer.
+      return {
+        top: base.top,
+        others: base.others,
+        override,
+        originalTopId: null,
+      };
+    }
+    const newOthers = base.others.filter(
+      (p) => !(p.type === "ratio" && p.id === override.expertiseId),
+    );
+    if (oldTop) newOthers.unshift(oldTop);
+    return {
+      top: overrideInList,
+      others: newOthers,
+      override,
+      originalTopId: oldTopId,
+    };
   }, [user, results, computedRatios, category, userCtx]);
 
   const handleSavoirPourquoi = () => {
@@ -150,6 +207,8 @@ export function DiagnosticVerdictView() {
         mode={drawerMode ?? "list"}
         verdict={drawerMode === "single" ? criticite.top : null}
         otherPainPoints={drawerMode === "list" ? criticite.others : []}
+        override={criticite.override}
+        originalExpertiseId={criticite.originalTopId}
       />
     </div>
   );

@@ -10,7 +10,9 @@ import {
   Loader2,
   Sparkles,
   ChevronDown,
+  Lightbulb,
 } from "lucide-react";
+import type { PainContextOverride } from "@/lib/pain-point-context-override";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
@@ -38,6 +40,11 @@ interface Props {
   verdict?: CriticitePoint | null;
   /** Requis si mode === "list" — ratios + volumes (top exclu) */
   otherPainPoints?: CriticitePoint[];
+  /** Sous-PR Coach-8.1 : override contextuel appliqué sur le verdict.
+   *  Si présent ET que verdict.id correspond, affiche le shift narrative RAG. */
+  override?: PainContextOverride | null;
+  /** Sous-PR Coach-8.1 : expertiseId que l'algo amont aurait choisi sans override. */
+  originalExpertiseId?: ExpertiseRatioId | null;
 }
 
 // ─── Helpers partagés ────────────────────────────────────────────────────
@@ -72,6 +79,8 @@ export function WhyDangerDrawer({
   mode,
   verdict,
   otherPainPoints = [],
+  override = null,
+  originalExpertiseId = null,
 }: Props) {
   // Lock body scroll
   useEffect(() => {
@@ -108,7 +117,11 @@ export function WhyDangerDrawer({
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {mode === "single" ? (
             verdict ? (
-              <SingleContent verdict={verdict} />
+              <SingleContent
+                verdict={verdict}
+                override={override}
+                originalExpertiseId={originalExpertiseId}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">
                 Aucun point critique détecté.
@@ -225,10 +238,65 @@ function CloseBtn({ onClose }: { onClose: () => void }) {
 
 type Section = "why" | "how" | "best";
 
-function SingleContent({ verdict }: { verdict: CriticitePoint }) {
+function SingleContent({
+  verdict,
+  override,
+  originalExpertiseId,
+}: {
+  verdict: CriticitePoint;
+  override: PainContextOverride | null;
+  originalExpertiseId: ExpertiseRatioId | null;
+}) {
   const [active, setActive] = useState<Section | null>("why");
   const [ragData, setRagData] = useState<RagWhyDanger | null>(null);
   const [ragLoading, setRagLoading] = useState(false);
+
+  // Sous-PR Coach-8.1 : fetch lazy l'explication RAG du shift downstream
+  // si l'override correspond à ce verdict.
+  const [overrideExplanation, setOverrideExplanation] = useState<{
+    narrative: string;
+    keyQuestion: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!override || !originalExpertiseId) {
+      setOverrideExplanation(null);
+      return;
+    }
+    // L'override doit correspondre à l'expertiseId actuellement affiché.
+    const verdictExpertiseId =
+      verdict.type === "ratio" ? (verdict.id as ExpertiseRatioId) : null;
+    if (!verdictExpertiseId || verdictExpertiseId !== override.expertiseId) {
+      setOverrideExplanation(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/pain-override-explanation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originalExpertiseId,
+        overrideExpertiseId: override.expertiseId,
+        ruleId: override.ruleId,
+        factualReason: override.reason,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as {
+          explanation: { narrative: string; keyQuestion: string } | null;
+        };
+        if (!cancelled && data.explanation) {
+          setOverrideExplanation(data.explanation);
+        }
+      })
+      .catch((err) => {
+        console.error("[why-danger-drawer] override explanation failed", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [override, originalExpertiseId, verdict]);
 
   // PR3.7.5 — Volumes : on dérive le ratio le plus pertinent via
   // volumeToRelatedRatio et on affiche les 3 panneaux pédagogiques de ce
@@ -321,6 +389,30 @@ function SingleContent({ verdict }: { verdict: CriticitePoint }) {
         <div className="flex items-center gap-2 rounded-lg border border-indigo-200/50 bg-indigo-50/30 px-3 py-2 text-xs text-indigo-700 dark:border-indigo-900/30 dark:bg-indigo-950/20 dark:text-indigo-300">
           <Loader2 className="h-3 w-3 animate-spin" />
           Coach NXT enrichit l&apos;analyse...
+        </div>
+      )}
+
+      {/* Sous-PR Coach-8.1 : panneau shift narrative si override appliqué */}
+      {override && (overrideExplanation || originalExpertiseId) && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+          <p className="mb-1 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+            <Lightbulb className="h-3.5 w-3.5" />
+            Pourquoi ce levier (et pas l&apos;amont) ?
+          </p>
+          {overrideExplanation ? (
+            <>
+              <p className="text-sm leading-relaxed text-foreground">
+                {overrideExplanation.narrative}
+              </p>
+              <p className="mt-2 rounded-md bg-card px-2 py-1.5 text-xs font-medium italic text-indigo-700 dark:text-indigo-300">
+                💬 {overrideExplanation.keyQuestion}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {override.reason}
+            </p>
+          )}
         </div>
       )}
       {volumeContext && (
