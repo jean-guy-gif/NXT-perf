@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Loader2, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowRight, List, Loader2, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
@@ -94,6 +94,11 @@ export function DiagnosticVerdictCard({
         </div>
       )}
 
+      {/* Sous-PR Coach-21 (meeting alignement) — 3 CTA côte à côte
+          pour la règle des 3 clics max : Savoir pourquoi / M'améliorer /
+          Voir mes autres points en danger sont les 3 directions possibles
+          à ce moment du parcours. Avant : les 2 premiers en boutons, le 3e
+          en lien discret dessous → invisible au scroll. */}
       <div className="mt-5 flex flex-wrap gap-2">
         <button
           type="button"
@@ -123,15 +128,15 @@ export function DiagnosticVerdictCard({
             )}
           </button>
         )}
+        <button
+          type="button"
+          onClick={onSeeOthersClick}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          <List className="h-4 w-4" />
+          Voir mes autres points en danger
+        </button>
       </div>
-
-      <button
-        type="button"
-        onClick={onSeeOthersClick}
-        className="mt-3 text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-      >
-        Voir les autres points en danger →
-      </button>
     </section>
   );
 }

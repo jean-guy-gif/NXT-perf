@@ -6,11 +6,14 @@ import {
   CheckCircle2,
   Loader2,
   ListChecks,
+  Percent,
   Rocket,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { getTeamActions } from "@/lib/coaching/coach-brain";
-import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { useTeamPlan } from "@/hooks/team/use-team-plan";
 import {
@@ -107,6 +110,14 @@ export function TeamActionPlan({
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sous-PR Coach-21 (meeting alignement) — toggle Vue Ratio / Vue Volume.
+  // Permet au manager de comprendre le levier sous 2 angles sans changer
+  // les actions : mesure (formule du ratio) vs impact (cascade volume).
+  const [lensView, setLensView] = useState<"ratio" | "volume">("ratio");
+  const expertise = RATIO_EXPERTISE[expertiseId];
+  const ratioFormulaText = expertise?.formula ?? null;
+  const volumeImpactText = expertise?.caImpactNote ?? null;
 
   const currentUser = useAppStore((s) => s.user);
   const teamId = currentUser?.teamId ?? null;
@@ -216,6 +227,69 @@ export function TeamActionPlan({
           </p>
         </div>
       </div>
+
+      {/* Toggle Vue Ratio / Vue Volume — sous-PR Coach-21 meeting alignement.
+          Le manager change l'angle de lecture sans modifier les actions. */}
+      {(ratioFormulaText || volumeImpactText) && (
+        <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
+          <div
+            role="tablist"
+            aria-label="Angle de lecture du levier"
+            className="inline-flex gap-1 rounded-md bg-background p-0.5"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lensView === "ratio"}
+              onClick={() => setLensView("ratio")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                lensView === "ratio"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Percent className="h-3.5 w-3.5" />
+              Vue ratio
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lensView === "volume"}
+              onClick={() => setLensView("volume")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                lensView === "volume"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              Vue volume
+            </button>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            {lensView === "ratio" ? (
+              <>
+                <span className="font-semibold text-foreground">
+                  Comment ça se mesure :
+                </span>{" "}
+                {ratioFormulaText
+                  ? `formule ${ratioFormulaText}. Objectif : réduire l'écart de l'équipe à la cible sur ce ratio.`
+                  : "ratio mesurant la conversion entre deux étapes du parcours."}
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-foreground">
+                  Impact volume attendu :
+                </span>{" "}
+                {volumeImpactText ??
+                  "amélioration de ce levier déclenche un effet cascade sur le volume d'estimations, de mandats et d'actes signés."}
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       <ul className="space-y-2">
         {actions.map((action, i) => (

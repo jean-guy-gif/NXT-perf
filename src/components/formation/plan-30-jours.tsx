@@ -21,6 +21,8 @@ import type {
 import type { PeriodResults } from "@/types/results";
 import {
   CalendarCheck,
+  ChevronDown,
+  ChevronUp,
   RefreshCw,
   ExternalLink,
   Sparkles,
@@ -476,10 +478,28 @@ function WeekCard({
   ).length;
   const allDone = week.actions.length > 0 && weekDone === week.actions.length;
 
+  // Sous-PR Coach-21 (meeting alignement) — S3 + S4 repliées par défaut.
+  // Hiérarchie progressive : on focus sur les 2 prochaines semaines à
+  // attaquer, le reste reste accessible mais ne sature pas l'écran.
+  // Click sur le header de la semaine → expand/collapse.
+  const [expanded, setExpanded] = useState(weekNumber <= 2);
+  const ChevronIcon = expanded ? ChevronUp : ChevronDown;
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      {/* Header semaine — titre + badge "Voir la fiche" à droite */}
-      <div className="flex items-center gap-4 px-5 py-4">
+      {/* Header semaine — titre + badge "Voir la fiche" + chevron expand */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={`week-${weekNumber}-content`}
+        aria-label={
+          expanded
+            ? `Replier la semaine ${weekNumber}`
+            : `Déplier la semaine ${weekNumber}`
+        }
+        className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/30"
+      >
         <div
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold",
@@ -494,48 +514,70 @@ function WeekCard({
           <span className="font-semibold text-foreground">
             Semaine {week.week_number} — {week.focus}
           </span>
+          {!expanded && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              · {weekDone}/{week.actions.length} actions
+            </span>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => setBriefDrawerOpen(true)}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            setBriefDrawerOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              setBriefDrawerOpen(true);
+            }
+          }}
           aria-label="Voir la fiche pédagogique de la semaine"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
         >
           <BookOpen className="h-3.5 w-3.5" />
           Voir la fiche
-        </button>
-      </div>
+        </span>
+        <ChevronIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </button>
 
       {/* Liste des actions de la semaine — 3 actions empilées avec checkbox */}
-      <div className="border-t border-border px-5 py-4">
-        <ul className="space-y-2">
-          {week.actions.map((a) => (
-            <ActionRow
-              key={a.id}
-              action={a}
-              onToggle={() => onToggleAction(a.id)}
-            />
-          ))}
-        </ul>
+      {expanded && (
+        <div
+          id={`week-${weekNumber}-content`}
+          className="border-t border-border px-5 py-4"
+        >
+          <ul className="space-y-2">
+            {week.actions.map((a) => (
+              <ActionRow
+                key={a.id}
+                action={a}
+                onToggle={() => onToggleAction(a.id)}
+              />
+            ))}
+          </ul>
 
-        {/* Section "Exercice NXT associé" — conservée */}
-        {week.exercice && (
-          <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
-              Exercice NXT associé
-            </p>
-            <p className="mt-1 text-sm text-foreground">{week.exercice}</p>
-            <button
-              type="button"
-              onClick={() => window.open("https://nxt.antigravity.fr", "_blank")}
-              className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
-            >
-              Je bloque 20 minutes maintenant
-              <ExternalLink className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
+          {/* Section "Exercice NXT associé" — conservée */}
+          {week.exercice && (
+            <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
+                Exercice NXT associé
+              </p>
+              <p className="mt-1 text-sm text-foreground">{week.exercice}</p>
+              <button
+                type="button"
+                onClick={() => window.open("https://nxt.antigravity.fr", "_blank")}
+                className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
+              >
+                Je bloque 20 minutes maintenant
+                <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <WeeklyBriefDrawer
         open={briefDrawerOpen}

@@ -2,6 +2,10 @@
 
 import { ArrowLeft, ChevronDown, User as UserIcon, Users } from "lucide-react";
 import { useManagerView } from "@/hooks/use-manager-view";
+import {
+  useAdvisorsByPain,
+  type AdvisorWithPain,
+} from "@/hooks/use-advisors-by-pain";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -33,6 +37,11 @@ export function ManagerViewSwitcher({ className }: ManagerViewSwitcherProps) {
     selectAdvisor,
     backToCollective,
   } = useManagerView();
+
+  // Sous-PR Coach-21 (meeting alignement) — tri par pain score décroissant.
+  // Le conseiller qui a le plus besoin du manager apparaît en haut du
+  // dropdown : règle des 3 clics max, on ne cherche pas, on trouve.
+  const advisorsByPain = useAdvisorsByPain();
 
   if (advisors.length === 0) return null;
 
@@ -79,7 +88,7 @@ export function ManagerViewSwitcher({ className }: ManagerViewSwitcherProps) {
 
         {mode === "individual" && (
           <AdvisorSelector
-            advisors={advisors}
+            advisorsByPain={advisorsByPain}
             selectedId={selectedAdvisorId}
             onSelect={selectAdvisor}
           />
@@ -117,25 +126,43 @@ export function ManagerViewSwitcher({ className }: ManagerViewSwitcherProps) {
 }
 
 interface AdvisorSelectorProps {
-  advisors: ReturnType<typeof useManagerView>["advisors"];
+  advisorsByPain: AdvisorWithPain[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-function AdvisorSelector({ advisors, selectedId, onSelect }: AdvisorSelectorProps) {
+/**
+ * Dropdown trié par pain score décroissant. Les conseillers les plus en
+ * difficulté apparaissent en haut. Un indicateur visuel (point coloré)
+ * signale ceux qui ont une douleur exploitable (rouge), ceux qui sont OK
+ * (vert) et ceux sans data exploitable (gris).
+ */
+function AdvisorSelector({
+  advisorsByPain,
+  selectedId,
+  onSelect,
+}: AdvisorSelectorProps) {
   return (
     <div className="relative inline-flex items-center">
       <select
         value={selectedId ?? ""}
         onChange={(e) => onSelect(e.target.value)}
         className="appearance-none rounded-md border border-input bg-background py-1.5 pl-3 pr-8 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-        aria-label="Sélectionner un conseiller"
+        aria-label="Sélectionner un conseiller (triés par priorité de coaching)"
       >
-        {advisors.map((a) => {
+        {advisorsByPain.map(({ advisor: a, painScore }) => {
           const level = CATEGORY_LABELS[a.category] ?? a.category;
+          const marker =
+            painScore === null
+              ? "·"
+              : painScore > 0.5
+                ? "●"
+                : painScore > 0
+                  ? "◐"
+                  : "○";
           return (
             <option key={a.id} value={a.id}>
-              {a.firstName} {a.lastName} — {level}
+              {marker} {a.firstName} {a.lastName} — {level}
             </option>
           );
         })}
