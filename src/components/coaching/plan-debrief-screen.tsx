@@ -218,21 +218,26 @@ export function PlanDebriefScreen({
         </div>
       </section>
 
-      {/* SECTION 2 — Résultats concrets */}
+      {/* SECTION 2 — Retour sur investissement cumulé sur 12 mois
+          (sous-PR Coach-21 meeting alignement — vocabulaire associés). */}
       <section className="space-y-4 rounded-lg border border-green-500/20 bg-gradient-to-br from-green-500/5 to-emerald-500/5 p-6">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Euro className="h-5 w-5 text-green-600" />
-          Tes résultats concrets
+          Retour sur investissement cumulé — projection 12 mois
         </h2>
 
         {showRoi ? (
           <div className="space-y-3">
             <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Gain projeté sur 12 mois
+              </div>
               <div className="text-3xl font-bold text-green-600">
                 +{formatEur(debrief.annualProjectedEur)}
               </div>
               <div className="text-sm text-muted-foreground">
-                de CA projeté annualisé grâce au plan
+                de chiffre d&apos;affaires supplémentaire grâce au plan, projeté sur 12 mois
+                au rythme observé ce mois-ci.
               </div>
             </div>
             <div className="space-y-1 border-t border-border pt-2 text-sm text-foreground">
@@ -313,7 +318,9 @@ export function PlanDebriefScreen({
               <div className="flex items-center justify-between rounded bg-muted/40 p-3">
                 <div>
                   <div className="font-medium text-foreground">Continuer seul</div>
-                  <div className="text-xs text-muted-foreground">à 6 mois</div>
+                  <div className="text-xs text-muted-foreground">
+                    Retour sur investissement cumulé à 6 mois
+                  </div>
                 </div>
                 <div className="text-xl font-semibold text-foreground">
                   +{formatEur(debrief.sixMonthsAloneEur)}
@@ -326,7 +333,9 @@ export function PlanDebriefScreen({
                     <TrendingUp className="h-4 w-4 text-primary" />
                     Avec coach NXT
                   </div>
-                  <div className="text-xs text-muted-foreground">à 6 mois</div>
+                  <div className="text-xs text-muted-foreground">
+                    Retour sur investissement cumulé à 6 mois
+                  </div>
                 </div>
                 <div className="text-xl font-bold text-primary">
                   +{formatEur(debrief.sixMonthsWithCoachEur)}
@@ -334,7 +343,9 @@ export function PlanDebriefScreen({
               </div>
 
               <div className="rounded border border-green-500/30 bg-green-500/10 p-3 text-center">
-                <div className="text-sm text-muted-foreground">Potentiel supplémentaire</div>
+                <div className="text-sm text-muted-foreground">
+                  Potentiel supplémentaire avec coach NXT
+                </div>
                 <div className="text-2xl font-bold text-green-600">
                   +{formatEur(debrief.upsideCoachEur)}
                 </div>
