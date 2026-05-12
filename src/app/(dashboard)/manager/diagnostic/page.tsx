@@ -7,6 +7,7 @@ import { useTeamDiagnostic } from "@/hooks/team/use-team-diagnostic";
 import { useAppStore } from "@/stores/app-store";
 import { TeamDiagnosticSummary } from "@/components/manager/diagnostic/team-diagnostic-summary";
 import { TeamPainBreakdown } from "@/components/manager/diagnostic/team-pain-breakdown";
+import { TeamHeatmap } from "@/components/manager/diagnostic/team-heatmap";
 import { BestPracticesBlock } from "@/components/manager/diagnostic/best-practices-block";
 import { TeamProductionTracker } from "@/components/manager/diagnostic/team-production-tracker";
 import { ConseillerProxy } from "@/components/manager/individual/conseiller-proxy";
@@ -111,6 +112,12 @@ function CollectiveDiagnostic() {
           limit={3}
         />
       )}
+
+      {/* Sous-PR Coach-22 — Heatmap conseillers x leviers, vue complete
+          de la team en un coup d'oeil. Demandee explicitement en reunion
+          associes (Tedesco, MARX, Ourmieres). Click cellule = zoom vue
+          individuelle (regle des 3 clics). */}
+      <TeamHeatmap />
 
       {top && (
         <BestPracticesBlock
