@@ -5,12 +5,21 @@ interface ExtractedData {
   [key: string]: unknown;
 }
 
+/** Sous-PR Coach-12 : tip RAG optionnel injecté par /api/vocal. */
+export interface VocalCoachTip {
+  observation: string;
+  question: string;
+  mood: "positive" | "focus" | "concern";
+}
+
 export interface SectionResult {
   section: VocalSection;
   transcript: string;
   extracted: ExtractedData;
   needsClarification: Array<{ field: string; question: string }>;
   allNull: boolean;
+  /** Sous-PR Coach-12 : tip Coach NXT Tedesco optionnel (null si fail). */
+  coachTip?: VocalCoachTip | null;
 }
 
 export type FlowStep = "intro" | "recording" | "processing" | "review" | "confirm_null" | "clarification" | "recap" | "done";
@@ -189,6 +198,8 @@ export function useVocalFlow() {
         extracted: data.extracted,
         needsClarification: uniqueClarifications,
         allNull: data.extracted?.all_null ?? false,
+        // Sous-PR Coach-12 : tip Coach NXT Tedesco optionnel (null si fail).
+        coachTip: data.coachTip ?? null,
       };
     },
     [currentSection]
