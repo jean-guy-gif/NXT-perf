@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { getSystemPrompt, type VocalSection, SECTION_ORDER } from "@/lib/vocal-prompts";
 import { requireAuth } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { generateVocalCoachTip } from "@/lib/server/coach-rag/vocal-coach-tip-generator";
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth();
@@ -84,10 +85,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Sous-PR Coach-12 : génère en parallèle un coach tip Tedesco basé sur
+    // le transcript + extraction. Latency ~2-3s mais le tip est optionnel
+    // (front continue sans bloquer si fail).
+    let coachTip = null;
+    try {
+      coachTip = await generateVocalCoachTip({
+        section,
+        transcript,
+        extractedSummary: JSON.stringify(extracted).slice(0, 500),
+      });
+    } catch (err) {
+      console.error("[api/vocal] coach tip generation failed", err);
+    }
+
     return NextResponse.json({
       transcript,
       extracted,
       section,
+      coachTip,
     });
   } catch (error) {
     if (process.env.NODE_ENV === "development") console.error("[vocal] Error:", error);
