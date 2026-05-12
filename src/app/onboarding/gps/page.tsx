@@ -18,7 +18,8 @@ import { calculateObjectiveBreakdown } from "@/lib/objectifs";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import type { UserCategory } from "@/types/user";
+import type { UserCategory, AgentStatus } from "@/types/user";
+import { CoachWelcomeCard } from "@/components/onboarding/coach-welcome-card";
 
 const funnelSteps = [
   { key: "estimationsNecessaires", label: "Estimations", icon: ClipboardCheck },
@@ -137,6 +138,22 @@ export default function OnboardingGpsPage() {
             (ratios adaptés automatiquement)
           </span>
         </div>
+
+        {/* Sous-PR Coach-11 : accueil personnalisé du Coach NXT */}
+        <CoachWelcomeCard
+          firstName={firstName}
+          category={category}
+          agentStatus={(profile?.agent_status as AgentStatus | null) ?? null}
+          profileType={
+            (profile?.profile_type as
+              | "AGENT"
+              | "MANAGER"
+              | "INSTITUTION"
+              | "COACH"
+              | "RESEAU"
+              | null) ?? null
+          }
+        />
 
         {/* 2 inputs only */}
         <div className="space-y-4">
