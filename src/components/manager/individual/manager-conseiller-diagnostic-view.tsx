@@ -8,7 +8,7 @@ import { useRatios } from "@/hooks/use-ratios";
 import { useUserContext } from "@/hooks/use-user-context";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
-import { findCriticitePoints } from "@/lib/diagnostic-criticite";
+import { findCriticitePointsWithContext } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import {
   diagnoseAdvisor,
@@ -90,11 +90,12 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
 
   const criticite = useMemo(() => {
     if (!user || !results || computedRatios.length === 0)
-      return { top: null, others: [] };
+      return { top: null, others: [], override: null, originalTopId: null };
     const measured = buildMeasuredRatios(computedRatios, results);
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
-    return findCriticitePoints(
+    // Sous-PR Coach-10 : helper unifié avec override contextuel downstream.
+    return findCriticitePointsWithContext(
       measured,
       userCtx,
       results,
@@ -271,6 +272,8 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
         mode={drawerMode ?? "list"}
         verdict={drawerMode === "single" ? criticite.top : null}
         otherPainPoints={drawerMode === "list" ? criticite.others : []}
+        override={criticite.override}
+        originalExpertiseId={criticite.originalTopId}
       />
 
       <CoachingPrepDrawer

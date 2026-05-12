@@ -158,6 +158,14 @@ export interface DiagnosticCriticite {
   others: CriticitePoint[];
 }
 
+/** Sous-PR Coach-10 : variante avec metadata override contextuel downstream. */
+export interface DiagnosticCriticiteWithContext extends DiagnosticCriticite {
+  /** Override contextuel appliqué — null si painScoreV2 reste source. */
+  override: import("@/lib/pain-point-context-override").PainContextOverride | null;
+  /** ExpertiseId que l'algo upstream-biased aurait choisi sans override. */
+  originalTopId: import("@/data/ratio-expertise").ExpertiseRatioId | null;
+}
+
 // ─── API publique ─────────────────────────────────────────────────────────
 
 /**
@@ -298,4 +306,62 @@ export function findCriticitePoints(
 
   if (all.length === 0) return { top: null, others: [] };
   return { top: all[0], others: all.slice(1) };
+}
+
+// ─── Sous-PR Coach-10 : helper avec override contextuel downstream ───────
+
+import { detectContextualBlockage } from "@/lib/pain-point-context-override";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+
+/**
+ * Wrapper findCriticitePoints + application override contextuel downstream
+ * (Coach-8). Mutualise la logique d'override pour éviter sa duplication
+ * dans chaque caller (ameliorer-adaptive-flow, diagnostic-verdict-view,
+ * manager-conseiller-diagnostic-view, etc.).
+ *
+ * Si une règle context-override détecte un blocage downstream ET que ce
+ * ratio est présent dans la liste criticite avec écart > 0 → promotion
+ * en top + ancien top relégué dans others. Retourne aussi {override,
+ * originalTopId} pour que le caller affiche le shift narrative RAG.
+ */
+export function findCriticitePointsWithContext(
+  measured: MeasuredRatio[],
+  ctx: ThresholdContext,
+  results: PeriodResults | null,
+  category: UserCategory,
+  periodMonths: number,
+): DiagnosticCriticiteWithContext {
+  const base = findCriticitePoints(measured, ctx, results, category, periodMonths);
+  if (!results) {
+    return { ...base, override: null, originalTopId: null };
+  }
+  const override = detectContextualBlockage(measured, results, ctx);
+  if (!override) {
+    return { ...base, override: null, originalTopId: null };
+  }
+  const overrideInList = [base.top, ...base.others].find(
+    (p): p is CriticitePoint & { type: "ratio" } =>
+      !!p && p.type === "ratio" && p.id === override.expertiseId,
+  );
+  if (!overrideInList) {
+    return { ...base, override: null, originalTopId: null };
+  }
+  const oldTop = base.top;
+  const oldTopId: ExpertiseRatioId | null =
+    oldTop && oldTop.type === "ratio"
+      ? (oldTop.id as ExpertiseRatioId)
+      : null;
+  if (oldTopId === override.expertiseId) {
+    return { ...base, override, originalTopId: null };
+  }
+  const newOthers = base.others.filter(
+    (p) => !(p.type === "ratio" && p.id === override.expertiseId),
+  );
+  if (oldTop) newOthers.unshift(oldTop);
+  return {
+    top: overrideInList,
+    others: newOthers,
+    override,
+    originalTopId: oldTopId,
+  };
 }

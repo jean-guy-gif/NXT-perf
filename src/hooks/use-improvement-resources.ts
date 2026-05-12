@@ -8,7 +8,7 @@ import {
   type Plan30jPayload,
 } from "@/config/coaching";
 import {
-  detectBiggestPainPoint,
+  detectBiggestPainPointWithContext,
   FEASIBILITY_SCORE,
   type MeasuredRatio,
   type PainPointResult,
@@ -226,7 +226,14 @@ export function useImprovementResources() {
       // Détection de la douleur ciblée
       let painPoint: PainPointResult | null;
       if (input.mode === "auto") {
-        painPoint = detectBiggestPainPoint(input.measuredRatios, ctx);
+        // Sous-PR Coach-10 : version contextuelle avec override downstream.
+        // Si input.latestResults absent, comportement legacy painScoreV2.
+        const detected = detectBiggestPainPointWithContext(
+          input.measuredRatios,
+          ctx,
+          input.latestResults ?? null,
+        );
+        painPoint = detected?.painPoint ?? null;
       } else {
         if (!input.ratioId) {
           throw new Error("targeted mode requires ratioId");
