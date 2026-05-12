@@ -14,6 +14,8 @@ import { GuidedTour } from "@/components/tour/guided-tour";
 import { getTourStatus, getTourSteps, getTourRole, persistTourCompleted } from "@/lib/guided-tour";
 import { applyAgencyTheme, resetToDefaultTheme } from "@/lib/agency-theme";
 import { BadgeCelebration } from "@/components/badges/badge-celebration";
+import { RatioInfoTooltipProvider } from "@/components/coaching/ratio-info-tooltip";
+import "react-tooltip/dist/react-tooltip.css";
 
 const SIDEBAR_KEY = "nxt-sidebar-collapsed";
 
@@ -232,6 +234,9 @@ export default function DashboardLayout({
       )}
 
       <BadgeCelebration />
+      {/* Sous-PR Coach-24 — provider tooltip ratio info global, attache
+          tous les <RatioInfoBadge /> du sous-arbre. */}
+      <RatioInfoTooltipProvider />
     </div>
   );
 }

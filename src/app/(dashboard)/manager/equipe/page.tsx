@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/formatters";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/constants";
 import { useTeamManagement } from "@/hooks/use-team-management";
+import { RatioInfoBadge } from "@/components/coaching/ratio-info-tooltip";
 import type { RatioConfig, RatioId, ComputedRatio } from "@/types/ratios";
 import type { User } from "@/types/user";
 import type { PeriodResults } from "@/types/results";
@@ -319,8 +320,9 @@ export default function EquipePage() {
                             : "border-red-500/20"
                       )}
                     >
-                      <p className="text-xs text-muted-foreground">
+                      <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                         {config.name}
+                        <RatioInfoBadge ratioId={ratio.ratioId as RatioId} size="xs" />
                       </p>
                       <p
                         className={cn(
@@ -831,7 +833,10 @@ function TeamAverageRatios({
                   : "border-red-500/20"
             )}
           >
-            <p className="text-xs text-muted-foreground">{r.config.name}</p>
+            <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              {r.config.name}
+              <RatioInfoBadge ratioId={r.id} size="xs" />
+            </p>
             <p className={cn(
               "mt-1 text-xl font-bold",
               r.status === "ok" ? "text-green-500" : r.status === "warning" ? "text-orange-500" : "text-red-500"

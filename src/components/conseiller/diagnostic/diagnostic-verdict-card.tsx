@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import { RatioInfoBadge } from "@/components/coaching/ratio-info-tooltip";
 import type { CriticitePoint } from "@/lib/diagnostic-criticite";
 import {
   determineRhythmStatus,
@@ -67,8 +68,14 @@ export function DiagnosticVerdictCard({
       <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {verdictKindLabel}
       </p>
-      <h2 className="mt-1 text-2xl font-bold text-foreground md:text-3xl">
+      <h2 className="mt-1 inline-flex items-center gap-2 text-2xl font-bold text-foreground md:text-3xl">
         {expertiseLabel}
+        {isRatio && (
+          <RatioInfoBadge
+            expertiseId={verdictPoint.id as ExpertiseRatioId}
+            size="md"
+          />
+        )}
       </h2>
 
       {isRatio ? (
