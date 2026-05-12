@@ -2,7 +2,19 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Target, CheckCircle, AlertTriangle, ChevronRight, Volume2, Sparkles } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
+  CheckCircle,
+  AlertTriangle,
+  ChevronRight,
+  Volume2,
+  Sparkles,
+  Lightbulb,
+  Loader2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
@@ -11,6 +23,14 @@ import { generateAIDebrief } from "@/lib/coaching-ai-client";
 import { speakText, playTTSResponse } from "@/lib/tts-service";
 import type { CoachingDebrief, VolumeVerdict, ActionItem, AgentProfile } from "@/lib/coaching-debrief";
 import type { AIDebriefText } from "@/lib/coaching-ai-client";
+
+/** Sous-PR Coach-14 : tip RAG focalisé post-saisie. */
+interface PostSaisieTip {
+  microInsight: string;
+  microAction: string;
+  whyItMatters: string;
+  mood: "positive" | "focus" | "concern";
+}
 
 // ── TTS ──────────────────────────────────────────────────────────────────────
 
@@ -64,6 +84,47 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, persona
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [aiText, setAiText] = useState<AIDebriefText | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
+
+  // Sous-PR Coach-14 : fetch lazy le "coup d'œil Coach NXT" focalisé.
+  const [postTip, setPostTip] = useState<PostSaisieTip | null>(null);
+  const [postTipLoading, setPostTipLoading] = useState(false);
+
+  useEffect(() => {
+    if (debrief.profile === "insufficient_data") {
+      setPostTip(null);
+      return;
+    }
+    let cancelled = false;
+    setPostTipLoading(true);
+    setPostTip(null);
+    fetch("/api/post-saisie-tip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        profile: debrief.profile,
+        volumeScore: debrief.volumeScore,
+        performanceScore: debrief.performanceScore,
+        compositeScore: debrief.compositeScore,
+        watchouts: debrief.watchouts,
+        strengths: debrief.strengths,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { tip: PostSaisieTip | null };
+        if (!cancelled && data.tip) setPostTip(data.tip);
+      })
+      .catch((err) => {
+        console.error("[coaching-debrief] post-saisie-tip fetch failed", err);
+      })
+      .finally(() => {
+        if (!cancelled) setPostTipLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debrief.profile, debrief.volumeScore, debrief.performanceScore]);
 
   // Fetch AI reformulation in background — local debrief is shown immediately
   useEffect(() => {
@@ -119,9 +180,64 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, persona
   const watchoutsText = aiText?.watchoutsText;
   const nextWeekText = aiText?.nextWeekText;
 
+  // Sous-PR Coach-14 : styling du panneau micro-action selon mood.
+  const tipMoodStyle: Record<PostSaisieTip["mood"], string> = {
+    positive:
+      "border-emerald-300 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+    focus:
+      "border-indigo-300 bg-indigo-50/40 dark:border-indigo-900/40 dark:bg-indigo-950/20",
+    concern:
+      "border-orange-300 bg-orange-50/40 dark:border-orange-900/40 dark:bg-orange-950/20",
+  };
+  const tipMoodIconColor: Record<PostSaisieTip["mood"], string> = {
+    positive: "text-emerald-600 dark:text-emerald-400",
+    focus: "text-indigo-600 dark:text-indigo-400",
+    concern: "text-orange-600 dark:text-orange-400",
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-background overflow-y-auto">
       <div className="mx-auto w-full max-w-lg px-5 py-6 space-y-6">
+
+        {/* Sous-PR Coach-14 : coup d'œil Coach NXT en premier */}
+        {(postTip || postTipLoading) && (
+          <section
+            className={cn(
+              "rounded-xl border p-4",
+              postTip ? tipMoodStyle[postTip.mood] : "border-indigo-200 bg-indigo-50/30",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <Lightbulb
+                className={cn(
+                  "h-4 w-4",
+                  postTip ? tipMoodIconColor[postTip.mood] : "text-indigo-600",
+                )}
+              />
+              <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                Le coup d&apos;œil du Coach NXT
+              </p>
+            </div>
+            {postTipLoading && !postTip ? (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Analyse de ta saisie en cours...
+              </div>
+            ) : postTip ? (
+              <div className="mt-2 space-y-2">
+                <p className="text-sm font-medium leading-relaxed text-foreground">
+                  {postTip.microInsight}
+                </p>
+                <p className="rounded-md bg-card px-3 py-2 text-sm font-semibold text-foreground">
+                  👉 {postTip.microAction}
+                </p>
+                <p className="text-xs italic leading-relaxed text-muted-foreground">
+                  {postTip.whyItMatters}
+                </p>
+              </div>
+            ) : null}
+          </section>
+        )}
 
         {/* Header */}
         <div className="text-center space-y-2 transition-all duration-300">
