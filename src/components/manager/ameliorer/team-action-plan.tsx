@@ -16,6 +16,7 @@ import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { useTeamPlan } from "@/hooks/team/use-team-plan";
+import { RatioInfoBadge } from "@/components/coaching/ratio-info-tooltip";
 import {
   TEAM_PLAN_DURATION_DAYS,
   computeTeamPlanDay,
@@ -222,7 +223,10 @@ export function TeamActionPlan({
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Objectif : améliorer{" "}
-            <span className="font-semibold text-foreground">{leverLabel}</span>{" "}
+            <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+              {leverLabel}
+              <RatioInfoBadge expertiseId={expertiseId} size="sm" />
+            </span>{" "}
             sur l&apos;ensemble de l&apos;équipe.
           </p>
         </div>

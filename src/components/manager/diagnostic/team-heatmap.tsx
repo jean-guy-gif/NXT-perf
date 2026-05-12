@@ -5,6 +5,7 @@ import { useTeamHeatmap } from "@/hooks/team/use-team-heatmap";
 import { useManagerView } from "@/hooks/use-manager-view";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
+import { RatioInfoBadge } from "@/components/coaching/ratio-info-tooltip";
 import type { HeatmapCell, HeatmapColumn } from "@/lib/manager/team-heatmap";
 
 /**
@@ -137,8 +138,9 @@ function ColumnHeader({ column }: { column: HeatmapColumn }) {
           aria-hidden
           className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[column.teamStatus])}
         />
-        <span className="line-clamp-2 max-w-[90px] leading-tight">
+        <span className="line-clamp-2 inline-flex max-w-[90px] items-center gap-1 leading-tight">
           {column.label}
+          <RatioInfoBadge ratioId={column.ratioId} size="xs" />
         </span>
       </div>
     </th>
