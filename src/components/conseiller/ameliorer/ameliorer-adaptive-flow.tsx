@@ -20,13 +20,9 @@ import { OtherLeversList } from "./other-levers-list";
 import { ContinuityBlock } from "./continuity-block";
 import { CoachIaBlock } from "./coach-ia-block";
 import { FocusedTrainingBlock } from "./focused-training-block";
-import { findCriticitePoints } from "@/lib/diagnostic-criticite";
+import { findCriticitePointsWithContext } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { volumeToRelatedRatio } from "@/lib/coaching/coach-brain";
-import {
-  detectContextualBlockage,
-  type PainContextOverride,
-} from "@/lib/pain-point-context-override";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
 import {
@@ -275,8 +271,9 @@ function NoPlanFlow({
     // période effective stockée dans `results` (démo Fév 2026 inclus).
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
-    // Chantier A.3 — passe le contexte 4 axes (userCtx override-aware).
-    const criticite = findCriticitePoints(
+    // Sous-PR Coach-10 : helper unifié avec override contextuel downstream
+    // applique automatiquement par le lib (Coach-8 logique mutualisée).
+    const criticite = findCriticitePointsWithContext(
       measured,
       userCtx,
       results,
@@ -287,29 +284,27 @@ function NoPlanFlow({
     // 1. Préselection URL prioritaire
     if (preselected && RATIO_EXPERTISE[preselected]) {
       const found = measured.find((m) => m.expertiseId === preselected);
-      const fromCriticite = [
-        criticite.top,
-        ...criticite.others,
-      ].find(
-        (p) => p && p.type === "ratio" && p.id === preselected
+      const fromCriticite = [criticite.top, ...criticite.others].find(
+        (p) => p && p.type === "ratio" && p.id === preselected,
       );
       const expertise = RATIO_EXPERTISE[preselected];
       return {
         expertiseId: preselected,
         currentValue: found?.currentValue ?? null,
-        // Chantier A.3 — seuil contextualisé 4 axes.
         targetValue: resolveThreshold(expertise, userCtx),
         estimatedGainEur:
           fromCriticite && fromCriticite.type === "ratio"
             ? fromCriticite.gainEur
             : 0,
         others: criticite.others.filter(
-          (p) => p.type === "ratio" && p.id !== preselected
+          (p) => p.type === "ratio" && p.id !== preselected,
         ),
+        override: null,
+        originalExpertiseId: null,
       };
     }
 
-    // 2-3. Top criticité (ratio direct ou volume mappé)
+    // 2-3. Top criticité (ratio direct ou volume mappé) — déjà override-aware
     const top = criticite.top;
     let chosen: { id: ExpertiseRatioId; gain: number } | null = null;
     if (top) {
@@ -334,44 +329,19 @@ function NoPlanFlow({
 
     if (!chosen) return null;
 
-    // Sous-PR Coach-8 : applique l'override contextuel downstream si une des
-    // 5 règles détecte un blocage de pipe aval. Le `chosen` upstream-biased
-    // est remplacé par l'expertiseId override (sous réserve qu'il soit
-    // présent dans la liste criticite avec un écart > 0).
-    let appliedOverride: PainContextOverride | null = null;
-    const originalChosenId = chosen.id;
-    const ctxOverride = detectContextualBlockage(measured, results, userCtx);
-    if (ctxOverride && ctxOverride.expertiseId !== chosen.id) {
-      const overrideInCriticite = [criticite.top, ...criticite.others].find(
-        (p): p is typeof p & { type: "ratio" } =>
-          !!p && p.type === "ratio" && p.id === ctxOverride.expertiseId,
-      );
-      if (overrideInCriticite) {
-        appliedOverride = ctxOverride;
-        chosen = {
-          id: ctxOverride.expertiseId,
-          gain: overrideInCriticite.gainEur,
-        };
-      }
-    }
-
     const expertise = RATIO_EXPERTISE[chosen.id];
     if (!expertise) return null;
     const found = measured.find((m) => m.expertiseId === chosen!.id);
     return {
       expertiseId: chosen.id,
       currentValue: found?.currentValue ?? null,
-      // Chantier A.3 — seuil contextualisé 4 axes.
       targetValue: resolveThreshold(expertise, userCtx),
       estimatedGainEur: chosen.gain,
       others: criticite.others.filter(
-        (p) => p.type === "ratio" && p.id !== chosen!.id
+        (p) => p.type === "ratio" && p.id !== chosen!.id,
       ),
-      override: appliedOverride,
-      originalExpertiseId:
-        appliedOverride && originalChosenId !== chosen.id
-          ? originalChosenId
-          : null,
+      override: criticite.override,
+      originalExpertiseId: criticite.originalTopId,
     };
   }, [
     preselected,
