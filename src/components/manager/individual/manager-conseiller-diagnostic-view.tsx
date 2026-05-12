@@ -27,6 +27,7 @@ import { KeyFiguresAccordion } from "@/components/conseiller/diagnostic/key-figu
 import { AdvisorActivePlanReadOnly } from "@/components/manager/individual/advisor-active-plan-readonly";
 import { IndividualDiagnosticCard } from "@/components/manager/individual/individual-diagnostic-card";
 import { IndividualCoachingPrep } from "@/components/manager/individual/individual-coaching-prep";
+import { WeeklyFollowUpDrawer } from "@/components/manager/individual/weekly-follow-up-drawer";
 
 interface Props {
   /**
@@ -68,6 +69,8 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
 
   const [drawerMode, setDrawerMode] = useState<"single" | "list" | null>(null);
   const [coachingPrepOpen, setCoachingPrepOpen] = useState(false);
+  // Sous-PR Coach-9 : drawer suivi hebdo contextualisé.
+  const [weeklyFollowUpOpen, setWeeklyFollowUpOpen] = useState(false);
 
   // Prénom dérivé pour les libellés courts ("de Jean-Marc"). On garde le nom
   // complet (`advisorDisplayName`) pour l'aria-label du drawer coaching.
@@ -214,14 +217,25 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setCoachingPrepOpen(true)}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Sparkles className="h-4 w-4" />
-          Préparer un coaching avec {firstName}
-        </button>
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => setCoachingPrepOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Sparkles className="h-4 w-4" />
+            Préparer un coaching avec {firstName}
+          </button>
+          {/* Sous-PR Coach-9 : suivi hebdo contextualisé (4 points + Q ouverte). */}
+          <button
+            type="button"
+            onClick={() => setWeeklyFollowUpOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-2 text-sm font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/40"
+          >
+            <Sparkles className="h-4 w-4" />
+            Suivi hebdo
+          </button>
+        </div>
       </div>
 
       {/* Plan actif read-only avec breakdown */}
@@ -268,6 +282,25 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
         expertiseId={coachingExpertiseId}
         metrics={coachingMetrics}
         diagnosis={diagnosis}
+      />
+
+      {/* Sous-PR Coach-9 : drawer suivi hebdo contextualisé. */}
+      <WeeklyFollowUpDrawer
+        open={weeklyFollowUpOpen}
+        onClose={() => setWeeklyFollowUpOpen(false)}
+        advisor={advisor}
+        expertiseId={coachingExpertiseId}
+        planMetrics={
+          coachingMetrics
+            ? {
+                dayOfPlan: coachingMetrics.dayOfPlan,
+                totalDays: coachingMetrics.totalDays,
+                donePct: coachingMetrics.donePct,
+                doneActions: coachingMetrics.doneActions,
+                totalActions: coachingMetrics.totalActions,
+              }
+            : undefined
+        }
       />
     </div>
   );
