@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
@@ -429,16 +429,35 @@ export function Plan30Jours() {
       </div>
 
       {/* Chantier B — fiches semaines fixes (4 cards toujours visibles).
-          1 action par semaine, card entièrement cliquable, bouton CTA XL. */}
+          1 action par semaine, card entièrement cliquable, bouton CTA XL.
+          Sous-PR Coach-23 — `previousWeekFullyDone` calcule cumulativement
+          la completion des semaines precedentes pour declencher
+          l'auto-expand progressif (S2 quand S1 est a 100%, etc.). */}
       <div className="space-y-4">
-        {localPayload.weeks.map((week) => (
-          <WeekCard
-            key={week.week_number}
-            week={week}
-            onToggleAction={(actionId) => toggleAction(week.week_number, actionId)}
-            painRatioId={localPayload.pain_ratio_id}
-          />
-        ))}
+        {(() => {
+          let cumulativeDone = true; // S1 toujours "auto-active"
+          return localPayload.weeks.map((week) => {
+            const previousWeekFullyDone = cumulativeDone;
+            const total = week.actions.length;
+            const done = week.actions.filter(
+              (a) => a.status === "done" || a.done === true,
+            ).length;
+            // Pour la semaine suivante : tout est cumule a true tant que
+            // chaque semaine est 100% finie.
+            cumulativeDone = cumulativeDone && total > 0 && done === total;
+            return (
+              <WeekCard
+                key={week.week_number}
+                week={week}
+                onToggleAction={(actionId) =>
+                  toggleAction(week.week_number, actionId)
+                }
+                painRatioId={localPayload.pain_ratio_id}
+                previousWeekFullyDone={previousWeekFullyDone}
+              />
+            );
+          });
+        })()}
       </div>
     </div>
   );
@@ -461,10 +480,18 @@ function WeekCard({
   week,
   onToggleAction,
   painRatioId,
+  previousWeekFullyDone,
 }: {
   week: Plan30jWeek;
   onToggleAction: (actionId: string) => void;
   painRatioId: string;
+  /**
+   * Sous-PR Coach-23 — true si toutes les semaines precedentes sont a
+   * 100% (ou S1 par defaut). Quand ce flag passe a true en cours de
+   * session, la semaine s'auto-deplie une fois. L'utilisateur garde la
+   * main pour replier/deplier ensuite.
+   */
+  previousWeekFullyDone: boolean;
 }) {
   const [briefDrawerOpen, setBriefDrawerOpen] = useState(false);
 
@@ -478,12 +505,31 @@ function WeekCard({
   ).length;
   const allDone = week.actions.length > 0 && weekDone === week.actions.length;
 
-  // Sous-PR Coach-21 (meeting alignement) — S3 + S4 repliées par défaut.
-  // Hiérarchie progressive : on focus sur les 2 prochaines semaines à
-  // attaquer, le reste reste accessible mais ne sature pas l'écran.
-  // Click sur le header de la semaine → expand/collapse.
-  const [expanded, setExpanded] = useState(weekNumber <= 2);
+  // Sous-PR Coach-23 — progression sequentielle.
+  // Initial expanded : weekNumber === 1 (S1 toujours visible) OU toutes les
+  // semaines precedentes sont a 100% terminees au mount. L'utilisateur peut
+  // ensuite replier/deplier manuellement.
+  const [expanded, setExpanded] = useState(
+    weekNumber === 1 || previousWeekFullyDone,
+  );
+
+  // Auto-expand one-shot : quand le flag `previousWeekFullyDone` flip de
+  // false vers true en cours de session (l'utilisateur vient de finir la
+  // semaine N-1), on deplie automatiquement la semaine. Sans collapser si
+  // l'utilisateur l'avait deja deplie manuellement.
+  const wasReadyRef = useRef(previousWeekFullyDone);
+  useEffect(() => {
+    if (!wasReadyRef.current && previousWeekFullyDone) {
+      setExpanded(true);
+    }
+    wasReadyRef.current = previousWeekFullyDone;
+  }, [previousWeekFullyDone]);
+
   const ChevronIcon = expanded ? ChevronUp : ChevronDown;
+  // Badge "A attaquer" visible quand la semaine vient d'etre debloquee
+  // mais n'est pas encore terminee. Aide a l'orientation visuelle.
+  const isNextUp =
+    !allDone && weekNumber !== 1 && previousWeekFullyDone && weekDone === 0;
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -514,6 +560,11 @@ function WeekCard({
           <span className="font-semibold text-foreground">
             Semaine {week.week_number} — {week.focus}
           </span>
+          {isNextUp && (
+            <span className="ml-2 inline-flex items-center rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+              À attaquer
+            </span>
+          )}
           {!expanded && (
             <span className="ml-2 text-xs text-muted-foreground">
               · {weekDone}/{week.actions.length} actions
