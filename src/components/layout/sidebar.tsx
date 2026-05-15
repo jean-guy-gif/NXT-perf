@@ -15,6 +15,7 @@ import {
   Wrench,
   LineChart,
   Users,
+  Fingerprint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
@@ -42,6 +43,10 @@ const navItems: NavItem[] = [
   { href: "/conseiller/ameliorer", icon: Wrench, label: "M'améliorer", lockedFeature: "formation" },
   { href: "/conseiller/progression", icon: LineChart, label: "Ma progression" },
   { href: "/conseiller/comparaison", icon: Users, label: "Ma comparaison", lockedFeature: "comparaison" },
+  // Sous-PR Coach-25 — portrait typologique du conseiller, lecture pure
+  // de sa data sans saisie additionnelle. Place a la fin de la section
+  // conseiller pour ne pas perturber les habitudes du parcours principal.
+  { href: "/conseiller/identite", icon: Fingerprint, label: "Mon identité" },
   // PR3.8.1 — refonte Manager alignée sur la nav Conseiller V3.
   // Anciennes entrées (Tableau de bord / Mon Volume / Mes Ratios) absorbées
   // par "Mon diagnostic". Routes legacy redirigées via next.config.ts.
