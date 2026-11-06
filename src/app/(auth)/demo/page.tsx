@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 
-const DEMO_CODE = "DEMO2024";
-
 export default function DemoPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -14,16 +12,34 @@ export default function DemoPage() {
   const enterDemo = useAppStore((s) => s.enterDemo);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
-    if (code.trim().toUpperCase() !== DEMO_CODE) {
-      setError("Code invalide");
+    // Vérification serveur — le code attendu ne vit que côté serveur.
+    try {
+      const res = await fetch("/api/demo-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 503) {
+          const data = await res.json().catch(() => ({}));
+          setError(data?.error ?? "Code démo non configuré");
+        } else {
+          setError("Code invalide");
+        }
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setError("Erreur réseau, réessayez.");
+      setLoading(false);
       return;
     }
-
-    setLoading(true);
 
     // Enter demo mode (sets nxt-demo-mode cookie + mock data)
     enterDemo();

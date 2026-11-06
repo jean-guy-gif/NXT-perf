@@ -18,9 +18,11 @@ import { VentesTab } from "@/components/resultats/ventes-tab";
 import { useManagerScope } from "@/hooks/use-manager-scope";
 import { useTeamResults } from "@/hooks/team/use-team-results";
 import { useResults, useAllResults } from "@/hooks/use-results";
+import { useYTDResults } from "@/hooks/use-ytd-results";
 import { useAppStore } from "@/stores/app-store";
 import { aggregateResults } from "@/lib/aggregate-results";
 import { mockWeeklyResults, mockYearlyResults } from "@/data/mock-results";
+import { isFormationMode } from "@/lib/app-mode";
 import { cn } from "@/lib/utils";
 import type { PeriodResults } from "@/types/results";
 
@@ -70,6 +72,15 @@ export default function ManagerResultatsPage() {
   const allResults = useAllResults();
   const isDemo = useAppStore((s) => s.isDemo);
   const individualMonthResults = useResults(conseillerId ?? undefined);
+  // Agrégation année-à-date (année courante) du conseiller observé — utilisée
+  // hors démo pour l'onglet « Année » en vue individuelle.
+  const individualYtdResults = useYTDResults(conseillerId ?? undefined);
+  const formation = isFormationMode();
+  // En mode formation, on masque la vue « Semaine » (pas de données hebdo hors
+  // démo) ; « Mois » et « Année » restent branchés sur de vraies données.
+  const periodViews: PeriodView[] = formation
+    ? ["month", "year"]
+    : ["week", "month", "year"];
 
   const [activeTab, setActiveTab] = useState<TabId>("prospection");
   const [periodView, setPeriodView] = useState<PeriodView>("month");
@@ -83,7 +94,8 @@ export default function ManagerResultatsPage() {
         return isDemo ? mockWeeklyResults : null;
       }
       if (periodView === "year" && periodOffset === 0) {
-        return isDemo ? mockYearlyResults : null;
+        // Hors démo : agrégation année-à-date du conseiller observé.
+        return isDemo ? mockYearlyResults : individualYtdResults;
       }
       if (periodView === "month" && periodOffset === 0) {
         return individualMonthResults;
@@ -100,8 +112,16 @@ export default function ManagerResultatsPage() {
       return aggregateResults(conseillers.map(() => mockWeeklyResults));
     }
     if (periodView === "year" && periodOffset === 0) {
-      if (!isDemo) return null;
-      return aggregateResults(conseillers.map(() => mockYearlyResults));
+      if (isDemo) return aggregateResults(conseillers.map(() => mockYearlyResults));
+      // Hors démo : agrège tous les résultats mensuels de l'année courante
+      // de l'équipe (année-à-date collectif).
+      const jan1 = `${new Date().getFullYear()}-01-01`;
+      const yearList = conseillers.flatMap((c) =>
+        allResults.filter(
+          (r) => r.userId === c.id && r.periodType === "month" && r.periodStart >= jan1,
+        ),
+      );
+      return aggregateResults(yearList);
     }
     if (periodView === "month" && periodOffset === 0) {
       // Aggregate each conseiller's most recent result
@@ -123,6 +143,7 @@ export default function ManagerResultatsPage() {
     periodOffset,
     isDemo,
     individualMonthResults,
+    individualYtdResults,
   ]);
 
   const periodLabel = getPeriodLabel(periodView, periodOffset);
@@ -199,7 +220,7 @@ export default function ManagerResultatsPage() {
         {/* Period selector + navigation */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex w-fit gap-1 rounded-lg bg-muted p-1">
-            {(["week", "month", "year"] as PeriodView[]).map((pv) => (
+            {periodViews.map((pv) => (
               <button
                 key={pv}
                 onClick={() => {
