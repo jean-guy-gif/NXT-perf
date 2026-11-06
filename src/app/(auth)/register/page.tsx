@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserRole, UserCategory, ProfileType } from "@/types/user";
 import type { DbProfile } from "@/types/database";
 import { useAppStore } from "@/stores/app-store";
+import { isFormationMode, FORMATION_ROLES } from "@/lib/app-mode";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { Check, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { generateSecurePassword, getPasswordStrength } from "@/lib/password-utils";
@@ -20,16 +21,26 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 /** Default role pre-selection based on profile type from /welcome */
 function defaultRolesForProfile(profile: ProfileType | null): UserRole[] {
+  let roles: UserRole[];
   switch (profile) {
     case "INSTITUTION":
-      return ["directeur", "manager"];
+      roles = ["directeur", "manager"];
+      break;
     case "MANAGER":
-      return ["manager"];
+      roles = ["manager"];
+      break;
     case "AGENT":
-      return ["conseiller"];
+      roles = ["conseiller"];
+      break;
     default:
-      return ["conseiller"];
+      roles = ["conseiller"];
   }
+  // Mode formation : seuls conseiller + manager sont proposés.
+  if (isFormationMode()) {
+    roles = roles.filter((r) => FORMATION_ROLES.includes(r));
+    if (roles.length === 0) roles = ["conseiller"];
+  }
+  return roles;
 }
 
 /** Pick highest priority role as the primary/active role */
@@ -378,7 +389,9 @@ function RegisterForm() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2">
-                {(["conseiller", "manager", "directeur"] as UserRole[]).map((r) => {
+                {((isFormationMode()
+                  ? ["conseiller", "manager"]
+                  : ["conseiller", "manager", "directeur"]) as UserRole[]).map((r) => {
                   const selected = selectedRoles.includes(r);
                   return (
                     <button

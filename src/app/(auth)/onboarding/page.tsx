@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { isFormationMode } from "@/lib/app-mode";
 import { createClient } from "@/lib/supabase/client";
 import { isInstitutionCode, isTeamCode } from "@/lib/codes";
 import {
@@ -276,6 +277,11 @@ function ProfileTypeStep({ onSelect }: { onSelect: (p: ProfileType) => void }) {
     },
   ];
 
+  // Mode formation : seuls les profils conseiller (AGENT) et manager sont proposés.
+  const visibleProfiles = isFormationMode()
+    ? profiles.filter((p) => p.type === "AGENT" || p.type === "MANAGER")
+    : profiles;
+
   return (
     <>
       <h1 className="mb-2 text-center text-2xl font-bold text-foreground">
@@ -285,7 +291,7 @@ function ProfileTypeStep({ onSelect }: { onSelect: (p: ProfileType) => void }) {
         Choisissez votre profil pour personnaliser votre expérience
       </p>
       <div className="space-y-3">
-        {profiles.map((p) => (
+        {visibleProfiles.map((p) => (
           <button
             key={p.type}
             onClick={() => onSelect(p.type)}

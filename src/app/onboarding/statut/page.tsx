@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Briefcase, Loader2, Wallet } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { isFormationMode, formationOnboardingNext } from "@/lib/app-mode";
 
 /**
  * Onboarding "Statut + Honoraires" (chantier A.2).
@@ -62,6 +63,14 @@ export default function OnboardingStatutPage() {
     String(FALLBACK_COMMISSION),
   );
   const [submitting, setSubmitting] = useState(false);
+
+  // Mode formation : l'étape statut est sautée — on route vers la suite.
+  const formation = isFormationMode();
+  useEffect(() => {
+    if (formation) {
+      window.location.replace(formationOnboardingNext(profile?.role ?? user?.role));
+    }
+  }, [formation, profile?.role, user?.role]);
 
   const commissionNum = Number(commission) || 0;
   const canValidate = status !== null && commissionNum > 0;
@@ -123,6 +132,9 @@ export default function OnboardingStatutPage() {
   const handleSkip = () => {
     window.location.href = "/onboarding/gps";
   };
+
+  // Mode formation : ne rien afficher, la redirection est en cours.
+  if (formation) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

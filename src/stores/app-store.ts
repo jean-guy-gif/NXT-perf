@@ -11,6 +11,7 @@ import { getMonthKey } from "@/lib/finance-trajectory";
 import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 import { mockNetworkUsers, mockNetworkResults, mockNetworkJanuaryResults, mockNetworkInstitutions, mockNetworks, mockReseauUser, type Network } from "@/data/mock-network";
+import { isFormationMode, FORMATION_ROLES } from "@/lib/app-mode";
 
 /** Map user roles to sidebar view IDs */
 export type ViewId = "agent" | "manager" | "directeur" | "reseau";
@@ -28,6 +29,11 @@ export function rolesToViews(roles: UserRole[]): ViewId[] {
   if (roles.includes("manager")) views.push("manager");
   if (roles.includes("directeur")) views.push("directeur");
   if (roles.includes("reseau")) views.push("reseau");
+  // Mode formation : seules les vues conseiller + manager sont exposées,
+  // quels que soient les rôles réels de l'utilisateur (directeur / réseau masqués).
+  if (isFormationMode()) {
+    return views.filter((v) => v === "agent" || v === "manager");
+  }
   return views;
 }
 
@@ -41,6 +47,7 @@ export const DEFAULT_ROUTES: Record<UserRole, string> = {
 
 /** Compute visible views: authorizedViews minus user-hidden preferences */
 export function getVisibleViews(availableRoles: UserRole[], hiddenViews: ViewId[]): ViewId[] {
+  // rolesToViews applique déjà le filtrage du mode formation.
   const authorized = rolesToViews(availableRoles);
   return authorized.filter((v) => !hiddenViews.includes(v));
 }
@@ -449,6 +456,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   switchRole: (targetRole) => {
     const current = get().user;
     if (!current) return null;
+    // Mode formation : seuls les rôles conseiller + manager sont proposés.
+    if (isFormationMode() && !FORMATION_ROLES.includes(targetRole)) return null;
     // Permission guard: only switch to roles the user actually has
     if (!current.availableRoles.includes(targetRole)) return null;
     // No-op if already on this role

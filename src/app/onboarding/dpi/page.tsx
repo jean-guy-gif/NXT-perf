@@ -4,10 +4,20 @@ import { useState, useEffect } from "react";
 import { BarChart3, ArrowRight, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
+import { isFormationMode, formationOnboardingNext } from "@/lib/app-mode";
 
 export default function OnboardingDpiPage() {
   const user = useAppStore((s) => s.user);
+  const profile = useAppStore((s) => s.profile);
   const isDemo = useAppStore((s) => s.isDemo);
+
+  // Mode formation : l'étape DPI est sautée — on route vers la suite.
+  const formation = isFormationMode();
+  useEffect(() => {
+    if (formation) {
+      window.location.replace(formationOnboardingNext(profile?.role ?? user?.role));
+    }
+  }, [formation, profile?.role, user?.role]);
   const [showDpi, setShowDpi] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -60,6 +70,9 @@ export default function OnboardingDpiPage() {
   };
 
   const firstName = user?.firstName || "Conseiller";
+
+  // Mode formation : ne rien afficher, la redirection est en cours.
+  if (formation) return null;
 
   // DPI inline view (iframe with email pre-filled)
   if (showDpi) {

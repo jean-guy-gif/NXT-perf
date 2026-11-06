@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Target,
   ArrowRight,
@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { UserCategory, AgentStatus } from "@/types/user";
 import { CoachWelcomeCard } from "@/components/onboarding/coach-welcome-card";
+import { isFormationMode } from "@/lib/app-mode";
 
 const funnelSteps = [
   { key: "estimationsNecessaires", label: "Estimations", icon: ClipboardCheck },
@@ -55,6 +56,15 @@ export default function OnboardingGpsPage() {
     if (role === "directeur") return "/onboarding/agence";
     return "/dashboard";
   };
+
+  // Mode formation : l'étape GPS (et sa carte coach) est sautée.
+  const formation = isFormationMode();
+  useEffect(() => {
+    if (formation) {
+      window.location.replace(getRedirectUrl());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formation, role]);
 
   // Auto-calculate breakdown from CA + commission + profile ratios
   const ca = Number(caAnnuel) || 0;
@@ -110,6 +120,9 @@ export default function OnboardingGpsPage() {
   };
 
   const firstName = user?.firstName || "Conseiller";
+
+  // Mode formation : ne rien afficher, la redirection est en cours.
+  if (formation) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

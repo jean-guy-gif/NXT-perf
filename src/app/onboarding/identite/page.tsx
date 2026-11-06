@@ -22,6 +22,7 @@ import { extractAgencyColorsFromBlob, applyAgencyTheme } from "@/lib/agency-them
 import { ImportPerformance } from "@/components/onboarding/import-performance";
 import { ImportTeam } from "@/components/onboarding/import-team";
 import { cn } from "@/lib/utils";
+import { isFormationMode, formationOnboardingNext } from "@/lib/app-mode";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -313,7 +314,11 @@ export default function OnboardingIdentitePage() {
       }
     }
 
-    window.location.href = "/onboarding/dpi";
+    // Mode formation : on saute dpi / statut / gps et on route directement
+    // vers l'étape agence / équipe (ou le tableau de bord).
+    window.location.href = isFormationMode()
+      ? formationOnboardingNext(profile?.role ?? user?.role)
+      : "/onboarding/dpi";
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -569,7 +574,11 @@ export default function OnboardingIdentitePage() {
 
           <button
             type="button"
-            onClick={() => { window.location.href = "/onboarding/dpi"; }}
+            onClick={() => {
+              window.location.href = isFormationMode()
+                ? formationOnboardingNext(profile?.role ?? user?.role)
+                : "/onboarding/dpi";
+            }}
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Passer cette étape

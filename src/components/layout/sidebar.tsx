@@ -18,6 +18,7 @@ import {
   Fingerprint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isFormationMode } from "@/lib/app-mode";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { LockedNavItem } from "@/components/subscription/locked-nav-item";
@@ -92,18 +93,26 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
     : null;
 
+  // Mode formation : pas de CTA d'abonnement — on neutralise le verrou
+  // (lockedFeature route vers /souscrire) sur les entrées visibles.
+  const formation = isFormationMode();
+  const stripLock = (item: NavItem): NavItem =>
+    formation ? { ...item, lockedFeature: undefined } : item;
+
   const utilityHrefs = new Set(["/pourquoi-nxt", "/parametres"]);
   const advisorItems = visibleViews.includes("agent")
-    ? navItems.filter(
-        (item) =>
-          !item.managerOnly &&
-          !item.directorOnly &&
-          !item.networkOnly &&
-          !utilityHrefs.has(item.href)
-      )
+    ? navItems
+        .filter(
+          (item) =>
+            !item.managerOnly &&
+            !item.directorOnly &&
+            !item.networkOnly &&
+            !utilityHrefs.has(item.href)
+        )
+        .map(stripLock)
     : [];
   const managerItems = visibleViews.includes("manager")
-    ? navItems.filter((item) => item.managerOnly)
+    ? navItems.filter((item) => item.managerOnly).map(stripLock)
     : [];
   const directorItems = visibleViews.includes("directeur")
     ? navItems.filter((item) => item.directorOnly)

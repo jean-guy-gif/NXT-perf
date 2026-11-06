@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { isFormationMode } from "@/lib/app-mode";
 import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
 
 export default function ParametresPage() {
@@ -87,20 +88,22 @@ export default function ParametresPage() {
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </Link>
 
-      {/* Voix & Saisie card */}
-      <Link
-        href="/parametres/voix"
-        className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5"
-      >
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15">
-          <Mic className="h-5 w-5 text-primary" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-foreground">Voix & Saisie</p>
-          <p className="text-xs text-muted-foreground">Choisis ta voix de guidage et ton mode de saisie préféré</p>
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-      </Link>
+      {/* Voix & Saisie card — masquée en mode formation */}
+      {!isFormationMode() && (
+        <Link
+          href="/parametres/voix"
+          className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15">
+            <Mic className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Voix & Saisie</p>
+            <p className="text-xs text-muted-foreground">Choisis ta voix de guidage et ton mode de saisie préféré</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      )}
 
       {/* Équipe card (managers) */}
       {user && (user.mainRole === "manager" || user.availableRoles?.includes("manager")) && (
@@ -126,15 +129,17 @@ export default function ParametresPage() {
         </Link>
       )}
 
-      {/* Coaching card */}
-      <Link href="/parametres/coaching" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><Users className="h-5 w-5 text-primary" /></div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-foreground">Mon Coach NXT</p>
-          <p className="text-xs text-muted-foreground">Bientôt disponible</p>
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-      </Link>
+      {/* Coaching card — masquée en mode formation */}
+      {!isFormationMode() && (
+        <Link href="/parametres/coaching" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:bg-primary/5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15"><Users className="h-5 w-5 text-primary" /></div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Mon Coach NXT</p>
+            <p className="text-xs text-muted-foreground">Bientôt disponible</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      )}
 
       {/* Notifications */}
       {saved && (
