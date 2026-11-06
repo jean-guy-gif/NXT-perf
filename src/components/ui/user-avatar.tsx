@@ -47,7 +47,7 @@ export function UserAvatar({ src, name, size = "md", className }: UserAvatarProp
   const bgColor = getColorFromName(name);
 
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
+     
     return (
       <img
         src={src}

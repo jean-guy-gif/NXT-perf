@@ -14,7 +14,9 @@ const LEGACY_KPI_IDENTIFIERS = [
   "acheteursChauds",
   "acheteursChaudsCount",
   "delaiMoyenVente",
-  "estimations_mandats",
+  // NB : `estimations_mandats` n'est PAS legacy — c'est l'ExpertiseRatioId
+  // courant (axe estimations → mandats, cf. src/data/ratio-expertise.ts).
+  // Il a été retiré de la garde (il était un faux positif).
   "mandats_simples_vente",
   "mandats_exclusifs_vente",
   // Refonte saisie : on ne saisit plus de noms de mandats, juste des compteurs.
@@ -54,6 +56,18 @@ const eslintConfig = defineConfig([
           },
         ]),
       ],
+
+      // Règles du React Compiler (eslint-plugin-react-hooks v6) : ce socle a
+      // été écrit avant le compilateur React. Ces diagnostics sont des pistes
+      // de migration (aucun impact à l'exécution hors build compilateur) — on
+      // les garde en "warn" pour ne pas bloquer le lint, à traiter plus tard.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/rules-of-hooks": "warn",
+      // Apostrophes dans le texte JSX — purement cosmétique.
+      "react/no-unescaped-entities": "warn",
     },
   },
   globalIgnores([

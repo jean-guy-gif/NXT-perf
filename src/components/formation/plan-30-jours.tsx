@@ -720,12 +720,12 @@ function buildSimulatedResults(
     const boost = 1 + progress * 0.3; // jusqu'à +30 % avec 100 % done
 
     // Baselines réalistes (perf moyenne/faible)
-    let contactsTotaux = 50;
+    const contactsTotaux = 50;
     let rdvEstimation = 6;
     let estimationsRealisees = 6;
     let mandatsSignes = 3;
     let pctExclusif = 0.5;
-    let nombreVisites = 15;
+    const nombreVisites = 15;
     let acheteursSortisVisite = 5;
     let offresRecues = 2;
     let compromisSignes = 2;

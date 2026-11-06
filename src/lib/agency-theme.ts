@@ -83,7 +83,8 @@ function isUsableColor(r: number, g: number, b: number): boolean {
 
 /** Ensure WCAG AA contrast, darken if needed */
 function ensureContrast(r: number, g: number, b: number): [number, number, number] | null {
-  let [h, s, l] = rgbToHsl(r, g, b);
+  const [h, s, lInit] = rgbToHsl(r, g, b);
+  let l = lInit;
   let [fr, fg, fb] = [r, g, b];
 
   if (contrastOnWhite(fr, fg, fb) < 4.5) {

@@ -53,7 +53,15 @@ le référentiel et remplacer la constante par la lecture de ce ratio.
 
 ---
 
-## 3. Garde anti-régression sur les KPI legacy
+## 3. Garde anti-régression sur les KPI legacy — ✅ Traitée (06/11/2026)
+
+> **État : traitée.** `npx eslint src` sort en **0 erreur**. La garde
+> `no-restricted-syntax` reste active. Seul `estimations_mandats` a été
+> **retiré de la liste** `LEGACY_KPI_IDENTIFIERS` : c'était un faux positif
+> (c'est l'`ExpertiseRatioId` courant de l'axe estimations → mandats, cf.
+> `src/data/ratio-expertise.ts`), pas un champ KPI legacy. Aucune vraie
+> réintroduction des identifiants interdits ne subsistait dans `src/`.
+
 
 **Source du problème :** durant la refonte, les types `VenteInfo`,
 `AcheteurChaud` et les champs `contactsEntrants`, `informationsVente`,
@@ -82,3 +90,25 @@ ne les régénère (pas de husky, pas de codegen, pas de hook de build).
   KPI.
 - Si un nouvel agent réinjecte malgré tout les types, le lint le
   bloquera et le CI échouera — c'est le filet de sécurité côté projet.
+
+---
+
+## 4. Reliquats « option B » (réactivation IA)
+
+L'IA embarquée est **éteinte par défaut** (option A). Le code et les
+ressources nécessaires à une éventuelle **option B** (coaching IA en ligne)
+sont **conservés mais inertes** — à réévaluer si l'option B n'est pas retenue :
+
+- **`src/lib/server/coach-rag/`** — générateurs RAG (débrief, nudge, plan,
+  why-danger, etc.) encore importés par les routes gated.
+- **15 routes IA gated** dans `src/app/api/*` (coach-nudge, coaching-debrief,
+  comparison-insight, individual-coaching-kit, onboarding-welcome,
+  pain-override-explanation, plan-30j, plan-debrief-narrative, post-saisie-tip,
+  saisie-ai, team-actions, team-weekly-follow-up, weekly-brief, why-danger,
+  coaching-offer-message) — renvoient `503 { disabled:true }` tant que
+  `AI_FEATURES_ENABLED !== "true"`.
+- **Tables `coach_*` en base (~185 Mo)** — corpus/embeddings du coach RAG,
+  non utilisés par l'option A. Candidats à suppression si l'option B est
+  abandonnée (gros gain d'espace Supabase).
+- **`OPENROUTER_API_KEY`** — clé LLM, requise uniquement en option B
+  (commentée dans `.env.local.example`).

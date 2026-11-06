@@ -1,194 +1,59 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guide pour Claude Code sur ce dépôt. NXT Performance est un **cockpit de performance** pour agents immobiliers : visualiser la performance, repérer les ratios faibles, orienter la formation.
 
-## Build & Dev Commands
+## Commandes
 
 ```bash
-npx next dev --port 3000 --hostname 0.0.0.0   # Dev server (Turbopack)
-npx next build                                  # Production build
-npx next lint                                   # ESLint
+npx next dev --port 3000 --hostname 0.0.0.0   # dev (Turbopack)
+npx next build                                  # build prod
+npx eslint src                                  # lint (doit sortir en 0)
+npx tsc --noEmit                                # types
+npx vitest run                                  # tests unitaires
 ```
 
-Kill stuck dev server: `pkill -f "next dev"; sleep 2; fuser -k 3000/tcp`
+## Stack réelle
 
-## Architecture
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript strict · **Zustand** (store global `src/stores/app-store.ts`, cache client) · Tailwind 4 (OKLCH) · Radix · Recharts/Chart.js · lucide.
+**Supabase = backend** : auth via `@supabase/ssr` (`src/lib/supabase/{client,server}.ts`), données en Postgres. Les `mock-*` de `src/data/` ne servent QUE le **mode démo** (cookie `nxt-demo-mode`, `enterDemo()`).
+Alias : `@/*` → `./src/*`.
 
-**Stack:** Next.js 16.1.6 (App Router, Turbopack), React 19, TypeScript strict, Zustand 5, Recharts 3.7, Tailwind CSS 4 (OKLCH color space), Radix UI, Lucide icons.
+## Mode formation
 
-**Path alias:** `@/*` → `./src/*`
+`NEXT_PUBLIC_APP_MODE=formation` (voir `src/lib/app-mode.ts`, `isFormationMode()`). En formation, **seuls 2 rôles sont visibles : conseiller + manager** (`FORMATION_ROLES`). Les rôles **directeur** et **réseau** (et les espaces admin / souscription / coaching) sont **masqués, pas supprimés** :
+- `rolesToViews()` / `getVisibleViews()` / `switchRole()` filtrent les vues ;
+- layouts `src/app/(dashboard)/{directeur,reseau,admin,coaching-debrief}/layout.tsx` → `redirect("/dashboard")` ;
+- register + onboarding (`identite → agence|equipe → dashboard`) ne proposent que conseiller/manager.
 
-### App Structure
+## Interrupteur IA (option A par défaut)
 
-- `src/app/(dashboard)/` — All authenticated pages share a layout with sidebar + header
-  - **Agent pages** (all users): `dashboard/`, `resultats/`, `performance/`, `comparaison/`, `saisie/`, `formation/`, `objectifs/`
-  - **Manager pages** (`manager/`): `cockpit/`, `gps/`, `equipe/`, `classement/`, `formation-collective/`
-  - **Directeur pages** (`directeur/`): `pilotage/`, `equipes/`, `performance/`, `pilotage-financier/`, `formation-collective/`, `conseiller/[id]/`
-  - **Coach pages** (`coach/`): `dashboard/`, `targets/[type]/[id]/`, `targets/[type]/[id]/plan/`, `cockpit/`
-  - **Réseau pages** (`reseau/`): `dashboard/`, `agence/` (detail via `?id=xxx`)
-  - Each role section has a layout guard redirecting unauthorized users to `/dashboard`
-- `src/app/(auth)/` — Login/register/welcome pages
+`src/lib/ai-flags.ts` : `isAiEnabled()` (serveur, `AI_FEATURES_ENABLED === "true"`) et `isAiVisible()` (client, `NEXT_PUBLIC_AI_FEATURES === "on"`). **Éteints par défaut = option A** : l'outil calcule, le stagiaire **copie son diagnostic** (bouton « Copier mon diagnostic ») et le colle dans son propre Claude/ChatGPT. Les 15 routes LLM de `src/app/api/*` renvoient `503 { disabled:true }` quand l'IA est éteinte ; les déclencheurs UI sont masqués via `isAiVisible()`.
 
-### Role Hierarchy
+## Cœur déterministe (`src/lib/`, pur et testable)
 
-```
-reseau          → ["reseau"]                    (isolated, network-level)
-directeur       → ["directeur", "manager", "conseiller"]
-manager         → ["manager", "conseiller"]
-coach           → ["coach"]                     (isolated, cross-org)
-conseiller      → ["conseiller"]
-```
+- `ratios.ts` — les **7 ratios** (+ honoraires moyens), calcul + statut.
+- `objectifs.ts` — entonnoir **GPS** (CA → actes → … → mandats/RDV).
+- `formation.ts` — diagnostic formation (ratios faibles → axes).
+- `diagnostic-export.ts` — texte « Copier mon diagnostic » (pièce centrale option A).
+- `aggregate-results.ts`, `coaching-debrief.ts`, `personas.ts`, etc.
 
-- `UserRole = "conseiller" | "manager" | "directeur" | "coach" | "reseau"`
-- `ProfileType = "INSTITUTION" | "MANAGER" | "AGENT" | "COACH" | "RESEAU"`
-- Helper functions: `hasRole()`, `hasManagerAccess()`, `hasDirectorAccess()`, `hasCoachAccess()`, `hasNetworkAccess()`
+## Keep-alive Supabase
 
-### Organizational Hierarchy
+`/api/keepalive` (GET, ping `ratio_configs`) déclenché par **`vercel.json`** (cron quotidien `0 5 * * *`, plan Hobby) **et** le workflow GitHub `.github/workflows/supabase-keepalive.yml`. But : éviter la mise en pause Supabase à 7 jours d'inactivité.
 
-```
-Network (Réseau)
-  └─ Institution (Agence)     — managed by directeur
-       └─ Team (Équipe)       — managed by manager
-            └─ Agent (Conseiller)
-```
+## Migrations
 
-- **Network** (`src/data/mock-network.ts`): `{ id, name, institutionIds }` — groups multiple institutions
-- **Institution** (`app-store.ts`): `{ id, name, inviteCode }` — single agency
-- **TeamInfo** (`app-store.ts`): `{ id, name, institutionId, managerId, inviteCode }`
-- User fields: `institutionId`, `teamId`, `managerId`
+`supabase/migrations/` = **snapshot réel du 06/11/2026** (`20261106143257_remote_schema.sql`) + migrations suivantes (ex. cleanup voix/Agefice). `supabase/migrations_legacy/` = **archive** des anciennes migrations 001→032 (ne plus utiliser).
 
-### State Management
+## Conventions
 
-- **Zustand store** at `src/stores/app-store.ts` — single global store for user, users, results, ratioConfigs, institutions, networks, coach data, financial data, view preferences
-- `ViewId = "agent" | "manager" | "directeur" | "coach" | "reseau"` — sidebar view sections
-- Role switching via `switchRole()` with permission guard
-- `DEFAULT_ROUTES` maps each role to its landing page
-- `deriveAvailableRoles()` computes role hierarchy fallback
+- **Français avec accents réels** (é, è, à, ç) — JAMAIS d'échappement unicode (`é`).
+- **« Junior »** et non « Débutant » (label de `debutant`, cf. `src/lib/constants.ts`).
+- **7 ratios seulement** — `delai_moyen_vente` retiré, ne pas réintroduire (garde ESLint `no-restricted-syntax`, cf. `docs/TECH_DEBT.md`).
+- Rôles : `conseiller | manager | directeur | reseau`.
+- Pas de nouvelle lib d'état, pas de framework UI hors Radix+Tailwind. Logique métier déterministe et testable dans `src/lib/`.
 
-### Key Types (`src/types/`)
+## Principes de décision (toute nouvelle feature)
 
-- `user.ts` — `UserRole` (5 roles), `UserCategory` ("debutant" | "confirme" | "expert"), `User` interface
-- `database.ts` — `DbProfile`, `DbOrganization`, `DbTeam`, `DbPeriodResult` (Supabase row types)
-- `ratios.ts` — `RatioId` (7 business ratios), `RatioConfig`, `ComputedRatio`
-- `results.ts` — `PeriodResults` with prospection, vendeurs, acheteurs, ventes data
-- `objectives.ts` — `ObjectiveBreakdown` for GPS funnel calculation
-- `formation.ts` — `FormationDiagnostic`, `FormationRecommendation`
-- `coach.ts` — `CoachAssignment`, `CoachAction`, `CoachPlan`, `CoachNote`, `CoachSession`
-- `finance.ts` — `FinancialData`, `FinancialFieldId`
-
-### Business Logic (`src/lib/`)
-
-- `ratios.ts` — `computeRatioValue()`, `computeAllRatios()`, `determineRatioStatus()`
-- `objectifs.ts` — `calculateObjectiveBreakdown()` funnel from CA → estimations → mandats → visites → offres → compromis → actes
-- `formation.ts` — `generateFormationDiagnostic()` maps weak ratios to training areas
-- `export.ts` — Role-based Excel export with field selection, multi-sheet structure, 6 scopes (mes-donnees, mon-equipe, mon-agence, detail-collaborateurs, client-coach, portefeuille-coach, mon-reseau, reseau-detail-agences)
-- `guided-tour.ts` — Role-based tour steps (conseiller 6, manager 6, directeur 6, coach 4, réseau 4), localStorage persistence
-- `coach.ts` — `getCoachScopeUserIds()`, diagnostic/alert generation, coaching plan generation
-- `finance.ts` — Revenue, commissions, breakeven analysis
-- `aggregate-results.ts` — YTD aggregation of monthly results
-- `constants.ts` — `CATEGORY_LABELS` (Junior/Confirmé/Expert), `CATEGORY_OBJECTIVES`, `GPS_THEME_LABELS`
-
-### Hooks (`src/hooks/`)
-
-- `use-user.ts` — current user + category from store
-- `use-results.ts` — `useResults(userId?)` and `useAllResults()`
-- `use-ratios.ts` — `useRatios()` returns computedRatios + ratioConfigs
-- `use-director-data.ts` — `useDirectorData()` — team aggregation, org-wide stats (`TeamAggregate`, `OrgStats`)
-- `use-network-data.ts` — `useNetworkData()` — cross-agency aggregation (`AgencyAggregate`, `NetworkStats`, `TopPerformer`, alerts)
-- `use-agency-gps.ts` — `useAgencyGPS()` — theme, period, GPS, overview, entityBars
-- `use-coach-data.ts` — `useCoachData()` — portfolio clients, summaries, priorities
-- `use-team-gps.ts` — Team-level GPS for managers
-- `use-ytd-results.ts` — Year-to-date aggregated results
-
-### Mock Data (`src/data/`)
-
-- `mock-users.ts` — 12 users: 1 directeur (also has reseau+coach roles), 2 managers, 8 agents, 1 coach (org-demo)
-- `mock-network.ts` — 7 Lyon users (org-demo-2), 1 réseau admin, Network type, Jan+Feb results, institution
-- `mock-results.ts` — Feb 2026 + Jan 2026 results for org-demo users
-- `mock-ratios.ts` — Default ratio thresholds per category
-- `mock-coach.ts` — Coach assignments, actions, plans, notes, sessions
-- `mock-finance.ts` — Financial input data
-- Demo mode: 2 months (Jan + Feb 2026), 20 users, 2 institutions, 5 teams, 1 network
-
-### Components
-
-- `components/layout/` — Sidebar (icon-based, sections by role with `managerOnly`/`directorOnly`/`coachOnly`/`networkOnly` flags), Header (view toggle, import/export, theme, notifications), MobileSidebar
-- `components/charts/` — LineChart, BarChart, DonutChart, ProgressBar, ComparisonBarChart (all Recharts wrappers)
-- `components/dashboard/` — KpiCard (with optional onExpand for drill-down chart)
-- `components/export/` — ExportModal with field selection checkboxes
-- `components/tour/` — GuidedTour overlay with SVG mask highlight
-- `components/ui/` — Radix-based primitives
-
-## Important Conventions
-
-- **French UI language** — Always use real characters (é, è, à, ç). NEVER unicode escape sequences (\u00e9).
-- **"Junior" not "Débutant"** — The label for `debutant` category is "Junior" everywhere (set in `src/lib/constants.ts` CATEGORY_LABELS).
-- **7 ratios only** — `delai_moyen_vente` was removed. Do not re-add it.
-- **5 roles** — `conseiller`, `manager`, `directeur`, `coach`, `reseau`. Do not add roles without updating all related systems (types, store, sidebar, export, guided tour, register page).
-- **Objectifs page** uses `NiveauChoice = UserCategory | "actuel"` — "actuel" overrides thresholds with real performance values from `useRatios()`.
-- Mock data in `src/data/mock-*.ts` — all data is client-side mock; no API calls yet.
-- Sidebar navigation defined in `src/components/layout/sidebar.tsx` with role flags for route filtering.
-
-## Product Vision
-
-NXT Performance is a performance cockpit for real estate agents, managers, directors, coaches, and networks.
-
-Primary goals:
-- Visualize business performance clearly
-- Identify weak ratios quickly
-- Guide training priorities
-- Help managers coach based on objective metrics
-- Enable multi-agency network piloting
-
-This is not a generic analytics tool.
-It is a performance transformation tool.
-
----
-
-## Decision Principles
-
-When adding features:
-
-1. Must improve decision clarity.
-2. Must reduce cognitive load.
-3. Must reinforce the 7 core ratios.
-4. Must not add unnecessary complexity.
-
-Data hierarchy:
-- KPIs
-- Ratios
-- Drill-down
-- Training action
-
-If a feature does not improve performance understanding, it should not be added.
-
----
-
-## Technical Guardrails
-
-- No backend until Supabase phase.
-- No additional state library.
-- No UI framework beyond Radix + Tailwind.
-- Avoid premature abstraction.
-- Prefer simple pure functions in `src/lib/`.
-
-All business logic must remain deterministic and testable.
-
----
-
-## Future Architecture (Supabase Phase)
-
-When integrating Supabase:
-
-- Store users, networks, institutions
-- Store results per period
-- Store objectives
-- Store ratio thresholds per category
-- Enable multi-user manager dashboard
-- Network-level data aggregation
-
-Must support:
-- Multi-agent team
-- Multi-agency network
-- Historical tracking
-- Role-based access (5 roles)
+1. Améliorer la clarté de décision. 2. Réduire la charge cognitive. 3. Renforcer les 7 ratios. 4. Ne pas ajouter de complexité inutile.
+Hiérarchie de la donnée : **KPIs → Ratios → Drill-down → Action de formation.**
