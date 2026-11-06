@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isAiVisible } from "@/lib/ai-flags";
 import {
   AlertTriangle,
   HelpCircle,
@@ -65,7 +66,7 @@ export function WeeklyBriefDrawer({
 
   // Fetch RAG lazy à l'ouverture (1 seule fois par instance)
   useEffect(() => {
-    if (!open || fetchedRef.current) return;
+    if (!isAiVisible() || !open || fetchedRef.current) return;
     fetchedRef.current = true;
 
     let cancelled = false;

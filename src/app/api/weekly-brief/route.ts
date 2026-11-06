@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAiEnabled } from "@/lib/ai-flags";
 import { getOptionalAuth, getClientIp } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getOrGenerateWeeklyBrief } from "@/lib/server/coach-rag/weekly-brief-generator";
@@ -29,6 +30,10 @@ function isValidWeekNumber(value: unknown): value is 1 | 2 | 3 | 4 {
 }
 
 export async function POST(request: NextRequest) {
+  // Interrupteur IA : aucun appel LLM tant que AI_FEATURES_ENABLED !== "true".
+  if (!isAiEnabled()) {
+    return NextResponse.json({ disabled: true }, { status: 503 });
+  }
   // Sous-PR Coach-4 : mode démo supporté.
   const { user } = await getOptionalAuth();
   const rateKey = user

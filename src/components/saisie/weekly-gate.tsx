@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, FileUp, PenLine, Sparkles, ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { FileUp, PenLine, Sparkles, ArrowLeft, Upload, Loader2 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
+import { isAiVisible } from "@/lib/ai-flags";
 import { ImportConfirmation } from "@/components/saisie/import-confirmation";
-import { VoiceConversation } from "@/components/saisie/voice-conversation";
 import { CoachingDebriefScreen } from "@/components/saisie/coaching-debrief";
 import { extractFromDocument, extractFromImage } from "@/lib/saisie-ai-client";
 import { convertExtractedToPeriodResults } from "@/lib/weekly-gate";
@@ -94,7 +94,6 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
   const firstName = user?.firstName || "Conseiller";
   const isDemo = useAppStore((s) => s.isDemo);
   const [personaId, setPersonaId] = useState<PersonaId | null>(null);
-  const [preferredInputMode, setPreferredInputMode] = useState<string>("audio_full");
 
   const profile = useAppStore((s) => s.profile);
 
@@ -115,7 +114,6 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
       .then(({ data }) => {
         if (data?.persona && isValidPersona(data.persona)) setPersonaId(data.persona);
         else if (profile?.coach_voice) setPersonaId(coachVoiceToPersona(profile.coach_voice));
-        if (data?.input_mode) setPreferredInputMode(data.input_mode);
       });
   }, [user?.id, isDemo, profile?.coach_voice, personaId]);
 
@@ -437,33 +435,23 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
           <h2 className="text-xl font-bold text-foreground">
             Comment tu veux lancer ton diagnostic ?
           </h2>
-          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
-            <button
-              onClick={() => setScreen("voice")}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                <Mic className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">À la voix</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Guidé, 2 min</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setScreen("import")}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                <FileUp className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Importer un fichier</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Excel / PDF / Photo</p>
-              </div>
-            </button>
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Import IA (PDF/Photo via extraction LLM) — masqué quand l'IA est éteinte */}
+            {isAiVisible() && (
+              <button
+                type="button"
+                onClick={() => setScreen("import")}
+                className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <FileUp className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Importer un fichier</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Excel / PDF / Photo</p>
+                </div>
+              </button>
+            )}
 
             <button
               onClick={() => setScreen("manual")}
@@ -618,22 +606,6 @@ export function WeeklyGate({ onDismiss, onSaisieDone, saveResult, context }: Wee
           </div>
         </div>
       </div>
-    );
-  }
-
-  // ── Écran 4 : Conversation guidée (voix/texte) ─────────────────────────
-  if (screen === "voice") {
-    return (
-      <VoiceConversation
-        persona={personaId ?? undefined}
-        startInTextMode={preferredInputMode === "text_keyboard"}
-        onDismiss={onDismiss}
-        onComplete={(voiceFields, voiceArrays) => {
-          setExtractedFields(voiceFields);
-          setExtractedArrays(voiceArrays);
-          setScreen("confirmation");
-        }}
-      />
     );
   }
 

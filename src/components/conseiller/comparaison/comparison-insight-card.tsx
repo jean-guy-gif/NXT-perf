@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { isAiVisible } from "@/lib/ai-flags";
 import {
   Lightbulb,
   ArrowRight,
@@ -46,7 +47,8 @@ export function ComparisonInsightCard({
   const [ragLoading, setRagLoading] = useState(false);
 
   useEffect(() => {
-    if (!biggestGap) {
+    // Interrupteur IA : pas d'insight RAG tant que l'IA n'est pas visible.
+    if (!isAiVisible() || !biggestGap) {
       setRagInsight(null);
       return;
     }

@@ -5,6 +5,7 @@
  */
 
 import type { CoachingDebrief } from "./coaching-debrief";
+import { isAiVisible } from "./ai-flags";
 
 export interface AIDebriefText {
   title: string;
@@ -23,6 +24,8 @@ export interface AIDebriefText {
  * Returns null if the call fails (caller uses local fallback).
  */
 export async function generateAIDebrief(debrief: CoachingDebrief, persona?: string): Promise<AIDebriefText | null> {
+  // Interrupteur IA : pas de reformulation IA, le débrief local suffit.
+  if (!isAiVisible()) return null;
   try {
     const res = await fetch("/api/coaching-debrief", {
       method: "POST",

@@ -10,6 +10,7 @@ import type { ImprovementResource } from "@/hooks/use-improvement-resources";
 import { PlanDebriefScreen } from "@/components/coaching/plan-debrief-screen";
 import { computePlanDebrief } from "@/lib/plan-debrief";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
+import { isAiVisible } from "@/lib/ai-flags";
 import { pickRandomDemoRatio } from "@/lib/demo-ratio-picker";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { useRatios } from "@/hooks/use-ratios";
@@ -106,7 +107,9 @@ export default function CoachingDebriefPage() {
   const [ragNarrativeLoading, setRagNarrativeLoading] = useState(false);
 
   useEffect(() => {
-    if (!archivedPlan || !debrief) return;
+    // Interrupteur IA : le débrief déterministe reste affiché, on saute la
+    // narration IA quand l'IA n'est pas visible.
+    if (!isAiVisible() || !archivedPlan || !debrief) return;
     let cancelled = false;
     setRagNarrativeLoading(true);
     setRagNarrative(null);

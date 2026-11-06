@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAiEnabled } from "@/lib/ai-flags";
 import { requireAuth } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -136,6 +137,10 @@ function parseJsonResponse(raw: string): Record<string, unknown> {
 // ── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // Interrupteur IA : aucun appel LLM tant que AI_FEATURES_ENABLED !== "true".
+  if (!isAiEnabled()) {
+    return NextResponse.json({ disabled: true }, { status: 503 });
+  }
   const auth = await requireAuth();
   if (auth.error) return auth.error;
   const { allowed } = checkRateLimit(`saisie-ai:${auth.user.id}`, 20, 60_000);

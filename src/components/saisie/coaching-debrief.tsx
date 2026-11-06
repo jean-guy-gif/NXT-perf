@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -20,7 +20,7 @@ import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
 import { generateCoachingDebrief } from "@/lib/coaching-debrief";
 import { generateAIDebrief } from "@/lib/coaching-ai-client";
-import { speakText, playTTSResponse } from "@/lib/tts-service";
+import { isAiVisible } from "@/lib/ai-flags";
 import type { CoachingDebrief, VolumeVerdict, ActionItem, AgentProfile } from "@/lib/coaching-debrief";
 import type { AIDebriefText } from "@/lib/coaching-ai-client";
 
@@ -90,7 +90,8 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, persona
   const [postTipLoading, setPostTipLoading] = useState(false);
 
   useEffect(() => {
-    if (debrief.profile === "insufficient_data") {
+    // Interrupteur IA : aucun appel tant que l'IA n'est pas visible.
+    if (!isAiVisible() || debrief.profile === "insufficient_data") {
       setPostTip(null);
       return;
     }
@@ -126,9 +127,11 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, persona
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debrief.profile, debrief.volumeScore, debrief.performanceScore]);
 
-  // Fetch AI reformulation in background — local debrief is shown immediately
+  // Fetch AI reformulation in background — local debrief is shown immediately.
+  // Interrupteur IA : si l'IA n'est pas visible, on garde le débrief local seul.
   useEffect(() => {
-    if (debrief.profile === "insufficient_data") {
+    if (!isAiVisible() || debrief.profile === "insufficient_data") {
+      setAiText(null);
       setAiLoading(false);
       return;
     }
@@ -142,32 +145,11 @@ export function CoachingDebriefScreen({ results, category, ratioConfigs, persona
     return () => { cancelled = true; };
   }, [debrief]);
 
-  const coachAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  const handlePlayAudio = async () => {
+  const handlePlayAudio = () => {
     const script = aiText?.audioScript || debrief.audioScript;
     setAudioPlaying(true);
-
-    // Stop any previous playback
-    if (coachAudioRef.current) {
-      coachAudioRef.current.pause();
-      coachAudioRef.current = null;
-    }
-
-    // Try ElevenLabs first
-    const res = await speakText(script, "coach", persona);
-    if (res) {
-      const audio = await playTTSResponse(res, () => {
-        coachAudioRef.current = null;
-        setAudioPlaying(false);
-      });
-      if (audio) {
-        coachAudioRef.current = audio;
-        return;
-      }
-    }
-
-    // Fallback: Web Speech
+    // Lecture via la synthèse vocale native du navigateur (Web Speech) —
+    // aucun appel réseau / IA, aucun coût.
     speakTTS(script, () => setAudioPlaying(false));
   };
 

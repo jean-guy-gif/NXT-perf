@@ -1,7 +1,6 @@
 "use client";
 
 import { Lock } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useSubscription } from "@/hooks/use-subscription";
 
 interface LockedFeatureProps {
@@ -13,7 +12,6 @@ interface LockedFeatureProps {
 
 export function LockedFeature({ feature, featureName, featureDescription, children }: LockedFeatureProps) {
   const { canAccess, isLoading } = useSubscription();
-  const router = useRouter();
 
   if (isLoading) return <>{children}</>;
 
@@ -35,13 +33,6 @@ export function LockedFeature({ feature, featureName, featureDescription, childr
           <p className="text-sm text-muted-foreground leading-relaxed">
             {featureDescription}
           </p>
-          <button
-            type="button"
-            onClick={() => router.push("/souscrire")}
-            className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Souscrire — 9€/mois
-          </button>
         </div>
       </div>
     </div>

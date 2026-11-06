@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import { getDiagnosis, getCommonCauses } from "@/lib/coaching/coach-brain";
+import { isAiVisible } from "@/lib/ai-flags";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
 import { useUserContext } from "@/hooks/use-user-context";
@@ -73,7 +74,7 @@ export function RecommendedLeverCard({
   } | null>(null);
 
   useEffect(() => {
-    if (!override || !originalExpertiseId) {
+    if (!isAiVisible() || !override || !originalExpertiseId) {
       setOverrideExplanation(null);
       return;
     }

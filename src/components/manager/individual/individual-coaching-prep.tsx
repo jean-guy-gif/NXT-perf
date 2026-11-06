@@ -19,6 +19,7 @@ import {
 } from "@/lib/coaching/individual-coaching-kit";
 import { serializeKitToMarkdown } from "@/lib/coaching/team-activation-kit";
 import { useCoachingPattern } from "@/hooks/use-coaching-pattern";
+import { isAiVisible } from "@/lib/ai-flags";
 import type { AdvisorDiagnosis } from "@/lib/coaching/advisor-diagnosis";
 
 // `patternOverride` est piloté en interne via `useCoachingPattern`. On
@@ -77,7 +78,7 @@ export function IndividualCoachingPrep({
   // immédiatement pendant le fetch.
   const [ragKit, setRagKit] = useState<Kit | null>(null);
   useEffect(() => {
-    if (!expertiseId) return;
+    if (!isAiVisible() || !expertiseId) return;
     let cancelled = false;
     fetch("/api/individual-coaching-kit", {
       method: "POST",

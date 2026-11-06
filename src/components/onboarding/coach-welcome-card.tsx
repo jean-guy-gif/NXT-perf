@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isAiVisible } from "@/lib/ai-flags";
 import {
   Sparkles,
   CheckCircle2,
@@ -44,6 +45,8 @@ export function CoachWelcomeCard({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Interrupteur IA : pas de message d'accueil généré tant que l'IA n'est pas visible.
+    if (!isAiVisible()) { setLoading(false); return; }
     if (!firstName || !category) return;
     let cancelled = false;
     setLoading(true);

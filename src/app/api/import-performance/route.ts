@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import * as XLSX from "xlsx";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isAiEnabled } from "@/lib/ai-flags";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -226,9 +227,11 @@ export async function POST(request: NextRequest) {
       // Direct parsing — no LLM needed, instant result
       extracted = parseExcelDirectly(buffer);
 
-      // If direct parsing found very few metrics, fallback to LLM
+      // If direct parsing found very few metrics, fallback to LLM — uniquement
+      // si l'IA est activée. Sinon on garde le résultat du parsing direct :
+      // le chemin CSV/XLSX reste fonctionnel sans aucun appel IA.
       const filledCount = ALL_METRICS.filter((m) => extracted.periods?.[0]?.metrics?.[m] !== null).length;
-      if (filledCount < 2 && OPENROUTER_API_KEY) {
+      if (filledCount < 2 && OPENROUTER_API_KEY && isAiEnabled()) {
         const workbook = XLSX.read(buffer, { type: "buffer" });
         const csv = workbook.SheetNames.map((name) =>
           `--- ${name} ---\n${XLSX.utils.sheet_to_csv(workbook.Sheets[name])}`
@@ -240,6 +243,17 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (ext === "pdf") {
+      // L'extraction PDF a besoin du LLM : bloquée tant que l'IA est éteinte.
+      if (!isAiEnabled()) {
+        return NextResponse.json(
+          {
+            disabled: true,
+            error:
+              "L'import PDF nécessite l'extraction par IA, actuellement désactivée. Importez un fichier Excel (.xlsx) ou CSV pour une extraction automatique sans IA.",
+          },
+          { status: 503 },
+        );
+      }
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
@@ -250,6 +264,17 @@ export async function POST(request: NextRequest) {
         extracted = await callLLM("", true, base64, "application/pdf");
       }
     } else if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
+      // L'extraction d'image a besoin du LLM : bloquée tant que l'IA est éteinte.
+      if (!isAiEnabled()) {
+        return NextResponse.json(
+          {
+            disabled: true,
+            error:
+              "L'import par photo nécessite l'extraction par IA, actuellement désactivée. Importez un fichier Excel (.xlsx) ou CSV pour une extraction automatique sans IA.",
+          },
+          { status: 503 },
+        );
+      }
       const mimeMap: Record<string, string> = {
         jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
         webp: "image/webp", heic: "image/heic",

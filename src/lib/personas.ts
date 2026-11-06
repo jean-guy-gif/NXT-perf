@@ -109,22 +109,6 @@ export const PERSONA_COACHING_TONE: Record<PersonaId, string> = {
   kind_coach: "Ton bienveillant, rassurant, encourageant. Comme un coach féminin chaleureux. Valorise l'effort, guide avec douceur. Jamais de jugement.",
 };
 
-// ── Gemini voice mapping (adjustable after listening tests) ──────────────────
-
-export const PERSONA_GEMINI_VOICE: Record<PersonaId, string> = {
-  warrior: "Charon",
-  sport_coach: "Fenrir",
-  kind_coach: "Zephyr",
-};
-
-// ── ElevenLabs voice env var mapping ─────────────────────────────────────────
-
-export const PERSONA_ELEVENLABS_ENV: Record<PersonaId, string> = {
-  warrior: "ELEVENLABS_WARRIOR_VOICE_ID",
-  sport_coach: "ELEVENLABS_SPORT_COACH_VOICE_ID",
-  kind_coach: "ELEVENLABS_KIND_COACH_VOICE_ID",
-};
-
 // ── coach_voice → PersonaId mapping ──────────────────────────────────────────
 // profiles.coach_voice stores "sergent"|"sport"|"bienveillant"
 // Persona system uses "warrior"|"sport_coach"|"kind_coach"

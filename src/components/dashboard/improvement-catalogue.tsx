@@ -284,8 +284,8 @@ function NxtCoachingCard({
       priceColor="text-foreground"
       description={`Coaching IA conversationnel adapté${context}`}
       roi={`ROI estimé : ${roi} sur votre taux en 60 jours`}
-      cta="Essayer gratuitement"
-      href="/souscrire"
+      cta="En savoir plus"
+      href="/formation"
     />
   );
 }

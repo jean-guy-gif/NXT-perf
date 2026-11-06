@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAiEnabled } from "@/lib/ai-flags";
 import { getOptionalAuth, getClientIp } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -40,6 +41,10 @@ function isValidRuleId(value: unknown): value is ContextRuleId {
 }
 
 export async function POST(request: NextRequest) {
+  // Interrupteur IA : aucun appel LLM tant que AI_FEATURES_ENABLED !== "true".
+  if (!isAiEnabled()) {
+    return NextResponse.json({ disabled: true }, { status: 503 });
+  }
   const { user } = await getOptionalAuth();
   const rateKey = user
     ? `pain-override:user:${user.id}`

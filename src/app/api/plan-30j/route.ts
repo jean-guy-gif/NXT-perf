@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAiEnabled } from "@/lib/ai-flags";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   PLAN_30J_DURATION_DAYS,
@@ -51,6 +52,10 @@ interface RequestBody {
 }
 
 export async function POST(request: Request) {
+  // Interrupteur IA : aucun appel LLM tant que AI_FEATURES_ENABLED !== "true".
+  if (!isAiEnabled()) {
+    return NextResponse.json({ disabled: true }, { status: 503 });
+  }
   const supabase = await createServerSupabaseClient();
 
   // Parse body avant auth pour lire le flag persistInDb.

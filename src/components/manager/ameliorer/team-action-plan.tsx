@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { getTeamActions } from "@/lib/coaching/coach-brain";
+import { isAiVisible } from "@/lib/ai-flags";
 import { RATIO_EXPERTISE, type ExpertiseRatioId } from "@/data/ratio-expertise";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
@@ -75,6 +76,8 @@ export function TeamActionPlan({
   const fetchedExpertiseRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Interrupteur IA : on conserve les actions fallback déterministes.
+    if (!isAiVisible()) return;
     if (fetchedExpertiseRef.current === expertiseId) return;
     fetchedExpertiseRef.current = expertiseId;
 

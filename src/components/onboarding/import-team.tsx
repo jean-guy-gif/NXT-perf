@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { Upload, Users, Loader2, Check, AlertCircle, X, Mail } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 interface DetectedMember {
   id: string;
@@ -17,7 +16,6 @@ interface ImportTeamProps {
 }
 
 export function ImportTeam({ isDemo }: ImportTeamProps) {
-  const router = useRouter();
   const [members, setMembers] = useState<DetectedMember[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -66,9 +64,6 @@ export function ImportTeam({ isDemo }: ImportTeamProps) {
   const removeMember = (id: string) => {
     setMembers(prev => prev.filter(m => m.id !== id));
   };
-
-  const validMembers = members.filter(m => m.email.includes("@"));
-  const totalPrice = validMembers.length * 9;
 
   if (members.length === 0) {
     return (
@@ -139,20 +134,6 @@ export function ImportTeam({ isDemo }: ImportTeamProps) {
         ))}
       </div>
 
-      {validMembers.length > 0 && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-2">
-          <p className="text-sm font-medium text-foreground">
-            {validMembers.length} compte{validMembers.length > 1 ? "s" : ""} = {totalPrice}€/mois
-          </p>
-          <button
-            type="button"
-            onClick={() => router.push(`/souscrire?plan=team&seats=${validMembers.length}`)}
-            className="rounded-xl bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Procéder au paiement
-          </button>
-        </div>
-      )}
     </div>
   );
 }

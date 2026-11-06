@@ -34,12 +34,6 @@ const COACH_VOICES: { id: CoachVoice; emoji: string; label: string; desc: string
   { id: "bienveillant", emoji: "\u{1F91D}", label: "Coach Bienveillant", desc: "Doux, encourageant, à l’écoute. Il t’accompagne sans pression." },
 ];
 
-const VOICE_DEMOS: Record<CoachVoice, { text: string; persona: string }> = {
-  sport: { text: "Allez, on y va ! Tu as les résultats pour performer, maintenant il faut s'y mettre !", persona: "sport_coach" },
-  sergent: { text: "Résultats insuffisants. On rectifie ça immédiatement. Pas d'excuses.", persona: "warrior" },
-  bienveillant: { text: "Très bien, tu avances à ton rythme. Je suis là pour t'accompagner.", persona: "kind_coach" },
-};
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingIdentitePage() {
@@ -58,8 +52,6 @@ export default function OnboardingIdentitePage() {
   const [logoDone, setLogoDone] = useState(false);
   const [avatarZoom, setAvatarZoom] = useState(1.2);
   const [coachVoice, setCoachVoice] = useState<CoachVoice>("bienveillant");
-  const [playingVoice, setPlayingVoice] = useState<CoachVoice | null>(null);
-  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const [error, setError] = useState("");
   const [completing, setCompleting] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -73,33 +65,6 @@ export default function OnboardingIdentitePage() {
   const isCoachExterne = profile?.profile_type === "COACH" && !hasOrg;
   const firstName = user?.firstName || "Conseiller";
 
-  // ── Voice preview handler ──────────────────────────────────────────────
-  const handleListenVoice = async (voice: CoachVoice) => {
-    // Stop any currently playing audio
-    if (voiceAudioRef.current) {
-      voiceAudioRef.current.pause();
-      voiceAudioRef.current = null;
-    }
-    if (playingVoice === voice) { setPlayingVoice(null); return; }
-
-    setPlayingVoice(voice);
-    const demo = VOICE_DEMOS[voice];
-    try {
-      const res = await fetch("/api/voice/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: demo.text, persona: demo.persona }),
-      });
-      if (!res.ok) { setPlayingVoice(null); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.onended = () => { URL.revokeObjectURL(url); setPlayingVoice(null); voiceAudioRef.current = null; };
-      audio.onerror = () => { URL.revokeObjectURL(url); setPlayingVoice(null); voiceAudioRef.current = null; };
-      voiceAudioRef.current = audio;
-      audio.play();
-    } catch { setPlayingVoice(null); }
-  };
 
   // ── Init coachVoice from profile ──────────────────────────────────────
   useEffect(() => {
@@ -493,8 +458,7 @@ export default function OnboardingIdentitePage() {
                 Choisissez votre style de coaching
               </h2>
               <p className="mb-6 text-sm text-muted-foreground">
-                Sélectionnez la personnalité qui vous fera progresser. Cliquez sur Écouter
-                pour tester chaque voix.
+                Sélectionnez la personnalité qui vous fera progresser.
               </p>
 
               <div className="grid gap-3 md:grid-cols-3">
@@ -517,15 +481,6 @@ export default function OnboardingIdentitePage() {
                     <span className="text-2xl">{v.emoji}</span>
                     <p className="text-sm font-semibold text-foreground">{v.label}</p>
                     <p className="text-xs leading-snug text-muted-foreground">{v.desc}</p>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleListenVoice(v.id); }}
-                      disabled={playingVoice !== null && playingVoice !== v.id}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                    >
-                      {playingVoice === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-3 w-3" />}
-                      {playingVoice === v.id ? "Lecture…" : "Écouter"}
-                    </button>
                   </div>
                 ))}
               </div>

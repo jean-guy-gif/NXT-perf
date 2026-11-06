@@ -34,6 +34,7 @@ import { useAdvisorOverride } from "@/contexts/advisor-override-context";
 // Re-export the shared row type so existing consumers of this hook keep working.
 export type { ImprovementResource } from "@/lib/improvement-resources-adapters";
 import type { ImprovementResource } from "@/lib/improvement-resources-adapters";
+import { isAiVisible } from "@/lib/ai-flags";
 
 export interface CreatePlanInput {
   mode: "auto" | "targeted";
@@ -278,7 +279,9 @@ export function useImprovementResources() {
       // Sous-PR Coach-1 : le serveur appelle generatePlan30jRag() avec
       // fallback silencieux sur la version hardcoded si OpenRouter fail.
       // L'insert en DB est fait côté serveur (auth + RLS via session cookie).
-      if (!isDemoMode) {
+      // Interrupteur IA : quand l'IA est éteinte, on bascule sur le chemin
+      // client (plan déterministe hardcoded) ci-dessous — pas d'appel LLM.
+      if (!isDemoMode && isAiVisible()) {
         const res = await fetch("/api/plan-30j", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -314,31 +317,36 @@ export function useImprovementResources() {
       // puis save via localStorage adapter (Sous-PR Coach-4).
       // Fallback silencieux sur génération client hardcoded si le RAG fail.
       let plan: GeneratedPlan30j;
-      try {
-        const res = await fetch("/api/plan-30j", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode: input.mode,
-            ratioId: input.ratioId,
-            measuredRatios: input.measuredRatios,
-            profile: input.profile,
-            avgCommissionEur: input.avgCommissionEur,
-            agentStatus: input.agentStatus ?? null,
-            teamSize: input.teamSize ?? 1,
-            latestResults: input.latestResults ?? null,
-            persistInDb: false,
-          }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { plan: GeneratedPlan30j };
-        plan = data.plan;
-      } catch (err) {
-        console.error(
-          "[use-improvement-resources] demo RAG fetch failed, falling back to hardcoded",
-          err,
-        );
+      if (!isAiVisible()) {
+        // Interrupteur IA éteint : génération client déterministe, sans appel.
         plan = generatePlan30j(painPoint);
+      } else {
+        try {
+          const res = await fetch("/api/plan-30j", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: input.mode,
+              ratioId: input.ratioId,
+              measuredRatios: input.measuredRatios,
+              profile: input.profile,
+              avgCommissionEur: input.avgCommissionEur,
+              agentStatus: input.agentStatus ?? null,
+              teamSize: input.teamSize ?? 1,
+              latestResults: input.latestResults ?? null,
+              persistInDb: false,
+            }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = (await res.json()) as { plan: GeneratedPlan30j };
+          plan = data.plan;
+        } catch (err) {
+          console.error(
+            "[use-improvement-resources] demo RAG fetch failed, falling back to hardcoded",
+            err,
+          );
+          plan = generatePlan30j(painPoint);
+        }
       }
 
       const payload: Plan30jPayload = {
@@ -462,7 +470,7 @@ async function handlePlanExpiration(
     // RAG (Sonnet 4.5 + corpus). Fallback silencieux sur null si fail —
     // le composant continuity-block affichera alors un message hardcoded.
     let coachingOffer: Record<string, unknown> | null = null;
-    if (plan.pain_ratio_id) {
+    if (isAiVisible() && plan.pain_ratio_id) {
       try {
         const res = await fetch("/api/coaching-offer-message", {
           method: "POST",

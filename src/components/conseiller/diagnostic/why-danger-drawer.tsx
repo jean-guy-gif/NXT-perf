@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { PainContextOverride } from "@/lib/pain-point-context-override";
 import { cn } from "@/lib/utils";
+import { isAiVisible } from "@/lib/ai-flags";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
@@ -259,7 +260,7 @@ function SingleContent({
   } | null>(null);
 
   useEffect(() => {
-    if (!override || !originalExpertiseId) {
+    if (!isAiVisible() || !override || !originalExpertiseId) {
       setOverrideExplanation(null);
       return;
     }
@@ -333,7 +334,7 @@ function SingleContent({
   // Sous-PR Coach-5 : fetch lazy /api/why-danger au mount de SingleContent.
   // Cache local par instance — re-mount = re-fetch (Map cache serveur).
   useEffect(() => {
-    if (!expertise) return;
+    if (!isAiVisible() || !expertise) return;
     let cancelled = false;
     setRagLoading(true);
     setRagData(null);

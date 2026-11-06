@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GraduationCap, ArrowRight, Wallet, X, Clock } from "lucide-react";
+import { GraduationCap, ArrowRight, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { expertiseToFormationArea } from "@/lib/coaching/coach-brain";
 import {
@@ -9,7 +9,6 @@ import {
   type FormationItem,
 } from "@/lib/coaching/training-catalog";
 import { formationAreaLabels } from "@/lib/formation";
-import { AgeficeWizard } from "@/components/formation/agefice-wizard";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 interface Props {
@@ -24,16 +23,12 @@ interface Props {
  *   ExpertiseRatioId → ratioToFormationArea → FormationArea
  *   → getFormationsForArea(area, max=3)
  *
- * Affiche 1-3 cartes simples. Si une formation a `agefice=true`, on affiche
- * un badge + un CTA secondaire "Financer cette formation" qui ouvre le
- * wizard AGEFICE existant.
+ * Affiche 1-3 cartes simples.
  *
  * Si aucune formation n'est mappée pour cet axe → composant retourne null
  * (le bloc disparaît plutôt que d'afficher un état vide).
  */
 export function FocusedTrainingBlock({ expertiseId }: Props) {
-  const [showAgefice, setShowAgefice] = useState(false);
-  const [agePreselected, setAgePreselected] = useState<string | null>(null);
   const [previewFormation, setPreviewFormation] = useState<FormationItem | null>(
     null
   );
@@ -44,28 +39,9 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
   const formations = getFormationsForArea(area, 3);
   if (formations.length === 0) return null;
 
-  const handleFinancer = (title: string) => {
-    setAgePreselected(title);
-    setShowAgefice(true);
-  };
-
   const handleStart = (formation: FormationItem) => {
     setPreviewFormation(formation);
   };
-
-  const handleFinancerFromDrawer = (title: string) => {
-    setPreviewFormation(null);
-    handleFinancer(title);
-  };
-
-  // formationOptions reçues par AgeficeWizard = liste des titres
-  const formationOptions = formations.map((f) => f.title);
-  // Si une préselection existe, on la met en première position pour que le
-  // dropdown du wizard l'affiche par défaut.
-  const orderedOptions =
-    agePreselected && formationOptions.includes(agePreselected)
-      ? [agePreselected, ...formationOptions.filter((o) => o !== agePreselected)]
-      : formationOptions;
 
   return (
     <section
@@ -85,12 +61,7 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
 
       <ul className="mt-4 space-y-3">
         {formations.map((f) => (
-          <FormationCard
-            key={f.id}
-            item={f}
-            onFinancer={handleFinancer}
-            onStart={handleStart}
-          />
+          <FormationCard key={f.id} item={f} onStart={handleStart} />
         ))}
       </ul>
 
@@ -104,18 +75,10 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
         Voir tout le catalogue →
       </a>
 
-      {showAgefice && (
-        <AgeficeWizard
-          onClose={() => setShowAgefice(false)}
-          formationOptions={orderedOptions}
-        />
-      )}
-
       <FormationPreviewDrawer
         formation={previewFormation}
         areaLabel={formationAreaLabels[area]}
         onClose={() => setPreviewFormation(null)}
-        onFinancer={handleFinancerFromDrawer}
       />
     </section>
   );
@@ -123,11 +86,9 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
 
 function FormationCard({
   item,
-  onFinancer,
   onStart,
 }: {
   item: FormationItem;
-  onFinancer: (title: string) => void;
   onStart: (formation: FormationItem) => void;
 }) {
   return (
@@ -138,12 +99,6 @@ function FormationCard({
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {item.benefit}
           </p>
-          {item.agefice && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600">
-              <Wallet className="h-2.5 w-2.5" />
-              Prise en charge possible (AGEFICE)
-            </span>
-          )}
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:items-end">
           <button
@@ -156,16 +111,6 @@ function FormationCard({
             Démarrer
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
-          {item.agefice && (
-            <button
-              type="button"
-              onClick={() => onFinancer(item.title)}
-              className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-amber-600 underline-offset-2 hover:underline"
-            >
-              <Wallet className="h-3 w-3" />
-              Financer cette formation
-            </button>
-          )}
         </div>
       </div>
     </li>
@@ -176,12 +121,10 @@ function FormationPreviewDrawer({
   formation,
   areaLabel,
   onClose,
-  onFinancer,
 }: {
   formation: FormationItem | null;
   areaLabel: string;
   onClose: () => void;
-  onFinancer: (title: string) => void;
 }) {
   const open = formation !== null;
 
@@ -250,13 +193,6 @@ function FormationPreviewDrawer({
               {formation.benefit}
             </p>
 
-            {formation.agefice && (
-              <span className="mt-4 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600">
-                <Wallet className="h-2.5 w-2.5" />
-                Prise en charge possible (AGEFICE)
-              </span>
-            )}
-
             <div className="mt-6 flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
               <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p className="leading-relaxed">
@@ -268,16 +204,6 @@ function FormationPreviewDrawer({
 
         {formation && (
           <footer className="flex flex-col gap-2 border-t border-border px-5 py-4">
-            {formation.agefice && (
-              <button
-                type="button"
-                onClick={() => onFinancer(formation.title)}
-                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-500/20"
-              >
-                <Wallet className="h-4 w-4" />
-                Financer cette formation
-              </button>
-            )}
             <button
               type="button"
               onClick={onClose}

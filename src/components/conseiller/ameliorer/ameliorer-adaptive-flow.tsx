@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Wallet } from "lucide-react";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
@@ -11,14 +10,12 @@ import { useUserContext } from "@/hooks/use-user-context";
 import { resolveThreshold } from "@/lib/diagnostic/resolve-threshold";
 import { Plan30Jours } from "@/components/formation/plan-30-jours";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
-import { AgeficeWizard } from "@/components/formation/agefice-wizard";
 import { ModalitesTuiles } from "./modalites-tuiles";
 import { LeverHeader } from "./lever-header";
 import { ChangeLeverConfirm } from "./change-lever-confirm";
 import { RecommendedLeverCard } from "./recommended-lever-card";
 import { OtherLeversList } from "./other-levers-list";
 import { ContinuityBlock } from "./continuity-block";
-import { CoachIaBlock } from "./coach-ia-block";
 import { FocusedTrainingBlock } from "./focused-training-block";
 import { findCriticitePointsWithContext } from "@/lib/diagnostic-criticite";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
@@ -31,15 +28,6 @@ import {
 } from "@/data/ratio-expertise";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import type { Plan30jPayload } from "@/config/coaching";
-
-const FORMATION_OPTIONS = [
-  "Prospection immobilière",
-  "Estimation et prise de mandat",
-  "Exclusivité et valorisation du service",
-  "Accompagnement acheteur",
-  "Négociation et closing",
-  "Suivi de portefeuille et organisation",
-];
 
 export function AmeliorerAdaptiveFlow() {
   const { category } = useUser();
@@ -56,7 +44,6 @@ export function AmeliorerAdaptiveFlow() {
       ? (preselectedRaw as ExpertiseRatioId)
       : null;
 
-  const [showAgefice, setShowAgefice] = useState(false);
   const [showChangeLever, setShowChangeLever] = useState(false);
   const [archivingPlan, setArchivingPlan] = useState(false);
 
@@ -169,9 +156,6 @@ export function AmeliorerAdaptiveFlow() {
           <Plan30Jours />
         </section>
 
-        {/* 3. Coach IA — bloc discret "Tu veux aller plus vite ?" */}
-        <CoachIaBlock />
-
         {/* 4. Modalités (tuiles M'entraîner / Me former à venir) */}
         <ModalitesTuiles state="plan" />
 
@@ -191,16 +175,6 @@ export function AmeliorerAdaptiveFlow() {
           </div>
         </details>
 
-        {/* 7. Financement formation (option discrète) */}
-        <FinancementCta onOpen={() => setShowAgefice(true)} />
-
-        {showAgefice && (
-          <AgeficeWizard
-            onClose={() => setShowAgefice(false)}
-            formationOptions={FORMATION_OPTIONS}
-          />
-        )}
-
         <ChangeLeverConfirm
           open={showChangeLever}
           onCancel={() => setShowChangeLever(false)}
@@ -218,8 +192,6 @@ export function AmeliorerAdaptiveFlow() {
       computedRatios={computedRatios}
       results={results}
       category={category}
-      showAgefice={showAgefice}
-      setShowAgefice={setShowAgefice}
       onPlanCreated={() => {
         void refresh();
       }}
@@ -234,16 +206,12 @@ function NoPlanFlow({
   computedRatios,
   results,
   category,
-  showAgefice,
-  setShowAgefice,
   onPlanCreated,
 }: {
   preselected: ExpertiseRatioId | null;
   computedRatios: ReturnType<typeof useRatios>["computedRatios"];
   results: ReturnType<typeof useResults>;
   category: ReturnType<typeof useUser>["category"];
-  showAgefice: boolean;
-  setShowAgefice: (b: boolean) => void;
   onPlanCreated: () => void;
 }) {
   const allResults = useAllResults();
@@ -381,9 +349,6 @@ function NoPlanFlow({
       {/* 2. Continuité — debrief du dernier plan archivé si récent */}
       <ContinuityBlock />
 
-      {/* 3. Coach IA — bloc discret "Tu veux aller plus vite ?" */}
-      <CoachIaBlock />
-
       {/* 4. Autres leviers (replié, max 3) */}
       {recommended && recommended.others.length > 0 && (
         <OtherLeversList
@@ -417,16 +382,6 @@ function NoPlanFlow({
           />
         </div>
       </details>
-
-      {/* 8. Financement formation (option) */}
-      <FinancementCta onOpen={() => setShowAgefice(true)} />
-
-      {showAgefice && (
-        <AgeficeWizard
-          onClose={() => setShowAgefice(false)}
-          formationOptions={FORMATION_OPTIONS}
-        />
-      )}
     </div>
   );
 }
@@ -449,27 +404,3 @@ function AmeliorerSkeleton() {
   );
 }
 
-function FinancementCta({ onOpen }: { onOpen: () => void }) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Wallet className="h-3.5 w-3.5" />
-        Financement formation
-      </div>
-      <h3 className="mt-2 text-lg font-bold text-foreground">
-        CERFA pré-rempli + droits CPF / OPCO
-      </h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-        Calculez vos droits, générez le CERFA pré-rempli et accédez au point
-        d'accueil OPCO.
-      </p>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        Lancer le wizard
-      </button>
-    </section>
-  );
-}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isAiVisible } from "@/lib/ai-flags";
 import {
   X,
   Eye,
@@ -94,7 +95,7 @@ export function WeeklyFollowUpDrawer({
 
   // Fetch lazy au premier open
   useEffect(() => {
-    if (!open || hasFetched) return;
+    if (!isAiVisible() || !open || hasFetched) return;
     setHasFetched(true);
     let cancelled = false;
     setLoading(true);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isAiVisible } from "@/lib/ai-flags";
 import Link from "next/link";
 import {
   Sparkles,
@@ -150,7 +151,8 @@ export function CoachNudgeBanner() {
 
   // Fetch nudge au mount + quand context change
   useEffect(() => {
-    if (!nudgeContext) {
+    // Interrupteur IA : pas de nudge tant que l'IA n'est pas visible.
+    if (!isAiVisible() || !nudgeContext) {
       setNudge(null);
       return;
     }
