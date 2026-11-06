@@ -112,11 +112,11 @@ describe("direction métier", () => {
 
   it("2 estimations/mandat for expert target 1.5 = under (lower is better)", () => {
     const d = generateCoachingDebrief(makeResults({
-      contactsTotaux: 30, rdvEstimation: 3, estimationsRealisees: 6,
+      contactsTotaux: 30, rdvEstimation: 6, estimationsRealisees: 6,
       mandatsSignes: 3, nombreVisites: 8, offresRecues: 2,
     }), "expert", cfg);
     const ratio = d.performanceReview.find(r => r.ratioId === "rdv_mandats")!;
-    expect(ratio.value).toBe(2); // 6/3 = 2, target 1.5 → 2 > 1.5 → bad
+    expect(ratio.value).toBe(2); // 6 RDV / 3 mandats = 2, target 1.5 → 2 > 1.5 → bad
     expect(["warning", "danger"]).toContain(ratio.status);
   });
 });
@@ -136,7 +136,7 @@ describe("confidence", () => {
 
   it("1 estimation / 1 mandat = low confidence", () => {
     const d = generateCoachingDebrief(makeResults({
-      contactsTotaux: 30, rdvEstimation: 3, estimationsRealisees: 1,
+      contactsTotaux: 30, rdvEstimation: 1, estimationsRealisees: 1,
       mandatsSignes: 1, mandatsExclusifs: 1, nombreVisites: 8, offresRecues: 2,
     }), "confirme", cfg);
     const ratio = d.performanceReview.find(r => r.ratioId === "rdv_mandats")!;

@@ -31,11 +31,15 @@ const mockDebrief: CoachingDebrief = {
 const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
-  // Reset fetch mock
+  // generateAIDebrief court-circuite (renvoie null) tant que l'IA n'est pas
+  // visible. Ces tests valident la logique de fetch / fallback : on active
+  // donc l'interrupteur client pour la durée du test.
+  vi.stubEnv("NEXT_PUBLIC_AI_FEATURES", "on");
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  vi.unstubAllEnvs();
 });
 
 describe("generateAIDebrief — fallback scenarios", () => {
