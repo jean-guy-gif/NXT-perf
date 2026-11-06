@@ -70,3 +70,6 @@ scripts/*.xlsx
 
 # Coach brain ingestion runtime state (file IDs déjà ingérés)
 scripts/ingest-coach-brain/state.json
+
+.playwright-mcp/
+/test-*.png
