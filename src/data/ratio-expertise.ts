@@ -10,22 +10,6 @@
  * Éditeur unique : Jean-Guy. Évolutions = PR Git (pas d'UI admin).
  */
 
-// ─── Taux de transformation mandat → vente ─────────────────────────────────
-//
-// Probabilité qu'un mandat aboutisse à une vente signée, selon son type.
-// Un mandat exclusif se vend bien mieux qu'un simple (le conseiller est seul
-// sur le dossier, le bien est mieux défendu). Calibration doc Jean-Guy :
-// les exclusivités « convertissent 2x mieux ».
-//
-// Servent au détecteur de point de douleur V3 (pain-point-detector.ts) pour
-// convertir un volume de mandats « gagnés » en ventes puis en euros.
-
-/** Probabilité qu'un mandat EXCLUSIF se transforme en vente. */
-export const TAUX_EXCLU_VENTE = 0.7;
-
-/** Probabilité qu'un mandat SIMPLE se transforme en vente. */
-export const TAUX_SIMPLE_VENTE = 0.3;
-
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export type ExpertiseRatioId =
@@ -41,6 +25,38 @@ export type ExpertiseRatioId =
 export type RatioDirection = "less_is_better" | "more_is_better";
 
 export type ProfileLevel = "junior" | "confirme" | "expert";
+
+// ─── Taux de transformation mandat → vente (par niveau) ─────────────────────
+//
+// Standard « 1 vente = N mandats » par niveau (Start Academia), validé par
+// Jean-Guy le 17/11/2026. Plus le conseiller est expérimenté, moins il lui faut
+// de mandats pour une vente ; et un mandat exclusif se transforme bien mieux
+// qu'un simple (le conseiller est seul sur le dossier, le bien est mieux
+// défendu).
+//
+// Alimente le détecteur de point de douleur V3 (pain-point-detector.ts) pour
+// convertir un volume de mandats « gagnés » en ventes puis en euros.
+
+/** « 1 vente = N mandats », par niveau et par type de mandat. */
+export const MANDATS_PAR_VENTE: Record<
+  ProfileLevel,
+  { exclusif: number; simple: number }
+> = {
+  junior: { exclusif: 3, simple: 7 },
+  confirme: { exclusif: 2, simple: 6 },
+  expert: { exclusif: 1.5, simple: 5 },
+};
+
+/**
+ * Taux de transformation mandat → vente pour un niveau et un type donnés :
+ * `1 / (mandats par vente)` (ex. confirmé exclusif = 1/2 = 0,5).
+ */
+export function tauxMandatVente(
+  niveau: ProfileLevel,
+  type: "exclusif" | "simple"
+): number {
+  return 1 / MANDATS_PAR_VENTE[niveau][type];
+}
 
 /**
  * Type d'impact CA d'un ratio, dicte la formule d'estimation du gain potentiel.

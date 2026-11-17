@@ -7,6 +7,7 @@ import {
   type PainVolumes,
 } from "@/lib/pain-point-detector";
 import { findCriticitePointsWithContext } from "@/lib/diagnostic-criticite";
+import { tauxMandatVente } from "@/data/ratio-expertise";
 import { bucketTeamSize, type ThresholdContext } from "@/lib/diagnostic/resolve-threshold";
 
 // Contexte commun : profil confirmé, agent commercial, équipe de 2 à 5,
@@ -131,6 +132,42 @@ describe("détection du point de douleur V3 — contrat de sortie", () => {
     for (let i = 1; i < top3.length; i++) {
       expect(top3[i - 1].painScoreV2).toBeGreaterThanOrEqual(top3[i].painScoreV2);
     }
+  });
+});
+
+describe("taux mandat → vente par niveau (standard Start Academia)", () => {
+  it("tauxMandatVente = 1 / (mandats par vente)", () => {
+    expect(tauxMandatVente("junior", "exclusif")).toBeCloseTo(1 / 3, 6);
+    expect(tauxMandatVente("junior", "simple")).toBeCloseTo(1 / 7, 6);
+    expect(tauxMandatVente("confirme", "exclusif")).toBeCloseTo(1 / 2, 6);
+    expect(tauxMandatVente("confirme", "simple")).toBeCloseTo(1 / 6, 6);
+    expect(tauxMandatVente("expert", "exclusif")).toBeCloseTo(1 / 1.5, 6);
+    expect(tauxMandatVente("expert", "simple")).toBeCloseTo(1 / 5, 6);
+  });
+
+  it("le gain pct_exclusivite utilise le taux du niveau du conseiller", () => {
+    // Volumes isolant pct_exclusivite : seul ratio mesurable (10 mandats dont 2
+    // exclusifs → part 20 %). Les autres ratios ont un volume d'entrée nul.
+    const measured = buildMeasuredRatiosFromVolumes(vols([0, 0, 10, 2, 0, 0, 0, 0, 0, 0]));
+
+    // Gain = mandats × max(0, seuil/100 − part) × (tauxExclu − tauxSimple),
+    // chaque terme au niveau du conseiller (seuil : junior 30 / confirmé 50 /
+    // expert 70 ; part réelle = 0,2).
+    const expected: Record<"junior" | "confirme" | "expert", number> = {
+      junior: 10 * (0.3 - 0.2) * (1 / 3 - 1 / 7),
+      confirme: 10 * (0.5 - 0.2) * (1 / 2 - 1 / 6),
+      expert: 10 * (0.7 - 0.2) * (1 / 1.5 - 1 / 5),
+    };
+
+    (["junior", "confirme", "expert"] as const).forEach((niveau) => {
+      const top = detectBiggestPainPoint(measured, { ...ctx, seniority: niveau });
+      expect(top?.expertiseId).toBe("pct_exclusivite");
+      expect(top?.painScoreV2).toBeCloseTo(expected[niveau], 5);
+    });
+
+    // Chaque niveau a son propre taux → trois gains distincts et croissants.
+    expect(expected.junior).toBeLessThan(expected.confirme);
+    expect(expected.confirme).toBeLessThan(expected.expert);
   });
 });
 

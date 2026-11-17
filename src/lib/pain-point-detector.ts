@@ -29,9 +29,9 @@
 import {
   RATIO_EXPERTISE,
   LEVER_EXPERTISE_IDS,
-  TAUX_EXCLU_VENTE,
-  TAUX_SIMPLE_VENTE,
+  tauxMandatVente,
   type ExpertiseRatioId,
+  type ProfileLevel,
   type RatioExpertise,
   type RatioFeasibility,
 } from "@/data/ratio-expertise";
@@ -225,14 +225,22 @@ function resolveAll(ctx: ThresholdContext): ResolvedThresholds {
  * Taux de conversion aval. Taux RÉEL du conseiller quand l'étape est mesurable
  * (volume d'entrée de l'étape ≥ son échantillon minimum), sinon taux AU SEUIL.
  */
-function downstreamRates(v: PainVolumes, T: ResolvedThresholds) {
+function downstreamRates(
+  v: PainVolumes,
+  T: ResolvedThresholds,
+  niveau: ProfileLevel
+) {
+  // Taux mandat → vente selon le niveau du conseiller (standard Start Academia).
+  const tauxExclu = tauxMandatVente(niveau, "exclusif");
+  const tauxSimple = tauxMandatVente(niveau, "simple");
+
   // Part d'exclusifs : réelle si assez de mandats, sinon part au seuil.
   const partExclu =
     v.mandats >= MIN_INPUT_SAMPLE.pct_exclusivite
       ? v.exclusifs / v.mandats
       : T.pct_exclusivite / 100;
   const ventesParMandat =
-    partExclu * TAUX_EXCLU_VENTE + (1 - partExclu) * TAUX_SIMPLE_VENTE;
+    partExclu * tauxExclu + (1 - partExclu) * tauxSimple;
 
   const rateEstimMandat =
     v.estimations >= MIN_INPUT_SAMPLE.estimations_mandats
@@ -273,9 +281,10 @@ function downstreamRates(v: PainVolumes, T: ResolvedThresholds) {
 function gainVentes(
   id: ExpertiseRatioId,
   v: PainVolumes,
-  T: ResolvedThresholds
+  T: ResolvedThresholds,
+  niveau: ProfileLevel
 ): number {
-  const r = downstreamRates(v, T);
+  const r = downstreamRates(v, T, niveau);
   switch (id) {
     case "contacts_estimations": {
       const missing = Math.max(0, v.contacts / T.contacts_estimations - v.estimations);
@@ -288,7 +297,11 @@ function gainVentes(
     case "pct_exclusivite": {
       const partExclu = v.mandats > 0 ? v.exclusifs / v.mandats : 0;
       const missingShare = Math.max(0, T.pct_exclusivite / 100 - partExclu);
-      return v.mandats * missingShare * (TAUX_EXCLU_VENTE - TAUX_SIMPLE_VENTE);
+      // Gain d'1 point d'exclusivité = écart de taux exclusif − simple, au
+      // niveau du conseiller.
+      const deltaTaux =
+        tauxMandatVente(niveau, "exclusif") - tauxMandatVente(niveau, "simple");
+      return v.mandats * missingShare * deltaTaux;
     }
     case "acheteurs_tournee": {
       const missing = Math.max(0, v.acheteurs / T.acheteurs_tournee - v.acheteursSortis);
@@ -348,7 +361,7 @@ function scoreAllPainPoints(
       continue;
     }
 
-    const ventes = gainVentes(measured.expertiseId, v, T);
+    const ventes = gainVentes(measured.expertiseId, v, T, ctx.seniority);
     if (ventes < MIN_GAIN_VENTES) continue;
 
     const targetValue = resolveThreshold(expertise, ctx);
