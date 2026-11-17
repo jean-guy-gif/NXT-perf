@@ -1,33 +1,35 @@
 /**
- * Détecteur de plus grosse douleur pour un conseiller
+ * Détecteur de plus grosse douleur — V3 (gain en ventes)
  *
- * Formule V1 (legacy, conservée comme `painScore`) :
- *   painScore = |Écart normalisé| × Impact_CA_estimé × Poids_levier
+ * Problèmes des versions précédentes :
+ *   1. Un ratio « X pour 1 Y » avec Y = 0 valait 0 et passait pour parfait :
+ *      les vrais blocages (54 visites / 0 offre, 15 estimations / 0 mandat)
+ *      n'étaient jamais détectés.
+ *   2. L'impact € était calculé sur des volumes non comparables (60 contacts
+ *      contre 3 offres) puis pondéré par chainPosition, ce qui faisait sortir
+ *      `contacts_estimations` presque à chaque fois.
+ *   3. Les 5 règles de pain-point-context-override.ts rustinaient ce biais.
  *
- * Formule V2 (chantier A.1, utilisée pour le tri du top) :
- *   painScoreV2 = 0.4 × impactScoreNormalized
- *               + 0.4 × chainScore
- *               + 0.2 × feasibilityScore
+ * Nouvelle règle, une seule unité : « ventes gagnées si ce ratio atteint son
+ * seuil », multipliées par la commission moyenne.
  *
- * - `impactScoreNormalized` = `painScore / max(painScores du pool)` (0-1)
- * - `chainScore`            = `expertise.chainPosition` (0-1, amont→aval)
- * - `feasibilityScore`      = `FEASIBILITY_SCORE[expertise.feasibility]`
- *                              (easy 1.0 / medium 0.6 / hard 0.3)
+ * Entrées : les VOLUMES BRUTS agrégés (3 mois glissants ; 6 mois pour compromis
+ * et actes), pas les ratios calculés. Seuil cible T = resolveThreshold.
  *
- * Justification : l'ancienne formule mono-critère (impact € pur) ratait
- * parfois le top quand plusieurs ratios étaient en sous-perf — un ratio aval
- * à fort impact € peut être inutile à fixer si l'amont du funnel n'est pas
- * alimenté. La formule V2 pondère impact / position chaîne / faisabilité.
+ * Pour chaque ratio : sortie manquante = max(0, volume d'entrée / T − sortie
+ * réelle), propagée jusqu'à la vente avec les taux aval réels du conseiller, ou
+ * le taux au seuil quand l'étape aval n'est pas mesurable.
  *
- * Alimenté par :
- *   - ratio-expertise.ts (seuils, poids, type d'impact, chainPosition, feasibility)
- *   - Les ratios calculés du conseiller (ComputedRatio)
- *   - Le profil du conseiller (junior/confirmé/expert)
- *   - La commission moyenne (pour quantifier l'impact en €)
+ * Classement : gain en ventes décroissant ; gains < 0,05 vente ignorés.
+ * `chainPosition`, `feasibility` et l'override ne servent plus au tri (champs
+ * conservés pour compat). `painScore`/`estimatedCaLossEur` = gain en € ;
+ * `painScoreV2` = gain en ventes.
  */
 
 import {
-  ALL_EXPERTISE_RATIOS,
+  RATIO_EXPERTISE,
+  TAUX_EXCLU_VENTE,
+  TAUX_SIMPLE_VENTE,
   type ExpertiseRatioId,
   type RatioExpertise,
   type RatioFeasibility,
@@ -38,7 +40,8 @@ import {
 } from "@/lib/diagnostic/resolve-threshold";
 
 /**
- * Mapping faisabilité → score numérique (chantier A.1 — décisions Q2 validées).
+ * Mapping faisabilité → score numérique. Conservé pour compat (champ
+ * `feasibilityScore` de PainPointResult) — ne sert plus au tri en V3.
  */
 export const FEASIBILITY_SCORE: Record<RatioFeasibility, number> = {
   easy: 1.0,
@@ -46,24 +49,112 @@ export const FEASIBILITY_SCORE: Record<RatioFeasibility, number> = {
   hard: 0.3,
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────
+// ─── Volumes bruts ──────────────────────────────────────────────────────────
 
-/** Ratio calculé brut du conseiller */
+/**
+ * Volumes bruts agrégés servant d'entrée au détecteur. Ordre métier :
+ * contacts → estimations → mandats (dont exclusifs) ; acheteurs → sortis en
+ * visite → visites → offres → compromis → actes.
+ */
+export interface PainVolumes {
+  contacts: number;
+  estimations: number;
+  mandats: number;
+  exclusifs: number;
+  acheteurs: number;
+  acheteursSortis: number;
+  visites: number;
+  offres: number;
+  compromis: number;
+  actes: number;
+}
+
+/** Les 7 ratios notés par le détecteur (visites_par_acheteur exclu). */
+const PAIN_RATIOS: ExpertiseRatioId[] = [
+  "contacts_estimations",
+  "estimations_mandats",
+  "pct_exclusivite",
+  "acheteurs_tournee",
+  "visites_offres",
+  "offres_compromis",
+  "compromis_actes",
+];
+
+/**
+ * Échantillon minimum sur le VOLUME D'ENTRÉE de chaque ratio. Sous ce seuil,
+ * le ratio est « non mesurable » et exclu du classement.
+ */
+const MIN_INPUT_SAMPLE: Record<ExpertiseRatioId, number> = {
+  contacts_estimations: 20, // contacts
+  estimations_mandats: 3, // estimations
+  pct_exclusivite: 3, // mandats
+  acheteurs_tournee: 5, // acheteurs
+  visites_par_acheteur: 10, // (non noté)
+  visites_offres: 10, // visites
+  offres_compromis: 3, // offres
+  compromis_actes: 3, // compromis
+};
+
+/** Volume d'entrée (numérateur porteur) d'un ratio. */
+function inputVolume(id: ExpertiseRatioId, v: PainVolumes): number {
+  switch (id) {
+    case "contacts_estimations":
+      return v.contacts;
+    case "estimations_mandats":
+      return v.estimations;
+    case "pct_exclusivite":
+      return v.mandats;
+    case "acheteurs_tournee":
+      return v.acheteurs;
+    case "visites_offres":
+      return v.visites;
+    case "offres_compromis":
+      return v.offres;
+    case "compromis_actes":
+      return v.compromis;
+    case "visites_par_acheteur":
+      return v.visites;
+  }
+}
+
+/** Valeur du ratio calculé à partir des volumes (compat affichage/override). */
+function ratioValueFromVolumes(id: ExpertiseRatioId, v: PainVolumes): number {
+  switch (id) {
+    case "contacts_estimations":
+      return v.estimations > 0 ? v.contacts / v.estimations : 0;
+    case "estimations_mandats":
+      return v.mandats > 0 ? v.estimations / v.mandats : 0;
+    case "pct_exclusivite":
+      return v.mandats > 0 ? (v.exclusifs / v.mandats) * 100 : 0;
+    case "acheteurs_tournee":
+      return v.acheteursSortis > 0 ? v.acheteurs / v.acheteursSortis : 0;
+    case "visites_offres":
+      return v.offres > 0 ? v.visites / v.offres : 0;
+    case "offres_compromis":
+      return v.compromis > 0 ? v.offres / v.compromis : 0;
+    case "compromis_actes":
+      return v.actes > 0 ? v.compromis / v.actes : 0;
+    case "visites_par_acheteur":
+      return v.acheteursSortis > 0 ? v.visites / v.acheteursSortis : 0;
+  }
+}
+
+// ─── Types publics ──────────────────────────────────────────────────────────
+
+/**
+ * Entrée du détecteur. Tous les éléments d'un même pool partagent les mêmes
+ * `volumes`. `currentValue` est conservé pour compat (lecture par
+ * pain-point-context-override et quelques vues).
+ */
 export interface MeasuredRatio {
   expertiseId: ExpertiseRatioId;
+  /** Volumes bruts agrégés (identiques pour tous les ratios du pool). */
+  volumes: PainVolumes;
+  /** Valeur du ratio calculé — compat descendante. */
   currentValue: number;
-  /** Volume de base servant au calcul d'impact (ex: mandats en stock, visites réalisées) */
-  volumeBase: number;
-  /**
-   * Statut legacy issu de `determineRatioStatus(value, threshold, config)`.
-   * Sert de filet de sécurité pour `findCriticitePoints` qui force-inclut les
-   * ratios "warning" / "danger" non détectés par le scoring de douleur (cas
-   * du dénominateur nul → ratio = 0 → painScore = 0 mais sous-perf réelle).
-   * Optionnel pour ne pas casser les call-sites existants.
-   *
-   * `non_mesurable` → le ratio est ignoré par le scoring (dénominateur nul ou
-   * échantillon insuffisant : on n'oriente pas la formation sur du bruit).
-   */
+  /** @deprecated plus utilisé par le scoring V3 ; conservé pour compat. */
+  volumeBase?: number;
+  /** @deprecated plus utilisé par le scoring V3 ; conservé pour compat. */
   legacyStatus?: "ok" | "warning" | "danger" | "non_mesurable";
 }
 
@@ -72,270 +163,267 @@ export interface PainPointResult {
   expertise: RatioExpertise;
   currentValue: number;
   targetValue: number;
-  normalizedGap: number;             // Écart normalisé (>0 si sous-perf)
-  estimatedCaLossEur: number;        // Impact CA estimé (€)
-  /**
-   * Score V1 legacy (impact brut). Conservé pour compat backward — c'est la
-   * valeur stockée en colonne DB `pain_score` (cf. `route.ts`,
-   * `use-improvement-resources.ts`). N'est plus utilisé pour le tri du top
-   * depuis chantier A.1.
-   */
+  normalizedGap: number;
+  /** Gain estimé en € sur la période (= gain en ventes × commission moyenne). */
+  estimatedCaLossEur: number;
+  /** V3 : gain en € (idem estimatedCaLossEur). Conservé pour la base DB. */
   painScore: number;
-  /**
-   * Score V2 composite (chantier A.1) : 0.4 impact + 0.4 chain + 0.2 feasibility.
-   * Échelle 0-1. Utilisé comme clé de tri pour désigner le top point.
-   */
+  /** V3 : gain en VENTES (clé de tri). */
   painScoreV2: number;
-  /** Composante 1 du V2 — `painScore` divisé par max(painScores du pool). 0-1. */
+  /** @deprecated plus utilisé par le tri V3. */
   impactScoreNormalized: number;
-  /** Composante 2 du V2 — = `expertise.chainPosition`. 0-1. */
+  /** = `expertise.chainPosition` (compat affichage). */
   chainScore: number;
-  /** Composante 3 du V2 — issue de `FEASIBILITY_SCORE[feasibility]`. 0-1. */
+  /** = `FEASIBILITY_SCORE[feasibility]` (compat affichage). */
   feasibilityScore: number;
 }
 
-// ─── Calcul de l'écart normalisé ──────────────────────────────────────────
-
-function computeNormalizedGap(
-  currentValue: number,
-  targetValue: number,
-  direction: "less_is_better" | "more_is_better"
-): number {
-  if (targetValue === 0) return 0;
-
-  const rawGap =
-    direction === "less_is_better"
-      ? (currentValue - targetValue) / targetValue
-      : (targetValue - currentValue) / targetValue;
-
-  // Positif si sous-performance, 0 si OK ou surperf
-  return Math.max(0, rawGap);
-}
-
-// ─── Estimation de l'impact CA en € ───────────────────────────────────────
+// ─── Fabrique de MeasuredRatio ──────────────────────────────────────────────
 
 /**
- * Estime le manque à gagner en € si le conseiller maintient son ratio actuel
- * au lieu de l'amener au seuil attendu.
- *
- * Formule simplifiée V1 (à calibrer avec data réelle après 3 mois) :
- * - Calcule le "volume perdu" selon la direction du ratio
- * - Multiplie par un coefficient de conversion selon caImpactType
- * - Multiplie par la commission moyenne
+ * Construit le pool des 7 ratios notables à partir d'un bundle de volumes.
+ * Utilisé par les tests et par `buildMeasuredRatios` (ratio-to-expertise.ts).
  */
-function estimateCaImpact(
-  ratio: MeasuredRatio,
-  expertise: RatioExpertise,
-  targetValue: number,
-  avgCommissionEur: number
-): number {
-  const { currentValue, volumeBase } = ratio;
+export function buildMeasuredRatiosFromVolumes(
+  volumes: PainVolumes
+): MeasuredRatio[] {
+  return PAIN_RATIOS.map((expertiseId) => ({
+    expertiseId,
+    volumes,
+    currentValue: ratioValueFromVolumes(expertiseId, volumes),
+  }));
+}
 
-  if (volumeBase <= 0 || avgCommissionEur <= 0) return 0;
+// ─── Scoring : gain en ventes propagé jusqu'à la vente ──────────────────────
 
-  // Coefficient de conversion selon le type d'impact
-  // Représente combien d'euros sont impactés par unité de volume "débloquée"
-  const conversionCoef: Record<typeof expertise.caImpactType, number> = {
-    direct_cascade: 0.35,  // +estim → +mandats → +ventes (cascade atténuée)
-    direct_strong: 0.5,    // conversion directe en vente
-    leverage_high: 0.5,    // exclusivité convertit 2x mieux (cf. doc)
-    security: 1.0,         // CA déjà engagé, sauvegarde à 100%
-    indirect: 0.15,        // lien avec le CA moins direct
+/** Gain en ventes ignoré sous ce seuil. */
+const MIN_GAIN_VENTES = 0.05;
+
+/** Seuils résolus pour les ratios aval (taux de repli au seuil). */
+interface ResolvedThresholds {
+  contacts_estimations: number;
+  estimations_mandats: number;
+  pct_exclusivite: number;
+  acheteurs_tournee: number;
+  visites_par_acheteur: number;
+  visites_offres: number;
+  offres_compromis: number;
+  compromis_actes: number;
+}
+
+function resolveAll(ctx: ThresholdContext): ResolvedThresholds {
+  return {
+    contacts_estimations: resolveThreshold(RATIO_EXPERTISE.contacts_estimations, ctx),
+    estimations_mandats: resolveThreshold(RATIO_EXPERTISE.estimations_mandats, ctx),
+    pct_exclusivite: resolveThreshold(RATIO_EXPERTISE.pct_exclusivite, ctx),
+    acheteurs_tournee: resolveThreshold(RATIO_EXPERTISE.acheteurs_tournee, ctx),
+    visites_par_acheteur: resolveThreshold(RATIO_EXPERTISE.visites_par_acheteur, ctx),
+    visites_offres: resolveThreshold(RATIO_EXPERTISE.visites_offres, ctx),
+    offres_compromis: resolveThreshold(RATIO_EXPERTISE.offres_compromis, ctx),
+    compromis_actes: resolveThreshold(RATIO_EXPERTISE.compromis_actes, ctx),
   };
+}
 
-  const coef = conversionCoef[expertise.caImpactType];
+/**
+ * Taux de conversion aval. Taux RÉEL du conseiller quand l'étape est mesurable
+ * (volume d'entrée de l'étape ≥ son échantillon minimum), sinon taux AU SEUIL.
+ */
+function downstreamRates(v: PainVolumes, T: ResolvedThresholds) {
+  // Part d'exclusifs : réelle si assez de mandats, sinon part au seuil.
+  const partExclu =
+    v.mandats >= MIN_INPUT_SAMPLE.pct_exclusivite
+      ? v.exclusifs / v.mandats
+      : T.pct_exclusivite / 100;
+  const ventesParMandat =
+    partExclu * TAUX_EXCLU_VENTE + (1 - partExclu) * TAUX_SIMPLE_VENTE;
 
-  if (expertise.direction === "less_is_better") {
-    // Ex: visites→offres. Si ratio actuel = 15 et seuil = 10, on "gaspille" des visites
-    // Volume perdu = volumeBase × (1 - targetValue/currentValue)
-    if (currentValue <= 0) return 0;
-    const efficiencyLoss = 1 - targetValue / currentValue;
-    const lostOpportunities = volumeBase * Math.max(0, efficiencyLoss);
-    return lostOpportunities * coef * avgCommissionEur;
-  } else {
-    // Ex: % exclusivité. Si actuel = 30% et seuil = 50%, on perd des exclus
-    // Gap en volume = volumeBase × (targetValue - currentValue) / 100
-    const gapPoints = Math.max(0, targetValue - currentValue);
-    const lostExclusives = (volumeBase * gapPoints) / 100;
-    return lostExclusives * coef * avgCommissionEur;
+  const rateEstimMandat =
+    v.estimations >= MIN_INPUT_SAMPLE.estimations_mandats
+      ? v.mandats / v.estimations
+      : 1 / T.estimations_mandats;
+
+  const rateVisiteOffre =
+    v.visites >= MIN_INPUT_SAMPLE.visites_offres
+      ? v.offres / v.visites
+      : 1 / T.visites_offres;
+
+  const rateOffreCompromis =
+    v.offres >= MIN_INPUT_SAMPLE.offres_compromis
+      ? v.compromis / v.offres
+      : 1 / T.offres_compromis;
+
+  const rateCompromisActe =
+    v.compromis >= MIN_INPUT_SAMPLE.compromis_actes
+      ? v.actes / v.compromis
+      : 1 / T.compromis_actes;
+
+  const visitesParSorti =
+    v.acheteursSortis > 0
+      ? v.visites / v.acheteursSortis
+      : T.visites_par_acheteur;
+
+  return {
+    ventesParMandat,
+    rateEstimMandat,
+    rateVisiteOffre,
+    rateOffreCompromis,
+    rateCompromisActe,
+    visitesParSorti,
+  };
+}
+
+/** Gain en ventes pour un ratio donné (sortie manquante propagée à la vente). */
+function gainVentes(
+  id: ExpertiseRatioId,
+  v: PainVolumes,
+  T: ResolvedThresholds
+): number {
+  const r = downstreamRates(v, T);
+  switch (id) {
+    case "contacts_estimations": {
+      const missing = Math.max(0, v.contacts / T.contacts_estimations - v.estimations);
+      return missing * r.rateEstimMandat * r.ventesParMandat;
+    }
+    case "estimations_mandats": {
+      const missing = Math.max(0, v.estimations / T.estimations_mandats - v.mandats);
+      return missing * r.ventesParMandat;
+    }
+    case "pct_exclusivite": {
+      const partExclu = v.mandats > 0 ? v.exclusifs / v.mandats : 0;
+      const missingShare = Math.max(0, T.pct_exclusivite / 100 - partExclu);
+      return v.mandats * missingShare * (TAUX_EXCLU_VENTE - TAUX_SIMPLE_VENTE);
+    }
+    case "acheteurs_tournee": {
+      const missing = Math.max(0, v.acheteurs / T.acheteurs_tournee - v.acheteursSortis);
+      return (
+        missing *
+        r.visitesParSorti *
+        r.rateVisiteOffre *
+        r.rateOffreCompromis *
+        r.rateCompromisActe
+      );
+    }
+    case "visites_offres": {
+      const missing = Math.max(0, v.visites / T.visites_offres - v.offres);
+      return missing * r.rateOffreCompromis * r.rateCompromisActe;
+    }
+    case "offres_compromis": {
+      const missing = Math.max(0, v.offres / T.offres_compromis - v.compromis);
+      return missing * r.rateCompromisActe;
+    }
+    case "compromis_actes": {
+      return Math.max(0, v.compromis / T.compromis_actes - v.actes);
+    }
+    case "visites_par_acheteur":
+      return 0;
   }
 }
 
-// ─── Détection du point de douleur principal ──────────────────────────────
+/** Écart normalisé directionnel (compat — ne sert plus au tri). */
+function normalizedGap(expertise: RatioExpertise, current: number, target: number): number {
+  if (target <= 0) return 0;
+  const raw =
+    expertise.direction === "less_is_better"
+      ? (current - target) / target
+      : (target - current) / target;
+  return Math.max(0, raw);
+}
 
 /**
- * Helper interne — applique la formule complète (V1 legacy + V2 composite)
- * sur le pool de mesures et retourne le tableau **trié par painScoreV2 desc**.
- *
- * Étapes :
- *   1. Pour chaque ratio sous-perf (normalizedGap > 0), calculer painScore V1.
- *   2. Calculer maxPainScore du pool (fallback 1 si pool vide ou tous nuls).
- *   3. Calculer impactScoreNormalized + chainScore + feasibilityScore.
- *   4. painScoreV2 = 0.4 × impact + 0.4 × chain + 0.2 × feasibility.
- *   5. Trier desc sur painScoreV2.
- *
- * Filtre force-skip ligne `normalizedGap === 0` : INCHANGÉ — la
- * force-inclusion PR3.5 dans `diagnostic-criticite.ts` reste responsable de
- * récupérer les ratios skippés (cas du dénominateur nul → ratio = 0).
+ * Note tous les ratios du pool et retourne le tableau trié par gain en ventes
+ * décroissant. Ratios sous l'échantillon minimum ou sous 0,05 vente exclus.
  */
 function scoreAllPainPoints(
   measuredRatios: MeasuredRatio[],
-  ctx: ThresholdContext,
+  ctx: ThresholdContext
 ): PainPointResult[] {
-  // Pass 1 : painScore V1 (legacy, formule actuelle inchangée)
-  type Partial1 = Omit<
-    PainPointResult,
-    "painScoreV2" | "impactScoreNormalized" | "chainScore" | "feasibilityScore"
-  >;
-  const partials: Partial1[] = [];
+  if (measuredRatios.length === 0) return [];
+  const T = resolveAll(ctx);
 
+  const scored: PainPointResult[] = [];
   for (const measured of measuredRatios) {
-    // Ratio non mesurable (dénominateur nul / échantillon insuffisant) : ignoré.
-    if (measured.legacyStatus === "non_mesurable") continue;
-
-    const expertise = ALL_EXPERTISE_RATIOS.find(
-      (e) => e.id === measured.expertiseId,
-    );
+    const expertise = RATIO_EXPERTISE[measured.expertiseId];
     if (!expertise) continue;
 
-    // Chantier A.3 — résolution contextuelle (4 axes) du seuil au lieu de
-    // l'accès direct expertise.thresholds[profile].
+    const v = measured.volumes;
+    // Échantillon minimum sur le volume d'entrée → non mesurable, exclu.
+    if (inputVolume(measured.expertiseId, v) < MIN_INPUT_SAMPLE[measured.expertiseId]) {
+      continue;
+    }
+
+    const ventes = gainVentes(measured.expertiseId, v, T);
+    if (ventes < MIN_GAIN_VENTES) continue;
+
     const targetValue = resolveThreshold(expertise, ctx);
-    const normalizedGap = computeNormalizedGap(
-      measured.currentValue,
-      targetValue,
-      expertise.direction,
-    );
+    const currentValue = ratioValueFromVolumes(measured.expertiseId, v);
+    const gainEur = ventes * ctx.avgCommissionEur;
 
-    // Si pas d'écart (surperf ou égal au seuil), on skip
-    if (normalizedGap === 0) continue;
-
-    const estimatedCaLossEur = estimateCaImpact(
-      measured,
-      expertise,
-      targetValue,
-      ctx.avgCommissionEur,
-    );
-
-    // Formule de douleur V1 (legacy — préservée pour compat DB pain_score)
-    const painScore =
-      normalizedGap * estimatedCaLossEur * expertise.leverageWeight;
-
-    partials.push({
+    scored.push({
       expertiseId: measured.expertiseId,
       expertise,
-      currentValue: measured.currentValue,
+      currentValue,
       targetValue,
-      normalizedGap,
-      estimatedCaLossEur,
-      painScore,
+      normalizedGap: normalizedGap(expertise, currentValue, targetValue),
+      estimatedCaLossEur: gainEur,
+      painScore: gainEur,
+      painScoreV2: ventes,
+      impactScoreNormalized: 0,
+      chainScore: expertise.chainPosition,
+      feasibilityScore: FEASIBILITY_SCORE[expertise.feasibility],
     });
   }
 
-  if (partials.length === 0) return [];
-
-  // Pass 2 : V2 composite (chantier A.1)
-  const maxPainScore = Math.max(1, ...partials.map((p) => p.painScore));
-
-  const scored: PainPointResult[] = partials.map((p) => {
-    const impactScoreNormalized = p.painScore / maxPainScore;
-    const chainScore = p.expertise.chainPosition;
-    const feasibilityScore = FEASIBILITY_SCORE[p.expertise.feasibility];
-    const painScoreV2 =
-      0.4 * impactScoreNormalized + 0.4 * chainScore + 0.2 * feasibilityScore;
-    return {
-      ...p,
-      painScoreV2,
-      impactScoreNormalized,
-      chainScore,
-      feasibilityScore,
-    };
-  });
-
-  // Tri décroissant sur le score V2 composite (≠ painScore legacy)
   scored.sort((a, b) => b.painScoreV2 - a.painScoreV2);
   return scored;
 }
 
 /**
- * Retourne LE ratio le plus douloureux pour le conseiller, ou null si aucun écart.
- * Le plan 30j est construit exclusivement autour de ce ratio.
- *
- * Tri par painScoreV2 (chantier A.1). Seuils contextualisés 4 axes (A.3).
+ * Retourne LE ratio le plus douloureux (gain en ventes max), ou null.
  */
 export function detectBiggestPainPoint(
   measuredRatios: MeasuredRatio[],
-  ctx: ThresholdContext,
+  ctx: ThresholdContext
 ): PainPointResult | null {
   const scored = scoreAllPainPoints(measuredRatios, ctx);
   return scored[0] ?? null;
 }
 
 /**
- * Retourne le top N des douleurs (utile pour affichage/debug, même si le plan 30j
- * n'en cible qu'une).
- *
- * Tri par painScoreV2 (chantier A.1). Seuils contextualisés 4 axes (A.3).
+ * Retourne le top N des douleurs (tri par gain en ventes décroissant).
  */
 export function detectTopPainPoints(
   measuredRatios: MeasuredRatio[],
   ctx: ThresholdContext,
-  limit = 3,
+  limit = 3
 ): PainPointResult[] {
   const scored = scoreAllPainPoints(measuredRatios, ctx);
   return scored.slice(0, limit);
 }
 
-// ─── Sous-PR Coach-8 : détection contextuelle (override downstream) ──────
+// ─── Compat : variante « with context » ─────────────────────────────────────
 
-import { detectContextualBlockage, type PainContextOverride } from "@/lib/pain-point-context-override";
+import type { PainContextOverride } from "@/lib/pain-point-context-override";
 import type { PeriodResults } from "@/types/results";
 
 /**
- * Résultat enrichi : pain point + indicateur si override contextuel appliqué.
+ * Résultat enrichi. En V3 `override` est TOUJOURS null (l'override contextuel
+ * ne sert plus : le gain en ventes détecte directement les blocages aval).
  */
 export interface PainPointWithContext {
   painPoint: PainPointResult;
-  /** Override appliqué — null si painScoreV2 est resté source de vérité. */
   override: PainContextOverride | null;
 }
 
 /**
- * Détecte le top pain en arbitrant entre painScoreV2 (algo amont biased)
- * et la détection contextuelle de blocage downstream.
- *
- * Si un override est détecté ET que ce ratio existe dans le pool scoré
- * (= a un écart > 0), il est promu top pain. Sinon le top scored par
- * painScoreV2 reste roi.
- *
- * Fallback gracieux : si results absent, comportement identique à
- * detectBiggestPainPoint (pas d'override possible).
+ * Signature conservée pour compat. `_results` n'est plus utilisé (l'appel à
+ * detectContextualBlockage est retiré) ; `override` reste null.
  */
 export function detectBiggestPainPointWithContext(
   measuredRatios: MeasuredRatio[],
   ctx: ThresholdContext,
-  results: PeriodResults | null,
+  _results: PeriodResults | null
 ): PainPointWithContext | null {
   const scored = scoreAllPainPoints(measuredRatios, ctx);
   if (scored.length === 0) return null;
-
-  if (!results) {
-    return { painPoint: scored[0], override: null };
-  }
-
-  const override = detectContextualBlockage(measuredRatios, results, ctx);
-  if (!override) {
-    return { painPoint: scored[0], override: null };
-  }
-
-  const overriddenPainPoint = scored.find(
-    (s) => s.expertiseId === override.expertiseId,
-  );
-  if (!overriddenPainPoint) {
-    // L'override pointe vers un ratio non détecté comme pain (ratio OK selon
-    // painScoreV2 — pas d'écart normalizedGap > 0). Pas de promotion.
-    return { painPoint: scored[0], override: null };
-  }
-
-  return { painPoint: overriddenPainPoint, override };
+  return { painPoint: scored[0], override: null };
 }

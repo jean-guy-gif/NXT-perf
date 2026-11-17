@@ -10,6 +10,22 @@
  * Éditeur unique : Jean-Guy. Évolutions = PR Git (pas d'UI admin).
  */
 
+// ─── Taux de transformation mandat → vente ─────────────────────────────────
+//
+// Probabilité qu'un mandat aboutisse à une vente signée, selon son type.
+// Un mandat exclusif se vend bien mieux qu'un simple (le conseiller est seul
+// sur le dossier, le bien est mieux défendu). Calibration doc Jean-Guy :
+// les exclusivités « convertissent 2x mieux ».
+//
+// Servent au détecteur de point de douleur V3 (pain-point-detector.ts) pour
+// convertir un volume de mandats « gagnés » en ventes puis en euros.
+
+/** Probabilité qu'un mandat EXCLUSIF se transforme en vente. */
+export const TAUX_EXCLU_VENTE = 0.7;
+
+/** Probabilité qu'un mandat SIMPLE se transforme en vente. */
+export const TAUX_SIMPLE_VENTE = 0.3;
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export type ExpertiseRatioId =

@@ -1,7 +1,7 @@
 import type { RatioId, ComputedRatio } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
-import type { MeasuredRatio } from "@/lib/pain-point-detector";
+import type { MeasuredRatio, PainVolumes } from "@/lib/pain-point-detector";
 
 export const RATIO_ID_TO_EXPERTISE_ID: Record<RatioId, ExpertiseRatioId | null> = {
   contacts_rdv: "contacts_estimations",
@@ -37,17 +37,56 @@ function getVolumeBase(
   }
 }
 
+/**
+ * Extrait les volumes bruts servant au détecteur de point de douleur V3.
+ * La plupart des volumes viennent de la fenêtre 3 mois (`results`) ; compromis
+ * et actes viennent de la fenêtre 6 mois (`results6m`) quand elle est fournie.
+ *
+ * NB : le modèle KPI ne stocke pas de « total acheteurs » distinct des
+ * acheteurs sortis en visite — on utilise donc `acheteursSortisVisite` comme
+ * proxy pour les deux (le ratio acheteurs_tournee reste alors neutre).
+ */
+function painVolumesFromResults(
+  results: PeriodResults,
+  results6m?: PeriodResults | null
+): PainVolumes {
+  const six = results6m ?? results;
+  return {
+    contacts: results.prospection.contactsTotaux,
+    estimations:
+      results.vendeurs.estimationsRealisees || results.vendeurs.rdvEstimation,
+    mandats: results.vendeurs.mandatsSignes,
+    exclusifs: results.vendeurs.mandats.filter((m) => m.type === "exclusif")
+      .length,
+    acheteurs: results.acheteurs.acheteursSortisVisite,
+    acheteursSortis: results.acheteurs.acheteursSortisVisite,
+    visites: results.acheteurs.nombreVisites,
+    offres: results.acheteurs.offresRecues,
+    compromis: six.acheteurs.compromisSignes,
+    actes: six.ventes.actesSignes,
+  };
+}
+
+/**
+ * Construit le pool MeasuredRatio alimentant le détecteur de point de douleur.
+ * @param results   Agrégat 3 mois glissants (volumes de base).
+ * @param results6m Agrégat 6 mois (compromis + actes). Optionnel : si absent,
+ *                  compromis/actes sont lus sur `results`.
+ */
 export function buildMeasuredRatios(
   computedRatios: ComputedRatio[],
-  results: PeriodResults | null | undefined
+  results: PeriodResults | null | undefined,
+  results6m?: PeriodResults | null
 ): MeasuredRatio[] {
   if (!results) return [];
+  const volumes = painVolumesFromResults(results, results6m);
   const measured: MeasuredRatio[] = [];
   for (const computed of computedRatios) {
     const expertiseId = RATIO_ID_TO_EXPERTISE_ID[computed.ratioId as RatioId];
     if (!expertiseId) continue;
     measured.push({
       expertiseId,
+      volumes,
       currentValue: computed.value,
       volumeBase: getVolumeBase(expertiseId, results),
       legacyStatus: computed.status,

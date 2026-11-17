@@ -15,19 +15,13 @@
  * (le user passe par LeverPicker).
  */
 
-import {
-  ALL_EXPERTISE_RATIOS,
-  RATIO_EXPERTISE,
-} from "@/data/ratio-expertise";
+import { ALL_EXPERTISE_RATIOS } from "@/data/ratio-expertise";
 import {
   detectBiggestPainPoint,
   type MeasuredRatio,
   type PainPointResult,
 } from "@/lib/pain-point-detector";
-import {
-  resolveThreshold,
-  type ThresholdContext,
-} from "@/lib/diagnostic/resolve-threshold";
+import type { ThresholdContext } from "@/lib/diagnostic/resolve-threshold";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
 import type { PeriodResults } from "@/types/results";
 import type { UserCategory } from "@/types/user";
@@ -211,51 +205,9 @@ export function findCriticitePoints(
     if (pool.length === 0) break;
   }
 
-  // ── Force-inclusion (PR3.5 fix BUG 2) : ratios warning/danger issus du
-  //    scoring legacy mais que detectBiggestPainPoint a écartés (cas du
-  //    dénominateur nul → ratio = 0 → painScore = 0 → faussement "OK").
-  //    On les ajoute avec un painScore minimal pour qu'ils apparaissent dans
-  //    le drawer "Voir les autres points en danger". Q4 : on ignore les
-  //    ratios sans activité upstream (volumeBase = 0).
-  //
-  //    Chantier A.1 : on assigne un painScoreV2 = 0.05 (faible) aux ratios
-  //    force-inclus pour qu'ils restent en bas du tri V2 sans être 0 (zéro
-  //    pourrait masquer la nuance "présent mais peu prioritaire").
-  for (const m of measured) {
-    if (seenRatios.has(m.expertiseId)) continue;
-    if (m.legacyStatus !== "warning" && m.legacyStatus !== "danger") continue;
-    if (m.volumeBase <= 0) continue;
-    const expertise = RATIO_EXPERTISE[m.expertiseId];
-    if (!expertise) continue;
-    seenRatios.add(m.expertiseId);
-    // Estimation prudente : volumeBase × avgCommission × 0.05 (heuristique
-    // 5 % du potentiel — placeholder V1, à calibrer).
-    const fallbackGain = Math.round(m.volumeBase * ctx.avgCommissionEur * 0.05);
-    // Chantier A.3 — seuil contextualisé 4 axes via resolveThreshold.
-    const targetValue = resolveThreshold(expertise, ctx);
-    ratioPoints.push({
-      type: "ratio",
-      id: m.expertiseId,
-      label: expertise.label,
-      currentValue: m.currentValue,
-      targetValue,
-      gainEur: fallbackGain,
-      painScore: Math.max(1, fallbackGain),
-      _ratio: {
-        expertiseId: m.expertiseId,
-        expertise,
-        currentValue: m.currentValue,
-        targetValue,
-        normalizedGap: 0,
-        estimatedCaLossEur: fallbackGain,
-        painScore: Math.max(1, fallbackGain),
-        painScoreV2: 0.05,
-        impactScoreNormalized: 0,
-        chainScore: expertise.chainPosition,
-        feasibilityScore: 0,
-      },
-    });
-  }
+  // V3 : plus de force-inclusion. Le détecteur de point de douleur note
+  // désormais directement tous les ratios en gain de ventes (y compris les
+  // blocages aval « X / 0 Y »), donc la boucle ci-dessus les surface déjà.
 
   // ── Volumes sous-perf : gap × valeur unitaire ────────────────────────────
   const volumePoints: CriticitePoint[] = [];
@@ -308,10 +260,7 @@ export function findCriticitePoints(
   return { top: all[0], others: all.slice(1) };
 }
 
-// ─── Sous-PR Coach-10 : helper avec override contextuel downstream ───────
-
-import { detectContextualBlockage } from "@/lib/pain-point-context-override";
-import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+// ─── Helper avec métadonnées override (conservé pour compat, override null) ──
 
 /**
  * Wrapper findCriticitePoints + application override contextuel downstream
@@ -331,37 +280,8 @@ export function findCriticitePointsWithContext(
   category: UserCategory,
   periodMonths: number,
 ): DiagnosticCriticiteWithContext {
+  // V3 : l'override contextuel ne sert plus (le gain en ventes détecte
+  // directement les blocages aval). `override` reste null pour compat.
   const base = findCriticitePoints(measured, ctx, results, category, periodMonths);
-  if (!results) {
-    return { ...base, override: null, originalTopId: null };
-  }
-  const override = detectContextualBlockage(measured, results, ctx);
-  if (!override) {
-    return { ...base, override: null, originalTopId: null };
-  }
-  const overrideInList = [base.top, ...base.others].find(
-    (p): p is CriticitePoint & { type: "ratio" } =>
-      !!p && p.type === "ratio" && p.id === override.expertiseId,
-  );
-  if (!overrideInList) {
-    return { ...base, override: null, originalTopId: null };
-  }
-  const oldTop = base.top;
-  const oldTopId: ExpertiseRatioId | null =
-    oldTop && oldTop.type === "ratio"
-      ? (oldTop.id as ExpertiseRatioId)
-      : null;
-  if (oldTopId === override.expertiseId) {
-    return { ...base, override, originalTopId: null };
-  }
-  const newOthers = base.others.filter(
-    (p) => !(p.type === "ratio" && p.id === override.expertiseId),
-  );
-  if (oldTop) newOthers.unshift(oldTop);
-  return {
-    top: overrideInList,
-    others: newOthers,
-    override,
-    originalTopId: oldTopId,
-  };
+  return { ...base, override: null, originalTopId: null };
 }

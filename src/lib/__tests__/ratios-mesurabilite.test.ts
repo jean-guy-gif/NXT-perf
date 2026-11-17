@@ -7,7 +7,8 @@ import {
 import { aggregateLastMonths } from "@/lib/aggregate-results";
 import {
   detectBiggestPainPoint,
-  type MeasuredRatio,
+  buildMeasuredRatiosFromVolumes,
+  type PainVolumes,
 } from "@/lib/pain-point-detector";
 import { bucketTeamSize } from "@/lib/diagnostic/resolve-threshold";
 import { defaultRatioConfigs } from "@/data/mock-ratios";
@@ -144,35 +145,40 @@ describe("assessMeasurability — ratio mesurable", () => {
   });
 });
 
-describe("pain-point-detector ignore les ratios non_mesurables", () => {
+describe("pain-point-detector V3 exclut les ratios sous l'échantillon minimum", () => {
   const ctx = {
     seniority: "confirme" as const,
-    agentStatus: null,
-    teamSizeBucket: bucketTeamSize(1),
-    avgCommissionEur: 5000,
+    agentStatus: "agent_commercial" as const,
+    teamSizeBucket: bucketTeamSize(3),
+    avgCommissionEur: 8000,
   };
 
-  const basePain: Omit<MeasuredRatio, "legacyStatus"> = {
-    expertiseId: "contacts_estimations",
-    // Valeur très au-dessus de la cible (less_is_better) → écart réel > 0.
-    currentValue: 999,
-    volumeBase: 50,
+  const emptyVolumes: PainVolumes = {
+    contacts: 0,
+    estimations: 0,
+    mandats: 0,
+    exclusifs: 0,
+    acheteurs: 0,
+    acheteursSortis: 0,
+    visites: 0,
+    offres: 0,
+    compromis: 0,
+    actes: 0,
   };
 
-  it("un ratio non_mesurable n'est jamais retourné comme point de douleur", () => {
-    const result = detectBiggestPainPoint(
-      [{ ...basePain, legacyStatus: "non_mesurable" }],
-      ctx
-    );
-    expect(result).toBeNull();
+  it("contacts sous le minimum (18 < 20) → aucun point de douleur détecté", () => {
+    // contacts_estimations aurait un écart, mais 18 contacts < seuil 20 → exclu.
+    const volumes: PainVolumes = { ...emptyVolumes, contacts: 18 };
+    const measured = buildMeasuredRatiosFromVolumes(volumes);
+    expect(detectBiggestPainPoint(measured, ctx)).toBeNull();
   });
 
-  it("contrôle : le même ratio en danger EST détecté (prouve que l'écart existe)", () => {
-    const result = detectBiggestPainPoint(
-      [{ ...basePain, legacyStatus: "danger" }],
-      ctx
+  it("contrôle : avec 300 contacts (≥ 20) le ratio EST détecté", () => {
+    const volumes: PainVolumes = { ...emptyVolumes, contacts: 300 };
+    const measured = buildMeasuredRatiosFromVolumes(volumes);
+    expect(detectBiggestPainPoint(measured, ctx)?.expertiseId).toBe(
+      "contacts_estimations"
     );
-    expect(result?.expertiseId).toBe("contacts_estimations");
   });
 });
 
