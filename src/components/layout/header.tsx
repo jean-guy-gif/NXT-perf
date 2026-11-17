@@ -15,6 +15,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { NOTIFICATION_ICONS } from "@/types/notifications";
 import type { NotificationType } from "@/types/notifications";
 import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
+import { isFormationMode } from "@/lib/app-mode";
 import { AddAgentModal } from "@/components/manager/add-agent-modal";
 import { ExportModal } from "@/components/export/export-modal";
 
@@ -115,7 +116,13 @@ export function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifs]);
 
-  const pageTitle = pageTitles[pathname] || "Dashboard";
+  // Mode formation : le diagnostic conseiller s'intitule « Mon tableau de bord »
+  // (cohérent avec la nav formation réduite). Les pages masquées (comparaison,
+  // progression, identité) ne sont plus atteignables depuis la nav.
+  const pageTitle =
+    isFormationMode() && pathname === "/conseiller/diagnostic"
+      ? "Mon tableau de bord"
+      : pageTitles[pathname] || "Dashboard";
   const initials = user
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
     : "??";

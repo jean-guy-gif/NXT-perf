@@ -166,8 +166,9 @@ export function DiagnosticVerdictView() {
 
       {topPainPoints.length > 0 && (
         <section
+          id="points-douleur"
           aria-label="Top 3 des points de douleur"
-          className="rounded-2xl border border-border bg-card p-5"
+          className="scroll-mt-24 rounded-2xl border border-border bg-card p-5"
         >
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Top 3 des points de douleur

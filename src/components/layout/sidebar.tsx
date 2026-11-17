@@ -16,6 +16,8 @@ import {
   LineChart,
   Users,
   Fingerprint,
+  LayoutDashboard,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isFormationMode } from "@/lib/app-mode";
@@ -72,6 +74,18 @@ const navItems: NavItem[] = [
   { href: "/parametres", icon: Settings, label: "Paramètres" },
 ];
 
+/**
+ * Mode formation : le menu conseiller se réduit à 3 entrées (masquage, pas
+ * suppression — les autres pages existent toujours). « Mes points de douleur »
+ * pointe sur la même page que le tableau de bord, ancrée sur la section des
+ * points de douleur (#points-douleur).
+ */
+const FORMATION_ADVISOR_ITEMS: NavItem[] = [
+  { href: "/conseiller/diagnostic", icon: LayoutDashboard, label: "Mon tableau de bord" },
+  { href: "/conseiller/diagnostic#points-douleur", icon: Crosshair, label: "Mes points de douleur" },
+  { href: "/conseiller/ameliorer", icon: Wrench, label: "Mon plan d'action" },
+];
+
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -100,17 +114,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     formation ? { ...item, lockedFeature: undefined } : item;
 
   const utilityHrefs = new Set(["/pourquoi-nxt", "/parametres"]);
-  const advisorItems = visibleViews.includes("agent")
-    ? navItems
-        .filter(
-          (item) =>
-            !item.managerOnly &&
-            !item.directorOnly &&
-            !item.networkOnly &&
-            !utilityHrefs.has(item.href)
-        )
-        .map(stripLock)
-    : [];
+  const advisorItems = !visibleViews.includes("agent")
+    ? []
+    : formation
+      ? // Formation : 3 entrées seulement (tableau de bord, points de douleur,
+        // plan d'action). Comparaison / progression / identité masquées.
+        FORMATION_ADVISOR_ITEMS
+      : navItems
+          .filter(
+            (item) =>
+              !item.managerOnly &&
+              !item.directorOnly &&
+              !item.networkOnly &&
+              !utilityHrefs.has(item.href)
+          )
+          .map(stripLock);
   const managerItems = visibleViews.includes("manager")
     ? navItems.filter((item) => item.managerOnly).map(stripLock)
     : [];

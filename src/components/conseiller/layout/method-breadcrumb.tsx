@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Search, Wrench, LineChart, Users, ChevronRight } from "lucide-react";
+import { isFormationMode } from "@/lib/app-mode";
 
 const STEPS = [
   { href: "/conseiller/diagnostic", label: "Mon diagnostic", icon: Search },
@@ -12,15 +13,24 @@ const STEPS = [
   { href: "/conseiller/comparaison", label: "Ma comparaison", icon: Users },
 ] as const;
 
+// Mode formation : progression et comparaison masquées (pas supprimées).
+const FORMATION_HIDDEN_HREFS = new Set<string>([
+  "/conseiller/progression",
+  "/conseiller/comparaison",
+]);
+
 export function MethodBreadcrumb() {
   const pathname = usePathname();
+  const steps = isFormationMode()
+    ? STEPS.filter((s) => !FORMATION_HIDDEN_HREFS.has(s.href))
+    : STEPS;
 
   return (
     <nav
       aria-label="Méthode NXT Performance"
       className="mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 px-4 pt-4 pb-2"
     >
-      {STEPS.map((step, idx) => {
+      {steps.map((step, idx) => {
         const isActive =
           pathname === step.href || pathname.startsWith(step.href + "/");
         const Icon = step.icon;
@@ -40,7 +50,7 @@ export function MethodBreadcrumb() {
               <Icon className="h-3.5 w-3.5" />
               {step.label}
             </Link>
-            {idx < STEPS.length - 1 && (
+            {idx < steps.length - 1 && (
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
             )}
           </div>

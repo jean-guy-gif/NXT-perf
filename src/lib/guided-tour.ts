@@ -1,4 +1,5 @@
 import type { UserRole } from "@/types/user";
+import { isFormationMode } from "@/lib/app-mode";
 
 // ── Tour step definition ──
 
@@ -175,10 +176,49 @@ const reseauSteps: TourStep[] = [
   },
 ];
 
+/**
+ * Mode formation : le tour conseiller masque les étapes Progression et
+ * Comparaison (pages masquées de la nav), et adopte les libellés formation
+ * (Tableau de bord / Plan d'action).
+ */
+const FORMATION_HIDDEN_TOUR_HREFS = [
+  "/conseiller/progression",
+  "/conseiller/comparaison",
+];
+
+function conseillerFormationSteps(): TourStep[] {
+  return conseillerSteps
+    .filter(
+      (s) => !s.navigateTo || !FORMATION_HIDDEN_TOUR_HREFS.includes(s.navigateTo),
+    )
+    .map((s) => {
+      if (s.navigateTo === "/conseiller/diagnostic") {
+        return {
+          ...s,
+          title: "Mon tableau de bord",
+          description:
+            "Ton point critique du mois, tes objectifs et tes points de douleur — chiffrés en € de gain potentiel. C'est ton point de départ.",
+        };
+      }
+      if (s.navigateTo === "/conseiller/ameliorer") {
+        return { ...s, title: "Mon plan d'action" };
+      }
+      if (!s.target) {
+        // Étape d'accueil : méthode réduite en formation.
+        return {
+          ...s,
+          description:
+            "Découvre la méthode : Tableau de bord → Points de douleur → Plan d'action. Tu peux passer cette visite à tout moment.",
+        };
+      }
+      return s;
+    });
+}
+
 export function getTourSteps(role: UserRole): TourStep[] {
   switch (role) {
     case "conseiller":
-      return conseillerSteps;
+      return isFormationMode() ? conseillerFormationSteps() : conseillerSteps;
     case "manager":
       return managerSteps;
     case "directeur":
