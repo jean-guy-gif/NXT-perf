@@ -23,6 +23,7 @@ import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
 import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-drawer";
 import { ActivePlanCard } from "@/components/conseiller/diagnostic/active-plan-card";
+import { ObjectivesCard } from "@/components/conseiller/diagnostic/objectives-card";
 import { KeyFiguresAccordion } from "@/components/conseiller/diagnostic/key-figures-accordion";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import { useMemo } from "react";
@@ -136,6 +137,9 @@ export function DiagnosticVerdictView() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4">
+      {/* Carte « Mes objectifs » — objectif annuel GPS vs réalisé YTD. */}
+      <ObjectivesCard />
+
       {/* PR3.7 Q7=A : carte détaillée du plan en cours, AVANT le verdict.
           Le PersistentPlanBanner du layout reste visible en parallèle. */}
       <ActivePlanCard />
