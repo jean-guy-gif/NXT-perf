@@ -140,7 +140,7 @@ export function ContinuityBlock() {
     const body =
       ragOffer?.body ??
       "Découvre ce que tu as gagné et ce que tu peux améliorer.";
-    const ctaLabel = ragOffer?.ctaLabel ?? "Voir mon debrief IA";
+    const ctaLabel = ragOffer?.ctaLabel ?? "Voir mon debrief";
 
     return (
       <section

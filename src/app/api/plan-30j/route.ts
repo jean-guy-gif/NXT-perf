@@ -17,7 +17,7 @@ import {
   resolveThreshold,
   type ThresholdContext,
 } from "@/lib/diagnostic/resolve-threshold";
-import { planToPayload } from "@/lib/plan-30-jours";
+import { generatePlan30j, planToPayload } from "@/lib/plan-30-jours";
 import { generatePlan30jRag } from "@/lib/server/coach-rag/plan-30j-generator";
 import {
   RATIO_EXPERTISE,
@@ -52,10 +52,6 @@ interface RequestBody {
 }
 
 export async function POST(request: Request) {
-  // Interrupteur IA : aucun appel LLM tant que AI_FEATURES_ENABLED !== "true".
-  if (!isAiEnabled()) {
-    return NextResponse.json({ disabled: true }, { status: 503 });
-  }
   const supabase = await createServerSupabaseClient();
 
   // Parse body avant auth pour lire le flag persistInDb.
@@ -193,10 +189,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Génération du plan — sous-PR Coach-1 : enrichi par RAG (corpus NXT-Coach +
-  // doctrine méthode + Claude Sonnet 4.5). Fallback silencieux vers logique
-  // hardcoded si OpenRouter/parsing fail (cf. plan-30j-generator.ts).
-  const plan = await generatePlan30jRag(painPoint, ctx);
+  // Génération du plan — option A par défaut : IA éteinte → plan déterministe
+  // hardcoded (generatePlan30j). Si l'IA est activée, enrichissement RAG
+  // (corpus NXT-Coach + doctrine méthode + Claude Sonnet 4.5), avec fallback
+  // silencieux vers la logique hardcoded si OpenRouter/parsing fail.
+  const plan = isAiEnabled()
+    ? await generatePlan30jRag(painPoint, ctx)
+    : generatePlan30j(painPoint);
   const payload: Plan30jPayload = planToPayload(plan);
 
   // Sous-PR Coach-4 : mode démo (persistInDb=false). On retourne le plan
