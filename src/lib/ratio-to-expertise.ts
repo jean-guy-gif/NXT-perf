@@ -1,6 +1,7 @@
 import type { RatioId, ComputedRatio } from "@/types/ratios";
 import type { PeriodResults } from "@/types/results";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import { isLever } from "@/data/ratio-expertise";
 import type { MeasuredRatio, PainVolumes } from "@/lib/pain-point-detector";
 
 export const RATIO_ID_TO_EXPERTISE_ID: Record<RatioId, ExpertiseRatioId | null> = {
@@ -13,6 +14,27 @@ export const RATIO_ID_TO_EXPERTISE_ID: Record<RatioId, ExpertiseRatioId | null> 
   compromis_actes: "compromis_actes",
   honoraires_moyens: null,
 };
+
+/**
+ * `true` si ce ratio (legacy RatioId) est un levier actionnable — filtre sur
+ * `estLevier` de l'expertise, jamais sur une liste en dur.
+ * `honoraires_moyens` n'a pas d'expertise mappée → `false`.
+ */
+export function isLeverRatioId(ratioId: RatioId): boolean {
+  const expertiseId = RATIO_ID_TO_EXPERTISE_ID[ratioId];
+  return expertiseId ? isLever(expertiseId) : false;
+}
+
+/**
+ * `true` UNIQUEMENT pour les ratios explicitement NON-leviers (ex.
+ * `compromis_actes`, résultante). Les ratios sans expertise mappée
+ * (`honoraires_moyens`) renvoient `false` → ils ne sont PAS filtrés par ce
+ * garde (leur traitement reste inchangé).
+ */
+export function isNonLeverRatioId(ratioId: RatioId): boolean {
+  const expertiseId = RATIO_ID_TO_EXPERTISE_ID[ratioId];
+  return expertiseId !== null && !isLever(expertiseId);
+}
 
 function getVolumeBase(
   expertiseId: ExpertiseRatioId,

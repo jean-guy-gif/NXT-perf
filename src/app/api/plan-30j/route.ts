@@ -21,6 +21,7 @@ import { generatePlan30j, planToPayload } from "@/lib/plan-30-jours";
 import { generatePlan30jRag } from "@/lib/server/coach-rag/plan-30j-generator";
 import {
   RATIO_EXPERTISE,
+  isLever,
   type ExpertiseRatioId,
   type ProfileLevel,
 } from "@/data/ratio-expertise";
@@ -92,6 +93,18 @@ export async function POST(request: Request) {
       {
         error: "MISSING_RATIO_ID",
         message: "Mode targeted requiert ratioId",
+      },
+      { status: 400 }
+    );
+  }
+
+  // Un plan ciblé ne peut porter que sur un LEVIER actionnable. Les résultantes
+  // (ex. compromis_actes, décalage ~3 mois) ne sont pas des leviers.
+  if (body.mode === "targeted" && body.ratioId && !isLever(body.ratioId)) {
+    return NextResponse.json(
+      {
+        error: "NOT_A_LEVER",
+        message: `Le ratio ${body.ratioId} est une resultante, pas un levier : aucun plan ne peut le cibler.`,
       },
       { status: 400 }
     );

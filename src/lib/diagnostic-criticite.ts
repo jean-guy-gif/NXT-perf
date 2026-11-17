@@ -38,6 +38,9 @@ export type VolumeKey =
   | "compromisSignes"
   | "actesSignes";
 
+// `actesSignes` (et le CA encaissé) sont des RÉSULTANTES (~3 mois de décalage)
+// → exclues du classement des points de douleur. Elles restent dans le type
+// VolumeKey pour l'affichage, mais ne sont jamais notées ici.
 const VOLUME_KEYS: VolumeKey[] = [
   "contactsTotaux",
   "rdvEstimation",
@@ -46,7 +49,6 @@ const VOLUME_KEYS: VolumeKey[] = [
   "nombreVisites",
   "offresRecues",
   "compromisSignes",
-  "actesSignes",
 ];
 
 const VOLUME_LABELS: Record<VolumeKey, string> = {

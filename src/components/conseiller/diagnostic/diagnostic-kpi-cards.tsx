@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, AlertTriangle, X, MinusCircle } from "lucide-react";
+import { Check, AlertTriangle, X, MinusCircle, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
+import { isNonLeverRatioId } from "@/lib/ratio-to-expertise";
 import {
   determineRhythmStatus,
   RHYTHM_LABEL,
@@ -239,6 +240,8 @@ export function DiagnosticKpiCards({
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {ratios.map(({ id, computed, config }) => {
+              // Résultante (compromis_actes) → « Indicateur de suivi » neutre.
+              const isSuivi = isNonLeverRatioId(id);
               const style = STATUS_STYLE[computed.status];
               const Icon = style.icon;
               const isHighlighted = highlightedItem === `ratio:${id}`;
@@ -248,13 +251,28 @@ export function DiagnosticKpiCards({
                   data-highlight-id={`ratio:${id}`}
                   className={cn(
                     "rounded-xl border bg-card p-4 transition-all duration-300",
-                    style.ring,
+                    isSuivi ? "border-border" : style.ring,
                     isHighlighted &&
                       "scale-[1.02] ring-2 ring-primary shadow-lg animate-pulse"
                   )}
                 >
                   <p className="text-xs text-muted-foreground">{config.name}</p>
-                  {computed.status === "non_mesurable" ? (
+                  {isSuivi ? (
+                    <>
+                      <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+                        {config.isPercentage
+                          ? `${Math.round(computed.value)}%`
+                          : computed.value.toFixed(1)}
+                      </p>
+                      <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                        <Activity className="h-3 w-3" />
+                        Indicateur de suivi
+                      </p>
+                      <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                        Résultante : ~3 mois de décalage, pas un levier.
+                      </p>
+                    </>
+                  ) : computed.status === "non_mesurable" ? (
                     <>
                       <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground">
                         <Icon className="h-3.5 w-3.5" />

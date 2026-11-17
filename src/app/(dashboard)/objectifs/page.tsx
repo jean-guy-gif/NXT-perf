@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LockedFeature } from "@/components/subscription/locked-feature";
 import { useUser } from "@/hooks/use-user";
 import { useUserContext } from "@/hooks/use-user-context";
-import { useResults } from "@/hooks/use-results";
+import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
 import { useRatios } from "@/hooks/use-ratios";
+import { createClient } from "@/lib/supabase/client";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { calculateObjectiveBreakdown } from "@/lib/objectifs";
 import { useAppStore } from "@/stores/app-store";
@@ -118,8 +119,14 @@ export default function ObjectifsPage() {
   const { category } = useUser();
   // Chantier A.3.x — propagation matrice 4 axes côté createPlan30j.
   const userCtx = useUserContext();
-  const results = useResults();
+  // Cohérence diagnostic/plan : agrégat 3 mois (6 mois pour compromis/actes).
+  const { results3m: results, results6m } = useDiagnosticResults();
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
+  const isDemo = useAppStore((s) => s.isDemo);
+  const setAgencyObjective = useAppStore((s) => s.setAgencyObjective);
+  const setConseillerObjective = useAppStore((s) => s.setConseillerObjective);
+  const conseillerObjective = useAppStore((s) => s.conseillerObjective);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
 
   /* ── Tab state ── */
   const [activeTab, setActiveTab] = useState<ObjectifsTab>("gps");
@@ -129,6 +136,22 @@ export default function ObjectifsPage() {
   const [avgActValue, setAvgActValue] = useState(8000);
   const [gpsSaved, setGpsSaved] = useState(false);
   const [savedGps, setSavedGps] = useState<{ ca: number; avg: number } | null>(null);
+
+  // Pré-remplissage avec l'objectif existant (personnel conseiller en priorité,
+  // sinon objectif d'agence) une fois chargé.
+  const existingObjective = conseillerObjective ?? agencyObjective;
+  useEffect(() => {
+    if (existingObjective) {
+      setAnnualCA(existingObjective.annualCA);
+      setAvgActValue(existingObjective.avgActValue);
+      setSavedGps({
+        ca: existingObjective.annualCA,
+        avg: existingObjective.avgActValue,
+      });
+    }
+    // Pré-remplir une seule fois au chargement de l'objectif.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingObjective?.annualCA, existingObjective?.avgActValue]);
 
   /* ── Niveau state — defaults to account category ── */
   const [selectedNiveau, setSelectedNiveau] = useState<NiveauChoice>(category);
@@ -140,7 +163,6 @@ export default function ObjectifsPage() {
   /* ── Plan 30j (hook flywheel) ── */
   const router = useRouter();
   const currentUser = useAppStore((s) => s.user);
-  const agencyObjective = useAppStore((s) => s.agencyObjective);
   const allResults = useAppStore((s) => s.results);
   const { getActivePlan, getActivePlanForRatio, createPlan30j } =
     useImprovementResources();
@@ -166,7 +188,7 @@ export default function ObjectifsPage() {
     setImproveToast(null);
     try {
       const userHistory = allResults.filter((r) => r.userId === currentUser?.id);
-      const measuredRatios = buildMeasuredRatios(computedRatios, results);
+      const measuredRatios = buildMeasuredRatios(computedRatios, results, results6m);
       const profile = deriveProfileLevel(category);
       const avgCommissionEur = getAvgCommissionEur(
         agencyObjective?.avgActValue,
@@ -180,6 +202,8 @@ export default function ObjectifsPage() {
         avgCommissionEur,
         agentStatus: userCtx.agentStatus,
         teamSize: userCtx.teamSize,
+        // latestResults = agrégat 3 mois (cohérence douleur diagnostic/plan).
+        latestResults: results,
       });
       setImproveToast({ type: "success", message: "Plan 30 jours généré" });
       router.push("/formation?tab=plan30");
@@ -241,8 +265,43 @@ export default function ObjectifsPage() {
   const yearProgress = (monthProgress / 12) * 100;
 
   /* ── Handlers ── */
-  const handleSaveGps = () => {
-    setSavedGps({ ca: annualCA, avg: avgActValue });
+  const handleSaveGps = async () => {
+    const ca = annualCA;
+    const commission = avgActValue;
+    if (ca <= 0 || commission <= 0) return;
+
+    const bd = calculateObjectiveBreakdown(ca, commission, category, ratioConfigs);
+
+    // Hors démo : persistance Supabase (mêmes champs que l'onboarding GPS),
+    // puis setAgencyObjective. En démo : store seulement, pas de Supabase.
+    if (!isDemo && currentUser?.id) {
+      try {
+        const supabase = createClient();
+        await supabase.from("objectives").upsert(
+          {
+            user_id: currentUser.id,
+            year: new Date().getFullYear(),
+            input: {
+              objectifFinancierAnnuel: ca,
+              avg_commission_eur: commission,
+            },
+            breakdown: bd,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,year" },
+        );
+      } catch {
+        // On met quand même à jour le store pour un retour immédiat.
+      }
+      setAgencyObjective({ annualCA: ca, avgActValue: commission });
+    }
+
+    // La carte « Mes objectifs » lit l'objectif PERSONNEL en priorité : on le
+    // met à jour dans les deux modes pour un rafraîchissement sans reload (en
+    // démo, l'objectif d'agence reste intact pour les vues manager).
+    setConseillerObjective({ annualCA: ca, avgActValue: commission });
+
+    setSavedGps({ ca, avg: commission });
     setGpsSaved(true);
     setTimeout(() => setGpsSaved(false), 2500);
   };

@@ -3,10 +3,14 @@
 import { useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
-import { useTeamResults } from "@/hooks/team/use-team-results";
 import { useTeamRatios } from "@/hooks/team/use-team-ratios";
 import { useManagerView } from "@/hooks/use-manager-view";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { aggregateLastMonths } from "@/lib/aggregate-results";
+import {
+  DIAGNOSTIC_WINDOW_MONTHS,
+  COMPROMIS_ACTES_WINDOW_MONTHS,
+} from "@/lib/ratios";
 import { getAvgCommissionEur, deriveProfileLevel } from "@/lib/get-avg-commission";
 import { detectBiggestPainPoint } from "@/lib/pain-point-detector";
 import {
@@ -39,7 +43,6 @@ export function useAdvisorsByPain(): AdvisorWithPain[] {
   const { advisors } = useManagerView();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const allResults = useAllResults();
-  const { perConseillerResults } = useTeamResults();
   const { perConseillerRatios } = useTeamRatios();
 
   return useMemo(() => {
@@ -48,16 +51,30 @@ export function useAdvisorsByPain(): AdvisorWithPain[] {
     const teamSizeBucket = bucketTeamSize(advisors.length);
 
     const enriched: AdvisorWithPain[] = advisors.map((advisor) => {
-      const results = perConseillerResults.get(advisor.id) ?? null;
+      // Cohérence diagnostic/plan : agrégat 3 mois (6 mois pour compromis/actes).
+      const results3m = aggregateLastMonths(
+        allResults,
+        advisor.id,
+        DIAGNOSTIC_WINDOW_MONTHS,
+      );
+      const results6m = aggregateLastMonths(
+        allResults,
+        advisor.id,
+        COMPROMIS_ACTES_WINDOW_MONTHS,
+      );
       const computedRatios = perConseillerRatios.get(advisor.id) ?? [];
-      const measuredRatios = buildMeasuredRatios(computedRatios, results);
+      const measuredRatios = buildMeasuredRatios(
+        computedRatios,
+        results3m,
+        results6m,
+      );
       const history = allResults.filter((r) => r.userId === advisor.id);
       const avgCommissionEur = getAvgCommissionEur(
         agencyObjective?.avgActValue,
         history,
       );
 
-      if (!results || measuredRatios.length === 0 || avgCommissionEur <= 0) {
+      if (!results3m || measuredRatios.length === 0 || avgCommissionEur <= 0) {
         return { advisor, painScore: null, topGainEur: null };
       }
 
@@ -88,7 +105,6 @@ export function useAdvisorsByPain(): AdvisorWithPain[] {
     return enriched;
   }, [
     advisors,
-    perConseillerResults,
     perConseillerRatios,
     allResults,
     agencyObjective,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, Target, Check, AlertTriangle, X, Hourglass } from "lucide-react";
+import { Info, Target, Check, AlertTriangle, X, Hourglass, Activity } from "lucide-react";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
 import {
@@ -8,6 +8,7 @@ import {
   formatRatioObjectiveValue,
   formatRatioCurrentValue,
 } from "@/lib/ratio-labels";
+import { isNonLeverRatioId } from "@/lib/ratio-to-expertise";
 import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 
 const statusConfig = {
@@ -58,8 +59,10 @@ export function ManagerRatioCard({
   onSelect,
   improveSection,
 }: ManagerRatioCardProps) {
+  // Résultante (compromis_actes) → « Indicateur de suivi » neutre côté manager.
+  const isSuivi = isNonLeverRatioId(ratio.ratioId as RatioId);
   const sc = statusConfig[ratio.status];
-  const StatusIcon = sc.icon;
+  const StatusIcon = isSuivi ? Activity : sc.icon;
 
   return (
     <div
@@ -96,12 +99,12 @@ export function ManagerRatioCard({
         <span
           className={cn(
             "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
-            sc.bg,
-            sc.color,
+            isSuivi ? "bg-muted/40 text-muted-foreground" : sc.bg,
+            isSuivi ? "text-muted-foreground" : sc.color,
           )}
         >
           <StatusIcon className="h-3.5 w-3.5" />
-          {sc.label}
+          {isSuivi ? "Indicateur de suivi" : sc.label}
         </span>
       </div>
 
@@ -117,13 +120,20 @@ export function ManagerRatioCard({
         <p className="text-xs text-muted-foreground">{config.unit}</p>
       )}
 
-      <ProgressBar
-        value={ratio.percentageOfTarget}
-        status={ratio.status}
-        showValue={false}
-        size="sm"
-        className="mt-3"
-      />
+      {isSuivi ? (
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+          Résultante : se lit avec environ 3 mois de décalage, ce n&apos;est pas
+          un levier.
+        </p>
+      ) : (
+        <ProgressBar
+          value={ratio.percentageOfTarget}
+          status={ratio.status}
+          showValue={false}
+          size="sm"
+          className="mt-3"
+        />
+      )}
 
       {/* Threshold info */}
       <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">

@@ -32,7 +32,9 @@ const nextConfig: NextConfig = {
       { source: "/performance", destination: "/conseiller/diagnostic", permanent: true },
       { source: "/comparaison", destination: "/conseiller/comparaison", permanent: true },
       { source: "/formation", destination: "/conseiller/ameliorer", permanent: true },
-      { source: "/objectifs", destination: "/conseiller/progression", permanent: true },
+      // `/objectifs` est la page GPS où le conseiller fixe ET enregistre son
+      // objectif annuel (cf. carte « Mes objectifs » → « Fixer mes objectifs »).
+      // Pas de redirection : la page doit rester accessible.
       // PR3.8.1 — Refonte Manager : sidebar alignée sur Conseiller V3.
       // Anciennes URL principales redirigées vers les nouvelles. Les pages
       // /manager/dashboard, /manager/resultats, /manager/performance restent

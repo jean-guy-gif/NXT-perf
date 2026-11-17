@@ -106,6 +106,14 @@ interface AppState {
 
   // ── Director inputs (persisted in localStorage) ──
   agencyObjective: { annualCA: number; avgActValue: number } | null;
+  /**
+   * Objectif PERSONNEL du conseiller courant. Distinct de `agencyObjective`
+   * (objectif d'agence lu par les vues manager/directeur). La carte « Mes
+   * objectifs » conseiller lit `conseillerObjective ?? agencyObjective`.
+   * En démo, le conseiller a un objectif personnel crédible ici, tandis que
+   * `agencyObjective` garde la valeur agence pour les vues manager.
+   */
+  conseillerObjective: { annualCA: number; avgActValue: number } | null;
   directorCosts: DirectorCosts | null;
   financialData: Partial<FinancialData>;
   /** Snapshots mensuels des saisies financières (PR2i) — keyed par YYYY-MM. */
@@ -117,6 +125,7 @@ interface AppState {
   deactivateTool: (tool: "nxt_data" | "nxt_profiling" | "nxt_training" | "nxt_finance") => void;
 
   setAgencyObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
+  setConseillerObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
   setDirectorCosts: (costs: DirectorCosts | null) => void;
   setFinancialData: (data: Partial<FinancialData>) => void;
   updateFinancialField: (field: FinancialFieldId, value: number) => void;
@@ -195,6 +204,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   networks: [],
   hiddenViews: [],
   agencyObjective: null,
+  conseillerObjective: null,
   directorCosts: null,
   financialData: {},
   financialDataHistory: {},
@@ -217,6 +227,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setAgencyObjective: (obj) => set({ agencyObjective: obj }),
+  setConseillerObjective: (obj) => set({ conseillerObjective: obj }),
   setDirectorCosts: (costs) => set({ directorCosts: costs }),
   setFinancialData: (data) => set({ financialData: data }),
   updateFinancialField: (field, value) => set((s) => {
@@ -313,7 +324,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       ],
       networks: mockNetworks,
       hiddenViews: [],
+      // Objectif d'AGENCE (lu par les vues manager/directeur en démo).
       agencyObjective: { annualCA: 500000, avgActValue: 12000 },
+      // Objectif PERSONNEL du conseiller démo, calibré sur son réalisé Jan+Fév
+      // (mandats 7, compromis 4, actes 3, CA 54 000 €) : ~70-80 % de l'objectif
+      // au prorata de l'année. Lu uniquement par la carte « Mes objectifs ».
+      conseillerObjective: { annualCA: 70000, avgActValue: 14000 },
       financialData: { ...mockFinancialData },
       // Mock historique : 2 mois précédents (mars + février 2026) pour tester
       // le bouton "Reprendre le mois dernier" (PR2i).
@@ -367,6 +383,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       networks: [],
       hiddenViews: [],
       agencyObjective: null,
+      conseillerObjective: null,
       directorCosts: null,
       financialData: {},
       financialDataHistory: {},

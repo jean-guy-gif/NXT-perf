@@ -1,5 +1,6 @@
 import type { ComputedRatio } from "@/types/ratios";
 import type { RatioConfig, RatioId } from "@/types/ratios";
+import { isNonLeverRatioId } from "@/lib/ratio-to-expertise";
 import type {
   FormationArea,
   FormationRecommendation,
@@ -136,6 +137,8 @@ export function generateFormationDiagnostic(
     // On n'oriente pas de formation sur un ratio conforme ni non mesurable
     // (dénominateur nul / échantillon insuffisant).
     if (ratio.status === "ok" || ratio.status === "non_mesurable") continue;
+    // Ni sur une résultante (compromis_actes) : ce n'est pas un levier.
+    if (isNonLeverRatioId(ratio.ratioId as RatioId)) continue;
 
     const config = ratioConfigs[ratio.ratioId as RatioId];
     const area = ratioToFormationArea[ratio.ratioId as RatioId];

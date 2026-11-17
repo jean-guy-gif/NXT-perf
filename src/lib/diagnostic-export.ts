@@ -3,6 +3,7 @@ import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { calculateObjectiveBreakdown } from "@/lib/objectifs";
+import { isNonLeverRatioId } from "@/lib/ratio-to-expertise";
 
 /**
  * Génère le texte « Copier mon diagnostic » — pièce centrale de l'option A :
@@ -152,10 +153,14 @@ export function buildDiagnosticText(input: DiagnosticExportInput): string {
   );
 
   // Les 2 plus faibles, du plus faible au moins faible (percentageOfTarget
-  // croissant). On exclut les ratios non mesurables : on ne priorise pas de la
-  // formation sur un ratio sans données suffisantes.
+  // croissant). On exclut les ratios non mesurables (pas de données
+  // suffisantes) et les résultantes non-leviers (compromis_actes).
   const faibles = [...orderedRatios]
-    .filter((r) => r.status !== "non_mesurable")
+    .filter(
+      (r) =>
+        r.status !== "non_mesurable" &&
+        !isNonLeverRatioId(r.ratioId as RatioId),
+    )
     .sort((a, b) => a.percentageOfTarget - b.percentageOfTarget)
     .slice(0, 2)
     .map((r) => RATIO_LABELS[r.ratioId as RatioId]);

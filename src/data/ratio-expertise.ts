@@ -117,6 +117,23 @@ export interface RatioExpertise {
    * immédiatement actionnables.
    */
   feasibility: RatioFeasibility;
+
+  /**
+   * `true` si ce ratio est un LEVIER actionnable — un savoir-faire du conseiller
+   * qu'il peut travailler et sur lequel on peut l'orienter (point de douleur,
+   * plan d'action, axe de formation).
+   *
+   * `false` pour les RÉSULTANTES et indicateurs de suivi, qui ne mesurent pas
+   * un savoir-faire directement actionnable :
+   *   - `compromis_actes` : ~3 mois de décalage entre la signature du compromis
+   *     et l'acte → le ratio du mois ne reflète pas le travail du mois. C'est un
+   *     indicateur de suivi, pas un levier.
+   *   - `visites_par_acheteur` : sous-dimension de la découverte acheteur.
+   *
+   * Toute logique « point de douleur / levier / axe de formation » DOIT filtrer
+   * sur ce champ (cf. `isLever` / `isLeverRatioId`), jamais sur une liste en dur.
+   */
+  estLevier: boolean;
 }
 
 // ─── Contenu expert des 8 ratios ───────────────────────────────────────────
@@ -145,6 +162,7 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 90,
     chainPosition: 1.0,
     feasibility: "hard",
+    estLevier: true,
   },
 
   estimations_mandats: {
@@ -171,6 +189,7 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 90,
     chainPosition: 0.85,
     feasibility: "medium",
+    estLevier: true,
   },
 
   pct_exclusivite: {
@@ -196,6 +215,7 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 90,
     chainPosition: 0.7,
     feasibility: "hard",
+    estLevier: true,
   },
 
   acheteurs_tournee: {
@@ -222,6 +242,7 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 120,
     chainPosition: 0.6,
     feasibility: "medium",
+    estLevier: true,
   },
 
   visites_par_acheteur: {
@@ -247,6 +268,8 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 120,
     chainPosition: 0.55,
     feasibility: "easy",
+    // Sous-dimension de la découverte acheteur, pas un levier autonome.
+    estLevier: false,
   },
 
   visites_offres: {
@@ -273,6 +296,7 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 90,
     chainPosition: 0.5,
     feasibility: "medium",
+    estLevier: true,
   },
 
   offres_compromis: {
@@ -298,6 +322,7 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 60,
     chainPosition: 0.35,
     feasibility: "easy",
+    estLevier: true,
   },
 
   compromis_actes: {
@@ -325,6 +350,9 @@ export const RATIO_EXPERTISE: Record<ExpertiseRatioId, RatioExpertise> = {
     expectedImpactDelayDays: 60,
     chainPosition: 0.2,
     feasibility: "medium",
+    // RÉSULTANTE : ~3 mois de décalage compromis→acte. Indicateur de suivi,
+    // jamais un point de douleur ni un axe de formation.
+    estLevier: false,
   },
 };
 
@@ -342,3 +370,13 @@ export function getThreshold(
 }
 
 export const ALL_EXPERTISE_RATIOS = Object.values(RATIO_EXPERTISE);
+
+/** `true` si le ratio est un levier actionnable (cf. `estLevier`). */
+export function isLever(id: ExpertiseRatioId): boolean {
+  return RATIO_EXPERTISE[id].estLevier;
+}
+
+/** Les leviers actionnables, dérivés de `estLevier` (jamais une liste en dur). */
+export const LEVER_EXPERTISE_IDS: ExpertiseRatioId[] = ALL_EXPERTISE_RATIOS
+  .filter((e) => e.estLevier)
+  .map((e) => e.id);

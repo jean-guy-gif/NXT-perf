@@ -6,6 +6,7 @@ import {
   buildMeasuredRatiosFromVolumes,
   type PainVolumes,
 } from "@/lib/pain-point-detector";
+import { findCriticitePointsWithContext } from "@/lib/diagnostic-criticite";
 import { bucketTeamSize, type ThresholdContext } from "@/lib/diagnostic/resolve-threshold";
 
 // Contexte commun : profil confirmé, agent commercial, équipe de 2 à 5,
@@ -20,9 +21,9 @@ const ctx: ThresholdContext = {
 // Ordre des volumes (sur 3 mois) :
 // contacts, estimations, mandats, exclusifs, acheteurs, acheteurs sortis,
 // visites, offres, compromis, actes.
-function vols(
-  arr: [number, number, number, number, number, number, number, number, number, number]
-): PainVolumes {
+type Vec = [number, number, number, number, number, number, number, number, number, number];
+
+function vols(arr: Vec): PainVolumes {
   const [
     contacts,
     estimations,
@@ -49,40 +50,61 @@ function vols(
   };
 }
 
-function topFor(
-  arr: [number, number, number, number, number, number, number, number, number, number]
-): string | null {
+function topFor(arr: Vec): string | null {
   const measured = buildMeasuredRatiosFromVolumes(vols(arr));
   return detectBiggestPainPoint(measured, ctx)?.expertiseId ?? null;
 }
 
+// Jeux de volumes + point de douleur attendu (compromis→actes n'est jamais
+// un point de douleur : c'est une résultante, pas un levier).
+const CASES: { vec: Vec; expected: string | null }[] = [
+  { vec: [180, 18, 3, 0, 40, 24, 36, 3, 3, 3], expected: "estimations_mandats" },
+  { vec: [144, 9, 6, 3, 40, 30, 90, 3, 3, 3], expected: "visites_offres" },
+  { vec: [150, 9, 5, 2, 32, 24, 60, 15, 3, 3], expected: "offres_compromis" },
+  { vec: [135, 15, 0, 0, 32, 24, 60, 6, 3, 3], expected: "estimations_mandats" },
+  { vec: [135, 9, 3, 0, 24, 18, 54, 0, 0, 0], expected: "visites_offres" },
+  { vec: [240, 8, 4, 2, 32, 24, 60, 6, 3, 3], expected: "contacts_estimations" },
+  { vec: [162, 9, 4, 2, 38, 24, 72, 6, 3, 2], expected: "visites_offres" },
+  { vec: [150, 10, 5, 3, 32, 24, 50, 5, 3, 0], expected: null },
+];
+
 describe("détection du point de douleur V3 — points de douleur attendus", () => {
-  it("1. 180,18,3,0,40,24,36,3,3,3 → estimations_mandats", () => {
-    expect(topFor([180, 18, 3, 0, 40, 24, 36, 3, 3, 3])).toBe("estimations_mandats");
+  CASES.forEach(({ vec, expected }, i) => {
+    it(`${i + 1}. ${vec.join(",")} → ${expected ?? "null"}`, () => {
+      expect(topFor(vec)).toBe(expected);
+    });
   });
+});
 
-  it("2. 144,9,6,3,40,30,90,3,3,3 → visites_offres", () => {
-    expect(topFor([144, 9, 6, 3, 40, 30, 90, 3, 3, 3])).toBe("visites_offres");
+describe("compromis_actes n'est jamais un point de douleur (résultante)", () => {
+  // Jeux volontairement « favorables » à compromis→actes dans l'ancienne
+  // formule (beaucoup de compromis, zéro acte) : il ne doit plus jamais sortir.
+  const vectors: Vec[] = [
+    [162, 9, 4, 2, 38, 24, 72, 6, 3, 2], // ex-cas 7 (sortait compromis_actes)
+    [200, 20, 10, 5, 50, 30, 100, 20, 20, 0],
+    [300, 30, 15, 8, 60, 40, 120, 30, 30, 0],
+    [180, 18, 9, 4, 40, 24, 72, 9, 9, 1],
+  ];
+  vectors.forEach((vec, i) => {
+    it(`jeu ${i + 1} : absent de detectTopPainPoints`, () => {
+      const top = detectTopPainPoints(buildMeasuredRatiosFromVolumes(vols(vec)), ctx, 8);
+      expect(top.map((p) => p.expertiseId)).not.toContain("compromis_actes");
+    });
   });
+});
 
-  it("3. 150,9,5,2,32,24,60,15,3,3 → offres_compromis", () => {
-    expect(topFor([150, 9, 5, 2, 32, 24, 60, 15, 3, 3])).toBe("offres_compromis");
-  });
-
-  it("4. 135,15,0,0,32,24,60,6,3,3 → estimations_mandats (15 estimations / 0 mandat)", () => {
-    expect(topFor([135, 15, 0, 0, 32, 24, 60, 6, 3, 3])).toBe("estimations_mandats");
-  });
-
-  it("5. 135,9,3,0,24,18,54,0,0,0 → visites_offres (54 visites / 0 offre)", () => {
-    expect(topFor([135, 9, 3, 0, 24, 18, 54, 0, 0, 0])).toBe("visites_offres");
-  });
-
-  it("6. 240,8,4,2,32,24,60,6,3,3 → contacts_estimations", () => {
-    expect(topFor([240, 8, 4, 2, 32, 24, 60, 6, 3, 3])).toBe("contacts_estimations");
-  });
-
-  it("7. 162,9,4,2,38,24,72,6,3,2 → compromis_actes", () => {
-    expect(topFor([162, 9, 4, 2, 38, 24, 72, 6, 3, 2])).toBe("compromis_actes");
+describe("verdict (diagnostic) et plan désignent le même ratio", () => {
+  // findCriticitePointsWithContext (verdict) avec results=null → pas de points
+  // volume, on compare donc directement le top ratio au détecteur du plan.
+  CASES.forEach(({ vec }, i) => {
+    it(`jeu ${i + 1} : findCriticitePointsWithContext == detectBiggestPainPoint`, () => {
+      const measured = buildMeasuredRatiosFromVolumes(vols(vec));
+      const plan = detectBiggestPainPoint(measured, ctx)?.expertiseId ?? null;
+      const verdict = findCriticitePointsWithContext(measured, ctx, null, "confirme", 3);
+      const verdictId =
+        verdict.top && verdict.top.type === "ratio" ? verdict.top.id : null;
+      expect(verdictId).toBe(plan);
+    });
   });
 });
 
@@ -92,7 +114,6 @@ describe("détection du point de douleur V3 — contrat de sortie", () => {
   it("estimatedCaLossEur = gain en ventes × commission moyenne", () => {
     const top = detectBiggestPainPoint(measured, ctx)!;
     expect(top.painScoreV2).toBeGreaterThan(0);
-    // painScore et estimatedCaLossEur portent le gain en € ; painScoreV2 les ventes.
     expect(top.estimatedCaLossEur).toBeCloseTo(top.painScoreV2 * 8000, 6);
     expect(top.painScore).toBeCloseTo(top.estimatedCaLossEur, 6);
   });
@@ -120,11 +141,9 @@ describe("détection du point de douleur V3 — exclusions", () => {
     expect(detectBiggestPainPoint(buildMeasuredRatiosFromVolumes(empty), ctx)).toBeNull();
   });
 
-  it("gain inférieur à 0,05 vente → ignoré", () => {
-    // 21 contacts (≥ 20) : 21/15 = 1.4 estimation attendue, 1 réalisée →
-    // 0,4 estimation manquante × 0,5 × 0,5 ≈ 0,1 vente — reste au-dessus de
-    // 0,05, donc on teste plus serré : 20 contacts, 1 estimation.
-    // 20/15 = 1.333 ; manque 0.333 ; × 0.5 × 0.5 = 0.083 vente (> 0.05 → détecté).
+  it("gain inférieur à 0,05 vente → le ratio reste détecté s'il dépasse le seuil", () => {
+    // 20 contacts (≥ 20) / 1 estimation : 20/15 = 1.333 ; manque 0.333 ;
+    // × 0.5 × 0.5 = 0.083 vente (> 0.05 → détecté).
     const detected = detectBiggestPainPoint(
       buildMeasuredRatiosFromVolumes(vols([20, 1, 0, 0, 0, 0, 0, 0, 0, 0])),
       ctx

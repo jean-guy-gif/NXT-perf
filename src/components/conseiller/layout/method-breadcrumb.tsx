@@ -19,10 +19,19 @@ const FORMATION_HIDDEN_HREFS = new Set<string>([
   "/conseiller/comparaison",
 ]);
 
+// Mode formation : libellés alignés sur le menu (sidebar).
+const FORMATION_LABELS: Record<string, string> = {
+  "/conseiller/diagnostic": "Mon tableau de bord",
+  "/conseiller/ameliorer": "Mon plan d'action",
+};
+
 export function MethodBreadcrumb() {
   const pathname = usePathname();
   const steps = isFormationMode()
-    ? STEPS.filter((s) => !FORMATION_HIDDEN_HREFS.has(s.href))
+    ? STEPS.filter((s) => !FORMATION_HIDDEN_HREFS.has(s.href)).map((s) => ({
+        ...s,
+        label: FORMATION_LABELS[s.href] ?? s.label,
+      }))
     : STEPS;
 
   return (

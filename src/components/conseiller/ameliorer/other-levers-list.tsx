@@ -7,7 +7,8 @@ import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
 import { useUserContext } from "@/hooks/use-user-context";
-import { useResults, useAllResults } from "@/hooks/use-results";
+import { useAllResults } from "@/hooks/use-results";
+import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useAppStore } from "@/stores/app-store";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
@@ -39,7 +40,8 @@ export function OtherLeversList({ others, onPlanCreated }: Props) {
   const [open, setOpen] = useState(false);
   const { category } = useUser();
   const { computedRatios } = useRatios();
-  const results = useResults();
+  // Cohérence diagnostic/plan : agrégat 3 mois (6 mois pour compromis/actes).
+  const { results3m: results, results6m } = useDiagnosticResults();
   const allResults = useAllResults();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { createPlan30j } = useImprovementResources();
@@ -57,7 +59,7 @@ export function OtherLeversList({ others, onPlanCreated }: Props) {
     setPending(ratioId);
     setError(null);
     try {
-      const measured = buildMeasuredRatios(computedRatios, results);
+      const measured = buildMeasuredRatios(computedRatios, results, results6m);
       const profile = deriveProfileLevel(category);
       const myHistory = allResults.filter(
         (r) => r.userId === useAppStore.getState().user?.id

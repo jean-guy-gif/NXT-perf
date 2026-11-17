@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
+import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUserContext } from "@/hooks/use-user-context";
 import { resolveThreshold } from "@/lib/diagnostic/resolve-threshold";
@@ -32,7 +33,9 @@ import type { Plan30jPayload } from "@/config/coaching";
 export function AmeliorerAdaptiveFlow() {
   const { category } = useUser();
   const { computedRatios } = useRatios();
-  const results = useResults();
+  // Cohérence diagnostic/plan : même base que le tableau de bord — agrégat
+  // 3 mois glissants (6 mois pour compromis/actes), pas le dernier mois seul.
+  const { results3m: results, results6m } = useDiagnosticResults();
   // Chantier A.3 — contexte 4 axes (override-aware via AdvisorOverrideProvider).
   const userCtx = useUserContext();
   const { resources, getActivePlan, refresh, loading, updateResource } =
@@ -191,6 +194,7 @@ export function AmeliorerAdaptiveFlow() {
       preselected={preselected}
       computedRatios={computedRatios}
       results={results}
+      results6m={results6m}
       category={category}
       onPlanCreated={() => {
         void refresh();
@@ -205,12 +209,14 @@ function NoPlanFlow({
   preselected,
   computedRatios,
   results,
+  results6m,
   category,
   onPlanCreated,
 }: {
   preselected: ExpertiseRatioId | null;
   computedRatios: ReturnType<typeof useRatios>["computedRatios"];
   results: ReturnType<typeof useResults>;
+  results6m: ReturnType<typeof useResults>;
   category: ReturnType<typeof useUser>["category"];
   onPlanCreated: () => void;
 }) {
@@ -233,7 +239,7 @@ function NoPlanFlow({
    */
   const recommended = useMemo(() => {
     if (!results || !userId) return null;
-    const measured = buildMeasuredRatios(computedRatios, results);
+    const measured = buildMeasuredRatios(computedRatios, results, results6m);
     // PR3.8.6 hotfix #2 — Toujours proratiser sur today (cf. verdict view).
     // Le levier recommandé reflète "où j'en suis CE MOIS-CI", peu importe la
     // période effective stockée dans `results` (démo Fév 2026 inclus).
@@ -314,6 +320,7 @@ function NoPlanFlow({
   }, [
     preselected,
     results,
+    results6m,
     computedRatios,
     category,
     allResults,

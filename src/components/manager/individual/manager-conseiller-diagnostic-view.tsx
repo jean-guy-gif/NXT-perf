@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { MessageCircleHeart, Sparkles, X } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { useResults, useAllResults } from "@/hooks/use-results";
+import { useAllResults } from "@/hooks/use-results";
+import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUserContext } from "@/hooks/use-user-context";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
@@ -63,7 +64,9 @@ interface Props {
 export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
   const { user, category } = useUser();
   const { computedRatios } = useRatios();
-  const results = useResults();
+  // Cohérence diagnostic/plan : agrégat 3 mois (6 mois pour compromis/actes),
+  // override-aware vers le conseiller observé.
+  const { results3m: results, results6m } = useDiagnosticResults();
   const allResults = useAllResults();
   const { getActivePlan, loading: plansLoading } = useImprovementResources();
 
@@ -91,7 +94,7 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
   const criticite = useMemo(() => {
     if (!user || !results || computedRatios.length === 0)
       return { top: null, others: [], override: null, originalTopId: null };
-    const measured = buildMeasuredRatios(computedRatios, results);
+    const measured = buildMeasuredRatios(computedRatios, results, results6m);
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
     // Sous-PR Coach-10 : helper unifié avec override contextuel downstream.
@@ -102,7 +105,7 @@ export function ManagerConseillerDiagnosticView({ advisorDisplayName }: Props) {
       category,
       effectiveMonths,
     );
-  }, [user, results, computedRatios, category, userCtx]);
+  }, [user, results, results6m, computedRatios, category, userCtx]);
 
   // Chantier D — Inputs de la prep coaching. Dupliqués depuis
   // `manager-individual-ameliorer-view.tsx` (Option 1 inline V1, refacto en

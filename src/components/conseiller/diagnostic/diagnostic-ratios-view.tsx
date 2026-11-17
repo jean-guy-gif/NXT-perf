@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, Check, AlertTriangle, X, Target, MinusCircle } from "lucide-react";
+import { ArrowLeft, Check, AlertTriangle, X, Target, MinusCircle, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { RATIO_ID_TO_EXPERTISE_ID } from "@/lib/ratio-to-expertise";
+import { RATIO_ID_TO_EXPERTISE_ID, isNonLeverRatioId } from "@/lib/ratio-to-expertise";
+
+/** Mention affichée sous un indicateur de suivi (résultante). */
+const SUIVI_MENTION =
+  "Résultante : se lit avec environ 3 mois de décalage, ce n'est pas un levier.";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 
@@ -124,8 +128,11 @@ export function DiagnosticRatiosView({ highlightedItem }: Props) {
             const config: RatioConfig | undefined =
               ratioConfigs[ratio.ratioId as RatioId];
             if (!config) return null;
+            // Résultante (compromis_actes) : affichée en « Indicateur de suivi »
+            // neutre — jamais rouge ni orange.
+            const isSuivi = isNonLeverRatioId(ratio.ratioId as RatioId);
             const sc = STATUS_STYLE[ratio.status];
-            const Icon = sc.icon;
+            const Icon = isSuivi ? Activity : sc.icon;
             const isHighlighted = ratio.ratioId === targetRatioId;
             return (
               <RatioCard
@@ -133,10 +140,11 @@ export function DiagnosticRatiosView({ highlightedItem }: Props) {
                 ratio={ratio}
                 config={config}
                 category={category}
-                statusColor={sc.color}
-                statusRing={sc.ring}
-                statusLabel={sc.label}
+                statusColor={isSuivi ? "text-muted-foreground" : sc.color}
+                statusRing={isSuivi ? "border-border" : sc.ring}
+                statusLabel={isSuivi ? "Indicateur de suivi" : sc.label}
                 statusIcon={Icon}
+                isSuivi={isSuivi}
                 isHighlighted={isHighlighted}
               />
             );
@@ -155,6 +163,7 @@ interface RatioCardProps {
   statusRing: string;
   statusLabel: string;
   statusIcon: React.ComponentType<{ className?: string }>;
+  isSuivi: boolean;
   isHighlighted: boolean;
 }
 
@@ -166,6 +175,7 @@ function RatioCard({
   statusRing,
   statusLabel,
   statusIcon: StatusIcon,
+  isSuivi,
   isHighlighted,
 }: RatioCardProps) {
   return (
@@ -194,7 +204,21 @@ function RatioCard({
         </span>
       </div>
 
-      {ratio.status === "non_mesurable" ? (
+      {isSuivi ? (
+        // Indicateur de suivi (résultante) : valeur affichée, style neutre,
+        // jamais rouge/orange, avec la mention du décalage de ~3 mois.
+        <>
+          <p className="mt-3 text-3xl font-bold tabular-nums text-foreground">
+            {config.isPercentage
+              ? `${Math.round(ratio.value)}%`
+              : ratio.value.toFixed(1)}
+          </p>
+          <p className="text-xs text-muted-foreground">{config.unit}</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            {SUIVI_MENTION}
+          </p>
+        </>
+      ) : ratio.status === "non_mesurable" ? (
         // Non mesurable : pas de chiffre trompeur, juste le message gris.
         <p className="mt-3 text-sm font-medium text-muted-foreground">
           {ratio.message ?? "Pas encore assez de données"}

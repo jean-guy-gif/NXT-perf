@@ -37,26 +37,26 @@ function fmt(value: number, isCurrency: boolean): string {
 }
 
 export function ObjectivesCard() {
+  // Objectif personnel du conseiller en priorité, sinon l'objectif d'agence
+  // (cf. store : en démo le conseiller a son propre objectif crédible).
   const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const conseillerObjective = useAppStore((s) => s.conseillerObjective);
+  const objective = conseillerObjective ?? agencyObjective;
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const { category } = useUser();
   const ytd = useYTDResults();
 
   const breakdown = useMemo(() => {
-    if (
-      !agencyObjective ||
-      agencyObjective.annualCA <= 0 ||
-      agencyObjective.avgActValue <= 0
-    ) {
+    if (!objective || objective.annualCA <= 0 || objective.avgActValue <= 0) {
       return null;
     }
     return calculateObjectiveBreakdown(
-      agencyObjective.annualCA,
-      agencyObjective.avgActValue,
+      objective.annualCA,
+      objective.avgActValue,
       category,
       ratioConfigs
     );
-  }, [agencyObjective, category, ratioConfigs]);
+  }, [objective, category, ratioConfigs]);
 
   // Fraction de l'année écoulée → projection « à ce rythme ».
   const { fractionElapsed, monthsElapsed, monthsRemaining } = useMemo(() => {
@@ -73,7 +73,7 @@ export function ObjectivesCard() {
   }, []);
 
   // ── Pas d'objectif → invite à en fixer un ──
-  if (!agencyObjective || !breakdown) {
+  if (!objective || !breakdown) {
     return (
       <section
         aria-label="Mes objectifs"
@@ -123,7 +123,7 @@ export function ObjectivesCard() {
     {
       key: "ca",
       label: "Chiffre d'affaires",
-      objective: agencyObjective.annualCA,
+      objective: objective.annualCA,
       realized: ytd?.ventes.chiffreAffaires ?? 0,
       isCurrency: true,
     },

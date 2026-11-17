@@ -8,6 +8,11 @@ import { useTeamRatios } from "@/hooks/team/use-team-ratios";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { getAvgCommissionEur } from "@/lib/get-avg-commission";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
+import { aggregateLastMonths } from "@/lib/aggregate-results";
+import {
+  DIAGNOSTIC_WINDOW_MONTHS,
+  COMPROMIS_ACTES_WINDOW_MONTHS,
+} from "@/lib/ratios";
 import {
   aggregateTeamDiagnostic,
   type AdvisorDiagnosticInput,
@@ -45,7 +50,7 @@ interface UseTeamDiagnosticReturn extends TeamDiagnosticResult {
 export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const allResults = useAllResults();
-  const { conseillers, perConseillerResults, loading } = useTeamResults();
+  const { conseillers, loading } = useTeamResults();
   const { perConseillerRatios, averages } = useTeamRatios();
 
   const advisorsInput = useMemo<AdvisorDiagnosticInput[]>(() => {
@@ -57,9 +62,23 @@ export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
     const today = new Date();
     const effectiveMonths = getProRationFactor(today);
     return conseillers.map((c) => {
-      const results = perConseillerResults.get(c.id) ?? null;
+      // Cohérence diagnostic/plan : agrégat 3 mois (6 mois pour compromis/actes).
+      const results3m = aggregateLastMonths(
+        allResults,
+        c.id,
+        DIAGNOSTIC_WINDOW_MONTHS,
+      );
+      const results6m = aggregateLastMonths(
+        allResults,
+        c.id,
+        COMPROMIS_ACTES_WINDOW_MONTHS,
+      );
       const computedRatios = perConseillerRatios.get(c.id) ?? [];
-      const measuredRatios = buildMeasuredRatios(computedRatios, results);
+      const measuredRatios = buildMeasuredRatios(
+        computedRatios,
+        results3m,
+        results6m,
+      );
       const myHistory = allResults.filter((r) => r.userId === c.id);
       const avgCommissionEur = getAvgCommissionEur(
         agencyObjective?.avgActValue,
@@ -67,14 +86,14 @@ export function useTeamDiagnostic(): UseTeamDiagnosticReturn {
       );
       return {
         user: c,
-        results,
+        results: results3m,
         computedRatios,
         measuredRatios,
         avgCommissionEur,
         periodMonths: effectiveMonths,
       };
     });
-  }, [conseillers, perConseillerResults, perConseillerRatios, allResults, agencyObjective]);
+  }, [conseillers, perConseillerRatios, allResults, agencyObjective]);
 
   const diagnostic = useMemo(
     () => aggregateTeamDiagnostic(advisorsInput, 2),

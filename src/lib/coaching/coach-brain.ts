@@ -52,8 +52,10 @@ const VOLUME_TO_RATIO: Record<VolumeKey, ExpertiseRatioId> = {
   mandatsSignes: "estimations_mandats",
   nombreVisites: "visites_offres",
   offresRecues: "offres_compromis",
-  compromisSignes: "compromis_actes",
-  actesSignes: "compromis_actes",
+  // compromis & actes sont des RÉSULTANTES (compromis_actes n'est pas un
+  // levier) : on remonte au dernier levier actionnable qui les produit.
+  compromisSignes: "offres_compromis",
+  actesSignes: "offres_compromis",
 };
 
 /**

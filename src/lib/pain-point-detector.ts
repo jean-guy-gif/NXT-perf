@@ -28,6 +28,7 @@
 
 import {
   RATIO_EXPERTISE,
+  LEVER_EXPERTISE_IDS,
   TAUX_EXCLU_VENTE,
   TAUX_SIMPLE_VENTE,
   type ExpertiseRatioId,
@@ -69,16 +70,12 @@ export interface PainVolumes {
   actes: number;
 }
 
-/** Les 7 ratios notés par le détecteur (visites_par_acheteur exclu). */
-const PAIN_RATIOS: ExpertiseRatioId[] = [
-  "contacts_estimations",
-  "estimations_mandats",
-  "pct_exclusivite",
-  "acheteurs_tournee",
-  "visites_offres",
-  "offres_compromis",
-  "compromis_actes",
-];
+/**
+ * Les ratios notés par le détecteur = les LEVIERS (dérivés de `estLevier`,
+ * jamais une liste en dur). Exclut la résultante `compromis_actes` (décalage
+ * ~3 mois) et la sous-dimension `visites_par_acheteur`.
+ */
+const PAIN_RATIOS: ExpertiseRatioId[] = LEVER_EXPERTISE_IDS;
 
 /**
  * Échantillon minimum sur le VOLUME D'ENTRÉE de chaque ratio. Sous ce seuil,
@@ -252,10 +249,10 @@ function downstreamRates(v: PainVolumes, T: ResolvedThresholds) {
       ? v.compromis / v.offres
       : 1 / T.offres_compromis;
 
-  const rateCompromisActe =
-    v.compromis >= MIN_INPUT_SAMPLE.compromis_actes
-      ? v.actes / v.compromis
-      : 1 / T.compromis_actes;
+  // Résultante avec ~3 mois de décalage compromis→acte : le taux réel est
+  // faussé (les actes du mois viennent de compromis d'il y a ~3 mois). On
+  // prend donc TOUJOURS le taux au seuil, jamais v.actes.
+  const rateCompromisActe = 1 / T.compromis_actes;
 
   const visitesParSorti =
     v.acheteursSortis > 0
@@ -311,9 +308,9 @@ function gainVentes(
       const missing = Math.max(0, v.offres / T.offres_compromis - v.compromis);
       return missing * r.rateCompromisActe;
     }
-    case "compromis_actes": {
-      return Math.max(0, v.compromis / T.compromis_actes - v.actes);
-    }
+    case "compromis_actes":
+      // Résultante (décalage ~3 mois) : jamais un levier, aucun gain propagé.
+      return 0;
     case "visites_par_acheteur":
       return 0;
   }
