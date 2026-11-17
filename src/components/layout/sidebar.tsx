@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -18,9 +18,10 @@ import {
   Fingerprint,
   LayoutDashboard,
   Crosshair,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isFormationMode } from "@/lib/app-mode";
+import { isFormationMode, isManagerLocked } from "@/lib/app-mode";
 import { useAppStore, getVisibleViews } from "@/stores/app-store";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { LockedNavItem } from "@/components/subscription/locked-nav-item";
@@ -99,6 +100,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const hiddenViews = useAppStore((s) => s.hiddenViews);
   const visibleViews = getVisibleViews(availableRoles, hiddenViews);
 
+  // Mode formation : l'espace manager est verrouillé (flou + cadenas), visible
+  // mais non cliquable. Un clic sur une entrée manager affiche un petit toast.
+  const managerLocked = isManagerLocked();
+  const [lockedToast, setLockedToast] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showLockedToast = () => {
+    setLockedToast(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setLockedToast(false), 2600);
+  };
+
   const { earnedBadges } = useBadges();
   const recentBadgeEmojis = earnedBadges.slice(0, 3).map((b) => BADGES[b.badge_key as BadgeKey]?.emoji).filter(Boolean);
 
@@ -142,6 +154,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const settingsItem = navItems.find((item) => item.href === "/parametres")!;
 
   return (
+    <>
     <nav data-tour="sidebar" className={cn(
       "flex h-full flex-col overflow-y-auto py-4 bg-[var(--agency-dark,#1A1A2E)]",
       collapsed ? "items-center px-2" : "px-3"
@@ -192,9 +205,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Manager section */}
       {managerItems.length > 0 && (
         <SidebarSection label="Manager" collapsed={collapsed}>
-          {managerItems.map((item) => (
-            <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
-          ))}
+          {managerItems.map((item) =>
+            managerLocked ? (
+              <LockedManagerItem
+                key={item.href}
+                item={item}
+                collapsed={collapsed}
+                onClick={showLockedToast}
+              />
+            ) : (
+              <SidebarItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+            )
+          )}
         </SidebarSection>
       )}
 
@@ -236,6 +258,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <SidebarItem item={settingsItem} pathname={pathname} collapsed={collapsed} />
       </div>
     </nav>
+    {lockedToast && (
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed bottom-6 left-6 z-[60] flex items-center gap-2 rounded-[var(--radius-button)] border border-border bg-popover px-4 py-2.5 text-sm font-medium text-popover-foreground shadow-lg"
+      >
+        <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        Espace manager disponible prochainement
+      </div>
+    )}
+    </>
   );
 }
 
@@ -336,5 +369,55 @@ function SidebarItem({
       <item.icon className="h-5 w-5 flex-shrink-0" />
       <span className="truncate">{item.label}</span>
     </Link>
+  );
+}
+
+/**
+ * Entrée manager VERROUILLÉE en formation : affichée, grisée, avec un cadenas
+ * et le libellé « Bientôt ». Non cliquable vers la page — un clic déclenche le
+ * toast « Espace manager disponible prochainement ». (On n'utilise PAS
+ * LockedNavItem, qui route vers /souscrire, masqué en formation.)
+ */
+function LockedManagerItem({
+  item,
+  collapsed,
+  onClick,
+}: {
+  item: NavItem;
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={`${item.label} — Bientôt`}
+        aria-label={`${item.label} — espace manager disponible prochainement`}
+        className="group relative flex h-11 w-11 items-center justify-center rounded-[var(--radius-button)] text-muted-foreground/50 transition-all duration-[var(--transition-fast)] hover:bg-muted/40"
+      >
+        <item.icon className="h-5 w-5" />
+        <Lock className="absolute bottom-1 right-1 h-3 w-3" />
+        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-[var(--radius-button)] bg-popover px-3 py-1.5 text-sm font-medium text-popover-foreground shadow-md opacity-0 transition-opacity duration-[var(--transition-normal)] group-hover:opacity-100 z-50 border border-border">
+          {item.label} — Bientôt
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${item.label} — espace manager disponible prochainement`}
+      className="relative flex h-10 w-full items-center gap-3 rounded-[var(--radius-button)] px-3 text-sm font-medium text-muted-foreground/50 transition-all duration-[var(--transition-fast)] hover:bg-muted/40"
+    >
+      <item.icon className="h-5 w-5 flex-shrink-0" />
+      <span className="truncate">{item.label}</span>
+      <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide">
+        Bientôt
+        <Lock className="h-3.5 w-3.5" />
+      </span>
+    </button>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useAppStore, DEFAULT_ROUTES } from "@/stores/app-store";
 import { redirect } from "next/navigation";
+import { isManagerLocked } from "@/lib/app-mode";
 import { MethodBreadcrumb } from "@/components/conseiller/layout/method-breadcrumb";
 import { PersistentPlanBanner } from "@/components/conseiller/layout/persistent-plan-banner";
 import { TeamPlanBanner } from "@/components/conseiller/layout/team-plan-banner";
@@ -21,7 +22,12 @@ export default function ConseillerLayout({
 
   // Bootstrap : if user not loaded yet, render children (avoids flash redirect)
   if (user && !roles.includes("conseiller")) {
-    redirect(DEFAULT_ROUTES[user.mainRole] ?? "/dashboard");
+    // Formation verrouillée : l'espace manager étant inaccessible, un manager
+    // travaille son propre tableau de bord conseiller → on ne le renvoie pas
+    // vers DEFAULT_ROUTES (qui pointerait sur la page manager verrouillée).
+    if (!(isManagerLocked() && roles.includes("manager"))) {
+      redirect(DEFAULT_ROUTES[user.mainRole] ?? "/dashboard");
+    }
   }
 
   return (

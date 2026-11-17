@@ -1,5 +1,5 @@
 import type { UserRole } from "@/types/user";
-import { isFormationMode } from "@/lib/app-mode";
+import { isFormationMode, isManagerLocked } from "@/lib/app-mode";
 
 // ── Tour step definition ──
 
@@ -220,7 +220,10 @@ export function getTourSteps(role: UserRole): TourStep[] {
     case "conseiller":
       return isFormationMode() ? conseillerFormationSteps() : conseillerSteps;
     case "manager":
-      return managerSteps;
+      // Formation verrouillée : l'espace manager est inaccessible — pas
+      // d'étapes manager. Le stagiaire suit le tour de son tableau de bord
+      // conseiller (sa vue réelle pendant la formation).
+      return isManagerLocked() ? conseillerFormationSteps() : managerSteps;
     case "directeur":
       return directeurSteps;
     case "reseau":

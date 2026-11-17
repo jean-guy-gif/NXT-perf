@@ -16,6 +16,20 @@ export function isFormationMode(): boolean {
 export const FORMATION_ROLES: UserRole[] = ["conseiller", "manager"];
 
 /**
+ * Espace manager VERROUILLÉ en formation (flou + cadenas), sans rien supprimer.
+ *
+ * `true` quand on est en formation ET que l'interrupteur de ré-ouverture n'est
+ * pas activé. C'est l'INTERRUPTEUR pour rouvrir l'espace manager plus tard,
+ * sans toucher au code : il suffit de poser `NEXT_PUBLIC_MANAGER_UNLOCKED=on`.
+ *
+ * Hors formation, ou avec l'interrupteur activé, cette fonction renvoie `false`
+ * et aucune des gardes qu'elle conditionne ne change le comportement.
+ */
+export function isManagerLocked(): boolean {
+  return isFormationMode() && process.env.NEXT_PUBLIC_MANAGER_UNLOCKED !== "on";
+}
+
+/**
  * Destination d'onboarding en mode formation après l'étape identité.
  *
  * Les étapes statut / dpi / gps (et les moments import / coach qu'elles

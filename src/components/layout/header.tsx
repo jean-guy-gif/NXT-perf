@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail, HelpCircle } from "lucide-react";
+import { Bell, Plus, Sun, Moon, AlertTriangle, Info, LogOut, Upload, Download, X, Mail, HelpCircle, Lock } from "lucide-react";
 import { AvatarDisplay } from "@/components/profile/avatar-upload";
 import { useAppStore, VIEW_LABELS, rolesToViews, getVisibleViews } from "@/stores/app-store";
 import { createClient } from "@/lib/supabase/client";
@@ -15,7 +15,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { NOTIFICATION_ICONS } from "@/types/notifications";
 import type { NotificationType } from "@/types/notifications";
 import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
-import { isFormationMode } from "@/lib/app-mode";
+import { isFormationMode, isManagerLocked } from "@/lib/app-mode";
 import {
   DEMO_PROFILES,
   DEMO_PROFILE_STORAGE_KEY,
@@ -225,19 +225,33 @@ export function Header() {
           <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted p-0.5">
             {availableViews.map((view) => {
               const isVisible = visibleViews.includes(view);
+              // Formation : la vue Manager reste visible mais verrouillée (cadenas) ;
+              // la choisir mène à l'espace manager flouté (pas de bascule de visibilité).
+              const lockedManagerView = isManagerLocked() && view === "manager";
               return (
                 <button
                   key={view}
-                  onClick={() => toggleViewVisibility(view)}
-                  title={`${isVisible ? "Masquer" : "Afficher"} la vue ${VIEW_LABELS[view]}`}
+                  onClick={
+                    lockedManagerView
+                      ? () => router.push("/manager/diagnostic")
+                      : () => toggleViewVisibility(view)
+                  }
+                  title={
+                    lockedManagerView
+                      ? "Espace manager — disponible prochainement"
+                      : `${isVisible ? "Masquer" : "Afficher"} la vue ${VIEW_LABELS[view]}`
+                  }
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-[var(--transition-fast)]",
-                    isVisible
-                      ? "bg-agency-primary text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                    "flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-[var(--transition-fast)]",
+                    lockedManagerView
+                      ? "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                      : isVisible
+                        ? "bg-agency-primary text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
                   )}
                 >
                   {VIEW_LABELS[view]}
+                  {lockedManagerView && <Lock className="h-3 w-3" />}
                 </button>
               );
             })}
