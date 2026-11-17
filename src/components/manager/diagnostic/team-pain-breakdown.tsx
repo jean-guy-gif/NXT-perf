@@ -46,6 +46,13 @@ const STATUS_STYLES: Record<
     border: "border-red-500/30",
     label: "En alerte",
   },
+  non_mesurable: {
+    bar: "bg-muted-foreground/40",
+    text: "text-muted-foreground",
+    bg: "bg-muted/40",
+    border: "border-border",
+    label: "Non mesurable",
+  },
 };
 
 /**

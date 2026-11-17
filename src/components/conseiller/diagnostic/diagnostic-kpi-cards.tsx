@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, AlertTriangle, X } from "lucide-react";
+import { Check, AlertTriangle, X, MinusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_OBJECTIVES } from "@/lib/constants";
 import {
@@ -13,12 +13,19 @@ import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
 import type { DiagnosticView } from "./diagnostic-toggle";
 
-type Status = "ok" | "warning" | "danger";
+type Status = "ok" | "warning" | "danger" | "non_mesurable";
 
 const STATUS_STYLE: Record<
   Status,
   { bg: string; text: string; ring: string; icon: typeof Check; label: string }
 > = {
+  non_mesurable: {
+    bg: "bg-muted/40",
+    text: "text-muted-foreground",
+    ring: "border-border",
+    icon: MinusCircle,
+    label: "Non mesurable",
+  },
   ok: {
     bg: "bg-emerald-500/10",
     text: "text-emerald-500",
@@ -247,22 +254,36 @@ export function DiagnosticKpiCards({
                   )}
                 >
                   <p className="text-xs text-muted-foreground">{config.name}</p>
-                  {/* Modif 2 — Result % en héros chromatique (couleur status). */}
-                  <p
-                    className={cn(
-                      "mt-1 text-4xl font-bold tabular-nums",
-                      style.text
-                    )}
-                  >
-                    {config.isPercentage
-                      ? `${Math.round(computed.value)}%`
-                      : computed.value.toFixed(1)}
-                  </p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <Icon className={cn("h-3 w-3", style.text)} />
-                    Cible {computed.thresholdForCategory}
-                    {config.isPercentage ? "%" : ""}
-                  </p>
+                  {computed.status === "non_mesurable" ? (
+                    <>
+                      <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground">
+                        <Icon className="h-3.5 w-3.5" />
+                        {style.label}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {computed.message ?? "Pas encore assez de données"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {/* Modif 2 — Result % en héros chromatique (couleur status). */}
+                      <p
+                        className={cn(
+                          "mt-1 text-4xl font-bold tabular-nums",
+                          style.text
+                        )}
+                      >
+                        {config.isPercentage
+                          ? `${Math.round(computed.value)}%`
+                          : computed.value.toFixed(1)}
+                      </p>
+                      <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Icon className={cn("h-3 w-3", style.text)} />
+                        Cible {computed.thresholdForCategory}
+                        {config.isPercentage ? "%" : ""}
+                      </p>
+                    </>
+                  )}
                 </div>
               );
             })}

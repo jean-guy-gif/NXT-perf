@@ -7,7 +7,7 @@ interface ProgressBarProps {
   max?: number;
   label?: string;
   showValue?: boolean;
-  status?: "ok" | "warning" | "danger";
+  status?: "ok" | "warning" | "danger" | "non_mesurable";
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -16,6 +16,8 @@ const statusBarColors = {
   ok: "bg-green-500",
   warning: "bg-orange-500",
   danger: "bg-red-500",
+  // Non mesurable : barre neutre (gris), jamais colorée alarme.
+  non_mesurable: "bg-muted-foreground/40",
 };
 
 const sizeClasses = {

@@ -50,6 +50,7 @@ const STATUS_LABELS: Record<ComputedRatio["status"], string> = {
   ok: "OK",
   warning: "à surveiller",
   danger: "à renforcer",
+  non_mesurable: "non mesurable",
 };
 
 const MOIS = [
@@ -150,8 +151,11 @@ export function buildDiagnosticText(input: DiagnosticExportInput): string {
     `POINTS FORTS : ${forts.length > 0 ? forts.join(", ") : "aucun pour l'instant"}`,
   );
 
-  // Les 2 plus faibles, du plus faible au moins faible (percentageOfTarget croissant).
+  // Les 2 plus faibles, du plus faible au moins faible (percentageOfTarget
+  // croissant). On exclut les ratios non mesurables : on ne priorise pas de la
+  // formation sur un ratio sans données suffisantes.
   const faibles = [...orderedRatios]
+    .filter((r) => r.status !== "non_mesurable")
     .sort((a, b) => a.percentageOfTarget - b.percentageOfTarget)
     .slice(0, 2)
     .map((r) => RATIO_LABELS[r.ratioId as RatioId]);

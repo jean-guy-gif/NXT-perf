@@ -577,7 +577,9 @@ function renderMaitrise(
                     ? "ok"
                     : r.status === "warning"
                     ? "warning"
-                    : "danger"
+                    : r.status === "danger"
+                    ? "danger"
+                    : undefined
                 }
               />
             );

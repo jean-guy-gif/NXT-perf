@@ -52,3 +52,22 @@ export function aggregateResults(results: PeriodResults[]): PeriodResults | null
 function sum(results: PeriodResults[], getter: (r: PeriodResults) => number): number {
   return results.reduce((acc, r) => acc + getter(r), 0);
 }
+
+/**
+ * Agrège les `months` derniers enregistrements MENSUELS glissants d'un user
+ * en un seul PeriodResults cumulatif. Base du diagnostic « 3 derniers mois ».
+ *
+ * Retourne null si userId absent ou aucun enregistrement mensuel.
+ */
+export function aggregateLastMonths(
+  allResults: PeriodResults[],
+  userId: string | undefined,
+  months: number
+): PeriodResults | null {
+  if (!userId) return null;
+  const monthly = allResults
+    .filter((r) => r.userId === userId && r.periodType === "month")
+    // Tri décroissant par début de période → les plus récents d'abord.
+    .sort((a, b) => (a.periodStart < b.periodStart ? 1 : -1));
+  return aggregateResults(monthly.slice(0, months));
+}

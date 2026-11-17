@@ -6,6 +6,7 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
+  MinusCircle,
   ListChecks,
   BarChart3,
   Lightbulb,
@@ -46,6 +47,13 @@ const statusConfig = {
     color: "text-red-500",
     bg: "bg-red-500/10",
     border: "border-red-500/25",
+  },
+  non_mesurable: {
+    icon: MinusCircle,
+    label: "Non mesurable",
+    color: "text-muted-foreground",
+    bg: "bg-muted/40",
+    border: "border-border",
   },
 };
 

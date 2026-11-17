@@ -29,6 +29,12 @@ const statusConfig = {
     color: "text-red-500",
     bg: "bg-red-500/10",
   },
+  non_mesurable: {
+    icon: Hourglass,
+    label: "Non mesurable",
+    color: "text-muted-foreground",
+    bg: "bg-muted/40",
+  },
 };
 
 interface ManagerRatioCardProps {

@@ -15,7 +15,7 @@
 import type { PeriodResults } from "@/types/results";
 import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
-import { computeAllRatios } from "@/lib/ratios";
+import { computeAllRatios, determineRatioStatus } from "@/lib/ratios";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -226,14 +226,21 @@ export function generateCoachingDebrief(
   const performanceReview: RatioInsight[] = keyRatioResults.map(r => {
     const confidence = computeRatioConfidence(r.ratioId, results);
     const direction = RATIO_DIRECTIONS[r.ratioId] ?? "lower_is_better";
+    // Le débrief a sa propre couche de confiance (computeRatioConfidence) qui
+    // gère le faible volume : on garde donc les 4 ratios clés et on dérive un
+    // statut chiffré même quand le diagnostic les classe « non_mesurable ».
+    const status: "ok" | "warning" | "danger" =
+      r.status === "non_mesurable"
+        ? determineRatioStatus(r.value, r.thresholdForCategory, ratioConfigs[r.ratioId as RatioId])
+        : r.status;
     return {
       ratioId: r.ratioId,
       label: RATIO_LABELS[r.ratioId] || r.ratioId,
       value: Math.round(r.value * 100) / 100,
       target: r.thresholdForCategory,
       pctOfTarget: r.percentageOfTarget,  // already direction-aware from computeAllRatios
-      status: r.status,
-      level: r.status === "ok" ? "strong" as const : r.status === "warning" ? "correct" as const : "weak" as const,
+      status,
+      level: status === "ok" ? "strong" as const : status === "warning" ? "correct" as const : "weak" as const,
       direction,
       confidence,
       confidenceLabel: CONFIDENCE_LABELS[confidence],

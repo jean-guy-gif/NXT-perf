@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { X, Check, AlertTriangle, X as XIcon, Users, ArrowRight } from "lucide-react";
+import { X, Check, AlertTriangle, X as XIcon, MinusCircle, Users, ArrowRight } from "lucide-react";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { cn } from "@/lib/utils";
 import { computeAllRatios } from "@/lib/ratios";
@@ -36,12 +36,20 @@ const statusConfig = {
     color: "text-red-500",
     bg: "bg-red-500/10",
   },
+  non_mesurable: {
+    icon: MinusCircle,
+    label: "Non mesurable",
+    color: "text-muted-foreground",
+    bg: "bg-muted/40",
+  },
 };
 
-const statusPriority: Record<"ok" | "warning" | "danger", number> = {
+const statusPriority: Record<ComputedRatio["status"], number> = {
   danger: 0,
   warning: 1,
   ok: 2,
+  // Non mesurable : relégué en fin de classement (pas de données fiables).
+  non_mesurable: 3,
 };
 
 interface ManagerRatioDrillDownProps {

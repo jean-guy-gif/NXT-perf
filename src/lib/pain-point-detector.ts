@@ -60,8 +60,11 @@ export interface MeasuredRatio {
    * ratios "warning" / "danger" non détectés par le scoring de douleur (cas
    * du dénominateur nul → ratio = 0 → painScore = 0 mais sous-perf réelle).
    * Optionnel pour ne pas casser les call-sites existants.
+   *
+   * `non_mesurable` → le ratio est ignoré par le scoring (dénominateur nul ou
+   * échantillon insuffisant : on n'oriente pas la formation sur du bruit).
    */
-  legacyStatus?: "ok" | "warning" | "danger";
+  legacyStatus?: "ok" | "warning" | "danger" | "non_mesurable";
 }
 
 export interface PainPointResult {
@@ -187,6 +190,9 @@ function scoreAllPainPoints(
   const partials: Partial1[] = [];
 
   for (const measured of measuredRatios) {
+    // Ratio non mesurable (dénominateur nul / échantillon insuffisant) : ignoré.
+    if (measured.legacyStatus === "non_mesurable") continue;
+
     const expertise = ALL_EXPERTISE_RATIOS.find(
       (e) => e.id === measured.expertiseId,
     );

@@ -78,7 +78,8 @@ export function buildTeamHeatmap(
     let dangerCount = 0;
     const cells: HeatmapCell[] = HEATMAP_RATIO_IDS.map((ratioId) => {
       const r = byRatioId.get(ratioId);
-      if (!r) {
+      // Ratio absent OU non mesurable → cellule « sans donnée » dans la heatmap.
+      if (!r || r.status === "non_mesurable") {
         return {
           ratioId,
           value: null,

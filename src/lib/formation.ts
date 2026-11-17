@@ -133,7 +133,9 @@ export function generateFormationDiagnostic(
   const gaps: FormationRecommendation[] = [];
 
   for (const ratio of computedRatios) {
-    if (ratio.status === "ok") continue;
+    // On n'oriente pas de formation sur un ratio conforme ni non mesurable
+    // (dénominateur nul / échantillon insuffisant).
+    if (ratio.status === "ok" || ratio.status === "non_mesurable") continue;
 
     const config = ratioConfigs[ratio.ratioId as RatioId];
     const area = ratioToFormationArea[ratio.ratioId as RatioId];

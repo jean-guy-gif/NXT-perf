@@ -72,9 +72,14 @@ function DiagnosticRouter() {
           </p>
         )}
         {!view && (
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Le point critique du mois — chiffré en € de gain potentiel.
-          </p>
+          <>
+            <p className="mt-2 text-sm font-medium text-muted-foreground">
+              Calculé sur tes 3 derniers mois
+            </p>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Le point critique du mois — chiffré en € de gain potentiel.
+            </p>
+          </>
         )}
       </header>
 

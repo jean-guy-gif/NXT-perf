@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, Check, AlertTriangle, X, Target } from "lucide-react";
+import { ArrowLeft, Check, AlertTriangle, X, Target, MinusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useResults } from "@/hooks/use-results";
@@ -34,6 +34,13 @@ const STATUS_STYLE = {
     color: "text-red-500",
     bg: "bg-red-500/10",
     ring: "border-red-500/30",
+  },
+  non_mesurable: {
+    icon: MinusCircle,
+    label: "Non mesurable",
+    color: "text-muted-foreground",
+    bg: "bg-muted/40",
+    ring: "border-border",
   },
 } as const;
 
@@ -187,40 +194,49 @@ function RatioCard({
         </span>
       </div>
 
-      {/* Modif 2 — Result % en héros chromatique (text-5xl + couleur status). */}
-      <p
-        className={cn(
-          "mt-3 text-5xl font-bold tabular-nums",
-          statusColor
-        )}
-      >
-        {config.isPercentage
-          ? `${Math.round(ratio.value)}%`
-          : ratio.value.toFixed(1)}
-      </p>
-      <p className="text-xs text-muted-foreground">{config.unit}</p>
+      {ratio.status === "non_mesurable" ? (
+        // Non mesurable : pas de chiffre trompeur, juste le message gris.
+        <p className="mt-3 text-sm font-medium text-muted-foreground">
+          {ratio.message ?? "Pas encore assez de données"}
+        </p>
+      ) : (
+        <>
+          {/* Modif 2 — Result % en héros chromatique (text-5xl + couleur status). */}
+          <p
+            className={cn(
+              "mt-3 text-5xl font-bold tabular-nums",
+              statusColor
+            )}
+          >
+            {config.isPercentage
+              ? `${Math.round(ratio.value)}%`
+              : ratio.value.toFixed(1)}
+          </p>
+          <p className="text-xs text-muted-foreground">{config.unit}</p>
 
-      <ProgressBar
-        value={ratio.percentageOfTarget}
-        status={ratio.status}
-        showValue={false}
-        size="sm"
-        className="mt-3"
-      />
+          <ProgressBar
+            value={ratio.percentageOfTarget}
+            status={ratio.status}
+            showValue={false}
+            size="sm"
+            className="mt-3"
+          />
 
-      <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <Target className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            Objectif {CATEGORY_LABELS[category]}
-          </span>
-        </div>
-        <span className="text-xs font-bold text-foreground">
-          {config.isPercentage
-            ? `${ratio.thresholdForCategory}%`
-            : `${ratio.thresholdForCategory} ${config.unit}`}
-        </span>
-      </div>
+          <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Objectif {CATEGORY_LABELS[category]}
+              </span>
+            </div>
+            <span className="text-xs font-bold text-foreground">
+              {config.isPercentage
+                ? `${ratio.thresholdForCategory}%`
+                : `${ratio.thresholdForCategory} ${config.unit}`}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

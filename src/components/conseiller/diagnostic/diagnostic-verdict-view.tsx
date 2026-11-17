@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/use-user";
-import { useResults, useAllResults } from "@/hooks/use-results";
+import { useAllResults } from "@/hooks/use-results";
+import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUserContext } from "@/hooks/use-user-context";
@@ -29,7 +30,8 @@ export function DiagnosticVerdictView() {
   const router = useRouter();
   const { user, category } = useUser();
   const { computedRatios } = useRatios();
-  const results = useResults();
+  // Diagnostic sur l'agrégat 3 mois glissants (cohérent avec useRatios).
+  const { results3m: results } = useDiagnosticResults();
   const allResults = useAllResults();
   const agencyObjective = useAppStore((s) => s.agencyObjective);
   const { createPlan30j } = useImprovementResources();
