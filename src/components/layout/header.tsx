@@ -16,6 +16,10 @@ import { NOTIFICATION_ICONS } from "@/types/notifications";
 import type { NotificationType } from "@/types/notifications";
 import { resetTourStatus, getTourRole } from "@/lib/guided-tour";
 import { isFormationMode } from "@/lib/app-mode";
+import {
+  DEMO_PROFILES,
+  DEMO_PROFILE_STORAGE_KEY,
+} from "@/data/demo-profiles";
 import { AddAgentModal } from "@/components/manager/add-agent-modal";
 import { ExportModal } from "@/components/export/export-modal";
 
@@ -74,6 +78,8 @@ export function Header() {
   const hiddenViews = useAppStore((s) => s.hiddenViews);
   const toggleViewVisibility = useAppStore((s) => s.toggleViewVisibility);
   const isDemo = useAppStore((s) => s.isDemo);
+  const demoProfileId = useAppStore((s) => s.demoProfileId);
+  const setDemoProfile = useAppStore((s) => s.setDemoProfile);
   const ratioConfigs = useAppStore((s) => s.ratioConfigs);
   const orgLogoUrl = useAppStore((s) => s.orgLogoUrl);
 
@@ -115,6 +121,24 @@ export function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifs]);
+
+  // Mode démo : restaure le profil démo mémorisé (localStorage) à l'entrée.
+  useEffect(() => {
+    if (!isDemo) return;
+    try {
+      const saved = localStorage.getItem(DEMO_PROFILE_STORAGE_KEY);
+      if (
+        saved &&
+        saved !== demoProfileId &&
+        DEMO_PROFILES.some((p) => p.id === saved)
+      ) {
+        setDemoProfile(saved);
+      }
+    } catch {
+      // localStorage indisponible — on garde le profil par défaut.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo]);
 
   // Mode formation : le diagnostic conseiller s'intitule « Mon tableau de bord »
   // (cohérent avec la nav formation réduite). Les pages masquées (comparaison,
@@ -172,6 +196,28 @@ export function Header() {
             </div>
           );
         })()}
+
+        {/* Sélecteur de profil démo (mode démo uniquement) : fait varier le
+            point de douleur en salle sans déconnecter. */}
+        {isDemo && (
+          <label className="hidden items-center gap-1.5 md:flex">
+            <span className="text-xs font-medium text-muted-foreground">
+              Profil démo
+            </span>
+            <select
+              value={demoProfileId}
+              onChange={(e) => setDemoProfile(e.target.value)}
+              title="Changer de profil démo"
+              className="rounded-[var(--radius-button)] border border-border bg-muted px-2 py-1 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted/70 focus:ring-2 focus:ring-ring"
+            >
+              {DEMO_PROFILES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="flex items-center gap-3">

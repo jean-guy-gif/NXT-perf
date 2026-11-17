@@ -12,6 +12,12 @@ import { mockFinancialData } from "@/data/mock-finance";
 import { generateInstitutionCode, generateTeamCode } from "@/lib/codes";
 import { mockNetworkUsers, mockNetworkResults, mockNetworkJanuaryResults, mockNetworkInstitutions, mockNetworks, mockReseauUser, type Network } from "@/data/mock-network";
 import { isFormationMode, FORMATION_ROLES } from "@/lib/app-mode";
+import {
+  getDemoProfile,
+  DEFAULT_DEMO_PROFILE_ID,
+  DEMO_PROFILE_USER_ID,
+  DEMO_PROFILE_STORAGE_KEY,
+} from "@/data/demo-profiles";
 
 /** Map user roles to sidebar view IDs */
 export type ViewId = "agent" | "manager" | "directeur" | "reseau";
@@ -104,6 +110,9 @@ interface AppState {
   teamInfos: TeamInfo[];
   networks: Network[];
 
+  /** Profil démo conseiller sélectionné (sélecteur header, mode démo). */
+  demoProfileId: string;
+
   // ── Director inputs (persisted in localStorage) ──
   agencyObjective: { annualCA: number; avgActValue: number } | null;
   /**
@@ -126,6 +135,8 @@ interface AppState {
 
   setAgencyObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
   setConseillerObjective: (obj: { annualCA: number; avgActValue: number } | null) => void;
+  /** Change le profil démo conseiller (swap saisies + objectif + niveau de `m-demo`). */
+  setDemoProfile: (id: string) => void;
   setDirectorCosts: (costs: DirectorCosts | null) => void;
   setFinancialData: (data: Partial<FinancialData>) => void;
   updateFinancialField: (field: FinancialFieldId, value: number) => void;
@@ -205,6 +216,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hiddenViews: [],
   agencyObjective: null,
   conseillerObjective: null,
+  demoProfileId: DEFAULT_DEMO_PROFILE_ID,
   directorCosts: null,
   financialData: {},
   financialDataHistory: {},
@@ -228,6 +240,34 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setAgencyObjective: (obj) => set({ agencyObjective: obj }),
   setConseillerObjective: (obj) => set({ conseillerObjective: obj }),
+
+  setDemoProfile: (id) =>
+    set((state) => {
+      const profile = getDemoProfile(id);
+      // On ne remplace QUE les saisies de `m-demo` (vue conseiller démo). Les
+      // conseillers d'équipe (`u-demo-*`) et les autres rôles sont intacts.
+      const otherResults = state.results.filter(
+        (r) => r.userId !== DEMO_PROFILE_USER_ID
+      );
+      try {
+        localStorage.setItem(DEMO_PROFILE_STORAGE_KEY, id);
+      } catch {
+        // localStorage indisponible — on ignore.
+      }
+      return {
+        results: [...otherResults, ...profile.results],
+        conseillerObjective: profile.objective,
+        demoProfileId: profile.id,
+        user: state.user
+          ? { ...state.user, category: profile.category }
+          : state.user,
+        users: state.users.map((u) =>
+          u.id === DEMO_PROFILE_USER_ID
+            ? { ...u, category: profile.category }
+            : u
+        ),
+      };
+    }),
   setDirectorCosts: (costs) => set({ directorCosts: costs }),
   setFinancialData: (data) => set({ financialData: data }),
   updateFinancialField: (field, value) => set((s) => {
@@ -330,6 +370,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // (mandats 7, compromis 4, actes 3, CA 54 000 €) : ~70-80 % de l'objectif
       // au prorata de l'année. Lu uniquement par la carte « Mes objectifs ».
       conseillerObjective: { annualCA: 70000, avgActValue: 14000 },
+      demoProfileId: DEFAULT_DEMO_PROFILE_ID,
       financialData: { ...mockFinancialData },
       // Mock historique : 2 mois précédents (mars + février 2026) pour tester
       // le bouton "Reprendre le mois dernier" (PR2i).
@@ -384,6 +425,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       hiddenViews: [],
       agencyObjective: null,
       conseillerObjective: null,
+      demoProfileId: DEFAULT_DEMO_PROFILE_ID,
       directorCosts: null,
       financialData: {},
       financialDataHistory: {},
