@@ -234,27 +234,32 @@ function downstreamRates(
   const tauxExclu = tauxMandatVente(niveau, "exclusif");
   const tauxSimple = tauxMandatVente(niveau, "simple");
 
-  // Part d'exclusifs : réelle si assez de mandats, sinon part au seuil.
+  // RÈGLE : on ne crédite jamais la surperformance en aval. Chaque taux aval
+  // (part d'exclusifs, estimation→mandat, visite→offre, offre→compromis) est
+  // plafonné au taux AU SEUIL du niveau : min(taux réel, taux au seuil). Sans
+  // ce plafond, un conseiller qui convertit déjà au-dessus du standard verrait
+  // son gain potentiel aval surévalué (ex. 3 offres → 3 compromis = 100 %). Le
+  // taux reste égal au taux au seuil quand l'étape n'est pas mesurable.
   const partExclu =
     v.mandats >= MIN_INPUT_SAMPLE.pct_exclusivite
-      ? v.exclusifs / v.mandats
+      ? Math.min(v.exclusifs / v.mandats, T.pct_exclusivite / 100)
       : T.pct_exclusivite / 100;
   const ventesParMandat =
     partExclu * tauxExclu + (1 - partExclu) * tauxSimple;
 
   const rateEstimMandat =
     v.estimations >= MIN_INPUT_SAMPLE.estimations_mandats
-      ? v.mandats / v.estimations
+      ? Math.min(v.mandats / v.estimations, 1 / T.estimations_mandats)
       : 1 / T.estimations_mandats;
 
   const rateVisiteOffre =
     v.visites >= MIN_INPUT_SAMPLE.visites_offres
-      ? v.offres / v.visites
+      ? Math.min(v.offres / v.visites, 1 / T.visites_offres)
       : 1 / T.visites_offres;
 
   const rateOffreCompromis =
     v.offres >= MIN_INPUT_SAMPLE.offres_compromis
-      ? v.compromis / v.offres
+      ? Math.min(v.compromis / v.offres, 1 / T.offres_compromis)
       : 1 / T.offres_compromis;
 
   // Résultante avec ~3 mois de décalage compromis→acte : le taux réel est
