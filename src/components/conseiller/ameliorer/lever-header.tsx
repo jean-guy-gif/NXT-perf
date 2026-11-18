@@ -4,6 +4,7 @@ import { Target, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import { formatCible } from "@/lib/plan-30-jours";
 
 type LeverHeaderMode = "plan-active" | "no-plan-preselected";
 
@@ -26,9 +27,8 @@ export function LeverHeader({
   mode = "plan-active",
 }: Props) {
   const expertise = RATIO_EXPERTISE[expertiseId];
-  const isPercent = expertiseId === "pct_exclusivite";
   const fmt = (v: number | null) =>
-    v == null ? "—" : isPercent ? `${Math.round(v)} %` : v.toFixed(1);
+    v == null ? "—" : formatCible(v, expertiseId);
 
   const headerLabel =
     mode === "no-plan-preselected" ? "Levier sélectionné" : "Levier ciblé";

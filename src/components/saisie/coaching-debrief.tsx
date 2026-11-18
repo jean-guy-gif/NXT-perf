@@ -23,6 +23,8 @@ import {
 import { computeAllRatios } from "@/lib/ratios";
 import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
 import { detectBiggestPainPoint } from "@/lib/pain-point-detector";
+import { formatCible } from "@/lib/plan-30-jours";
+import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 import { aggregateCurrentMonth } from "@/lib/aggregate-results";
 import { useAppStore } from "@/stores/app-store";
 import { useAllResults } from "@/hooks/use-results";
@@ -56,10 +58,9 @@ function formatNumber(n: number): string {
   return String(rounded).replace(".", ",");
 }
 
-/** Seuil formaté selon le ratio (% pour l'exclusivité, sinon nombre). */
-function formatSeuil(expertiseId: string, target: number): string {
-  if (expertiseId === "pct_exclusivite") return `${Math.round(target)} %`;
-  return formatNumber(target);
+/** Cible formatée (arrondi d'affichage unifié via formatCible). */
+function formatSeuil(expertiseId: ExpertiseRatioId, target: number): string {
+  return formatCible(target, expertiseId);
 }
 
 // ── Composant ────────────────────────────────────────────────────────────────

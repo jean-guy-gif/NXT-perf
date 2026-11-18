@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generatePlan30j, planHeaderLine } from "@/lib/plan-30-jours";
+import { generatePlan30j, planHeaderLine, formatCible } from "@/lib/plan-30-jours";
 import {
   RATIO_EXPERTISE,
   LEVER_EXPERTISE_IDS,
@@ -93,9 +93,9 @@ describe("plan 30 jours — contenu conseiller validé (PLAN_CONTENT)", () => {
     });
   });
 
-  it("en-tête correct pour Karim (visites_offres)", () => {
+  it("en-tête correct pour Karim (visites_offres) — cible arrondie à 10", () => {
     expect(planHeaderLine("visites_offres", 30, 9.5)).toBe(
-      "Tu es à 30 visites pour 1 offre · cible à 30 jours : 9,5",
+      "Tu es à 30 visites pour 1 offre · cible à 30 jours : 10",
     );
   });
 
@@ -113,5 +113,21 @@ describe("plan 30 jours — contenu conseiller validé (PLAN_CONTENT)", () => {
   it("S4 de pct_exclusivite est exprimé en %", () => {
     const s4 = generatePlan30j(painFor("pct_exclusivite")).weeks[3];
     expect(s4.actions[0].label).toContain("quel % de mandats exclusifs ce mois-ci ?");
+  });
+});
+
+describe("formatCible — arrondi d'affichage (sans toucher aux calculs)", () => {
+  it("ratio ≥ 3 → entier le plus proche", () => {
+    expect(formatCible(9.5, "visites_offres")).toBe("10");
+    expect(formatCible(14.3, "contacts_estimations")).toBe("14");
+  });
+
+  it("ratio < 3 → au 0,5 le plus proche (1,5 · 2 · 2,5)", () => {
+    expect(formatCible(1.9, "estimations_mandats")).toBe("2");
+    expect(formatCible(1.6, "offres_compromis")).toBe("1,5");
+  });
+
+  it("% d'exclusivité → entier", () => {
+    expect(formatCible(52.5, "pct_exclusivite")).toBe("53 %");
   });
 });

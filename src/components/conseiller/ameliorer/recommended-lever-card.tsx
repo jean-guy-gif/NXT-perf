@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
+import { formatCible } from "@/lib/plan-30-jours";
 import { getDiagnosis, getCommonCauses } from "@/lib/coaching/coach-brain";
 import { isAiVisible } from "@/lib/ai-flags";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
@@ -125,9 +126,8 @@ export function RecommendedLeverCard({
     getCommonCauses(expertiseId, 1)[0] ??
     truncate(getDiagnosis(expertiseId), 180);
 
-  const isPercent = expertiseId === "pct_exclusivite";
   const fmt = (v: number | null) =>
-    v == null ? "—" : isPercent ? `${Math.round(v)} %` : v.toFixed(1);
+    v == null ? "—" : formatCible(v, expertiseId);
 
   const gapPct = (() => {
     if (currentValue == null || targetValue <= 0) return 0;

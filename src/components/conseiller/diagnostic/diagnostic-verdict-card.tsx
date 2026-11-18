@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
+import { formatCible } from "@/lib/plan-30-jours";
 import { RatioInfoBadge } from "@/components/coaching/ratio-info-tooltip";
 import type { CriticitePoint } from "@/lib/diagnostic-criticite";
 import {
@@ -151,9 +152,7 @@ export function DiagnosticVerdictCard({
 // ─── Sous-blocs métriques ────────────────────────────────────────────────
 
 function RatioMetrics({ point }: { point: Extract<CriticitePoint, { type: "ratio" }> }) {
-  const isPercent = point.id === "pct_exclusivite";
-  const formatVal = (v: number) =>
-    isPercent ? `${Math.round(v)} %` : v.toFixed(1);
+  const formatVal = (v: number) => formatCible(v, point.id as ExpertiseRatioId);
 
   // Écart normalisé (pas de notion temporelle — pas de proration ratio)
   const gapPct = Math.round((point._ratio.normalizedGap || 0) * 100);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowRight, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RATIO_EXPERTISE } from "@/data/ratio-expertise";
+import { formatCible } from "@/lib/plan-30-jours";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { useUser } from "@/hooks/use-user";
 import { useUserContext } from "@/hooks/use-user-context";
@@ -126,9 +127,7 @@ export function OtherLeversList({ others, onPlanCreated }: Props) {
             {ratioOthers.map((p) => {
               const expertiseId = p.id as ExpertiseRatioId;
               const expertise = RATIO_EXPERTISE[expertiseId];
-              const isPercent = expertiseId === "pct_exclusivite";
-              const fmt = (v: number) =>
-                isPercent ? `${Math.round(v)} %` : v.toFixed(1);
+              const fmt = (v: number) => formatCible(v, expertiseId);
               const gapPct =
                 p.type === "ratio"
                   ? Math.round((p._ratio.normalizedGap || 0) * 100)

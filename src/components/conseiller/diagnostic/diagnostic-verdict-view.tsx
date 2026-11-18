@@ -19,6 +19,7 @@ import {
   type CriticitePoint,
 } from "@/lib/diagnostic-criticite";
 import { detectTopPainPoints } from "@/lib/pain-point-detector";
+import { formatCible } from "@/lib/plan-30-jours";
 import { getProRationFactor } from "@/lib/performance/pro-rated-objective";
 import { DiagnosticVerdictCard } from "@/components/conseiller/diagnostic/diagnostic-verdict-card";
 import { WhyDangerDrawer } from "@/components/conseiller/diagnostic/why-danger-drawer";
@@ -43,10 +44,9 @@ function formatNumber(n: number): string {
   return String(rounded).replace(".", ",");
 }
 
-/** Seuil formaté selon le ratio (% pour l'exclusivité, sinon nombre). */
-function formatSeuil(expertiseId: string, target: number): string {
-  if (expertiseId === "pct_exclusivite") return `${Math.round(target)} %`;
-  return formatNumber(target);
+/** Cible formatée (arrondi d'affichage unifié via formatCible). */
+function formatSeuil(expertiseId: ExpertiseRatioId, target: number): string {
+  return formatCible(target, expertiseId);
 }
 
 export function DiagnosticVerdictView() {

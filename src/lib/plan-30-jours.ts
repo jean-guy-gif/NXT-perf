@@ -104,6 +104,23 @@ export function fmtNombre(n: number): string {
 }
 
 /**
+ * Arrondi d'AFFICHAGE d'une cible / valeur de ratio montrée au conseiller.
+ * N'affecte QUE l'affichage — les calculs internes (détecteur de douleur,
+ * gains en €, statuts, écarts) gardent la valeur exacte.
+ *
+ * - % d'exclusivité → entier (ex. 52,5 % → 53 %).
+ * - ratio « X pour 1 Y » → entier le plus proche si ≥ 3 (9,5 → 10, 14,3 → 14) ;
+ *   sinon au 0,5 le plus proche en dessous de 3 (1,9 → 2, 1,6 → 1,5).
+ */
+export function formatCible(valeur: number, levier: ExpertiseRatioId): string {
+  if (levier === "pct_exclusivite") {
+    return `${Math.round(valeur)} %`;
+  }
+  const arrondi = valeur >= 3 ? Math.round(valeur) : Math.round(valeur * 2) / 2;
+  return fmtNombre(arrondi);
+}
+
+/**
  * En-tête du plan, au-dessus des 4 semaines : où en est le conseiller vs la
  * cible à 30 jours. Nombres au format français, une décimale maximum.
  */
@@ -113,11 +130,11 @@ export function planHeaderLine(
   targetValue: number,
 ): string {
   if (expertiseId === "pct_exclusivite") {
-    return `Tu es à ${fmtNombre(currentValue)} % d'exclusivité · cible à 30 jours : ${fmtNombre(targetValue)} %`;
+    return `Tu es à ${formatCible(currentValue, expertiseId)} d'exclusivité · cible à 30 jours : ${formatCible(targetValue, expertiseId)}`;
   }
   const o = LEVIER_OBJECTIF[expertiseId];
   if (!o) return "";
-  return `Tu es à ${fmtNombre(currentValue)} ${o.input} pour 1 ${o.output} · cible à 30 jours : ${fmtNombre(targetValue)}`;
+  return `Tu es à ${formatCible(currentValue, expertiseId)} ${o.input} pour 1 ${o.output} · cible à 30 jours : ${formatCible(targetValue, expertiseId)}`;
 }
 
 // ─── Semaines 1-3 — contenu validé (PLAN_CONTENT) ───────────────────────────
@@ -143,11 +160,11 @@ function buildLeverWeek(
 // ─── Semaine 4 — Mesurer (générée, identique pour tous les leviers) ─────────
 
 function buildWeek4Mesurer(painPoint: PainPointResult): Plan30jWeek {
-  const cur = fmtNombre(painPoint.currentValue);
+  const cur = formatCible(painPoint.currentValue, painPoint.expertiseId);
 
   let saisie: string;
   if (painPoint.expertiseId === "pct_exclusivite") {
-    saisie = `Fais ta saisie : quel % de mandats exclusifs ce mois-ci ? Tu étais à ${cur} %.`;
+    saisie = `Fais ta saisie : quel % de mandats exclusifs ce mois-ci ? Tu étais à ${cur}.`;
   } else {
     const o = LEVIER_OBJECTIF[painPoint.expertiseId];
     saisie = o
