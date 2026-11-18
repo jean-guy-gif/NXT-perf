@@ -9,6 +9,7 @@ import {
   type FormationItem,
 } from "@/lib/coaching/training-catalog";
 import { formationAreaLabels } from "@/lib/formation";
+import { isFormationMode } from "@/lib/app-mode";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 interface Props {
@@ -32,6 +33,10 @@ export function FocusedTrainingBlock({ expertiseId }: Props) {
   const [previewFormation, setPreviewFormation] = useState<FormationItem | null>(
     null
   );
+
+  // Mode formation : on masque le bloc « Se former » (catalogue aux titres
+  // fictifs, « Catalogue complet bientôt disponible ») — masqué, pas supprimé.
+  if (isFormationMode()) return null;
 
   const area = expertiseToFormationArea(expertiseId);
   if (!area) return null;

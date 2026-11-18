@@ -16,6 +16,14 @@ import type { PeriodResults } from "@/types/results";
 import type { ComputedRatio, RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
 import { computeAllRatios, determineRatioStatus } from "@/lib/ratios";
+import { calculateObjectiveBreakdown } from "@/lib/objectifs";
+import {
+  calculateObjectiveToDate,
+  getProRationFactor,
+  getCurrentDayOfMonth,
+  getDaysInCurrentMonth,
+} from "@/lib/performance/pro-rated-objective";
+import { CATEGORY_LABELS } from "@/lib/constants";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,13 +120,14 @@ interface WeeklyTargets {
   estimationsRealisees: number;
   mandatsSignes: number;
   nombreVisites: number;
+  offresRecues: number;
   compromisSignes: number;
 }
 
 const DEFAULT_WEEKLY_TARGETS: Record<UserCategory, WeeklyTargets> = {
-  debutant: { contactsTotaux: 30, rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1, nombreVisites: 8, compromisSignes: 0 },
-  confirme: { contactsTotaux: 25, rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1, nombreVisites: 6, compromisSignes: 1 },
-  expert:   { contactsTotaux: 20, rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2, nombreVisites: 5, compromisSignes: 1 },
+  debutant: { contactsTotaux: 30, rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1, nombreVisites: 8, offresRecues: 1, compromisSignes: 0 },
+  confirme: { contactsTotaux: 25, rdvEstimation: 2, estimationsRealisees: 2, mandatsSignes: 1, nombreVisites: 6, offresRecues: 2, compromisSignes: 1 },
+  expert:   { contactsTotaux: 20, rdvEstimation: 3, estimationsRealisees: 3, mandatsSignes: 2, nombreVisites: 5, offresRecues: 2, compromisSignes: 1 },
 };
 
 // ── Confidence calculation ───────────────────────────────────────────────────
@@ -449,5 +458,190 @@ export function generateCoachingDebrief(
     ctaLabel: COACHING_CTA_LABEL,
     ctaUrl: COACHING_CTA_URL,
     audioScript: audio.join(" "),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOIS EN COURS — réalisé depuis le 1er vs objectif mensuel au prorata (V4)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Le débrief post-saisie ne juge PLUS une semaine isolée avec ses propres
+// ratios. Il affiche le réalisé du mois en cours face à l'objectif mensuel
+// (GPS du conseiller ÷ 12), proraté aux jours écoulés — les mêmes repères que
+// le tableau de bord. Aucun ratio n'est jugé ici (ils se lisent sur 3 mois).
+
+/** ~4,33 semaines par mois (52 ÷ 12) — conversion des cibles hebdo en mensuel. */
+export const WEEKS_PER_MONTH = 52 / 12;
+
+export type MonthVolumeKey =
+  | "contacts"
+  | "estimations"
+  | "mandats"
+  | "exclusifs"
+  | "visites"
+  | "offres"
+  | "compromis";
+
+export interface MonthVolumeItem {
+  key: MonthVolumeKey;
+  label: string;
+  /** Réalisé depuis le 1er du mois. */
+  actual: number;
+  /** Objectif mensuel proraté aux jours écoulés, arrondi à l'entier supérieur. */
+  target: number;
+  /** Cible prorata non arrondie — base du calcul de pourcentage. */
+  rawTarget: number;
+  /** actual / rawTarget (1 si pas de cible mesurable). */
+  pct: number;
+  /** Les exclusifs s'affichent sous la ligne « Mandats ». */
+  isSub: boolean;
+  /** Cible issue du standard Start Academia (le GPS ne la fournit pas). */
+  fromFallback: boolean;
+}
+
+export interface MonthProgress {
+  items: MonthVolumeItem[];
+  /** Aucun objectif GPS → tout le mois suit le standard du niveau. */
+  usingFallback: boolean;
+  /** Libellé du niveau pour la mention standard (« Junior / Confirmé / Expert »). */
+  fallbackLevelLabel: string;
+  daysElapsed: number;
+  daysInMonth: number;
+  /** Tous les volumes mesurables ≥ 90 % du prorata. */
+  onTrack: boolean;
+  /** Les 2-3 plus gros retards (pourcentage de prorata croissant). */
+  laggards: MonthVolumeItem[];
+  /** Verdict honnête en une phrase, au tutoiement. */
+  verdict: string;
+}
+
+const MONTH_VOLUME_LABELS: Record<MonthVolumeKey, string> = {
+  contacts: "Contacts",
+  estimations: "Estimations",
+  mandats: "Mandats",
+  exclusifs: "Exclusifs",
+  visites: "Visites",
+  offres: "Offres",
+  compromis: "Compromis",
+};
+
+/**
+ * Calcule l'avancement du mois en cours face à l'objectif mensuel proraté.
+ *
+ * `objective` = `conseillerObjective ?? agencyObjective` (GPS). Quand il est
+ * présent, les cibles estimations / mandats / visites / offres / compromis
+ * viennent de `calculateObjectiveBreakdown ÷ 12`. Les contacts (non fournis
+ * par le GPS) et, sans objectif GPS, tous les volumes, suivent le standard
+ * `DEFAULT_WEEKLY_TARGETS × 4,33`. Les exclusifs = mandats visés × seuil %
+ * exclusivité du niveau.
+ */
+export function computeMonthProgress(
+  monthResults: PeriodResults,
+  category: UserCategory,
+  objective: { annualCA: number; avgActValue: number } | null,
+  ratioConfigs: Record<RatioId, RatioConfig>,
+  now: Date,
+): MonthProgress {
+  const std = DEFAULT_WEEKLY_TARGETS[category];
+  const pctExclusivite = ratioConfigs.pct_mandats_exclusifs.thresholds[category];
+
+  const noGps =
+    !objective || objective.annualCA <= 0 || objective.avgActValue <= 0;
+
+  // Cibles mensuelles (avant proration).
+  let monthlyEstimations: number;
+  let monthlyMandats: number;
+  let monthlyVisites: number;
+  let monthlyOffres: number;
+  let monthlyCompromis: number;
+
+  if (noGps) {
+    monthlyEstimations = std.estimationsRealisees * WEEKS_PER_MONTH;
+    monthlyMandats = std.mandatsSignes * WEEKS_PER_MONTH;
+    monthlyVisites = std.nombreVisites * WEEKS_PER_MONTH;
+    monthlyOffres = std.offresRecues * WEEKS_PER_MONTH;
+    monthlyCompromis = std.compromisSignes * WEEKS_PER_MONTH;
+  } else {
+    const b = calculateObjectiveBreakdown(
+      objective.annualCA,
+      objective.avgActValue,
+      category,
+      ratioConfigs,
+    );
+    monthlyEstimations = b.estimationsNecessaires / 12;
+    monthlyMandats = b.mandatsNecessaires / 12;
+    monthlyVisites = b.visitesNecessaires / 12;
+    monthlyOffres = b.offresNecessaires / 12;
+    monthlyCompromis = b.compromisNecessaires / 12;
+  }
+
+  // Le GPS ne fournit pas les contacts → toujours le standard.
+  const monthlyContacts = std.contactsTotaux * WEEKS_PER_MONTH;
+  const monthlyExclusifs = monthlyMandats * (pctExclusivite / 100);
+
+  const factor = getProRationFactor(now);
+  const mandats = monthResults.vendeurs.mandats ?? [];
+  const exclusifsRealises = mandats.filter((m) => m.type === "exclusif").length;
+
+  const build = (
+    key: MonthVolumeKey,
+    actual: number,
+    monthlyTarget: number,
+    fromFallback: boolean,
+    isSub = false,
+  ): MonthVolumeItem => {
+    const rawTarget = monthlyTarget * factor;
+    const target = calculateObjectiveToDate(monthlyTarget, now, { type: "volume" });
+    const pct = rawTarget > 0 ? actual / rawTarget : 1;
+    return {
+      key,
+      label: MONTH_VOLUME_LABELS[key],
+      actual,
+      target,
+      rawTarget,
+      pct,
+      isSub,
+      fromFallback,
+    };
+  };
+
+  const items: MonthVolumeItem[] = [
+    build("contacts", monthResults.prospection.contactsTotaux, monthlyContacts, true),
+    build("estimations", monthResults.vendeurs.estimationsRealisees, monthlyEstimations, noGps),
+    build("mandats", monthResults.vendeurs.mandatsSignes, monthlyMandats, noGps),
+    build("exclusifs", exclusifsRealises, monthlyExclusifs, noGps, true),
+    build("visites", monthResults.acheteurs.nombreVisites, monthlyVisites, noGps),
+    build("offres", monthResults.acheteurs.offresRecues, monthlyOffres, noGps),
+    build("compromis", monthResults.acheteurs.compromisSignes, monthlyCompromis, noGps),
+  ];
+
+  // Verdict : honnête, tutoiement. Positif seulement si TOUS les volumes
+  // mesurables sont ≥ 90 % du prorata (donc jamais si un volume est sous 80 %).
+  const measurable = items.filter((i) => i.rawTarget > 0);
+  const onTrack = measurable.every((i) => i.pct >= 0.9);
+  let laggards: MonthVolumeItem[] = [];
+  let verdict: string;
+  if (onTrack) {
+    verdict = "Tu es dans le rythme de ton objectif ce mois-ci.";
+  } else {
+    laggards = measurable
+      .filter((i) => i.pct < 0.9)
+      .sort((a, b) => a.pct - b.pct)
+      .slice(0, 3);
+    const parts = laggards.map(
+      (i) => `${i.label.toLowerCase()} (${i.actual} / ${i.target})`,
+    );
+    verdict = `En retard ce mois-ci sur : ${parts.join(", ")}.`;
+  }
+
+  return {
+    items,
+    usingFallback: noGps,
+    fallbackLevelLabel: CATEGORY_LABELS[category],
+    daysElapsed: getCurrentDayOfMonth(now),
+    daysInMonth: getDaysInCurrentMonth(now),
+    onTrack,
+    laggards,
+    verdict,
   };
 }

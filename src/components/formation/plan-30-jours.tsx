@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  ExternalLink,
   Sparkles,
   AlertTriangle,
   CheckCircle2,
@@ -474,7 +473,7 @@ export function Plan30Jours() {
  *     ouvre `<WeeklyBriefDrawer>` avec la fiche pédagogique de la SEMAINE
  *     (3 panneaux : Pourquoi ces 3 actions / Ce que font les meilleurs /
  *     L'erreur à éviter). Sous-PR 2 enrichira les 32 fiches.
- *   - Section "Exercice NXT associé" + bouton "Je bloque 20 min" CONSERVÉE
+ *   - Section "Objectif de la semaine" (objectif chiffré du levier)
  */
 function WeekCard({
   week,
@@ -610,21 +609,13 @@ function WeekCard({
             ))}
           </ul>
 
-          {/* Section "Exercice NXT associé" — conservée */}
+          {/* Objectif chiffré de la semaine (champ `exercice` du plan). */}
           {week.exercice && (
             <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
-                Exercice NXT associé
+                Objectif de la semaine
               </p>
               <p className="mt-1 text-sm text-foreground">{week.exercice}</p>
-              <button
-                type="button"
-                onClick={() => window.open("https://nxt.antigravity.fr", "_blank")}
-                className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
-              >
-                Je bloque 20 minutes maintenant
-                <ExternalLink className="h-3.5 w-3.5" />
-              </button>
             </div>
           )}
         </div>

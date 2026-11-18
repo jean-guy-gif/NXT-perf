@@ -41,22 +41,26 @@ export interface GeneratedPlan30j {
 
 /**
  * Génère un plan 30 jours focalisé exclusivement sur le plus gros point de
- * douleur du conseiller, avec un contenu tiré du doc d'expertise.
+ * douleur du conseiller, avec un contenu tiré du doc d'expertise et un
+ * objectif chiffré propre au levier sur chaque semaine.
  *
- * Structure narrative (4 semaines) :
- *   S1 — Diagnostic personnel + première action (Q4)
- *   S2 — Ancrage des meilleures pratiques (Q3 partie 1)
- *   S3 — Mise en pratique avancée (Q3 partie 2)
- *   S4 — Consolidation + mesure d\'impact
+ * Structure narrative (4 semaines), spécifique au levier :
+ *   S1 — Comprendre : le diagnostic + les causes fréquentes à vérifier.
+ *   S2 — Corriger : première action + 1re bonne pratique + jeu de rôle.
+ *   S3 — Appliquer : le reste des bonnes pratiques en 2-3 actions concrètes.
+ *   S4 — Mesurer : refaire sa saisie, comparer son ratio, ancrer 2 habitudes.
+ *
+ * Tous les textes sont au tutoiement, avec de vrais accents, sans aucune
+ * mention de coaching commercial ni de « Exercice NXT ».
  */
 export function generatePlan30j(painPoint: PainPointResult): GeneratedPlan30j {
   const expertise = painPoint.expertise;
 
   const weeks: Plan30jWeek[] = [
-    buildWeek1Diagnostic(expertise),
-    buildWeek2Ancrage(expertise),
-    buildWeek3MisePratique(expertise),
-    buildWeek4Consolidation(expertise),
+    buildWeek1Comprendre(painPoint),
+    buildWeek2Corriger(painPoint),
+    buildWeek3Appliquer(painPoint),
+    buildWeek4Mesurer(painPoint),
   ];
 
   return {
@@ -71,135 +75,190 @@ export function generatePlan30j(painPoint: PainPointResult): GeneratedPlan30j {
   };
 }
 
-// Revert chantier B — restauration des 3 actions par semaine (état pré-6f1c8c4).
-// Le contenu pédagogique se trouve désormais dans une FICHE par SEMAINE
-// (et plus par action) via `src/data/weekly-briefs.ts` + `<WeeklyBriefDrawer>`,
-// accessible via le badge "Voir la fiche" dans le header de chaque WeekCard.
+// ─── Objectif chiffré par levier ────────────────────────────────────────────
 
-// Semaine 1 - Diagnostic + premiere action
+interface LevierObjectif {
+  /** Volume d'entrée du ratio, au pluriel (ex. « visites »). */
+  input: string;
+  /** Genre de l'entrée, pour l'accord « prochains / prochaines ». */
+  inputGender: "m" | "f";
+  /** Sortie visée, au singulier (ex. « offre »). */
+  output: string;
+}
 
-function buildWeek1Diagnostic(expertise: RatioExpertise): Plan30jWeek {
+/** Entrée / sortie de chaque levier « X pour 1 Y » (pct_exclusivite à part). */
+const LEVIER_OBJECTIF: Partial<Record<ExpertiseRatioId, LevierObjectif>> = {
+  contacts_estimations: { input: "contacts", inputGender: "m", output: "estimation" },
+  estimations_mandats: { input: "estimations", inputGender: "f", output: "mandat" },
+  acheteurs_tournee: { input: "acheteurs", inputGender: "m", output: "sortie en visite" },
+  visites_offres: { input: "visites", inputGender: "f", output: "offre" },
+  offres_compromis: { input: "offres", inputGender: "f", output: "compromis" },
+};
+
+/** Jeu de rôle d'une phrase, propre à la situation de chaque levier. */
+const JEU_DE_ROLE: Partial<Record<ExpertiseRatioId, string>> = {
+  contacts_estimations:
+    "Jeu de rôle : avec un collègue qui joue un prospect méfiant, déroule ton accroche de prospection jusqu'à décrocher un rendez-vous d'estimation.",
+  estimations_mandats:
+    "Jeu de rôle : rejoue un R2 avec un collègue qui joue le vendeur, de la présentation des services à la signature du mandat, objections comprises.",
+  pct_exclusivite:
+    "Jeu de rôle : défends l'exclusivité face à un collègue qui joue le vendeur qui veut garder plusieurs agences.",
+  acheteurs_tournee:
+    "Jeu de rôle : mène un entretien de découverte avec un collègue qui joue l'acheteur, et amène-le à signer un mandat de recherche.",
+  visites_offres:
+    "Jeu de rôle : rejoue un retour de visite avec un collègue qui joue l'acheteur intéressé, et amène-le à se positionner tout de suite.",
+  offres_compromis:
+    "Jeu de rôle : négocie une offre trop basse en face-à-face avec un collègue qui joue le vendeur, jusqu'à la faire remonter.",
+};
+
+/** Formate un nombre : entier tel quel, sinon une décimale avec virgule FR. */
+function fmtNombre(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",");
+}
+
+/** Phrase d'objectif chiffré de la semaine, tirée du point de douleur. */
+function objectifChiffre(painPoint: PainPointResult): string {
+  const cur = fmtNombre(painPoint.currentValue);
+  const target = fmtNombre(painPoint.targetValue);
+
+  if (painPoint.expertiseId === "pct_exclusivite") {
+    return `Cible : passer de ${cur}% à ${target}% de mandats exclusifs. Cette semaine, sur tes prochains mandats, vise au moins ${target}% en exclusivité.`;
+  }
+
+  const o = LEVIER_OBJECTIF[painPoint.expertiseId];
+  if (!o) {
+    // Repli (ratio hors des 6 leviers, via le chemin legacy par aire).
+    return `Cible : rapprocher ton ratio ${painPoint.expertise.label} de ${target}.`;
+  }
+  const prochains = o.inputGender === "f" ? "prochaines" : "prochains";
+  return `Cible : passer de ${cur} ${o.input} pour 1 ${o.output} à ${target}. Cette semaine, sur tes ${target} ${prochains} ${o.input}, vise 1 ${o.output}.`;
+}
+
+/** Découpe un texte en phrases (sur . ! ?), nettoyées et non vides. */
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// ─── Semaine 1 — Comprendre ──────────────────────────────────────────────────
+
+function buildWeek1Comprendre(painPoint: PainPointResult): Plan30jWeek {
+  const e = painPoint.expertise;
   const actions: Plan30jAction[] = [
     {
       id: "w1-action-1",
-      label: `Identifier precisement les 3 derniers cas ou vous avez constate ce probleme sur ${expertise.label}`,
+      label: `Relis ce constat et repère où tu te reconnais : ${e.diagnosis}`,
       done: false,
     },
-    {
-      id: "w1-action-2",
-      label: `Appliquer la premiere action recommandee : ${expertise.firstAction}`,
+    ...e.commonCauses.map((cause, i) => ({
+      id: `w1-cause-${i + 1}`,
+      label: `${cause} → Est-ce que je fais ça ? Vérifie-le sur tes 3 derniers dossiers concernés.`,
       done: false,
-    },
-    {
-      id: "w1-action-3",
-      label: "Tenir un journal de bord : noter chaque situation rencontree cette semaine liee a ce ratio",
-      done: false,
-    },
+    })),
   ];
 
   return {
     week_number: 1,
-    focus: `Diagnostic et premiere action sur ${expertise.label}`,
+    focus: `Comprendre ce qui coince sur ${e.label}`,
     actions,
-    exercice: `Exercice NXT - Analyse personnelle : pourquoi ce ratio se degrade chez vous`,
+    exercice: objectifChiffre(painPoint),
   };
 }
 
-// Semaine 2 - Ancrage des meilleures pratiques
+// ─── Semaine 2 — Corriger ────────────────────────────────────────────────────
 
-function buildWeek2Ancrage(expertise: RatioExpertise): Plan30jWeek {
-  const firstBestPracticeSentence = extractFirstSentence(expertise.bestPractices);
+function buildWeek2Corriger(painPoint: PainPointResult): Plan30jWeek {
+  const e = painPoint.expertise;
+  const firstBestPractice = splitSentences(e.bestPractices)[0] ?? e.bestPractices;
 
   const actions: Plan30jAction[] = [
     {
       id: "w2-action-1",
-      label: firstBestPracticeSentence,
+      label: `Première action : ${e.firstAction}`,
       done: false,
     },
     {
       id: "w2-action-2",
-      label: "Preparer 3 situations professionnelles cette semaine ou vous appliquerez la methode des meilleurs",
+      label: `Inspire-toi des meilleurs : ${firstBestPractice}`,
       done: false,
     },
     {
       id: "w2-action-3",
-      label: "Demander un retour a un collegue ou a votre manager apres chaque tentative",
+      label:
+        JEU_DE_ROLE[painPoint.expertiseId] ??
+        `Jeu de rôle : rejoue une situation de ${e.label} avec un collègue.`,
       done: false,
     },
   ];
 
   return {
     week_number: 2,
-    focus: "Ancrage : adopter les reflexes des meilleurs",
+    focus: `Corriger tes premiers gestes sur ${e.label}`,
     actions,
-    exercice: `Exercice NXT - Jeu de role sur ${expertise.label}`,
+    exercice: objectifChiffre(painPoint),
   };
 }
 
-// Semaine 3 - Mise en pratique avancee
+// ─── Semaine 3 — Appliquer ───────────────────────────────────────────────────
 
-function buildWeek3MisePratique(_expertise: RatioExpertise): Plan30jWeek {
-  const actions: Plan30jAction[] = [
-    {
+function buildWeek3Appliquer(painPoint: PainPointResult): Plan30jWeek {
+  const e = painPoint.expertise;
+  // Le reste des bonnes pratiques (la 1re phrase est déjà vue en S2), découpé
+  // en 2 ou 3 actions concrètes propres au levier.
+  const reste = splitSentences(e.bestPractices).slice(1).slice(0, 3);
+
+  const actions: Plan30jAction[] = reste.map((phrase, i) => ({
+    id: `w3-action-${i + 1}`,
+    label: `Mets en pratique : ${phrase}`,
+    done: false,
+  }));
+
+  if (actions.length === 0) {
+    // Repli si les bonnes pratiques tiennent en une seule phrase.
+    actions.push({
       id: "w3-action-1",
-      label: "Appliquer la methode complete sur au moins 5 dossiers reels cette semaine",
+      label: `Applique la méthode des meilleurs sur tes dossiers réels : ${e.bestPractices}`,
       done: false,
-    },
-    {
-      id: "w3-action-2",
-      label: "Documenter chaque application : ce qui a fonctionne, ce qui a resiste",
-      done: false,
-    },
-    {
-      id: "w3-action-3",
-      label: "Ajuster votre approche en cours de route selon les retours terrain",
-      done: false,
-    },
-  ];
+    });
+  }
 
   return {
     week_number: 3,
-    focus: "Mise en pratique intensive et ajustements",
+    focus: "Appliquer sur le terrain",
     actions,
-    exercice: "Exercice NXT - Debrief hebdomadaire avec analyse des resistances",
+    exercice: objectifChiffre(painPoint),
   };
 }
 
-// Semaine 4 - Consolidation + mesure
+// ─── Semaine 4 — Mesurer ─────────────────────────────────────────────────────
 
-function buildWeek4Consolidation(expertise: RatioExpertise): Plan30jWeek {
+function buildWeek4Mesurer(painPoint: PainPointResult): Plan30jWeek {
+  const e = painPoint.expertise;
+  const cur = fmtNombre(painPoint.currentValue);
+  const target = fmtNombre(painPoint.targetValue);
+
   const actions: Plan30jAction[] = [
     {
       id: "w4-action-1",
-      label: `Mesurer l\'evolution de votre ratio ${expertise.label} sur les 30 derniers jours`,
+      label: `Fais ta saisie et compare ton ratio ${e.label} sur ton tableau de bord : tu étais à ${cur}, cible ${target}.`,
       done: false,
     },
     {
       id: "w4-action-2",
-      label: "Identifier 2 comportements a conserver definitivement",
-      done: false,
-    },
-    {
-      id: "w4-action-3",
-      label: "Preparer le debrief NXT Coaching offert pour affiner la suite",
+      label: "Choisis les 2 habitudes que tu gardes définitivement.",
       done: false,
     },
   ];
 
   return {
     week_number: 4,
-    focus: "Consolidation des acquis et preparation du debrief",
+    focus: "Mesurer et ancrer tes acquis",
     actions,
-    exercice: "Exercice NXT - Bilan personnel de progression",
+    exercice: objectifChiffre(painPoint),
   };
-}
-
-// Helpers
-
-/** Extrait la premiere phrase d\'un texte multi-phrases pour affichage compact */
-function extractFirstSentence(text: string): string {
-  const match = text.match(/^[^.!?]+[.!?]/);
-  return match ? match[0].trim() : text.slice(0, 200);
 }
 
 // Conversion vers payload JSONB pour stockage Supabase

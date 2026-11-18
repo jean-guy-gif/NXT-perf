@@ -2,6 +2,7 @@
 
 import { CalendarCheck, Dumbbell, GraduationCap, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isFormationMode } from "@/lib/app-mode";
 
 interface Props {
   /** "plan" si plan actif, "none" si aucun plan */
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function ModalitesTuiles({ state }: Props) {
-  const tiles = [
+  const allTiles = [
     {
       id: "plan",
       icon: CalendarCheck,
@@ -38,6 +39,10 @@ export function ModalitesTuiles({ state }: Props) {
       disabled: true,
     },
   ];
+
+  // Mode formation : on masque les tuiles désactivées (« M'entraîner », « Me
+  // former ») — pas de fausses promesses pendant la formation.
+  const tiles = isFormationMode() ? allTiles.filter((t) => !t.disabled) : allTiles;
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

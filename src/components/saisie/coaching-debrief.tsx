@@ -1,52 +1,35 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  TrendingUp,
-  TrendingDown,
   Target,
-  CheckCircle,
   AlertTriangle,
-  ChevronRight,
-  Volume2,
-  Sparkles,
-  Lightbulb,
-  Loader2,
+  CheckCircle2,
+  Circle,
+  ArrowRight,
+  Crosshair,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PeriodResults } from "@/types/results";
 import type { RatioConfig, RatioId } from "@/types/ratios";
 import type { UserCategory } from "@/types/user";
-import { generateCoachingDebrief } from "@/lib/coaching-debrief";
-import { generateAIDebrief } from "@/lib/coaching-ai-client";
-import { isAiVisible } from "@/lib/ai-flags";
-import type { CoachingDebrief, VolumeVerdict, ActionItem, AgentProfile } from "@/lib/coaching-debrief";
-import type { AIDebriefText } from "@/lib/coaching-ai-client";
-
-/** Sous-PR Coach-14 : tip RAG focalisé post-saisie. */
-interface PostSaisieTip {
-  microInsight: string;
-  microAction: string;
-  whyItMatters: string;
-  mood: "positive" | "focus" | "concern";
-}
-
-// ── TTS ──────────────────────────────────────────────────────────────────────
-
-function speakTTS(text: string, onEnd?: () => void): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR"; u.rate = 0.92; u.pitch = 1.05;
-  const voices = window.speechSynthesis.getVoices();
-  const fr = voices.filter(v => v.lang === "fr-FR" || v.lang.startsWith("fr-"));
-  const sel = fr.find(v => v.name.includes("Google français")) || fr[0] || voices[0];
-  if (sel) u.voice = sel;
-  u.onend = () => onEnd?.();
-  u.onerror = () => onEnd?.();
-  window.speechSynthesis.speak(u);
-}
+import {
+  computeMonthProgress,
+  type MonthProgress,
+  type MonthVolumeItem,
+} from "@/lib/coaching-debrief";
+import { computeAllRatios } from "@/lib/ratios";
+import { buildMeasuredRatios } from "@/lib/ratio-to-expertise";
+import { detectBiggestPainPoint } from "@/lib/pain-point-detector";
+import { aggregateCurrentMonth } from "@/lib/aggregate-results";
+import { useAppStore } from "@/stores/app-store";
+import { useAllResults } from "@/hooks/use-results";
+import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
+import { useUserContext } from "@/hooks/use-user-context";
+import { useImprovementResources } from "@/hooks/use-improvement-resources";
+import type { Plan30jPayload } from "@/config/coaching";
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -58,331 +41,355 @@ interface CoachingDebriefScreenProps {
   onClose: () => void;
 }
 
-// ── Labels ───────────────────────────────────────────────────────────────────
+// ── Formatage (aligné sur le tableau de bord) ────────────────────────────────
 
-const verdictLabel: Record<VolumeVerdict, string> = {
-  above: "Au-dessus du cap", on_track: "Dans le cap", below: "En dessous", no_data: "Pas de données",
-};
-const verdictColor: Record<VolumeVerdict, string> = {
-  above: "text-green-400", on_track: "text-primary", below: "text-amber-400", no_data: "text-muted-foreground",
-};
-const profileLabel: Record<AgentProfile, string> = {
-  high_performer: "Semaine solide", correct: "Semaine correcte", low_volume: "Volume à renforcer",
-  low_conversion: "Conversion à travailler", mixed: "Semaine à ajuster", insufficient_data: "Données insuffisantes",
-};
-const profileEmoji: Record<AgentProfile, string> = {
-  high_performer: "💪", correct: "👍", low_volume: "📈", low_conversion: "🎯", mixed: "⚡", insufficient_data: "📊",
-};
-const actionIcon: Record<ActionItem["type"], typeof Target> = {
-  volume: TrendingUp, performance: Target, discipline: CheckCircle,
-};
+/** Entier avec séparateur de milliers (espace), ex. 14400 → "14 400". */
+function formatEuro(n: number): string {
+  return Math.round(n)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
 
-// ── Component ────────────────────────────────────────────────────────────────
+/** Nombre à 1 décimale, virgule française (ex. 1.8 → "1,8", 15 → "15"). */
+function formatNumber(n: number): string {
+  const rounded = Math.round(n * 10) / 10;
+  return String(rounded).replace(".", ",");
+}
 
-export function CoachingDebriefScreen({ results, category, ratioConfigs, persona, onClose }: CoachingDebriefScreenProps) {
-  const debrief = useMemo(() => generateCoachingDebrief(results, category, ratioConfigs), [results, category, ratioConfigs]);
-  const [audioPlaying, setAudioPlaying] = useState(false);
-  const [aiText, setAiText] = useState<AIDebriefText | null>(null);
-  const [aiLoading, setAiLoading] = useState(true);
+/** Seuil formaté selon le ratio (% pour l'exclusivité, sinon nombre). */
+function formatSeuil(expertiseId: string, target: number): string {
+  if (expertiseId === "pct_exclusivite") return `${Math.round(target)} %`;
+  return formatNumber(target);
+}
 
-  // Sous-PR Coach-14 : fetch lazy le "coup d'œil Coach NXT" focalisé.
-  const [postTip, setPostTip] = useState<PostSaisieTip | null>(null);
-  const [postTipLoading, setPostTipLoading] = useState(false);
+// ── Composant ────────────────────────────────────────────────────────────────
 
+export function CoachingDebriefScreen({
+  results,
+  category,
+  ratioConfigs,
+  onClose,
+}: CoachingDebriefScreenProps) {
+  const user = useAppStore((s) => s.user);
+  const conseillerObjective = useAppStore((s) => s.conseillerObjective);
+  const agencyObjective = useAppStore((s) => s.agencyObjective);
+  const allResults = useAllResults();
+  const { results3m, results6m } = useDiagnosticResults();
+  const userCtx = useUserContext();
+  const { getActivePlan, updateResource } = useImprovementResources();
+
+  // Date figée au montage — un seul « maintenant » pour tout l'écran.
+  const now = useMemo(() => new Date(), []);
+  const objective = conseillerObjective ?? agencyObjective;
+
+  // ── Bloc 1 : mois en cours (réalisé depuis le 1er vs objectif proraté) ──
+  const monthProgress: MonthProgress = useMemo(() => {
+    const month = aggregateCurrentMonth(allResults, user?.id, now) ?? results;
+    return computeMonthProgress(month, category, objective, ratioConfigs, now);
+  }, [allResults, user?.id, now, results, category, objective, ratioConfigs]);
+
+  // ── Bloc 3 : point de douleur n°1 (identique au tableau de bord) ──
+  const painPoint = useMemo(() => {
+    if (!results3m) return null;
+    const computed = computeAllRatios(results3m, category, ratioConfigs);
+    const measured = buildMeasuredRatios(computed, results3m, results6m);
+    return detectBiggestPainPoint(measured, userCtx);
+  }, [results3m, results6m, category, ratioConfigs, userCtx]);
+
+  // ── Bloc 4 : plan 30 jours actif + semaine courante ──
+  const activePlan = getActivePlan();
+  const [localPayload, setLocalPayload] = useState<Plan30jPayload | null>(null);
   useEffect(() => {
-    // Interrupteur IA : aucun appel tant que l'IA n'est pas visible.
-    if (!isAiVisible() || debrief.profile === "insufficient_data") {
-      setPostTip(null);
-      return;
-    }
-    let cancelled = false;
-    setPostTipLoading(true);
-    setPostTip(null);
-    fetch("/api/post-saisie-tip", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        profile: debrief.profile,
-        volumeScore: debrief.volumeScore,
-        performanceScore: debrief.performanceScore,
-        compositeScore: debrief.compositeScore,
-        watchouts: debrief.watchouts,
-        strengths: debrief.strengths,
-      }),
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { tip: PostSaisieTip | null };
-        if (!cancelled && data.tip) setPostTip(data.tip);
-      })
-      .catch((err) => {
-        console.error("[coaching-debrief] post-saisie-tip fetch failed", err);
-      })
-      .finally(() => {
-        if (!cancelled) setPostTipLoading(false);
-      });
-    return () => {
-      cancelled = true;
+    setLocalPayload(
+      activePlan
+        ? (structuredClone(activePlan.payload) as unknown as Plan30jPayload)
+        : null,
+    );
+  }, [activePlan?.id, activePlan?.updated_at]);
+
+  const currentWeekNumber = useMemo(() => {
+    if (!activePlan) return 1;
+    const created = new Date(activePlan.created_at).getTime();
+    const days = Math.max(0, (now.getTime() - created) / (1000 * 60 * 60 * 24));
+    return Math.min(4, Math.max(1, Math.ceil((days + 1) / 7)));
+  }, [activePlan?.created_at, now]);
+
+  const setActionDone = async (weekNumber: number, actionId: string, done: boolean) => {
+    if (!localPayload || !activePlan) return;
+    const next: Plan30jPayload = {
+      ...localPayload,
+      weeks: localPayload.weeks.map((w) =>
+        w.week_number === weekNumber
+          ? {
+              ...w,
+              actions: w.actions.map((a) =>
+                a.id === actionId ? { ...a, done, status: done ? "done" : "todo" } : a,
+              ),
+            }
+          : w,
+      ),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debrief.profile, debrief.volumeScore, debrief.performanceScore]);
-
-  // Fetch AI reformulation in background — local debrief is shown immediately.
-  // Interrupteur IA : si l'IA n'est pas visible, on garde le débrief local seul.
-  useEffect(() => {
-    if (!isAiVisible() || debrief.profile === "insufficient_data") {
-      setAiText(null);
-      setAiLoading(false);
-      return;
-    }
-    let cancelled = false;
-    generateAIDebrief(debrief, persona).then((result) => {
-      if (!cancelled) {
-        setAiText(result);
-        setAiLoading(false);
-      }
+    setLocalPayload(next);
+    await updateResource(activePlan.id, {
+      payload: next as unknown as Record<string, unknown>,
     });
-    return () => { cancelled = true; };
-  }, [debrief]);
-
-  const handlePlayAudio = () => {
-    const script = aiText?.audioScript || debrief.audioScript;
-    setAudioPlaying(true);
-    // Lecture via la synthèse vocale native du navigateur (Web Speech) —
-    // aucun appel réseau / IA, aucun coût.
-    speakTTS(script, () => setAudioPlaying(false));
   };
 
-  // Use AI text if available, otherwise fall back to local
-  const title = aiText?.title || profileLabel[debrief.profile];
-  const summary = aiText?.overallSummary;
-  const volumeText = aiText?.volumeText;
-  const performanceText = aiText?.performanceText;
-  const strengthsText = aiText?.strengthsText;
-  const watchoutsText = aiText?.watchoutsText;
-  const nextWeekText = aiText?.nextWeekText;
+  const byKey = (key: MonthVolumeItem["key"]) =>
+    monthProgress.items.find((i) => i.key === key)!;
 
-  // Sous-PR Coach-14 : styling du panneau micro-action selon mood.
-  const tipMoodStyle: Record<PostSaisieTip["mood"], string> = {
-    positive:
-      "border-emerald-300 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20",
-    focus:
-      "border-indigo-300 bg-indigo-50/40 dark:border-indigo-900/40 dark:bg-indigo-950/20",
-    concern:
-      "border-orange-300 bg-orange-50/40 dark:border-orange-900/40 dark:bg-orange-950/20",
-  };
-  const tipMoodIconColor: Record<PostSaisieTip["mood"], string> = {
-    positive: "text-emerald-600 dark:text-emerald-400",
-    focus: "text-indigo-600 dark:text-indigo-400",
-    concern: "text-orange-600 dark:text-orange-400",
-  };
+  // Chiffres bruts de la semaine saisie (affichés en petit).
+  const week = results;
+  const weekRaw = [
+    { label: "Contacts", value: week.prospection.contactsTotaux },
+    { label: "Estimations", value: week.vendeurs.estimationsRealisees },
+    { label: "Mandats", value: week.vendeurs.mandatsSignes },
+    { label: "Visites", value: week.acheteurs.nombreVisites },
+    { label: "Offres", value: week.acheteurs.offresRecues },
+    { label: "Compromis", value: week.acheteurs.compromisSignes },
+  ];
+
+  const prevWeek = currentWeekNumber > 1
+    ? localPayload?.weeks.find((w) => w.week_number === currentWeekNumber - 1)
+    : undefined;
+  const curWeek = localPayload?.weeks.find((w) => w.week_number === currentWeekNumber);
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-background overflow-y-auto">
       <div className="mx-auto w-full max-w-lg px-5 py-6 space-y-6">
-
-        {/* Sous-PR Coach-14 : coup d'œil Coach NXT en premier */}
-        {(postTip || postTipLoading) && (
-          <section
-            className={cn(
-              "rounded-xl border p-4",
-              postTip ? tipMoodStyle[postTip.mood] : "border-indigo-200 bg-indigo-50/30",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <Lightbulb
-                className={cn(
-                  "h-4 w-4",
-                  postTip ? tipMoodIconColor[postTip.mood] : "text-indigo-600",
-                )}
-              />
-              <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
-                Le coup d&apos;œil du Coach NXT
-              </p>
-            </div>
-            {postTipLoading && !postTip ? (
-              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Analyse de ta saisie en cours...
-              </div>
-            ) : postTip ? (
-              <div className="mt-2 space-y-2">
-                <p className="text-sm font-medium leading-relaxed text-foreground">
-                  {postTip.microInsight}
-                </p>
-                <p className="rounded-md bg-card px-3 py-2 text-sm font-semibold text-foreground">
-                  👉 {postTip.microAction}
-                </p>
-                <p className="text-xs italic leading-relaxed text-muted-foreground">
-                  {postTip.whyItMatters}
-                </p>
-              </div>
-            ) : null}
-          </section>
-        )}
-
-        {/* Header */}
-        <div className="text-center space-y-2 transition-all duration-300">
-          <p className="text-3xl">{profileEmoji[debrief.profile]}</p>
-          <h1 className="text-xl font-bold text-foreground transition-all duration-300">{title}</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed min-h-[20px] transition-all duration-300">
-            {summary || "Ton débrief coaching de la semaine"}
+        <div className="text-center space-y-1">
+          <p className="text-3xl">📊</p>
+          <h1 className="text-xl font-bold text-foreground">Ton débrief</h1>
+          <p className="text-sm text-muted-foreground">
+            Saisie enregistrée. Voici où tu en es ce mois-ci.
           </p>
-          {debrief.profile !== "insufficient_data" && (
-            <div className="flex justify-center gap-4 pt-1">
-              <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{debrief.volumeScore}</p>
-                <p className="text-[10px] text-muted-foreground">Volume</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{debrief.performanceScore}</p>
-                <p className="text-[10px] text-muted-foreground">Performance</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-primary">{debrief.compositeScore}</p>
-                <p className="text-[10px] text-muted-foreground">Global</p>
-              </div>
-            </div>
-          )}
-          <div className="flex items-center justify-center gap-3">
-            <button type="button" onClick={handlePlayAudio} disabled={audioPlaying}
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50">
-              <Volume2 className="h-3.5 w-3.5" />
-              {audioPlaying ? "Lecture en cours…" : "Écouter le débrief"}
-            </button>
-            {aiLoading && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50">
-                <Sparkles className="h-3 w-3 animate-pulse" />
-              </span>
-            )}
-            {aiText && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-primary/50">
-                <Sparkles className="h-3 w-3" /> IA
-              </span>
-            )}
-          </div>
         </div>
 
-        {/* Volume */}
+        {/* ── Bloc 1 — Ton mois en cours ──────────────────────────────── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Volume</h2>
-            <span className={`text-xs font-medium ${verdictColor[debrief.volumeVerdict]}`}>
-              {verdictLabel[debrief.volumeVerdict]}
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-foreground">
+              <CalendarDays className="h-4 w-4" /> Ton mois en cours
+            </h2>
+            <span className="text-[11px] text-muted-foreground">
+              jour {monthProgress.daysElapsed} / {monthProgress.daysInMonth}
             </span>
           </div>
-          {volumeText && <p className="text-xs text-muted-foreground leading-relaxed animate-in fade-in duration-300">{volumeText}</p>}
-          <div className="grid grid-cols-3 gap-2">
-            {debrief.volumeReview.map((v) => (
-              <div key={v.label} className={`rounded-lg border px-3 py-2 text-center ${v.verdict === "below" ? "border-amber-500/30 bg-amber-500/5" : v.verdict === "above" ? "border-green-500/30 bg-green-500/5" : "border-border bg-card"}`}>
-                <p className="text-lg font-bold text-foreground">{v.actual}</p>
-                <p className="text-[10px] text-muted-foreground">{v.label}</p>
-                <p className={`text-[10px] ${v.verdict === "below" ? "text-amber-400" : v.verdict === "above" ? "text-green-400" : "text-muted-foreground"}`}>
-                  obj. {v.target}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+          <p className="text-xs text-muted-foreground">
+            Réalisé depuis le 1er du mois, face à ton objectif mensuel au prorata des
+            jours écoulés.
+          </p>
 
-        {/* Performance */}
-        {debrief.performanceReview.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Performance</h2>
-            {performanceText && <p className="text-xs text-muted-foreground leading-relaxed animate-in fade-in duration-300">{performanceText}</p>}
-            <div className="space-y-2">
-              {debrief.performanceReview.map((r) => (
-                <div key={r.ratioId} className="rounded-lg border border-border bg-card px-3 py-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {r.status === "ok" ? <CheckCircle className="h-4 w-4 text-green-400" /> : r.status === "warning" ? <AlertTriangle className="h-4 w-4 text-amber-400" /> : <TrendingDown className="h-4 w-4 text-red-400" />}
-                      <span className="text-sm text-foreground">{r.label}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-foreground">{Math.round(r.value * 10) / 10}</span>
-                      <span className="text-xs text-muted-foreground ml-1">/ {r.target}</span>
-                    </div>
-                  </div>
-                  <p className={`text-[10px] mt-1 ${r.confidence === "high" ? "text-muted-foreground/60" : r.confidence === "medium" ? "text-amber-400/60" : "text-amber-400/80"}`}>
-                    {r.confidenceLabel}
-                  </p>
+          <div className="space-y-1.5">
+            <MonthRow item={byKey("contacts")} />
+            <MonthRow item={byKey("estimations")} />
+            <MonthRow item={byKey("mandats")} sub={byKey("exclusifs")} />
+            <MonthRow item={byKey("visites")} />
+            <MonthRow item={byKey("offres")} />
+            <MonthRow item={byKey("compromis")} />
+          </div>
+
+          {monthProgress.usingFallback && (
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Repères au standard Start Academia niveau {monthProgress.fallbackLevelLabel}.{" "}
+              <Link href="/conseiller/diagnostic#objectifs" className="text-primary underline">
+                Fixer mes objectifs
+              </Link>
+            </p>
+          )}
+
+          <details className="text-[11px] text-muted-foreground">
+            <summary className="cursor-pointer select-none">
+              Voir les chiffres de la semaine saisie
+            </summary>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {weekRaw.map((r) => (
+                <div key={r.label} className="rounded-md border border-border bg-card px-2 py-1.5 text-center">
+                  <p className="text-sm font-semibold text-foreground">{r.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{r.label}</p>
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          </details>
+        </section>
 
-        {/* Strengths */}
-        {(debrief.strengths.length > 0 || strengthsText) && (
-          <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Ce que tu fais bien</h2>
-            {strengthsText ? (
-              <p className="text-sm text-green-400">{strengthsText}</p>
+        {/* ── Bloc 2 — Verdict honnête ────────────────────────────────── */}
+        <section
+          className={cn(
+            "rounded-xl border p-4",
+            monthProgress.onTrack
+              ? "border-emerald-500/30 bg-emerald-500/5"
+              : "border-amber-500/30 bg-amber-500/5",
+          )}
+        >
+          <p className="flex items-start gap-2 text-sm font-medium text-foreground">
+            {monthProgress.onTrack ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
             ) : (
-              debrief.strengths.map((s, i) => (
-                <p key={i} className="text-sm text-green-400 flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" /> {s}
-                </p>
-              ))
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             )}
+            {monthProgress.verdict}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tes ratios se lisent sur 3 mois →{" "}
+            <Link href="/conseiller/diagnostic" className="text-primary underline">
+              voir ton tableau de bord
+            </Link>
+          </p>
+        </section>
+
+        {/* ── Bloc 3 — Point de douleur n°1 ───────────────────────────── */}
+        {painPoint && (
+          <section className="space-y-2">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-foreground">
+              <Crosshair className="h-4 w-4" /> Ton point de douleur n° 1
+            </h2>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-base font-bold text-foreground">
+                {painPoint.expertise.label}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Si tu passes ce ratio à{" "}
+                <span className="font-semibold text-foreground">
+                  {formatSeuil(painPoint.expertiseId, painPoint.targetValue)}
+                </span>
+                , c&apos;est environ{" "}
+                <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                  +{formatNumber(painPoint.painScoreV2)} ventes
+                </span>
+                , soit{" "}
+                <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                  +{formatEuro(painPoint.estimatedCaLossEur)} €
+                </span>{" "}
+                sur 3 mois.
+              </p>
+            </div>
           </section>
         )}
 
-        {/* Watchouts */}
-        {(debrief.watchouts.length > 0 || watchoutsText) && (
-          <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Ce que tu dois corriger</h2>
-            {watchoutsText ? (
-              <p className="text-sm text-amber-400">{watchoutsText}</p>
-            ) : (
-              debrief.watchouts.map((w, i) => (
-                <p key={i} className="text-sm text-amber-400 flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {w}
-                </p>
-              ))
-            )}
-          </section>
-        )}
+        {/* ── Bloc 4 — Ton plan cette semaine ─────────────────────────── */}
+        <section className="space-y-2">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-foreground">
+            <Target className="h-4 w-4" /> Ton plan cette semaine
+          </h2>
 
-        {/* Next week plan */}
-        {(debrief.nextWeekPlan.length > 0 || nextWeekText) && (
-          <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Ton plan pour les 7 prochains jours</h2>
-            {nextWeekText ? (
-              <p className="text-sm text-foreground">{nextWeekText}</p>
-            ) : (
-              debrief.nextWeekPlan.map((a, i) => {
-                const Icon = actionIcon[a.type];
-                return (
-                  <div key={i} className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                    <Icon className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <p className="text-sm text-foreground">{a.text}</p>
+          {localPayload && curWeek ? (
+            <div className="space-y-3">
+              {prevWeek && prevWeek.actions.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                    Semaine {prevWeek.week_number} — tu as fait quoi ?
+                  </p>
+                  <div className="space-y-2">
+                    {prevWeek.actions.map((a) => {
+                      const done = a.status === "done" || a.done;
+                      return (
+                        <div key={a.id} className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-foreground">{a.label}</p>
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setActionDone(prevWeek.week_number, a.id, true)}
+                              className={cn(
+                                "rounded-md px-2 py-1 text-[11px] font-semibold transition-colors",
+                                done
+                                  ? "bg-emerald-500 text-white"
+                                  : "border border-border text-muted-foreground hover:bg-muted",
+                              )}
+                            >
+                              Fait
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActionDone(prevWeek.week_number, a.id, false)}
+                              className={cn(
+                                "rounded-md px-2 py-1 text-[11px] font-semibold transition-colors",
+                                !done
+                                  ? "bg-muted-foreground/20 text-foreground"
+                                  : "border border-border text-muted-foreground hover:bg-muted",
+                              )}
+                            >
+                              Pas fait
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })
-            )}
-          </section>
-        )}
+                </div>
+              )}
 
-        {/* Closing */}
-        <div className="text-center space-y-4 pt-4 border-t border-border">
-          <p className="text-base font-medium text-foreground italic">{debrief.closingSentence}</p>
-          <p className="text-xs text-muted-foreground">{debrief.coachingBranding}</p>
-          <Link href={debrief.ctaUrl}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/20 transition-colors">
-            {debrief.ctaLabel}
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <p className="mb-2 text-xs font-semibold text-primary">
+                  Semaine {curWeek.week_number} — {curWeek.focus}
+                </p>
+                <ul className="space-y-1.5">
+                  {curWeek.actions.map((a) => (
+                    <li key={a.id} className="flex items-start gap-2 text-sm text-foreground">
+                      {a.status === "done" || a.done ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      ) : (
+                        <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      {a.label}
+                    </li>
+                  ))}
+                </ul>
+                {curWeek.exercice && (
+                  <p className="mt-2 rounded-md bg-card px-3 py-2 text-xs font-medium text-foreground">
+                    🎯 {curWeek.exercice}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/conseiller/ameliorer"
+              className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              Créer mon plan d&apos;action
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
+        </section>
 
         {/* Close */}
-        <button type="button" onClick={onClose}
-          className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
           Retour au dashboard
         </button>
 
         <div className="h-4" />
       </div>
+    </div>
+  );
+}
+
+// ── Ligne « mois en cours » ──────────────────────────────────────────────────
+
+function MonthRow({ item, sub }: { item: MonthVolumeItem; sub?: MonthVolumeItem }) {
+  const behind = item.rawTarget > 0 && item.pct < 0.9;
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between rounded-lg border px-3 py-2",
+        behind ? "border-amber-500/30 bg-amber-500/5" : "border-border bg-card",
+      )}
+    >
+      <div>
+        <p className="text-sm font-medium text-foreground">{item.label}</p>
+        {sub && (
+          <p className="text-[11px] text-muted-foreground">
+            dont {sub.actual} / {sub.target} exclusifs
+          </p>
+        )}
+      </div>
+      <p className={cn("text-sm font-semibold", behind ? "text-amber-500" : "text-foreground")}>
+        {item.actual} <span className="text-muted-foreground">/ {item.target}</span>
+      </p>
     </div>
   );
 }

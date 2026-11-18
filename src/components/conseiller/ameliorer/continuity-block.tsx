@@ -6,6 +6,7 @@ import { ArrowRight, ListTodo, Sparkles } from "lucide-react";
 import { useImprovementResources } from "@/hooks/use-improvement-resources";
 import { PLAN_30J_DURATION_DAYS } from "@/config/coaching";
 import type { Plan30jPayload } from "@/config/coaching";
+import { isFormationMode } from "@/lib/app-mode";
 
 /** Sous-PR Coach-5 : shape du message d'invitation RAG pré-baked dans payload nxt_coaching. */
 interface RagOffer {
@@ -134,7 +135,8 @@ export function ContinuityBlock() {
   }
 
   // ─── CAS 2 : Plan terminé récent ────────────────────────────────
-  if (lastArchived) {
+  // Mode formation : pas d'offre d'analyse IA / de debrief coaching (masqué).
+  if (lastArchived && !isFormationMode()) {
     // Sous-PR Coach-5 : utilise le message RAG pre-baked si présent.
     const title = ragOffer?.title ?? "Ton analyse est prête";
     const body =

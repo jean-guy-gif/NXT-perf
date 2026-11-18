@@ -71,3 +71,25 @@ export function aggregateLastMonths(
     .sort((a, b) => (a.periodStart < b.periodStart ? 1 : -1));
   return aggregateResults(monthly.slice(0, months));
 }
+
+/**
+ * Agrège toutes les saisies d'un user tombant dans le mois calendaire de
+ * `now` (réalisé « depuis le 1er du mois »). Base du débrief post-saisie.
+ *
+ * Retourne null si userId absent ou aucune saisie ce mois-ci.
+ */
+export function aggregateCurrentMonth(
+  allResults: PeriodResults[],
+  userId: string | undefined,
+  now: Date
+): PeriodResults | null {
+  if (!userId) return null;
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const inMonth = allResults.filter((r) => {
+    if (r.userId !== userId) return false;
+    const d = new Date(r.periodStart);
+    return d.getFullYear() === y && d.getMonth() === m;
+  });
+  return aggregateResults(inMonth);
+}

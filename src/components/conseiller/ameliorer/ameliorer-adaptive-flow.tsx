@@ -9,6 +9,7 @@ import { useDiagnosticResults } from "@/hooks/use-diagnostic-results";
 import { useRatios } from "@/hooks/use-ratios";
 import { useUserContext } from "@/hooks/use-user-context";
 import { resolveThreshold } from "@/lib/diagnostic/resolve-threshold";
+import { isFormationMode } from "@/lib/app-mode";
 import { Plan30Jours } from "@/components/formation/plan-30-jours";
 import { ImprovementCatalogue } from "@/components/dashboard/improvement-catalogue";
 import { ModalitesTuiles } from "./modalites-tuiles";
@@ -165,18 +166,21 @@ export function AmeliorerAdaptiveFlow() {
         {/* 5. Me former — formations contextuelles filtrées sur le levier actif */}
         <FocusedTrainingBlock expertiseId={planMeta.expertiseId} />
 
-        {/* 6. Catalogue complet — replié, secondaire */}
-        <details className="rounded-xl border border-border bg-card">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/40">
-            Catalogue complet
-          </summary>
-          <div className="border-t border-border px-5 py-4">
-            <ImprovementCatalogue
-              ratioId={planMeta.expertiseId}
-              ratioName={RATIO_EXPERTISE[planMeta.expertiseId]?.label}
-            />
-          </div>
-        </details>
+        {/* 6. Catalogue complet — replié, secondaire. Masqué en formation
+            (offres coaching / catalogue aux titres fictifs). */}
+        {!isFormationMode() && (
+          <details className="rounded-xl border border-border bg-card">
+            <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/40">
+              Catalogue complet
+            </summary>
+            <div className="border-t border-border px-5 py-4">
+              <ImprovementCatalogue
+                ratioId={planMeta.expertiseId}
+                ratioName={RATIO_EXPERTISE[planMeta.expertiseId]?.label}
+              />
+            </div>
+          </details>
+        )}
 
         <ChangeLeverConfirm
           open={showChangeLever}
@@ -373,22 +377,24 @@ function NoPlanFlow({
         <FocusedTrainingBlock expertiseId={recommended.expertiseId} />
       )}
 
-      {/* 7. Catalogue complet — replié, secondaire */}
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/40">
-          Catalogue complet
-        </summary>
-        <div className="border-t border-border px-5 py-4">
-          <ImprovementCatalogue
-            ratioId={recommended?.expertiseId ?? undefined}
-            ratioName={
-              recommended
-                ? RATIO_EXPERTISE[recommended.expertiseId]?.label
-                : undefined
-            }
-          />
-        </div>
-      </details>
+      {/* 7. Catalogue complet — replié, secondaire. Masqué en formation. */}
+      {!isFormationMode() && (
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/40">
+            Catalogue complet
+          </summary>
+          <div className="border-t border-border px-5 py-4">
+            <ImprovementCatalogue
+              ratioId={recommended?.expertiseId ?? undefined}
+              ratioName={
+                recommended
+                  ? RATIO_EXPERTISE[recommended.expertiseId]?.label
+                  : undefined
+              }
+            />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
