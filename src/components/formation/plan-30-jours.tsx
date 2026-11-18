@@ -39,6 +39,8 @@ import {
   getTopPractices,
   getFirstAction,
 } from "@/lib/coaching/coach-brain";
+import { planHeaderLine } from "@/lib/plan-30-jours";
+import { resolveThreshold } from "@/lib/diagnostic/resolve-threshold";
 import type { ExpertiseRatioId } from "@/data/ratio-expertise";
 
 type ToastState = { type: "success" | "error" | "info"; message: string } | null;
@@ -349,6 +351,23 @@ export function Plan30Jours() {
     allActions.length > 0 ? (doneCount / allActions.length) * 100 : 0;
   const painExpertise = RATIO_EXPERTISE[localPayload.pain_ratio_id as keyof typeof RATIO_EXPERTISE];
 
+  // En-tête « Tu es à X … · cible à 30 jours : Y » — valeur au moment de la
+  // création (baseline), cible = seuil du niveau. Absent sur les vieux plans
+  // sans baseline → on n'affiche simplement pas la ligne.
+  const planCurrentValue =
+    typeof localPayload.baseline_ratio_value === "number"
+      ? localPayload.baseline_ratio_value
+      : null;
+  const planTargetValue = painExpertise ? resolveThreshold(painExpertise, userCtx) : null;
+  const planHeader =
+    planCurrentValue != null && planTargetValue != null
+      ? planHeaderLine(
+          localPayload.pain_ratio_id as ExpertiseRatioId,
+          planCurrentValue,
+          planTargetValue,
+        )
+      : "";
+
   return (
     <div className="space-y-6">
       {toast && <Toast state={toast} onDismiss={() => setToast(null)} />}
@@ -409,6 +428,13 @@ export function Plan30Jours() {
           expertiseId={localPayload.pain_ratio_id as ExpertiseRatioId}
           label={painExpertise.label}
         />
+      )}
+
+      {/* En-tête du plan : où tu en es vs la cible à 30 jours */}
+      {planHeader && (
+        <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
+          {planHeader}
+        </p>
       )}
 
       {/* Progression globale */}
@@ -609,11 +635,11 @@ function WeekCard({
             ))}
           </ul>
 
-          {/* Objectif chiffré de la semaine (champ `exercice` du plan). */}
+          {/* Geste de la semaine (champ `exercice` du plan). */}
           {week.exercice && (
             <div className="mt-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
-                Objectif de la semaine
+                Geste de la semaine
               </p>
               <p className="mt-1 text-sm text-foreground">{week.exercice}</p>
             </div>

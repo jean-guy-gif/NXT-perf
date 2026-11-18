@@ -323,6 +323,15 @@ export function CoachingDebriefScreen({
                 <p className="mb-2 text-xs font-semibold text-primary">
                   Semaine {curWeek.week_number} — {curWeek.focus}
                 </p>
+                {curWeek.exercice && (
+                  <p className="mb-2 rounded-md bg-card px-3 py-2 text-sm font-medium text-foreground">
+                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      Geste de la semaine
+                    </span>
+                    <br />
+                    {curWeek.exercice}
+                  </p>
+                )}
                 <ul className="space-y-1.5">
                   {curWeek.actions.map((a) => (
                     <li key={a.id} className="flex items-start gap-2 text-sm text-foreground">
@@ -335,11 +344,6 @@ export function CoachingDebriefScreen({
                     </li>
                   ))}
                 </ul>
-                {curWeek.exercice && (
-                  <p className="mt-2 rounded-md bg-card px-3 py-2 text-xs font-medium text-foreground">
-                    🎯 {curWeek.exercice}
-                  </p>
-                )}
               </div>
             </div>
           ) : (

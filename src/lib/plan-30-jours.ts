@@ -12,14 +12,16 @@
 import {
   RATIO_EXPERTISE,
   type ExpertiseRatioId,
-  type RatioExpertise,
 } from "@/data/ratio-expertise";
+import {
+  PLAN_CONTENT,
+  type PlanWeekContent,
+} from "@/data/plan-content";
 import {
   FEASIBILITY_SCORE,
   type PainPointResult,
 } from "@/lib/pain-point-detector";
 import type {
-  Plan30jAction,
   Plan30jPayload,
   Plan30jWeek,
 } from "@/config/coaching";
@@ -41,27 +43,29 @@ export interface GeneratedPlan30j {
 
 /**
  * Génère un plan 30 jours focalisé exclusivement sur le plus gros point de
- * douleur du conseiller, avec un contenu tiré du doc d'expertise et un
- * objectif chiffré propre au levier sur chaque semaine.
+ * douleur du conseiller.
  *
- * Structure narrative (4 semaines), spécifique au levier :
- *   S1 — Comprendre : le diagnostic + les causes fréquentes à vérifier.
- *   S2 — Corriger : première action + 1re bonne pratique + jeu de rôle.
- *   S3 — Appliquer : le reste des bonnes pratiques en 2-3 actions concrètes.
- *   S4 — Mesurer : refaire sa saisie, comparer son ratio, ancrer 2 habitudes.
+ * Pour les 6 leviers, le contenu des semaines 1-3 vient de `PLAN_CONTENT`
+ * (texte écrit POUR le conseiller, validé par Jean-Guy le 18/11/2026) ; la
+ * semaine 4 « Mesurer » est générée. Chaque semaine porte un `geste`
+ * (champ `exercice`) et des `actions`.
  *
- * Tous les textes sont au tutoiement, avec de vrais accents, sans aucune
- * mention de coaching commercial ni de « Exercice NXT ».
+ * Structure (4 semaines) : S1 Comprendre · S2 Corriger · S3 Appliquer ·
+ * S4 Mesurer. Pour les ratios hors des 6 leviers (chemin legacy par aire),
+ * on garde un repli tiré du doc d'expertise.
  */
 export function generatePlan30j(painPoint: PainPointResult): GeneratedPlan30j {
   const expertise = painPoint.expertise;
+  const content = PLAN_CONTENT[painPoint.expertiseId];
 
-  const weeks: Plan30jWeek[] = [
-    buildWeek1Comprendre(painPoint),
-    buildWeek2Corriger(painPoint),
-    buildWeek3Appliquer(painPoint),
-    buildWeek4Mesurer(painPoint),
-  ];
+  const weeks: Plan30jWeek[] = content
+    ? [
+        buildLeverWeek(1, "Comprendre", content.s1),
+        buildLeverWeek(2, "Corriger", content.s2),
+        buildLeverWeek(3, "Appliquer", content.s3),
+        buildWeek4Mesurer(painPoint),
+      ]
+    : buildFallbackWeeks(painPoint);
 
   return {
     painRatioId: painPoint.expertiseId,
@@ -75,190 +79,125 @@ export function generatePlan30j(painPoint: PainPointResult): GeneratedPlan30j {
   };
 }
 
-// ─── Objectif chiffré par levier ────────────────────────────────────────────
+// ─── Entrée / sortie de chaque levier « X pour 1 Y » ────────────────────────
 
-interface LevierObjectif {
+export interface LevierObjectif {
   /** Volume d'entrée du ratio, au pluriel (ex. « visites »). */
   input: string;
-  /** Genre de l'entrée, pour l'accord « prochains / prochaines ». */
-  inputGender: "m" | "f";
   /** Sortie visée, au singulier (ex. « offre »). */
   output: string;
 }
 
-/** Entrée / sortie de chaque levier « X pour 1 Y » (pct_exclusivite à part). */
-const LEVIER_OBJECTIF: Partial<Record<ExpertiseRatioId, LevierObjectif>> = {
-  contacts_estimations: { input: "contacts", inputGender: "m", output: "estimation" },
-  estimations_mandats: { input: "estimations", inputGender: "f", output: "mandat" },
-  acheteurs_tournee: { input: "acheteurs", inputGender: "m", output: "sortie en visite" },
-  visites_offres: { input: "visites", inputGender: "f", output: "offre" },
-  offres_compromis: { input: "offres", inputGender: "f", output: "compromis" },
-};
-
-/** Jeu de rôle d'une phrase, propre à la situation de chaque levier. */
-const JEU_DE_ROLE: Partial<Record<ExpertiseRatioId, string>> = {
-  contacts_estimations:
-    "Jeu de rôle : avec un collègue qui joue un prospect méfiant, déroule ton accroche de prospection jusqu'à décrocher un rendez-vous d'estimation.",
-  estimations_mandats:
-    "Jeu de rôle : rejoue un R2 avec un collègue qui joue le vendeur, de la présentation des services à la signature du mandat, objections comprises.",
-  pct_exclusivite:
-    "Jeu de rôle : défends l'exclusivité face à un collègue qui joue le vendeur qui veut garder plusieurs agences.",
-  acheteurs_tournee:
-    "Jeu de rôle : mène un entretien de découverte avec un collègue qui joue l'acheteur, et amène-le à signer un mandat de recherche.",
-  visites_offres:
-    "Jeu de rôle : rejoue un retour de visite avec un collègue qui joue l'acheteur intéressé, et amène-le à se positionner tout de suite.",
-  offres_compromis:
-    "Jeu de rôle : négocie une offre trop basse en face-à-face avec un collègue qui joue le vendeur, jusqu'à la faire remonter.",
+/** Entrée / sortie de chaque levier (pct_exclusivite traité à part, en %). */
+export const LEVIER_OBJECTIF: Partial<Record<ExpertiseRatioId, LevierObjectif>> = {
+  contacts_estimations: { input: "contacts", output: "estimation" },
+  estimations_mandats: { input: "estimations", output: "mandat" },
+  acheteurs_tournee: { input: "acheteurs", output: "sortie en visite" },
+  visites_offres: { input: "visites", output: "offre" },
+  offres_compromis: { input: "offres", output: "compromis" },
 };
 
 /** Formate un nombre : entier tel quel, sinon une décimale avec virgule FR. */
-function fmtNombre(n: number): string {
+export function fmtNombre(n: number): string {
   const r = Math.round(n * 10) / 10;
   return Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",");
 }
 
-/** Phrase d'objectif chiffré de la semaine, tirée du point de douleur. */
-function objectifChiffre(painPoint: PainPointResult): string {
-  const cur = fmtNombre(painPoint.currentValue);
-  const target = fmtNombre(painPoint.targetValue);
-
-  if (painPoint.expertiseId === "pct_exclusivite") {
-    return `Cible : passer de ${cur}% à ${target}% de mandats exclusifs. Cette semaine, sur tes prochains mandats, vise au moins ${target}% en exclusivité.`;
+/**
+ * En-tête du plan, au-dessus des 4 semaines : où en est le conseiller vs la
+ * cible à 30 jours. Nombres au format français, une décimale maximum.
+ */
+export function planHeaderLine(
+  expertiseId: ExpertiseRatioId,
+  currentValue: number,
+  targetValue: number,
+): string {
+  if (expertiseId === "pct_exclusivite") {
+    return `Tu es à ${fmtNombre(currentValue)} % d'exclusivité · cible à 30 jours : ${fmtNombre(targetValue)} %`;
   }
-
-  const o = LEVIER_OBJECTIF[painPoint.expertiseId];
-  if (!o) {
-    // Repli (ratio hors des 6 leviers, via le chemin legacy par aire).
-    return `Cible : rapprocher ton ratio ${painPoint.expertise.label} de ${target}.`;
-  }
-  const prochains = o.inputGender === "f" ? "prochaines" : "prochains";
-  return `Cible : passer de ${cur} ${o.input} pour 1 ${o.output} à ${target}. Cette semaine, sur tes ${target} ${prochains} ${o.input}, vise 1 ${o.output}.`;
+  const o = LEVIER_OBJECTIF[expertiseId];
+  if (!o) return "";
+  return `Tu es à ${fmtNombre(currentValue)} ${o.input} pour 1 ${o.output} · cible à 30 jours : ${fmtNombre(targetValue)}`;
 }
 
-/** Découpe un texte en phrases (sur . ! ?), nettoyées et non vides. */
-function splitSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+// ─── Semaines 1-3 — contenu validé (PLAN_CONTENT) ───────────────────────────
 
-// ─── Semaine 1 — Comprendre ──────────────────────────────────────────────────
-
-function buildWeek1Comprendre(painPoint: PainPointResult): Plan30jWeek {
-  const e = painPoint.expertise;
-  const actions: Plan30jAction[] = [
-    {
-      id: "w1-action-1",
-      label: `Relis ce constat et repère où tu te reconnais : ${e.diagnosis}`,
-      done: false,
-    },
-    ...e.commonCauses.map((cause, i) => ({
-      id: `w1-cause-${i + 1}`,
-      label: `${cause} → Est-ce que je fais ça ? Vérifie-le sur tes 3 derniers dossiers concernés.`,
+function buildLeverWeek(
+  weekNumber: 1 | 2 | 3,
+  focus: string,
+  week: PlanWeekContent,
+): Plan30jWeek {
+  return {
+    week_number: weekNumber,
+    focus,
+    actions: week.actions.map((label, i) => ({
+      id: `w${weekNumber}-action-${i + 1}`,
+      label,
       done: false,
     })),
-  ];
-
-  return {
-    week_number: 1,
-    focus: `Comprendre ce qui coince sur ${e.label}`,
-    actions,
-    exercice: objectifChiffre(painPoint),
+    // Le geste de la semaine s'affiche sous « Geste de la semaine ».
+    exercice: week.geste,
   };
 }
 
-// ─── Semaine 2 — Corriger ────────────────────────────────────────────────────
-
-function buildWeek2Corriger(painPoint: PainPointResult): Plan30jWeek {
-  const e = painPoint.expertise;
-  const firstBestPractice = splitSentences(e.bestPractices)[0] ?? e.bestPractices;
-
-  const actions: Plan30jAction[] = [
-    {
-      id: "w2-action-1",
-      label: `Première action : ${e.firstAction}`,
-      done: false,
-    },
-    {
-      id: "w2-action-2",
-      label: `Inspire-toi des meilleurs : ${firstBestPractice}`,
-      done: false,
-    },
-    {
-      id: "w2-action-3",
-      label:
-        JEU_DE_ROLE[painPoint.expertiseId] ??
-        `Jeu de rôle : rejoue une situation de ${e.label} avec un collègue.`,
-      done: false,
-    },
-  ];
-
-  return {
-    week_number: 2,
-    focus: `Corriger tes premiers gestes sur ${e.label}`,
-    actions,
-    exercice: objectifChiffre(painPoint),
-  };
-}
-
-// ─── Semaine 3 — Appliquer ───────────────────────────────────────────────────
-
-function buildWeek3Appliquer(painPoint: PainPointResult): Plan30jWeek {
-  const e = painPoint.expertise;
-  // Le reste des bonnes pratiques (la 1re phrase est déjà vue en S2), découpé
-  // en 2 ou 3 actions concrètes propres au levier.
-  const reste = splitSentences(e.bestPractices).slice(1).slice(0, 3);
-
-  const actions: Plan30jAction[] = reste.map((phrase, i) => ({
-    id: `w3-action-${i + 1}`,
-    label: `Mets en pratique : ${phrase}`,
-    done: false,
-  }));
-
-  if (actions.length === 0) {
-    // Repli si les bonnes pratiques tiennent en une seule phrase.
-    actions.push({
-      id: "w3-action-1",
-      label: `Applique la méthode des meilleurs sur tes dossiers réels : ${e.bestPractices}`,
-      done: false,
-    });
-  }
-
-  return {
-    week_number: 3,
-    focus: "Appliquer sur le terrain",
-    actions,
-    exercice: objectifChiffre(painPoint),
-  };
-}
-
-// ─── Semaine 4 — Mesurer ─────────────────────────────────────────────────────
+// ─── Semaine 4 — Mesurer (générée, identique pour tous les leviers) ─────────
 
 function buildWeek4Mesurer(painPoint: PainPointResult): Plan30jWeek {
-  const e = painPoint.expertise;
   const cur = fmtNombre(painPoint.currentValue);
-  const target = fmtNombre(painPoint.targetValue);
 
-  const actions: Plan30jAction[] = [
-    {
-      id: "w4-action-1",
-      label: `Fais ta saisie et compare ton ratio ${e.label} sur ton tableau de bord : tu étais à ${cur}, cible ${target}.`,
-      done: false,
-    },
-    {
-      id: "w4-action-2",
-      label: "Choisis les 2 habitudes que tu gardes définitivement.",
-      done: false,
-    },
-  ];
+  let saisie: string;
+  if (painPoint.expertiseId === "pct_exclusivite") {
+    saisie = `Fais ta saisie : quel % de mandats exclusifs ce mois-ci ? Tu étais à ${cur} %.`;
+  } else {
+    const o = LEVIER_OBJECTIF[painPoint.expertiseId];
+    saisie = o
+      ? `Fais ta saisie : combien de ${o.input} pour 1 ${o.output} ce mois-ci ? Tu étais à ${cur}.`
+      : `Fais ta saisie et compare ton ratio ${painPoint.expertise.label} ce mois-ci. Tu étais à ${cur}.`;
+  }
 
   return {
     week_number: 4,
-    focus: "Mesurer et ancrer tes acquis",
-    actions,
-    exercice: objectifChiffre(painPoint),
+    focus: "Mesurer",
+    actions: [
+      { id: "w4-action-1", label: saisie, done: false },
+      { id: "w4-action-2", label: "Choisis les 2 gestes que tu gardes.", done: false },
+    ],
+    exercice: "Fais le point sur ton mois.",
   };
+}
+
+// ─── Repli (ratios hors des 6 leviers, via le chemin legacy par aire) ───────
+
+function buildFallbackWeeks(painPoint: PainPointResult): Plan30jWeek[] {
+  const e = painPoint.expertise;
+  const geste = `Repère où tu te reconnais sur ${e.label}.`;
+
+  const s1: Plan30jWeek = {
+    week_number: 1,
+    focus: "Comprendre",
+    actions: e.commonCauses.map((cause, i) => ({
+      id: `w1-action-${i + 1}`,
+      label: `${cause} → Est-ce que je fais ça ?`,
+      done: false,
+    })),
+    exercice: geste,
+  };
+
+  const s2: Plan30jWeek = {
+    week_number: 2,
+    focus: "Corriger",
+    actions: [{ id: "w2-action-1", label: e.firstAction, done: false }],
+    exercice: geste,
+  };
+
+  const s3: Plan30jWeek = {
+    week_number: 3,
+    focus: "Appliquer",
+    actions: [{ id: "w3-action-1", label: e.bestPractices, done: false }],
+    exercice: geste,
+  };
+
+  return [s1, s2, s3, buildWeek4Mesurer(painPoint)];
 }
 
 // Conversion vers payload JSONB pour stockage Supabase
